@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Users, User as UserIcon, PenTool, Home, Palette, Briefcase, Network, Truck } from 'lucide-react';
+import { Users, User as UserIcon, PenTool, Home, Palette, Briefcase, Network, Truck, ShieldCheck } from 'lucide-react';
 import { User } from '../../types';
 
 interface AdminMenuProps {
@@ -34,6 +34,14 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({ currentUser, onTabChange }
       icon: <Truck className="w-6 h-6 text-blue-600" />,
       colorClass: 'bg-blue-50 border-blue-100 hover:border-blue-300 shadow-sm',
       adminOnly: true
+    },
+    {
+      id: '2fa',
+      title: 'Autenticador 2FA',
+      description: 'Segurança em duas etapas',
+      icon: <ShieldCheck className="w-6 h-6 text-emerald-600" />,
+      colorClass: 'bg-emerald-50 border-emerald-100 hover:border-emerald-300 shadow-sm',
+      adminOnly: false // All users should be able to configure their own 2FA
     },
 
     {

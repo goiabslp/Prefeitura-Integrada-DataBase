@@ -3,7 +3,7 @@ import {
   X, ArrowLeft, Loader2, Check, Save
 } from 'lucide-react';
 import { AppState, User, Signature, BlockType, Person, Sector, Job } from '../types';
-import { AdminMenu } from './forms/AdminMenu';
+
 import { DesignForm } from './forms/DesignForm';
 import { UIForm } from './forms/UIForm';
 import { OficioForm } from './forms/OficioForm';
@@ -183,9 +183,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50/50">
-          {mode === 'admin' && !activeTab && (
-            <AdminMenu currentUser={currentUser} onTabChange={onTabChange} />
-          )}
+
 
           {activeTab === 'design' && (
             <>

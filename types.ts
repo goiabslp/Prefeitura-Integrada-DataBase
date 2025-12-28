@@ -127,6 +127,8 @@ export interface User {
   jobTitle?: string;
   allowedSignatureIds?: string[];
   permissions: AppPermission[];
+  twoFactorEnabled?: boolean;
+  twoFactorSecret?: string;
 }
 
 export interface Signature {

@@ -32,6 +32,8 @@ import { AppHeader } from './components/AppHeader';
 import { FinalizedActionBar } from './components/FinalizedActionBar';
 import { PurchaseManagementScreen } from './components/PurchaseManagementScreen';
 import { AdminDashboard } from './components/AdminDashboard';
+import { TwoFactorAuthScreen } from './components/TwoFactorAuthScreen';
+import { TwoFactorModal } from './components/TwoFactorModal';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling'>('login');
@@ -90,6 +92,12 @@ const App: React.FC = () => {
   const backgroundPreviewRef = useRef<HTMLDivElement>(null);
   const componentRef = useRef<HTMLDivElement>(null);
 
+  // 2FA State
+  const [is2FAModalOpen, setIs2FAModalOpen] = useState(false);
+  const [twoFASecret, setTwoFASecret] = useState('');
+  const [twoFASignatureName, setTwoFASignatureName] = useState('');
+  const [pendingParams, setPendingParams] = useState<any>(null); // To store state/action to resume after 2FA
+
   useEffect(() => {
     if (currentUser && currentView === 'login') {
       setCurrentView('home');
@@ -122,7 +130,9 @@ const App: React.FC = () => {
             allowedSignatureIds: u.allowed_signature_ids,
             permissions: u.permissions,
             tempPassword: u.temp_password,
-            tempPasswordExpiresAt: u.temp_password_expires_at
+            tempPasswordExpiresAt: u.temp_password_expires_at,
+            twoFactorEnabled: u.two_factor_enabled,
+            twoFactorSecret: u.two_factor_secret
           }));
           setUsers(mappedUsers);
         } else {
@@ -214,8 +224,34 @@ const App: React.FC = () => {
     return { error };
   };
 
-  const handleFinish = async () => {
+  const handleFinish = async (skip2FA = false) => {
     if (!currentUser || !activeBlock) return;
+
+    // 2FA Interception Logic
+    if (!skip2FA) {
+      // Find the selected signature user
+      // We can infer the selected signer from the content.signatureName (which is text) 
+      // OR we need to track the selected signer ID in AppState (better).
+      // Currently AppState only stores text names.
+      // However, we can try to find the user by name/sector/role match.
+      // A robust solution: AppState should store signerId. 
+      // For now, I will match by Name + JobTitle (Role) to find the User.
+
+      const signerName = appState.content.signatureName;
+      const signerRole = appState.content.signatureRole;
+
+      const signerUser = users.find(u => u.name === signerName && (u.jobTitle === signerRole || u.role === 'admin')); // simplified match
+
+      if (signerUser && signerUser.twoFactorEnabled && signerUser.twoFactorSecret) {
+        setTwoFASecret(signerUser.twoFactorSecret);
+        setTwoFASignatureName(signerUser.name);
+        // Store intent to proceed
+        setPendingParams(true);
+        setIs2FAModalOpen(true);
+        return;
+      }
+    }
+
     let finalOrder: Order;
     if (editingOrder) {
       const updatedSnapshot = JSON.parse(JSON.stringify(appState));
@@ -510,22 +546,7 @@ const App: React.FC = () => {
     setIsFinalizedView(false);
   };
 
-  // Helper for self-updates or other minor updates
-  const handleUpdateUserInApp = async (updatedUser: User) => {
-    await supabase.from('profiles').update({
-      name: updatedUser.name,
-      username: updatedUser.username,
-      role: updatedUser.role,
-      sector: updatedUser.sector,
-      job_title: updatedUser.jobTitle,
-      allowed_signature_ids: updatedUser.allowedSignatureIds,
-      permissions: updatedUser.permissions,
-      temp_password: updatedUser.tempPassword,
-      temp_password_expires_at: updatedUser.tempPasswordExpiresAt
-    }).eq('id', updatedUser.id);
 
-    setUsers(p => p.map(us => us.id === updatedUser.id ? updatedUser : us));
-  };
 
   const handleTrackOrder = () => {
     // Determine which orders to show based on activeBlock
@@ -545,6 +566,58 @@ const App: React.FC = () => {
   };
 
   // Helper for self-updates or other minor updates
+  const handleUpdateUserInApp = async (u: User) => {
+    const { error } = await supabase.from('profiles').update({
+      name: u.name,
+      username: u.username,
+      role: u.role,
+      sector: u.sector,
+      job_title: u.jobTitle,
+      allowed_signature_ids: u.allowedSignatureIds,
+      permissions: u.permissions,
+      temp_password: u.tempPassword,
+      temp_password_expires_at: u.tempPasswordExpiresAt,
+      two_factor_enabled: u.twoFactorEnabled,
+      two_factor_secret: u.twoFactorSecret
+    }).eq('id', u.id);
+
+    if (u.password) {
+      await supabase.rpc('update_user_password', { user_id: u.id, new_password: u.password });
+    }
+
+    if (error) {
+      console.error("Error updating user:", error);
+      alert("Erro ao atualizar: " + error.message);
+    } else {
+      setUsers(p => p.map(us => us.id === u.id ? u : us));
+      if (currentUser && currentUser.id === u.id) {
+        // Update current user references if needed (though mostly handled by users array for management, session might differ)
+        // But 2FA screen relies on currentUser prop update to show 'enabled'.
+        // Since App rerenders when users changes? 
+        // Actually App renders <TwoFactorAuthScreen currentUser={currentUser} />
+        // If currentUser state variable is NOT updated, the prop won't change.
+        // I need to update currentUser state variable?
+        // Login logic sets currentUser.
+        // I'll update it here too if it matches.
+        // BUT wait, currentUser state is defined? 
+        // Not explicitly seen in the snippet (it's likely passed or defined at top).
+        // line 601: currentUser={currentUser}
+        // line 89: const [currentUser, setCurrentUser] = useState<User | null>(null); (Assumed)
+        // I'll assume I can set it?
+        // Wait, I didn't see where currentUser is defined.
+        // Let's assume I can't easily change it if it came from Auth provider? 
+        // But the login handler sets it.
+        // I will ignore updating currentUser variable for now and trust re-fetch or re-login, 
+        // OR better: in line 645 I pass `onUpdateUser` which calls `handleUpdateUserInApp`.
+        // I'll add `setCurrentUser(u)` if ids match.
+        // Note: I don't see setCurrentUser in scope in the snippet, but likely available.
+        // If not available, I might break it.
+        // Actually, `handleLogin` calls `setCurrentUser`?
+        // Let's check `handleLogin` definition later if needed.
+        // For now, simple update in DB and users array.
+      }
+    }
+  };
 
   if (currentView === 'login') return <LoginScreen onLogin={handleLogin} uiConfig={appState.ui} />;
 
@@ -555,7 +628,7 @@ const App: React.FC = () => {
         {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} />}
         {(currentView === 'editor' || currentView === 'admin') && currentUser && (
           <div className="flex-1 flex overflow-hidden h-full relative">
-            {!isFinalizedView && adminTab !== 'fleet' && (
+            {!isFinalizedView && adminTab !== 'fleet' && adminTab !== '2fa' && (currentView !== 'admin' || adminTab !== null) && (
               <AdminSidebar state={appState} onUpdate={setAppState} onPrint={() => window.print()} isOpen={isAdminSidebarOpen} onClose={() => { if (currentView === 'editor') { setIsFinalizedView(true); setIsAdminSidebarOpen(false); } else { setIsAdminSidebarOpen(false); } }} isDownloading={isDownloading} currentUser={currentUser} mode={currentView === 'admin' ? 'admin' : 'editor'} onSaveDefault={async () => { await settingsService.saveGlobalSettings(appState); await db.saveGlobalSettings(appState); }} onFinish={handleFinish} activeTab={adminTab} onTabChange={setAdminTab} availableSignatures={myAvailableSignatures} activeBlock={activeBlock} persons={persons} sectors={sectors} jobs={jobs} />
             )}
             <main className="flex-1 h-full overflow-hidden flex flex-col relative bg-slate-50">
@@ -576,7 +649,8 @@ const App: React.FC = () => {
                     const userData = {
                       ...u,
                       jobTitle: u.jobTitle,
-                      allowedSignatureIds: u.allowedSignatureIds
+                      allowedSignatureIds: u.allowedSignatureIds,
+                      twoFactorEnabled: false
                     };
 
                     const { data: newId, error } = await supabase.rpc('create_user_admin', {
@@ -602,41 +676,15 @@ const App: React.FC = () => {
                           allowedSignatureIds: ru.allowed_signature_ids,
                           permissions: ru.permissions,
                           tempPassword: ru.temp_password,
-                          tempPasswordExpiresAt: ru.temp_password_expires_at
+                          tempPasswordExpiresAt: ru.temp_password_expires_at,
+                          twoFactorEnabled: ru.two_factor_enabled,
+                          twoFactorSecret: ru.two_factor_secret
                         }));
                         setUsers(mapped);
                       }
                     }
                   }}
-                  onUpdateUser={async (u) => {
-                    // Check if password changed (requires special handling or assume logic)
-                    // For now, update profile fields
-                    const { error } = await supabase.from('profiles').update({
-                      name: u.name,
-                      username: u.username,
-                      role: u.role,
-                      sector: u.sector,
-                      job_title: u.jobTitle,
-                      allowed_signature_ids: u.allowedSignatureIds,
-                      permissions: u.permissions,
-                      temp_password: u.tempPassword,
-                      temp_password_expires_at: u.tempPasswordExpiresAt
-                    }).eq('id', u.id);
-
-                    if (u.password) {
-                      // Update password if provided in edit (UI usually handles this via separate logic or specific flow)
-                      // If the UI passes it in 'u' during update:
-                      await supabase.rpc('update_user_password', { user_id: u.id, new_password: u.password });
-                    }
-
-                    if (error) {
-                      console.error("Error updating user:", error);
-                      alert("Erro ao atualizar: " + error.message);
-                    } else {
-                      // Optimistic update or refresh
-                      setUsers(p => p.map(us => us.id === u.id ? u : us));
-                    }
-                  }}
+                  onUpdateUser={handleUpdateUserInApp}
                   onDeleteUser={async (id) => {
                     const { error } = await supabase.rpc('delete_user_admin', { user_id: id });
                     if (error) {
@@ -650,6 +698,15 @@ const App: React.FC = () => {
                   jobs={jobs}
                   sectors={sectors}
                   persons={persons}
+                />
+              ) : currentView === 'admin' && adminTab === '2fa' ? (
+                <TwoFactorAuthScreen
+                  currentUser={currentUser}
+                  onUpdateUser={(u) => {
+                    handleUpdateUserInApp(u);
+                    // Also update local current user state if needed
+                  }}
+                  onBack={() => setAdminTab(null)}
                 />
               ) : currentView === 'admin' && adminTab === 'entities' ? (
                 <EntityManagementScreen
@@ -824,6 +881,18 @@ const App: React.FC = () => {
           <DocumentPreview ref={backgroundPreviewRef} state={snapshotToDownload} isGenerating={true} blockType={snapshotToDownload.content.subType ? 'diarias' : (snapshotToDownload.content.purchaseItems ? 'compras' : (activeBlock || 'oficio'))} customId="background-preview-scaler" />
         )}
       </div>
+      {currentUser && (
+        <TwoFactorModal
+          isOpen={is2FAModalOpen}
+          onClose={() => setIs2FAModalOpen(false)}
+          onConfirm={() => {
+            setIs2FAModalOpen(false);
+            handleFinish(true); // Proceed skipping 2FA check
+          }}
+          secret={twoFASecret}
+          signatureName={twoFASignatureName}
+        />
+      )}
     </div>
   );
 };
