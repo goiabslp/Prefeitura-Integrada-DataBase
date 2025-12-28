@@ -8,6 +8,7 @@ import { INITIAL_STATE, DEFAULT_USERS, MOCK_SIGNATURES, DEFAULT_SECTORS, DEFAULT
 import * as db from './services/dbService';
 import { supabase } from './services/supabaseClient';
 import * as entityService from './services/entityService';
+import * as settingsService from './services/settingsService';
 import { Send, CheckCircle2, X } from 'lucide-react';
 
 // Components
@@ -35,7 +36,7 @@ const App: React.FC = () => {
   const [activeBlock, setActiveBlock] = useState<BlockType | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<User[]>(DEFAULT_USERS);
-  const [signatures, setSignatures] = useState<Signature[]>(MOCK_SIGNATURES);
+  const [signatures, setSignatures] = useState<Signature[]>([]);
   const [globalCounter, setGlobalCounter] = useState(0);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
@@ -91,10 +92,47 @@ const App: React.FC = () => {
             // Optional: could insert default users here if empty
           }
         }
-        const savedSigs = await db.getAllSignatures();
+        const savedSigs = await entityService.getSignatures();
         if (savedSigs.length > 0) setSignatures(savedSigs);
-        const savedSettings = await db.getGlobalSettings();
-        if (savedSettings) setAppState(savedSettings);
+
+        // Fetch Global Settings (Try Supabase first, fallback to local)
+        const remoteSettings = await settingsService.getGlobalSettings();
+        if (remoteSettings) {
+          setAppState(prev => ({
+            ...prev,
+            branding: {
+              ...INITIAL_STATE.branding,
+              ...remoteSettings.branding,
+              watermark: {
+                ...INITIAL_STATE.branding.watermark,
+                ...(remoteSettings.branding?.watermark || {})
+              }
+            },
+            document: {
+              ...INITIAL_STATE.document,
+              ...remoteSettings.document,
+              titleStyle: {
+                ...INITIAL_STATE.document.titleStyle,
+                ...(remoteSettings.document?.titleStyle || {})
+              },
+              leftBlockStyle: {
+                ...INITIAL_STATE.document.leftBlockStyle,
+                ...(remoteSettings.document?.leftBlockStyle || {})
+              },
+              rightBlockStyle: {
+                ...INITIAL_STATE.document.rightBlockStyle,
+                ...(remoteSettings.document?.rightBlockStyle || {})
+              }
+            },
+            ui: {
+              ...INITIAL_STATE.ui,
+              ...remoteSettings.ui
+            }
+          }));
+        } else {
+          const savedSettings = await db.getGlobalSettings();
+          if (savedSettings) setAppState(savedSettings);
+        }
 
         // Fetch entities from Supabase
         const savedPersons = await entityService.getPersons();
@@ -107,61 +145,14 @@ const App: React.FC = () => {
         setJobs(savedJobs);
 
         // MARCAS INICIAIS
-        const savedBrands = await db.getAllBrands();
-        if (savedBrands.length === 0) {
-          const defaultLeves = ['FIAT', 'TOYOTA', 'VOLKSWAGEN', 'FORD', 'CHEVROLET', 'HONDA', 'HYUNDAI', 'RENAULT', 'NISSAN', 'PEUGEOT', 'CITROËN', 'BMW', 'JEEP', 'RAM', 'BYD', 'GWM'];
-          const defaultPesados = ['CATERPILLAR', 'KOMATSU', 'VOLVO CE', 'JOHN DEERE', 'CASE', 'NEW HOLLAND', 'JCB', 'XCMG'];
-          const initialBrands: VehicleBrand[] = [
-            ...defaultLeves.map(n => ({ id: `br-${Date.now()}-${Math.random()}`, name: n, category: 'leve' as const })),
-            ...defaultPesados.map(n => ({ id: `br-${Date.now()}-${Math.random()}`, name: n, category: 'pesado' as const }))
-          ];
-          for (const b of initialBrands) await db.saveBrand(b);
-          setBrands(initialBrands);
-        } else {
-          setBrands(savedBrands);
-        }
+        const savedBrands = await entityService.getBrands();
+        setBrands(savedBrands);
+        // Note: We might want to seed initial brands if empty, similar to local DB, pushing to Supabase.
+        // For now, removing the auto-seed on client to avoid spamming the DB on every refresh if fetch fails or is empty.
 
         // VEÍCULOS INICIAIS
-        const savedVehicles = await db.getAllVehicles();
-        if (savedVehicles.length === 0) {
-          const initialVehicles: Vehicle[] = [
-            {
-              id: 'v-cronos-01',
-              type: 'leve',
-              model: 'CRONOS',
-              plate: 'RVY7C56',
-              brand: 'FIAT',
-              year: '2022',
-              color: 'BRANCA',
-              renavam: '01332550344',
-              chassis: '8AP359AFDNU226571',
-              sectorId: 'sec5',
-              status: 'operacional',
-              maintenanceStatus: 'em_dia',
-              fuelTypes: ['ALCOOL', 'GASOLINA']
-            },
-            {
-              id: 'v-toro-01',
-              type: 'leve',
-              model: 'TORO',
-              plate: 'SIP4E08',
-              brand: 'FIAT',
-              year: '2023',
-              color: 'BRANCA',
-              renavam: '01357061495',
-              chassis: '9882261ZPPKF34145',
-              sectorId: 'sec12',
-              responsiblePersonId: 'p3',
-              status: 'operacional',
-              maintenanceStatus: 'em_dia',
-              fuelTypes: ['DIESEL']
-            }
-          ];
-          for (const v of initialVehicles) await db.saveVehicle(v);
-          setVehicles(initialVehicles);
-        } else {
-          setVehicles(savedVehicles);
-        }
+        const savedVehicles = await entityService.getVehicles();
+        setVehicles(savedVehicles);
 
         const savedSchedules = await db.getAllSchedules();
         setSchedules(savedSchedules);
@@ -396,7 +387,7 @@ const App: React.FC = () => {
         {(currentView === 'editor' || currentView === 'admin') && currentUser && (
           <div className="flex-1 flex overflow-hidden h-full relative">
             {!isFinalizedView && adminTab !== 'fleet' && (
-              <AdminSidebar state={appState} onUpdate={setAppState} onPrint={() => window.print()} isOpen={isAdminSidebarOpen} onClose={() => { if (currentView === 'editor') { setIsFinalizedView(true); setIsAdminSidebarOpen(false); } else { setIsAdminSidebarOpen(false); } }} isDownloading={isDownloading} currentUser={currentUser} mode={currentView === 'admin' ? 'admin' : 'editor'} onSaveDefault={() => db.saveGlobalSettings(appState)} onFinish={handleFinish} activeTab={adminTab} onTabChange={setAdminTab} availableSignatures={signatures} activeBlock={activeBlock} persons={persons} sectors={sectors} jobs={jobs} />
+              <AdminSidebar state={appState} onUpdate={setAppState} onPrint={() => window.print()} isOpen={isAdminSidebarOpen} onClose={() => { if (currentView === 'editor') { setIsFinalizedView(true); setIsAdminSidebarOpen(false); } else { setIsAdminSidebarOpen(false); } }} isDownloading={isDownloading} currentUser={currentUser} mode={currentView === 'admin' ? 'admin' : 'editor'} onSaveDefault={async () => { await settingsService.saveGlobalSettings(appState); await db.saveGlobalSettings(appState); }} onFinish={handleFinish} activeTab={adminTab} onTabChange={setAdminTab} availableSignatures={signatures} activeBlock={activeBlock} persons={persons} sectors={sectors} jobs={jobs} />
             )}
             <main className="flex-1 h-full overflow-hidden flex flex-col relative bg-slate-50">
               {currentView === 'admin' && adminTab === null ? (
@@ -546,9 +537,57 @@ const App: React.FC = () => {
                   }}
                 />
               ) : currentView === 'admin' && adminTab === 'fleet' ? (
-                <FleetManagementScreen vehicles={vehicles} sectors={sectors} persons={persons} jobs={jobs} brands={brands} onAddVehicle={v => { db.saveVehicle(v); setVehicles(p => [...p, v]); }} onUpdateVehicle={v => { db.saveVehicle(v); setVehicles(p => p.map(vi => vi.id === v.id ? v : vi)); }} onDeleteVehicle={id => { db.deleteVehicle(id); setVehicles(p => p.filter(v => v.id !== id)); }} onAddBrand={b => { db.saveBrand(b); setBrands(p => [...p, b]); }} onBack={() => setAdminTab(null)} />
+                <FleetManagementScreen
+                  vehicles={vehicles}
+                  sectors={sectors}
+                  persons={persons}
+                  jobs={jobs}
+                  brands={brands}
+                  onAddVehicle={async v => {
+                    const newV = await entityService.createVehicle(v);
+                    if (newV) setVehicles(p => [...p, newV]);
+                    else alert("Erro ao criar veículo");
+                  }}
+                  onUpdateVehicle={async v => {
+                    const updated = await entityService.updateVehicle(v);
+                    if (updated) setVehicles(p => p.map(vi => vi.id === v.id ? updated : vi));
+                    else alert("Erro ao atualizar veículo");
+                  }}
+                  onDeleteVehicle={async id => {
+                    const success = await entityService.deleteVehicle(id);
+                    if (success) setVehicles(p => p.filter(v => v.id !== id));
+                    else alert("Erro ao deletar veículo");
+                  }}
+                  onAddBrand={async b => {
+                    const newB = await entityService.createBrand(b);
+                    if (newB) setBrands(p => [...p, newB]);
+                    else alert("Erro ao criar marca");
+                  }}
+                  onBack={() => setAdminTab(null)}
+                />
               ) : currentView === 'admin' && adminTab === 'signatures' ? (
-                <SignatureManagementScreen signatures={signatures} currentUser={currentUser} onAddSignature={s => { db.saveSignature(s); setSignatures(p => [...p, s]); }} onUpdateSignature={s => { db.saveSignature(s); setSignatures(p => p.map(si => si.id === s.id ? s : si)); }} onDeleteSignature={id => { db.deleteSignature(id); setSignatures(p => p.filter(s => s.id !== id)); }} />
+                <SignatureManagementScreen
+                  signatures={signatures}
+                  persons={persons}
+                  sectors={sectors}
+                  jobs={jobs}
+                  currentUser={currentUser}
+                  onAddSignature={async s => {
+                    const newSig = await entityService.createSignature(s);
+                    if (newSig) setSignatures(p => [...p, newSig]);
+                    else alert('Erro ao criar assinatura');
+                  }}
+                  onUpdateSignature={async s => {
+                    const updated = await entityService.updateSignature(s);
+                    if (updated) setSignatures(p => p.map(si => si.id === s.id ? updated : si));
+                    else alert('Erro ao atualizar assinatura');
+                  }}
+                  onDeleteSignature={async id => {
+                    const success = await entityService.deleteSignature(id);
+                    if (success) setSignatures(p => p.filter(s => s.id !== id));
+                    else alert('Erro ao deletar assinatura');
+                  }}
+                />
               ) : currentView === 'admin' && adminTab === 'ui' ? (
                 <UIPreviewScreen ui={appState.ui} />
               ) : currentView === 'admin' && adminTab === 'design' ? (

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { 
-  X, ArrowLeft, Loader2, Check, Save 
+import {
+  X, ArrowLeft, Loader2, Check, Save
 } from 'lucide-react';
 import { AppState, User, Signature, BlockType, Person, Sector, Job } from '../types';
 import { AdminMenu } from './forms/AdminMenu';
@@ -20,7 +20,7 @@ interface AdminSidebarProps {
   isDownloading: boolean;
   currentUser: User;
   mode: 'admin' | 'editor';
-  onSaveDefault?: () => void;
+  onSaveDefault?: () => Promise<void> | void;
   onFinish?: () => void;
   activeTab: string | null;
   onTabChange: (tab: any) => void;
@@ -55,7 +55,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
   const { branding, document: docConfig, content, ui } = state;
 
-  const allowedSignatures = availableSignatures.filter(sig => 
+  const allowedSignatures = availableSignatures.filter(sig =>
     currentUser.role === 'admin' || (currentUser.allowedSignatureIds || []).includes(sig.id)
   );
 
@@ -83,91 +83,91 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   };
 
   const handleFinishWithAnimation = async () => {
-      if (activeBlock === 'diarias' && !content.subType) {
-          alert("Por favor, selecione se a requisição é do tipo Diária ou Custeio antes de finalizar.");
-          return;
-      }
-      setFinishStatus('loading');
-      await new Promise(resolve => setTimeout(resolve, 800));
-      if (onFinish) onFinish();
-      setFinishStatus('success');
-      setTimeout(() => {
-          setFinishStatus('idle');
-          onClose();
-      }, 1000);
+    if (activeBlock === 'diarias' && !content.subType) {
+      alert("Por favor, selecione se a requisição é do tipo Diária ou Custeio antes de finalizar.");
+      return;
+    }
+    setFinishStatus('loading');
+    await new Promise(resolve => setTimeout(resolve, 800));
+    if (onFinish) onFinish();
+    setFinishStatus('success');
+    setTimeout(() => {
+      setFinishStatus('idle');
+      onClose();
+    }, 1000);
   };
 
   const handleSaveDefaultWithAnimation = async () => {
-      if (!onSaveDefault) return;
-      setGlobalSaveStatus('loading');
-      await new Promise(resolve => setTimeout(resolve, 800));
-      onSaveDefault();
-      setGlobalSaveStatus('success');
-      setTimeout(() => setGlobalSaveStatus('idle'), 2000);
+    if (!onSaveDefault) return;
+    setGlobalSaveStatus('loading');
+    await new Promise(resolve => setTimeout(resolve, 800));
+    onSaveDefault();
+    setGlobalSaveStatus('success');
+    setTimeout(() => setGlobalSaveStatus('idle'), 2000);
   };
 
   const renderSectionHeader = (title: string, subtitle?: string) => (
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-         {mode === 'admin' && (
-             <button onClick={() => onTabChange(null)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-500 transition-colors" title="Voltar ao Menu">
-                <ArrowLeft className="w-5 h-5" />
-             </button>
-         )}
-         <div>
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">{title}</h2>
-            {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
-         </div>
+    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+      {mode === 'admin' && (
+        <button onClick={() => onTabChange(null)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-500 transition-colors" title="Voltar ao Menu">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+      )}
+      <div>
+        <h2 className="text-xl font-black text-slate-900 tracking-tight">{title}</h2>
+        {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
       </div>
+    </div>
   );
 
   const renderContentForm = () => {
-      switch (activeBlock) {
-          case 'oficio':
-              return (
-                  <OficioForm 
-                    state={state} content={content} docConfig={docConfig} 
-                    allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate} 
-                  />
-              );
-          case 'diarias':
-              return (
-                  <DiariaForm 
-                    state={state} content={content} 
-                    allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate} 
-                    persons={persons} sectors={sectors} jobs={jobs}
-                  />
-              );
-          case 'compras':
-              // Fix: Added missing persons, sectors, and jobs props to ComprasForm
-              return (
-                  <ComprasForm 
-                    state={state} content={content} docConfig={docConfig} 
-                    allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate} 
-                    persons={persons} sectors={sectors} jobs={jobs}
-                  />
-              );
-          case 'licitacao':
-              return (
-                  <LicitacaoForm 
-                    state={state} content={content} 
-                    allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate} 
-                  />
-              );
-          default:
-              return (
-                  <OficioForm 
-                    state={state} content={content} docConfig={docConfig} 
-                    allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate} 
-                  />
-              );
-      }
+    switch (activeBlock) {
+      case 'oficio':
+        return (
+          <OficioForm
+            state={state} content={content} docConfig={docConfig}
+            allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate}
+          />
+        );
+      case 'diarias':
+        return (
+          <DiariaForm
+            state={state} content={content}
+            allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate}
+            persons={persons} sectors={sectors} jobs={jobs}
+          />
+        );
+      case 'compras':
+        // Fix: Added missing persons, sectors, and jobs props to ComprasForm
+        return (
+          <ComprasForm
+            state={state} content={content} docConfig={docConfig}
+            allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate}
+            persons={persons} sectors={sectors} jobs={jobs}
+          />
+        );
+      case 'licitacao':
+        return (
+          <LicitacaoForm
+            state={state} content={content}
+            allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate}
+          />
+        );
+      default:
+        return (
+          <OficioForm
+            state={state} content={content} docConfig={docConfig}
+            allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate}
+          />
+        );
+    }
   };
 
   return (
     <>
       {/* Overlay para mobile */}
       {isOpen && <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity md:hidden" onClick={onClose} />}
-      
+
       {/* Sidebar - relative no desktop para permitir lado-a-lado com o preview */}
       <div className={`
         fixed md:relative inset-y-0 left-0 h-full
@@ -184,17 +184,17 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50/50">
           {mode === 'admin' && !activeTab && (
-             <AdminMenu currentUser={currentUser} onTabChange={onTabChange} />
+            <AdminMenu currentUser={currentUser} onTabChange={onTabChange} />
           )}
 
           {activeTab === 'design' && (
             <>
               {renderSectionHeader('Design do documento', 'Configure cores, logos e fontes do documento')}
-              <DesignForm 
-                branding={branding} 
-                docConfig={docConfig} 
-                handleUpdate={handleUpdate} 
-                handleDeepUpdate={handleDeepUpdate} 
+              <DesignForm
+                branding={branding}
+                docConfig={docConfig}
+                handleUpdate={handleUpdate}
+                handleDeepUpdate={handleDeepUpdate}
               />
             </>
           )}
@@ -234,33 +234,33 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           )}
 
           {mode !== 'admin' && activeTab === 'content' && (
-              <>
-                  {renderSectionHeader(
-                      activeBlock?.toUpperCase() === 'DIARIAS' ? 'Diárias e Custeio' : 
-                      activeBlock?.toUpperCase() === 'OFICIO' ? 'Módulo de Ofício' : 
-                      activeBlock?.toUpperCase() === 'COMPRAS' ? 'Novo Pedido' :
+            <>
+              {renderSectionHeader(
+                activeBlock?.toUpperCase() === 'DIARIAS' ? 'Diárias e Custeio' :
+                  activeBlock?.toUpperCase() === 'OFICIO' ? 'Módulo de Ofício' :
+                    activeBlock?.toUpperCase() === 'COMPRAS' ? 'Novo Pedido' :
                       activeBlock?.toUpperCase() === 'LICITACAO' ? 'Processo Licitatório' : 'Editor',
-                      'Preencha os dados abaixo para gerar o documento'
-                  )}
-                  {renderContentForm()}
-              </>
+                'Preencha os dados abaixo para gerar o documento'
+              )}
+              {renderContentForm()}
+            </>
           )}
         </div>
 
         {mode === 'admin' && activeTab && onSaveDefault && currentUser.role === 'admin' && (
-           <div className="p-6 border-t border-gray-200 bg-white z-20">
-              <button onClick={handleSaveDefaultWithAnimation} disabled={globalSaveStatus === 'loading' || globalSaveStatus === 'success'} className={`w-full font-black py-4 px-6 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs ${globalSaveStatus === 'success' ? 'bg-emerald-500 text-white shadow-emerald-500/30' : 'bg-slate-900 text-white hover:bg-indigo-600 active:scale-95'}`}>
-                {globalSaveStatus === 'loading' ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Salvando...</span></> : globalSaveStatus === 'success' ? <><Check className="w-4 h-4 animate-bounce" /><span>Configurações Salvas!</span></> : <><Save className="w-4 h-4" /><span>Salvar Padrão Global</span></>}
-              </button>
-           </div>
+          <div className="p-6 border-t border-gray-200 bg-white z-20">
+            <button onClick={handleSaveDefaultWithAnimation} disabled={globalSaveStatus === 'loading' || globalSaveStatus === 'success'} className={`w-full font-black py-4 px-6 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs ${globalSaveStatus === 'success' ? 'bg-emerald-500 text-white shadow-emerald-500/30' : 'bg-slate-900 text-white hover:bg-indigo-600 active:scale-95'}`}>
+              {globalSaveStatus === 'loading' ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Salvando...</span></> : globalSaveStatus === 'success' ? <><Check className="w-4 h-4 animate-bounce" /><span>Configurações Salvas!</span></> : <><Save className="w-4 h-4" /><span>Salvar Padrão Global</span></>}
+            </button>
+          </div>
         )}
 
         {mode !== 'admin' && activeTab === 'content' && (
-           <div className="p-6 border-t border-gray-200 bg-white/80 backdrop-blur-xl sticky bottom-0 z-20">
-              <button onClick={handleFinishWithAnimation} disabled={finishStatus === 'loading' || finishStatus === 'success'} className={`w-full font-black py-4 px-6 rounded-2xl shadow-xl transform transition-all duration-300 flex items-center justify-center gap-3 uppercase tracking-widest text-xs ${finishStatus === 'success' ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white hover:bg-indigo-600 active:scale-95'}`}>
-                  {finishStatus === 'loading' ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Processando...</span></> : finishStatus === 'success' ? <><Check className="w-4 h-4" /><span>Concluído!</span></> : <><Check className="w-4 h-4" /><span>Finalizar Edição</span></>}
-              </button>
-           </div>
+          <div className="p-6 border-t border-gray-200 bg-white/80 backdrop-blur-xl sticky bottom-0 z-20">
+            <button onClick={handleFinishWithAnimation} disabled={finishStatus === 'loading' || finishStatus === 'success'} className={`w-full font-black py-4 px-6 rounded-2xl shadow-xl transform transition-all duration-300 flex items-center justify-center gap-3 uppercase tracking-widest text-xs ${finishStatus === 'success' ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white hover:bg-indigo-600 active:scale-95'}`}>
+              {finishStatus === 'loading' ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Processando...</span></> : finishStatus === 'success' ? <><Check className="w-4 h-4" /><span>Concluído!</span></> : <><Check className="w-4 h-4" /><span>Finalizar Edição</span></>}
+            </button>
+          </div>
         )}
       </div>
     </>

@@ -1,6 +1,6 @@
 
 import { supabase } from './supabaseClient';
-import { Person, Sector, Job } from '../types';
+import { Person, Sector, Job, Vehicle, VehicleBrand, Signature } from '../types';
 
 // Sectors
 export const getSectors = async (): Promise<Sector[]> => {
@@ -177,3 +177,242 @@ export const deletePerson = async (id: string): Promise<boolean> => {
     }
     return true;
 };
+
+// Vehicles
+export const getVehicles = async (): Promise<Vehicle[]> => {
+    const { data, error } = await supabase.from('vehicles').select('*');
+    if (error) {
+        console.error('Error fetching vehicles:', error);
+        return [];
+    }
+    return data?.map(v => ({
+        id: v.id,
+        type: v.type,
+        model: v.model,
+        plate: v.plate,
+        brand: v.brand,
+        year: v.year,
+        color: v.color,
+        renavam: v.renavam,
+        chassis: v.chassis,
+        sectorId: v.sector_id,
+        responsiblePersonId: v.responsible_person_id,
+        documentUrl: v.document_url,
+        documentName: v.document_name,
+        vehicleImageUrl: v.vehicle_image_url,
+        status: v.status,
+        maintenanceStatus: v.maintenance_status,
+        fuelTypes: v.fuel_types
+    })) || [];
+};
+
+export const createVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> => {
+    // Determine ID: if valid UUID, use it (migration?), otherwise let Supabase generate (exclude ID)
+    // For now, to keep consistency if app generates IDs, we try to use it IF it's likely a UUID,
+    // but app uses "v-cronos-01" etc. Supabase UUID won't like that.
+    // IMPT: The app generates IDs like `Date.now()`. Supabase expects UUID.
+    // Solution: We must change the App to NOT generate ID, or accept that the ID will change to a UUID from Supabase.
+    // We'll omit ID and let Supabase generate it. The returned vehicle will have the new UUID.
+
+    const dbVehicle = {
+        type: vehicle.type,
+        model: vehicle.model,
+        plate: vehicle.plate,
+        brand: vehicle.brand,
+        year: vehicle.year,
+        color: vehicle.color,
+        renavam: vehicle.renavam,
+        chassis: vehicle.chassis,
+        sector_id: vehicle.sectorId || null,
+        responsible_person_id: vehicle.responsiblePersonId || null,
+        document_url: vehicle.documentUrl,
+        document_name: vehicle.documentName,
+        vehicle_image_url: vehicle.vehicleImageUrl,
+        status: vehicle.status,
+        maintenance_status: vehicle.maintenanceStatus,
+        fuel_types: vehicle.fuelTypes
+    };
+
+    const { data, error } = await supabase
+        .from('vehicles')
+        .insert([dbVehicle])
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating vehicle:', error);
+        return null;
+    }
+
+    return {
+        id: data.id,
+        type: data.type,
+        model: data.model,
+        plate: data.plate,
+        brand: data.brand,
+        year: data.year,
+        color: data.color,
+        renavam: data.renavam,
+        chassis: data.chassis,
+        sectorId: data.sector_id,
+        responsiblePersonId: data.responsible_person_id,
+        documentUrl: data.document_url,
+        documentName: data.document_name,
+        vehicleImageUrl: data.vehicle_image_url,
+        status: data.status,
+        maintenanceStatus: data.maintenance_status,
+        fuelTypes: data.fuel_types
+    };
+};
+
+export const updateVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> => {
+    const dbVehicle = {
+        type: vehicle.type,
+        model: vehicle.model,
+        plate: vehicle.plate,
+        brand: vehicle.brand,
+        year: vehicle.year,
+        color: vehicle.color,
+        renavam: vehicle.renavam,
+        chassis: vehicle.chassis,
+        sector_id: vehicle.sectorId || null,
+        responsible_person_id: vehicle.responsiblePersonId || null,
+        document_url: vehicle.documentUrl,
+        document_name: vehicle.documentName,
+        vehicle_image_url: vehicle.vehicleImageUrl,
+        status: vehicle.status,
+        maintenance_status: vehicle.maintenanceStatus,
+        fuel_types: vehicle.fuelTypes
+    };
+
+    const { data, error } = await supabase
+        .from('vehicles')
+        .update(dbVehicle)
+        .eq('id', vehicle.id)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating vehicle:', error);
+        return null;
+    }
+
+    return {
+        id: data.id,
+        type: data.type,
+        model: data.model,
+        plate: data.plate,
+        brand: data.brand,
+        year: data.year,
+        color: data.color,
+        renavam: data.renavam,
+        chassis: data.chassis,
+        sectorId: data.sector_id,
+        responsiblePersonId: data.responsible_person_id,
+        documentUrl: data.document_url,
+        documentName: data.document_name,
+        vehicleImageUrl: data.vehicle_image_url,
+        status: data.status,
+        maintenanceStatus: data.maintenance_status,
+        fuelTypes: data.fuel_types
+    };
+};
+
+export const deleteVehicle = async (id: string): Promise<boolean> => {
+    const { error } = await supabase.from('vehicles').delete().eq('id', id);
+    if (error) {
+        console.error('Error deleting vehicle:', error);
+        return false;
+    }
+    return true;
+};
+
+// Brands
+export const getBrands = async (): Promise<VehicleBrand[]> => {
+    const { data, error } = await supabase.from('vehicle_brands').select('*').order('name');
+    if (error) {
+        console.error('Error fetching brands:', error);
+        return [];
+    }
+    return data || [];
+};
+
+export const createBrand = async (brand: VehicleBrand): Promise<VehicleBrand | null> => {
+    const { data, error } = await supabase
+        .from('vehicle_brands')
+        .insert([{ name: brand.name, category: brand.category }])
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating brand:', error);
+        return null;
+    }
+    return data;
+};
+
+export const deleteBrand = async (id: string): Promise<boolean> => {
+    const { error } = await supabase.from('vehicle_brands').delete().eq('id', id);
+    if (error) {
+        console.error('Error deleting brand:', error);
+        return false;
+    }
+    return true;
+};
+
+// Signatures
+export const getSignatures = async (): Promise<Signature[]> => {
+    const { data, error } = await supabase.from('signatures').select('*').order('name');
+    if (error) {
+        console.error('Error fetching signatures:', error);
+        return [];
+    }
+    return data || [];
+};
+
+export const createSignature = async (signature: Signature): Promise<Signature | null> => {
+    const { data, error } = await supabase
+        .from('signatures')
+        .insert([{
+            name: signature.name,
+            role: signature.role,
+            sector: signature.sector
+        }])
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating signature:', error);
+        return null;
+    }
+    return data;
+};
+
+export const updateSignature = async (signature: Signature): Promise<Signature | null> => {
+    const { data, error } = await supabase
+        .from('signatures')
+        .update({
+            name: signature.name,
+            role: signature.role,
+            sector: signature.sector
+        })
+        .eq('id', signature.id)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating signature:', error);
+        return null;
+    }
+    return data;
+};
+
+export const deleteSignature = async (id: string): Promise<boolean> => {
+    const { error } = await supabase.from('signatures').delete().eq('id', id);
+    if (error) {
+        console.error('Error deleting signature:', error);
+        return false;
+    }
+    return true;
+};
+

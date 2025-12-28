@@ -1,6 +1,7 @@
 import React from 'react';
 import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange } from 'lucide-react';
 import { UserRole, UIConfig, AppPermission, BlockType } from '../types';
+import { FleetShortcutCard } from './FleetShortcutCard';
 
 interface HomeScreenProps {
   onNewOrder: () => void;
@@ -23,11 +24,12 @@ interface HomeScreenProps {
   };
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ 
-  onNewOrder, 
+export const HomeScreen: React.FC<HomeScreenProps> = ({
+  onNewOrder,
   onTrackOrder,
   onManagePurchaseOrders,
   onVehicleScheduling,
+  onOpenAdmin,
   userName,
   permissions = [],
   activeBlock,
@@ -69,7 +71,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   return (
     <div className="flex-1 bg-slate-50 font-sans flex flex-col overflow-hidden">
       <main className="flex-1 flex flex-col items-center pt-8 px-6 overflow-y-auto bg-gradient-to-b from-white to-slate-50 pb-12 custom-scrollbar">
-        
+
         {!activeBlock && (
           <div className="w-full max-w-6xl animate-fade-in space-y-10">
             <div className="text-center">
@@ -141,6 +143,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <div className="mt-4 flex items-center gap-2 text-indigo-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
                 </button>
               )}
+
+              <FleetShortcutCard onClick={() => onOpenAdmin('fleet')} />
             </div>
           </div>
         )}
@@ -165,7 +169,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </button>
 
                 {activeBlock === 'compras' && canManagePurchaseOrders && (
-                   <button onClick={onManagePurchaseOrders} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-56 justify-center">
+                  <button onClick={onManagePurchaseOrders} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-56 justify-center">
                     <div className="w-14 h-14 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform"><Inbox className="w-7 h-7 text-white" /></div>
                     <h3 className="text-xl font-black text-slate-900 mb-1">Pedidos</h3>
                     <p className="text-slate-500 text-xs font-medium">Gestão Administrativa (Admin)</p>
