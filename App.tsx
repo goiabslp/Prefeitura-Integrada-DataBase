@@ -434,8 +434,8 @@ const App: React.FC = () => {
       defaultTitle = 'Requisição de Diária';
     }
 
-    // Logic for Sector numbering (Oficio and Compras sharing sector counter)
-    if (activeBlock === 'oficio' || activeBlock === 'compras' || activeBlock === null) {
+    // Logic for Sector numbering (Oficio, Compras, and Diarias sharing sector counter logic)
+    if (activeBlock === 'oficio' || activeBlock === 'compras' || activeBlock === 'diarias' || activeBlock === null) {
       if (currentUser?.sector) {
         const userSector = sectors.find(s => s.name === currentUser.sector);
         if (userSector) {
@@ -446,6 +446,9 @@ const App: React.FC = () => {
             if (activeBlock === 'compras') {
               defaultTitle = `Requisição de Compras nº ${formattedNum}/${currentYear}`;
               leftBlockContent = `Ref: Requisição nº ${formattedNum}/${currentYear}`;
+            } else if (activeBlock === 'diarias') {
+              defaultTitle = `Solicitação de Diária nº ${formattedNum}/${currentYear}`;
+              leftBlockContent = `Ref: Solicitação nº ${formattedNum}/${currentYear}`;
             } else {
               // Default Oficio
               defaultTitle = `Ofício nº ${formattedNum}/${currentYear}`;
