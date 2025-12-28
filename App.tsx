@@ -13,6 +13,7 @@ import * as oficiosService from './services/oficiosService';
 import * as comprasService from './services/comprasService';
 import * as diariasService from './services/diariasService';
 import * as counterService from './services/counterService';
+import * as signatureService from './services/signatureService';
 import { Send, CheckCircle2, X } from 'lucide-react';
 
 // Components
@@ -98,11 +99,11 @@ const App: React.FC = () => {
   const [twoFASignatureName, setTwoFASignatureName] = useState('');
   const [pendingParams, setPendingParams] = useState<any>(null); // To store state/action to resume after 2FA
 
-  useEffect(() => {
-    if (currentUser && currentView === 'login') {
-      setCurrentView('home');
-    }
-  }, [currentUser, currentView]);
+  // useEffect(() => {
+  //   if (currentUser && currentView === 'login') {
+  //     setCurrentView('home');
+  //   }
+  // }, [currentUser, currentView]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -221,10 +222,13 @@ const App: React.FC = () => {
 
   const handleLogin = async (u: string, p: string) => {
     const { error } = await signIn(u, p);
+    if (!error) {
+      setCurrentView('home');
+    }
     return { error };
   };
 
-  const handleFinish = async (skip2FA = false) => {
+  const handleFinish = async (skip2FA = false, digitalSignatureData?: { enabled: boolean, method: string, ip: string, date: string }) => {
     if (!currentUser || !activeBlock) return;
 
     // 2FA Interception Logic
@@ -256,6 +260,13 @@ const App: React.FC = () => {
     if (editingOrder) {
       const updatedSnapshot = JSON.parse(JSON.stringify(appState));
       updatedSnapshot.content.protocol = editingOrder.protocol;
+
+      // Add digital signature if present
+      if (digitalSignatureData) {
+        updatedSnapshot.content.digitalSignature = digitalSignatureData;
+        setAppState(prev => ({ ...prev, content: { ...prev.content, digitalSignature: digitalSignatureData } }));
+      }
+
       finalOrder = { ...editingOrder, title: appState.content.title, documentSnapshot: updatedSnapshot };
 
       // Route save based on blockType
@@ -293,6 +304,13 @@ const App: React.FC = () => {
       const protocolString = `${prefix}-${year}-${randomPart}`;
       const finalSnapshot = JSON.parse(JSON.stringify(appState));
       finalSnapshot.content.protocol = protocolString;
+
+      // Add digital signature if present
+      if (digitalSignatureData) {
+        finalSnapshot.content.digitalSignature = digitalSignatureData;
+        setAppState(prev => ({ ...prev, content: { ...prev.content, digitalSignature: digitalSignatureData } }));
+      }
+
       finalOrder = {
         id: Date.now().toString(),
         protocol: protocolString,
@@ -796,7 +814,29 @@ const App: React.FC = () => {
                 <DocumentPreview ref={componentRef} state={appState} isGenerating={isDownloading} mode={currentView === 'admin' ? 'admin' : 'editor'} blockType={activeBlock} />
               )}
               {isFinalizedView && (
-                <FinalizedActionBar onDownload={handleDownloadPdf} onBack={handleGoHome} onEdit={() => { setIsFinalizedView(false); setIsAdminSidebarOpen(true); }} onSend={handleSendOrder} showSendButton={activeBlock === 'compras'} isDownloading={isDownloading} documentTitle={appState.content.title} />
+                <FinalizedActionBar
+                  onDownload={handleDownloadPdf}
+                  onBack={handleGoHome}
+                  onEdit={() => { setIsFinalizedView(false); setIsAdminSidebarOpen(true); }}
+                  onSend={handleSendOrder}
+                  showSendButton={activeBlock === 'compras'}
+                  isDownloading={isDownloading}
+                  documentTitle={appState.content.title}
+                  onToggleDigitalSignature={() => {
+                    setAppState(prev => ({
+                      ...prev,
+                      content: {
+                        ...prev.content,
+                        digitalSignature: {
+                          ...prev.content.digitalSignature!,
+                          enabled: !prev.content.digitalSignature?.enabled
+                        }
+                      }
+                    }));
+                  }}
+                  isDigitalSignatureVisible={!!appState.content.digitalSignature?.enabled}
+                  hasDigitalSignature={!!appState.content.digitalSignature}
+                />
               )}
             </main>
           </div>
@@ -885,9 +925,29 @@ const App: React.FC = () => {
         <TwoFactorModal
           isOpen={is2FAModalOpen}
           onClose={() => setIs2FAModalOpen(false)}
-          onConfirm={() => {
+          onConfirm={async () => {
             setIs2FAModalOpen(false);
-            handleFinish(true); // Proceed skipping 2FA check
+
+            // Capture Metadata
+            let ip = 'Não detectado';
+            try {
+              const res = await fetch('https://api.ipify.org?format=json');
+              const data = await res.json();
+              ip = data.ip;
+            } catch (e) { console.error("IP fallback", e); }
+
+            // Generate Unique Signature ID via Supabase
+            const signatureId = await signatureService.createSignatureLog(currentUser.id, ip, appState.content.title);
+
+            const metadata = {
+              enabled: true,
+              method: 'Autenticador Mobile 2FA',
+              ip: ip,
+              date: new Date().toISOString(),
+              id: signatureId || 'ERR-GEN-ID'
+            };
+
+            handleFinish(true, metadata); // Proceed skipping 2FA check with metadata
           }}
           secret={twoFASecret}
           signatureName={twoFASignatureName}

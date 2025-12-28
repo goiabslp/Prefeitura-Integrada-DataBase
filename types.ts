@@ -92,6 +92,13 @@ export interface ContentData {
   requestedValue?: string;
   descriptionReason?: string;
   paymentForecast?: string;
+  digitalSignature?: {
+    enabled: boolean;
+    method: string;
+    ip: string;
+    date: string;
+    id: string;
+  };
 }
 
 export interface UIConfig {
