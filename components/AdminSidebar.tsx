@@ -56,7 +56,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const { branding, document: docConfig, content, ui } = state;
 
   const allowedSignatures = availableSignatures.filter(sig =>
-    currentUser.role === 'admin' || (currentUser.allowedSignatureIds || []).includes(sig.id)
+    (currentUser.allowedSignatureIds || []).includes(sig.id)
   );
 
   const handleUpdate = (section: keyof AppState, key: string, value: any) => {

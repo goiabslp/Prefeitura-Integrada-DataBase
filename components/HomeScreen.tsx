@@ -159,12 +159,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <button onClick={onNewOrder} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-56 justify-center">
                   <div className="w-14 h-14 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform"><FilePlus className="w-7 h-7 text-white" /></div>
                   <h3 className="text-xl font-black text-slate-900 mb-1">{getNewActionLabel()}</h3>
-                  <p className="text-slate-500 text-xs font-medium">Contador Global: {stats.totalGenerated.toString().padStart(3, '0')}</p>
+                  <p className="text-slate-500 text-xs font-medium">Criar novo registro.</p>
                 </button>
 
                 <button onClick={onTrackOrder} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-56 justify-center">
                   <div className="w-14 h-14 bg-purple-600 rounded-xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform"><History className="w-7 h-7 text-white" /></div>
-                  <h3 className="text-xl font-black text-slate-900 mb-1">Histórico</h3>
+                  <h3 className="text-xl font-black text-slate-900 mb-1">{
+                    activeBlock === 'oficio' ? 'Histórico de Ofícios' :
+                      activeBlock === 'compras' ? 'Histórico de Compras' :
+                        activeBlock === 'diarias' ? 'Histórico de Solicitações' :
+                          'Histórico'
+                  }</h3>
                   <p className="text-slate-500 text-xs font-medium">Consulte registros de {activeBlock.toUpperCase()}.</p>
                 </button>
 

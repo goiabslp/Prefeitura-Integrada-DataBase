@@ -9,6 +9,10 @@ import * as db from './services/dbService';
 import { supabase } from './services/supabaseClient';
 import * as entityService from './services/entityService';
 import * as settingsService from './services/settingsService';
+import * as oficiosService from './services/oficiosService';
+import * as comprasService from './services/comprasService';
+import * as diariasService from './services/diariasService';
+import * as counterService from './services/counterService';
 import { Send, CheckCircle2, X } from 'lucide-react';
 
 // Components
@@ -34,6 +38,9 @@ const App: React.FC = () => {
   const { user: currentUser, signIn, signOut } = useAuth();
   const [appState, setAppState] = useState<AppState>(INITIAL_STATE);
   const [activeBlock, setActiveBlock] = useState<BlockType | null>(null);
+  const [oficios, setOficios] = useState<Order[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<Order[]>([]);
+  const [serviceRequests, setServiceRequests] = useState<Order[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<User[]>(DEFAULT_USERS);
   const [signatures, setSignatures] = useState<Signature[]>([]);
@@ -66,8 +73,15 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const savedOrders = await db.getAllOrders();
-        setOrders(savedOrders);
+        const loadedOficios = await oficiosService.getAllOficios();
+        setOficios(loadedOficios);
+        const loadedPurchaseOrders = await comprasService.getAllPurchaseOrders();
+        setPurchaseOrders(loadedPurchaseOrders);
+        const loadedServiceRequests = await diariasService.getAllServiceRequests();
+        setServiceRequests(loadedServiceRequests);
+
+        // Initial orders state depends on view, empty for now or default to oficios
+        setOrders(loadedOficios);
 
         // Fetch users from Supabase
         const { data: sbUsers, error: sbError } = await supabase.from('profiles').select('*');
@@ -94,6 +108,8 @@ const App: React.FC = () => {
         }
         const savedSigs = await entityService.getSignatures();
         if (savedSigs.length > 0) setSignatures(savedSigs);
+
+
 
         // Fetch Global Settings (Try Supabase first, fallback to local)
         const remoteSettings = await settingsService.getGlobalSettings();
@@ -179,13 +195,38 @@ const App: React.FC = () => {
       const updatedSnapshot = JSON.parse(JSON.stringify(appState));
       updatedSnapshot.content.protocol = editingOrder.protocol;
       finalOrder = { ...editingOrder, title: appState.content.title, documentSnapshot: updatedSnapshot };
-      await db.saveOrder(finalOrder);
+
+      // Route save based on blockType
+      if (finalOrder.blockType === 'compras') {
+        await comprasService.savePurchaseOrder(finalOrder);
+        setPurchaseOrders(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
+      } else if (finalOrder.blockType === 'diarias') {
+        await diariasService.saveServiceRequest(finalOrder);
+        setServiceRequests(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
+      } else {
+        // Default to Oficio
+        await oficiosService.saveOficio(finalOrder);
+        setOficios(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
+      }
+      // Update local generic state for view consistency if needed
       setOrders(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
     } else {
       const nextVal = await db.incrementGlobalCounter();
       setGlobalCounter(nextVal);
       const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
       const year = new Date().getFullYear();
+
+      // AUTO-INCREMENT SECTOR COUNTER if Oficio
+      if (activeBlock === 'oficio' || activeBlock === null) {
+        if (currentUser?.sector) {
+          const userSector = sectors.find(s => s.name === currentUser.sector);
+          if (userSector) {
+            // Increment the server counter regardless of title matching.
+            await counterService.incrementSectorCount(userSector.id, year);
+          }
+        }
+      }
+
       const prefix = activeBlock === 'oficio' ? 'OFC' : activeBlock === 'compras' ? 'COM' : activeBlock === 'diarias' ? 'DIA' : 'LIC';
       const protocolString = `${prefix}-${year}-${randomPart}`;
       const finalSnapshot = JSON.parse(JSON.stringify(appState));
@@ -204,8 +245,20 @@ const App: React.FC = () => {
         statusHistory: activeBlock === 'compras' ? [{ statusLabel: 'Criação do Pedido', date: new Date().toISOString(), userName: currentUser.name }] : [],
         attachments: []
       };
-      await db.saveOrder(finalOrder);
-      setOrders(prev => [...prev, finalOrder]);
+
+      if (activeBlock === 'compras') {
+        await comprasService.savePurchaseOrder(finalOrder);
+        setPurchaseOrders(prev => [finalOrder, ...prev]);
+        setOrders(prev => [finalOrder, ...prev]); // Keep synced if view uses this
+      } else if (activeBlock === 'diarias') {
+        await diariasService.saveServiceRequest(finalOrder);
+        setServiceRequests(prev => [finalOrder, ...prev]);
+        setOrders(prev => [finalOrder, ...prev]);
+      } else {
+        await oficiosService.saveOficio(finalOrder);
+        setOficios(prev => [finalOrder, ...prev]);
+        setOrders(prev => [finalOrder, ...prev]);
+      }
       setAppState(finalSnapshot);
     }
     setIsFinalizedView(true);
@@ -238,7 +291,17 @@ const App: React.FC = () => {
         if (o.status === status) return o;
         const newMovement: StatusMovement = { statusLabel: status === 'approved' ? 'Aprovação Administrativa' : 'Rejeição', date: new Date().toISOString(), userName: currentUser.name, justification };
         const updated = { ...o, status, statusHistory: [...(o.statusHistory || []), newMovement] };
-        db.saveOrder(updated);
+
+        if (updated.blockType === 'compras') {
+          comprasService.savePurchaseOrder(updated);
+          setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p));
+        } else if (updated.blockType === 'diarias') {
+          diariasService.saveServiceRequest(updated);
+          setServiceRequests(prev => prev.map(p => p.id === updated.id ? updated : p));
+        } else {
+          oficiosService.saveOficio(updated);
+          setOficios(prev => prev.map(p => p.id === updated.id ? updated : p));
+        }
         return updated;
       }
       return o;
@@ -251,7 +314,8 @@ const App: React.FC = () => {
     const updatedOrders = orders.map(o => {
       if (o.id === orderId) {
         const updated = { ...o, purchaseStatus };
-        db.saveOrder(updated);
+        comprasService.savePurchaseOrder(updated);
+        setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p));
         return updated;
       }
       return o;
@@ -263,7 +327,8 @@ const App: React.FC = () => {
     const updatedOrders = orders.map(o => {
       if (o.id === orderId) {
         const updated = { ...o, completionForecast: date };
-        db.saveOrder(updated);
+        comprasService.savePurchaseOrder(updated);
+        setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p));
         return updated;
       }
       return o;
@@ -275,7 +340,17 @@ const App: React.FC = () => {
     const updatedOrders = orders.map(o => {
       if (o.id === orderId) {
         const updated = { ...o, attachments };
-        db.saveOrder(updated);
+        if (updated.blockType === 'compras') {
+          comprasService.savePurchaseOrder(updated);
+          setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p));
+        } else {
+          // For now assume others can have attachments or just ignore if not supported by service yet, 
+          // but strictly only purchase had explicit attachment field table support in my plan.
+          // Actually Oficio has generic support likely in future, but stick to purchase Service for now.
+          // If Oficio needs it, I need `saveOficio` to support it. 
+          // Plan said: [NEW] Table `purchase_orders` ... `attachments` JSONB. `oficios` did NOT have attachments.
+          // So this technically only applies to Compras.
+        }
         return updated;
       }
       return o;
@@ -287,7 +362,8 @@ const App: React.FC = () => {
     const updatedOrders = orders.map(o => {
       if (o.id === orderId) {
         const updated = { ...o, paymentStatus: status, paymentDate: status === 'paid' ? new Date().toISOString() : undefined };
-        db.saveOrder(updated);
+        diariasService.saveServiceRequest(updated);
+        setServiceRequests(prev => prev.map(p => p.id === updated.id ? updated : p));
         return updated;
       }
       return o;
@@ -343,16 +419,61 @@ const App: React.FC = () => {
     setEditingOrder(null);
   };
 
-  const handleStartEditing = () => {
+  const handleStartEditing = async () => {
     let defaultTitle = INITIAL_STATE.content.title;
     let defaultRightBlock = INITIAL_STATE.content.rightBlockText;
+    let leftBlockContent = INITIAL_STATE.content.leftBlockText;
+    const currentYear = new Date().getFullYear();
+
     if (activeBlock === 'compras') {
       defaultTitle = 'Requisição de Compras e Serviços';
       defaultRightBlock = 'Ao Departamento de Compras da\nPrefeitura de São José do Goiabal-MG';
+    } else if (activeBlock === 'licitacao') {
+      defaultTitle = 'Processo Licitatório nº 01/2024';
+    } else if (activeBlock === 'diarias') {
+      defaultTitle = 'Requisição de Diária';
     }
-    if (activeBlock === 'licitacao') defaultTitle = 'Processo Licitatório nº 01/2024';
-    if (activeBlock === 'diarias') defaultTitle = 'Requisição de Diária';
-    setAppState(prev => ({ ...prev, content: { ...INITIAL_STATE.content, title: defaultTitle, rightBlockText: defaultRightBlock, protocol: '', requesterName: '', requesterRole: '', requesterSector: '' }, document: { ...prev.document, showSignature: INITIAL_STATE.document.showSignature } }));
+
+    // Logic for Sector numbering (Oficio and Compras sharing sector counter)
+    if (activeBlock === 'oficio' || activeBlock === 'compras' || activeBlock === null) {
+      if (currentUser?.sector) {
+        const userSector = sectors.find(s => s.name === currentUser.sector);
+        if (userSector) {
+          const nextNum = await counterService.getNextSectorCount(userSector.id, currentYear);
+          if (nextNum) {
+            const formattedNum = nextNum.toString().padStart(3, '0');
+
+            if (activeBlock === 'compras') {
+              defaultTitle = `Requisição de Compras nº ${formattedNum}/${currentYear}`;
+              leftBlockContent = `Ref: Requisição nº ${formattedNum}/${currentYear}`;
+            } else {
+              // Default Oficio
+              defaultTitle = `Ofício nº ${formattedNum}/${currentYear}`;
+              leftBlockContent = `Ref: Ofício nº ${formattedNum}/${currentYear}`;
+            }
+          }
+        }
+      }
+    }
+
+    setAppState(prev => ({
+      ...prev,
+      content: {
+        ...INITIAL_STATE.content,
+        title: defaultTitle,
+        rightBlockText: defaultRightBlock,
+        leftBlockText: leftBlockContent,
+        protocol: '',
+        requesterName: '',
+        requesterRole: '',
+        requesterSector: ''
+      },
+      document: {
+        ...prev.document,
+        showSignature: INITIAL_STATE.document.showSignature
+      }
+    }));
+
     setEditingOrder(null);
     setCurrentView('editor');
     setAdminTab('content');
@@ -377,13 +498,32 @@ const App: React.FC = () => {
     setUsers(p => p.map(us => us.id === updatedUser.id ? updatedUser : us));
   };
 
+  const handleTrackOrder = () => {
+    // Determine which orders to show based on activeBlock
+    if (activeBlock === 'compras') {
+      setOrders(purchaseOrders);
+    } else if (activeBlock === 'diarias') {
+      setOrders(serviceRequests);
+    } else {
+      setOrders(oficios);
+    }
+    setCurrentView('tracking');
+  };
+
+  const handleManagePurchaseOrders = () => {
+    setOrders(purchaseOrders);
+    setCurrentView('purchase-management');
+  };
+
+  // Helper for self-updates or other minor updates
+
   if (currentView === 'login') return <LoginScreen onLogin={handleLogin} uiConfig={appState.ui} />;
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-50 font-sans flex-col">
       {currentUser && <AppHeader currentUser={currentUser} uiConfig={appState.ui} activeBlock={activeBlock} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} onGoHome={handleGoHome} currentView={currentView} />}
       <div className="flex-1 flex relative overflow-hidden">
-        {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onTrackOrder={() => setCurrentView('tracking')} onManagePurchaseOrders={() => setCurrentView('purchase-management')} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} />}
+        {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} />}
         {(currentView === 'editor' || currentView === 'admin') && currentUser && (
           <div className="flex-1 flex overflow-hidden h-full relative">
             {!isFinalizedView && adminTab !== 'fleet' && (
@@ -602,10 +742,51 @@ const App: React.FC = () => {
           </div>
         )}
         {currentView === 'tracking' && currentUser && (
-          <TrackingScreen onBack={handleGoHome} currentUser={currentUser} activeBlock={activeBlock} orders={orders} onDownloadPdf={(snapshot) => { const order = orders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order); }} onClearAll={() => { db.clearAllOrders(); setOrders([]); }} onEditOrder={handleEditOrder} onDeleteOrder={id => { db.deleteOrder(id); setOrders(p => p.filter(o => o.id !== id)); }} onUpdateAttachments={handleUpdateOrderAttachments} totalCounter={globalCounter} onUpdatePaymentStatus={handleUpdatePaymentStatus} />
+          <TrackingScreen
+            onBack={handleGoHome}
+            currentUser={currentUser}
+            activeBlock={activeBlock}
+            orders={orders}
+            onDownloadPdf={(snapshot) => { const order = orders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order); }}
+            onClearAll={() => setOrders([])}
+            onEditOrder={handleEditOrder}
+            onDeleteOrder={async (id) => {
+              if (activeBlock === 'compras') {
+                await comprasService.deletePurchaseOrder(id);
+                setPurchaseOrders(p => p.filter(o => o.id !== id));
+                setOrders(p => p.filter(o => o.id !== id));
+              } else if (activeBlock === 'diarias') {
+                await diariasService.deleteServiceRequest(id);
+                setServiceRequests(p => p.filter(o => o.id !== id));
+                setOrders(p => p.filter(o => o.id !== id));
+              } else {
+                await oficiosService.deleteOficio(id);
+                setOficios(p => p.filter(o => o.id !== id));
+                setOrders(p => p.filter(o => o.id !== id));
+              }
+            }}
+            onUpdateAttachments={handleUpdateOrderAttachments}
+            totalCounter={globalCounter}
+            onUpdatePaymentStatus={handleUpdatePaymentStatus}
+          />
         )}
         {currentView === 'purchase-management' && currentUser && (
-          <PurchaseManagementScreen onBack={handleGoHome} currentUser={currentUser} orders={orders} onDownloadPdf={(snapshot) => { const order = orders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order); }} onUpdateStatus={handleUpdateOrderStatus} onUpdatePurchaseStatus={handleUpdatePurchaseStatus} onUpdateCompletionForecast={handleUpdateCompletionForecast} onUpdateAttachments={handleUpdateOrderAttachments} onDeleteOrder={id => { db.deleteOrder(id); setOrders(p => p.filter(o => o.id !== id)); }} />
+          <PurchaseManagementScreen
+            onBack={handleGoHome}
+            currentUser={currentUser}
+            orders={purchaseOrders}
+            onDownloadPdf={(snapshot) => { const order = purchaseOrders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order); }}
+            onUpdateStatus={handleUpdateOrderStatus}
+            onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
+            onUpdateCompletionForecast={handleUpdateCompletionForecast}
+            onUpdateAttachments={handleUpdateOrderAttachments}
+            onDeleteOrder={async (id) => {
+              await comprasService.deletePurchaseOrder(id);
+              setPurchaseOrders(p => p.filter(o => o.id !== id));
+              // Only update 'orders' if it's currently showing purchaseOrders (which it might not be in this view, but harmless)
+              if (activeBlock === 'compras') setOrders(p => p.filter(o => o.id !== id));
+            }}
+          />
         )}
         {currentView === 'vehicle-scheduling' && currentUser && (
           <VehicleSchedulingScreen schedules={schedules} vehicles={vehicles} persons={persons} sectors={sectors} onAddSchedule={s => { db.saveSchedule(s); setSchedules(prev => [...prev, s]); }} onUpdateSchedule={s => { db.saveSchedule(s); setSchedules(prev => prev.map(x => x.id === s.id ? s : x)); }} onDeleteSchedule={id => { db.deleteSchedule(id); setSchedules(prev => prev.filter(x => x.id !== id)); }} onBack={handleGoHome} currentUserId={currentUser.id} />
