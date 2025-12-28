@@ -43,11 +43,37 @@ const App: React.FC = () => {
   const [serviceRequests, setServiceRequests] = useState<Order[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<User[]>(DEFAULT_USERS);
-  const [signatures, setSignatures] = useState<Signature[]>([]);
+  // const [signatures, setSignatures] = useState<Signature[]>([]); // DEPRECATED: Signatures are now derived from Users
   const [globalCounter, setGlobalCounter] = useState(0);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
   const [persons, setPersons] = useState<Person[]>([]);
+
+  // Derived signatures from Users
+  const allSignatures = users
+    .filter(u => u.name && u.jobTitle && u.sector)
+    .map(u => ({
+      id: u.id,
+      name: u.name,
+      role: u.jobTitle || 'Usuário',
+      sector: u.sector || 'Geral'
+    }));
+
+  // Ensure current user is always available as a signature for themselves
+  const currentUserSignature = currentUser ? {
+    id: currentUser.id,
+    name: currentUser.name,
+    role: currentUser.jobTitle || 'Usuário',
+    sector: currentUser.sector || 'Geral'
+  } : null;
+
+  // Combine allowed signatures + self (For AdminSidebar usage mostly)
+  const myAvailableSignatures = currentUser
+    ? [
+      currentUserSignature!,
+      ...allSignatures.filter(s => currentUser.allowedSignatureIds?.includes(s.id) && s.id !== currentUser.id)
+    ]
+    : [];
   const [sectors, setSectors] = useState<Sector[]>(DEFAULT_SECTORS);
   const [jobs, setJobs] = useState<Job[]>(DEFAULT_JOBS);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -106,8 +132,8 @@ const App: React.FC = () => {
             // Optional: could insert default users here if empty
           }
         }
-        const savedSigs = await entityService.getSignatures();
-        if (savedSigs.length > 0) setSignatures(savedSigs);
+        // const savedSigs = await entityService.getSignatures();
+        // if (savedSigs.length > 0) setSignatures(savedSigs);
 
 
 
@@ -529,19 +555,15 @@ const App: React.FC = () => {
         {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} />}
         {(currentView === 'editor' || currentView === 'admin') && currentUser && (
           <div className="flex-1 flex overflow-hidden h-full relative">
-            {!isFinalizedView && adminTab !== 'fleet' && (
-              <AdminSidebar state={appState} onUpdate={setAppState} onPrint={() => window.print()} isOpen={isAdminSidebarOpen} onClose={() => { if (currentView === 'editor') { setIsFinalizedView(true); setIsAdminSidebarOpen(false); } else { setIsAdminSidebarOpen(false); } }} isDownloading={isDownloading} currentUser={currentUser} mode={currentView === 'admin' ? 'admin' : 'editor'} onSaveDefault={async () => { await settingsService.saveGlobalSettings(appState); await db.saveGlobalSettings(appState); }} onFinish={handleFinish} activeTab={adminTab} onTabChange={setAdminTab} availableSignatures={signatures} activeBlock={activeBlock} persons={persons} sectors={sectors} jobs={jobs} />
+            {!isFinalizedView && adminTab !== 'fleet' && adminTab !== null && (
+              <AdminSidebar state={appState} onUpdate={setAppState} onPrint={() => window.print()} isOpen={isAdminSidebarOpen} onClose={() => { if (currentView === 'editor') { setIsFinalizedView(true); setIsAdminSidebarOpen(false); } else { setIsAdminSidebarOpen(false); } }} isDownloading={isDownloading} currentUser={currentUser} mode={currentView === 'admin' ? 'admin' : 'editor'} onSaveDefault={async () => { await settingsService.saveGlobalSettings(appState); await db.saveGlobalSettings(appState); }} onFinish={handleFinish} activeTab={adminTab} onTabChange={setAdminTab} availableSignatures={myAvailableSignatures} activeBlock={activeBlock} persons={persons} sectors={sectors} jobs={jobs} />
             )}
             <main className="flex-1 h-full overflow-hidden flex flex-col relative bg-slate-50">
               {currentView === 'admin' && adminTab === null ? (
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
                   <AdminDashboard
-                    userName={currentUser.name}
-                    onNewOrder={() => { setActiveBlock('oficio'); handleStartEditing(); }}
-                    onManageUsers={() => setAdminTab('users')}
-                    onSettings={() => setAdminTab('design')}
-                    onHistory={() => setCurrentView('tracking')}
-                    onSignatures={() => setAdminTab('signatures')}
+                    currentUser={currentUser}
+                    onTabChange={(tab) => setAdminTab(tab)}
                   />
                 </div>
               ) : currentView === 'admin' && adminTab === 'users' ? (
@@ -624,9 +646,10 @@ const App: React.FC = () => {
                       setUsers(p => p.filter(u => u.id !== id));
                     }
                   }}
-                  availableSignatures={signatures}
+                  availableSignatures={allSignatures}
                   jobs={jobs}
                   sectors={sectors}
+                  persons={persons}
                 />
               ) : currentView === 'admin' && adminTab === 'entities' ? (
                 <EntityManagementScreen
@@ -707,29 +730,6 @@ const App: React.FC = () => {
                     else alert("Erro ao criar marca");
                   }}
                   onBack={() => setAdminTab(null)}
-                />
-              ) : currentView === 'admin' && adminTab === 'signatures' ? (
-                <SignatureManagementScreen
-                  signatures={signatures}
-                  persons={persons}
-                  sectors={sectors}
-                  jobs={jobs}
-                  currentUser={currentUser}
-                  onAddSignature={async s => {
-                    const newSig = await entityService.createSignature(s);
-                    if (newSig) setSignatures(p => [...p, newSig]);
-                    else alert('Erro ao criar assinatura');
-                  }}
-                  onUpdateSignature={async s => {
-                    const updated = await entityService.updateSignature(s);
-                    if (updated) setSignatures(p => p.map(si => si.id === s.id ? updated : si));
-                    else alert('Erro ao atualizar assinatura');
-                  }}
-                  onDeleteSignature={async id => {
-                    const success = await entityService.deleteSignature(id);
-                    if (success) setSignatures(p => p.filter(s => s.id !== id));
-                    else alert('Erro ao deletar assinatura');
-                  }}
                 />
               ) : currentView === 'admin' && adminTab === 'ui' ? (
                 <UIPreviewScreen ui={appState.ui} />
