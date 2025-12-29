@@ -99,8 +99,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(null);
     };
 
+    const refreshUser = async () => {
+        if (session?.user) {
+            await fetchProfile(session.user.id, session.user.email || '');
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, session, loading, signIn, signOut }}>
+        <AuthContext.Provider value={{ user, session, loading, signIn, signOut, refreshUser }}>
             {children}
         </AuthContext.Provider>
     );

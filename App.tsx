@@ -38,7 +38,7 @@ import { TwoFactorModal } from './components/TwoFactorModal';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling'>('login');
-  const { user: currentUser, signIn, signOut } = useAuth();
+  const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
   const [appState, setAppState] = useState<AppState>(INITIAL_STATE);
   const [activeBlock, setActiveBlock] = useState<BlockType | null>(null);
   const [oficios, setOficios] = useState<Order[]>([]);
@@ -634,30 +634,7 @@ const App: React.FC = () => {
     } else {
       setUsers(p => p.map(us => us.id === u.id ? u : us));
       if (currentUser && currentUser.id === u.id) {
-        // Update current user references if needed (though mostly handled by users array for management, session might differ)
-        // But 2FA screen relies on currentUser prop update to show 'enabled'.
-        // Since App rerenders when users changes? 
-        // Actually App renders <TwoFactorAuthScreen currentUser={currentUser} />
-        // If currentUser state variable is NOT updated, the prop won't change.
-        // I need to update currentUser state variable?
-        // Login logic sets currentUser.
-        // I'll update it here too if it matches.
-        // BUT wait, currentUser state is defined? 
-        // Not explicitly seen in the snippet (it's likely passed or defined at top).
-        // line 601: currentUser={currentUser}
-        // line 89: const [currentUser, setCurrentUser] = useState<User | null>(null); (Assumed)
-        // I'll assume I can set it?
-        // Wait, I didn't see where currentUser is defined.
-        // Let's assume I can't easily change it if it came from Auth provider? 
-        // But the login handler sets it.
-        // I will ignore updating currentUser variable for now and trust re-fetch or re-login, 
-        // OR better: in line 645 I pass `onUpdateUser` which calls `handleUpdateUserInApp`.
-        // I'll add `setCurrentUser(u)` if ids match.
-        // Note: I don't see setCurrentUser in scope in the snippet, but likely available.
-        // If not available, I might break it.
-        // Actually, `handleLogin` calls `setCurrentUser`?
-        // Let's check `handleLogin` definition later if needed.
-        // For now, simple update in DB and users array.
+        await refreshUser();
       }
     }
   };
