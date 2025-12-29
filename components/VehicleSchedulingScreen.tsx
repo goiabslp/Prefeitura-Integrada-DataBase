@@ -283,15 +283,15 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
           <button onClick={() => handleOpenModal()} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center gap-2 uppercase text-[10px] tracking-[0.2em]"><Plus className="w-4 h-4" />Novo Agendamento</button>
         </div>
       </div>
-      <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50 shrink-0">
-        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d, i) => (
-          <div key={d} className={`py-3 text-center text-[10px] font-black uppercase tracking-[0.3em] border-r border-slate-100 last:border-0 ${i === 0 || i === 6 ? 'text-orange-600' : 'text-slate-400'}`}>{d}</div>
+      <div className="grid grid-cols-7 bg-slate-900 shrink-0 shadow-lg z-10">
+        {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((d, i) => (
+          <div key={d} className={`py-4 text-center text-[10px] font-black uppercase tracking-[0.3em] border-r border-slate-800/50 last:border-0 ${i === 0 || i === 6 ? 'text-amber-400' : 'text-slate-400'}`}>{d}</div>
         ))}
       </div>
       <div className="flex-1 overflow-hidden">
         <div className="grid grid-cols-7 h-full w-full bg-slate-200 gap-px">
           {calendarData.map((cell, idx) => {
-            if (!cell.isCurrent) return <div key={idx} className="bg-slate-50/10 min-h-0" />;
+            if (!cell.isCurrent) return <div key={idx} className="bg-slate-50/30 min-h-0" />;
             const dayStart = new Date(cell.year, cell.month, cell.day, 0, 0, 0).getTime();
             const dayEnd = new Date(cell.year, cell.month, cell.day, 23, 59, 59).getTime();
             const dateObj = new Date(cell.year, cell.month, cell.day);
@@ -306,9 +306,18 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
               return (dep <= dayEnd) && (ret >= dayStart);
             });
             const isToday = new Date().getDate() === cell.day && new Date().getMonth() === cell.month && new Date().getFullYear() === cell.year;
+
+            // Dynamic classes for better aesthetics
+            let cellBgClass = 'bg-white hover:bg-slate-50';
+            if (isHoliday) cellBgClass = 'bg-rose-50/70 hover:bg-rose-100/60';
+            else if (isWeekend) cellBgClass = 'bg-indigo-50/30 hover:bg-indigo-50/60';
+
             return (
-              <div key={idx} className={`group relative min-h-0 flex flex-col p-3 transition-colors cursor-pointer ${isHoliday || isWeekend ? 'bg-orange-50/60 hover:bg-orange-100/40' : 'bg-white hover:bg-indigo-50/30'}`} onClick={() => setSelectedDay(new Date(cell.year, cell.month, cell.day))}>
-                <div className="flex items-center justify-between mb-2"><span className={`text-xs font-black w-8 h-8 flex items-center justify-center rounded-full ${isToday ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : isHoliday || isWeekend ? 'text-orange-700' : 'text-slate-900'}`}>{cell.day}</span>{isHoliday && <span title={holidayName} className="text-orange-400"><Gift className="w-3.5 h-3.5" /></span>}</div>
+              <div key={idx} className={`group relative min-h-0 flex flex-col p-3 transition-all duration-300 cursor-pointer ${cellBgClass} hover:scale-[1.03] hover:shadow-xl hover:z-20 hover:rounded-xl border border-transparent hover:border-indigo-200/50`} onClick={() => setSelectedDay(new Date(cell.year, cell.month, cell.day))}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`text-xs font-black w-8 h-8 flex items-center justify-center rounded-full transition-all ${isToday ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-110' : isHoliday ? 'text-rose-600 bg-rose-100' : isWeekend ? 'text-indigo-900 bg-indigo-100/50' : 'text-slate-700 bg-slate-100'}`}>{cell.day}</span>
+                  {isHoliday && <span title={holidayName} className="text-rose-500 bg-white rounded-full p-1 shadow-sm"><Gift className="w-3.5 h-3.5" /></span>}
+                </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1.5 pr-1 pb-2">
                   {daySchedules.slice(0, 3).map(s => {
                     const v = vehicles.find(veh => veh.id === s.vehicleId);
