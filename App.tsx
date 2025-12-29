@@ -289,14 +289,12 @@ const App: React.FC = () => {
       const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
       const year = new Date().getFullYear();
 
-      // AUTO-INCREMENT SECTOR COUNTER if Oficio or Compras
-      if (activeBlock === 'oficio' || activeBlock === 'compras' || activeBlock === null) {
-        if (currentUser?.sector) {
-          const userSector = sectors.find(s => s.name === currentUser.sector);
-          if (userSector) {
-            // Increment the server counter regardless of title matching.
-            await counterService.incrementSectorCount(userSector.id, year);
-          }
+      // AUTO-INCREMENT SECTOR COUNTER (Unified for ALL blocks)
+      if (currentUser?.sector) {
+        const userSector = sectors.find(s => s.name === currentUser.sector);
+        if (userSector) {
+          // Increment the server counter regardless of block type
+          await counterService.incrementSectorCount(userSector.id, year);
         }
       }
 
@@ -523,26 +521,29 @@ const App: React.FC = () => {
       defaultTitle = 'Requisição de Diária';
     }
 
-    // Logic for Sector numbering (Oficio, Compras, and Diarias sharing sector counter logic)
-    if (activeBlock === 'oficio' || activeBlock === 'compras' || activeBlock === 'diarias' || activeBlock === null) {
-      if (currentUser?.sector) {
-        const userSector = sectors.find(s => s.name === currentUser.sector);
-        if (userSector) {
-          const nextNum = await counterService.getNextSectorCount(userSector.id, currentYear);
-          if (nextNum) {
-            const formattedNum = nextNum.toString().padStart(3, '0');
+    // Logic for Sector numbering (Unified for ALL blocks)
+    // Always attempt to get a number if user has a sector
+    if (currentUser?.sector) {
+      const userSector = sectors.find(s => s.name === currentUser.sector);
+      if (userSector) {
+        const nextNum = await counterService.getNextSectorCount(userSector.id, currentYear);
+        if (nextNum) {
+          const formattedNum = nextNum.toString().padStart(3, '0');
 
-            if (activeBlock === 'compras') {
-              defaultTitle = `Requisição de Compras nº ${formattedNum}/${currentYear}`;
-              leftBlockContent = `Ref: Requisição nº ${formattedNum}/${currentYear}`;
-            } else if (activeBlock === 'diarias') {
-              defaultTitle = `Solicitação de Diária nº ${formattedNum}/${currentYear}`;
-              leftBlockContent = `Ref: Solicitação nº ${formattedNum}/${currentYear}`;
-            } else {
-              // Default Oficio
-              defaultTitle = `Ofício nº ${formattedNum}/${currentYear}`;
-              leftBlockContent = `Ref: Ofício nº ${formattedNum}/${currentYear}`;
-            }
+          if (activeBlock === 'compras') {
+            defaultTitle = `Requisição de Compras nº ${formattedNum}/${currentYear}`;
+            leftBlockContent = `Ref: Requisição nº ${formattedNum}/${currentYear}`;
+          } else if (activeBlock === 'diarias') {
+            defaultTitle = `Solicitação de Diária nº ${formattedNum}/${currentYear}`;
+            leftBlockContent = `Ref: Solicitação nº ${formattedNum}/${currentYear}`;
+          } else if (activeBlock === 'licitacao') {
+            // Assuming Licitacao also follows this pattern or has a specific title format using the number
+            defaultTitle = `Processo Licitatório nº ${formattedNum}/${currentYear}`;
+            leftBlockContent = `Ref: Processo nº ${formattedNum}/${currentYear}`;
+          } else {
+            // Default Oficio and fallback for others
+            defaultTitle = `Ofício nº ${formattedNum}/${currentYear}`;
+            leftBlockContent = `Ref: Ofício nº ${formattedNum}/${currentYear}`;
           }
         }
       }
