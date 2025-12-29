@@ -92,7 +92,13 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
       try {
         const publicUrl = await uploadFile(file, 'attachments', `budget_${budgetUploadOrder.id}_${Date.now()}_${file.name}`);
         if (publicUrl) {
-          onUpdatePurchaseStatus?.(budgetUploadOrder.id, 'aprovacao_orcamento', 'Documento de orçamento anexado para análise.', publicUrl);
+          // Preserve current status, just update the file URL
+          onUpdatePurchaseStatus?.(
+            budgetUploadOrder.id,
+            budgetUploadOrder.purchaseStatus || 'recebido',
+            'Orçamento anexado ao pedido (Status mantido).',
+            publicUrl
+          );
           setBudgetUploadOrder(null);
         } else {
           alert('Erro ao fazer upload do arquivo. Verifique se o bucket "attachments" existe.');

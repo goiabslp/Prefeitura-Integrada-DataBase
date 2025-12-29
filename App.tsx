@@ -391,7 +391,20 @@ const App: React.FC = () => {
     if (!currentUser) return;
     const updatedOrders = orders.map(o => {
       if (o.id === orderId) {
-        const updated = { ...o, purchaseStatus };
+        const newMovement: StatusMovement | null = justification ? {
+          statusLabel: `Alteração de Status para ${purchaseStatus}`,
+          date: new Date().toISOString(),
+          userName: currentUser.name,
+          justification
+        } : null;
+
+        const updated: Order = {
+          ...o,
+          purchaseStatus,
+          budgetFileUrl: budgetFileUrl || o.budgetFileUrl,
+          statusHistory: newMovement ? [...(o.statusHistory || []), newMovement] : o.statusHistory
+        };
+
         comprasService.savePurchaseOrder(updated);
         setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p));
         return updated;
