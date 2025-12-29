@@ -619,20 +619,20 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
       {/* MODAL DE SELEÇÃO DE STATUS */}
       {statusSelectionOrder && createPortal(
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-slide-up">
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
-                  <MousePointer2 className="w-5 h-5 text-white" />
+          <div className="w-full max-w-3xl bg-white rounded-[2rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-slide-up max-h-[90vh]">
+            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                  <MousePointer2 className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">Alterar Status</h3>
-                  <p className="text-[10px] font-bold text-indigo-600 font-mono mt-1 tracking-wider">{statusSelectionOrder.protocol}</p>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase leading-none">Alterar Status</h3>
+                  <p className="text-xs font-bold text-indigo-600 font-mono mt-1 tracking-wider">{statusSelectionOrder.protocol}</p>
                 </div>
               </div>
-              <button onClick={() => setStatusSelectionOrder(null)} className="p-2 hover:bg-white hover:shadow-sm rounded-xl text-slate-400 hover:text-slate-900 transition-all active:scale-90"><X className="w-5 h-5" /></button>
+              <button onClick={() => setStatusSelectionOrder(null)} className="p-3 hover:bg-white hover:shadow-sm rounded-2xl text-slate-400 hover:text-slate-900 transition-all active:scale-90"><X className="w-6 h-6" /></button>
             </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 grid grid-cols-1 md:grid-cols-2 gap-4">
               {(Object.keys(purchaseStatusMap) as Array<keyof typeof purchaseStatusMap>).map((key) => {
                 const opt = purchaseStatusMap[key];
                 const isSelected = statusSelectionOrder.purchaseStatus === key || (!statusSelectionOrder.purchaseStatus && key === 'recebido');
@@ -649,19 +649,19 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                       }
                       setStatusSelectionOrder(null);
                     }}
-                    className={`w-full group relative p-4 rounded-2xl border-2 text-left transition-all duration-300 flex items-center gap-4 ${isSelected ? `bg-${opt.color}-50 border-${opt.color}-500 shadow-md ring-4 ring-${opt.color}-500/5` : 'bg-white border-transparent hover:border-slate-200 hover:bg-slate-50'}`}
+                    className={`w-full group relative p-5 rounded-2xl border-2 text-left transition-all duration-300 flex items-center gap-4 ${isSelected ? `bg-${opt.color}-50 border-${opt.color}-500 shadow-md ring-4 ring-${opt.color}-500/5` : 'bg-white border-transparent hover:border-slate-200 hover:bg-slate-50'}`}
                   >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${isSelected ? `bg-${opt.color}-600 text-white` : `bg-slate-100 text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50`}`}><opt.icon className="w-5 h-5" /></div>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all duration-300 ${isSelected ? `bg-${opt.color}-600 text-white` : `bg-slate-100 text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50`}`}><opt.icon className="w-6 h-6" /></div>
                     <div className="flex-1 min-w-0">
-                      <h4 className={`text-xs font-black uppercase tracking-tight ${isSelected ? `text-${opt.color}-900` : 'text-slate-800'}`}>{opt.label}</h4>
-                      <p className={`text-[10px] font-medium leading-tight truncate ${isSelected ? `text-${opt.color}-700/80` : 'text-slate-400'}`}>{opt.description}</p>
+                      <h4 className={`text-sm font-black uppercase tracking-tight ${isSelected ? `text-${opt.color}-900` : 'text-slate-800'}`}>{opt.label}</h4>
+                      <p className={`text-[11px] font-medium leading-tight truncate ${isSelected ? `text-${opt.color}-700/80` : 'text-slate-400'}`}>{opt.description}</p>
                     </div>
                     {isSelected && <div className={`w-6 h-6 rounded-full bg-${opt.color}-600 flex items-center justify-center text-white animate-scale-in`}><Check className="w-3.5 h-3.5 stroke-[3]" /></div>}
                   </button>
                 );
               })}
             </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-100"><button onClick={() => setStatusSelectionOrder(null)} className="w-full py-3 bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-xl shadow-lg hover:bg-indigo-600 transition-all active:scale-95">Cancelar Operação</button></div>
+            <div className="p-6 bg-slate-50 border-t border-slate-100"><button onClick={() => setStatusSelectionOrder(null)} className="w-full py-4 bg-slate-900 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-lg hover:bg-indigo-600 transition-all active:scale-95">Cancelar Operação</button></div>
           </div>
         </div>,
         document.body
