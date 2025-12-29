@@ -29,6 +29,7 @@ interface AdminSidebarProps {
   persons: Person[];
   sectors: Sector[];
   jobs: Job[];
+  onBack?: () => void;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
@@ -48,7 +49,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   activeBlock,
   persons,
   sectors,
-  jobs
+  jobs,
+  onBack
 }) => {
   const [globalSaveStatus, setGlobalSaveStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [finishStatus, setFinishStatus] = useState<'idle' | 'loading' | 'success'>('idle');
@@ -163,6 +165,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     }
   };
 
+  const getContentHeaderInfo = () => {
+    if (activeBlock === 'diarias') return { title: 'Diárias e Custeio', subtitle: 'Preencha os dados abaixo' };
+    if (activeBlock === 'oficio') return { title: 'Módulo de Ofício', subtitle: 'Preencha os dados abaixo para gerar o documento' };
+    if (activeBlock === 'compras') return { title: 'Novo Pedido', subtitle: 'Preencha os dados do pedido' };
+    if (activeBlock === 'licitacao') return { title: 'Processo Licitatório', subtitle: 'Preencha os dados do processo' };
+    return { title: 'Editor', subtitle: 'Preencha os dados' };
+  };
+
+  const headerInfo = getContentHeaderInfo();
+
   return (
     <>
       {/* Overlay para mobile */}
@@ -178,7 +190,21 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         ${isOpen ? 'translate-x-0 opacity-100 visible' : '-translate-x-full opacity-0 invisible absolute md:w-0'}
       `}>
         <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white z-10 shrink-0">
-          <div><h2 className="text-lg font-black text-slate-900 uppercase tracking-tighter">{mode === 'admin' ? 'Painel Administrativo' : 'Editor de Documento'}</h2></div>
+          <div className="flex items-center gap-3">
+            {mode !== 'admin' && onBack && (
+              <button onClick={onBack} className="p-2 -ml-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all" title="Voltar">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            <div>
+              <h2 className="text-lg font-black text-slate-900 uppercase tracking-tighter">
+                {mode === 'admin' ? 'Painel Administrativo' : headerInfo.title}
+              </h2>
+              {mode !== 'admin' && (
+                <p className="text-xs text-slate-400 font-medium normal-case tracking-normal">{headerInfo.subtitle}</p>
+              )}
+            </div>
+          </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"><X className="w-6 h-6" /></button>
         </div>
 
@@ -233,13 +259,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
           {mode !== 'admin' && activeTab === 'content' && (
             <>
-              {renderSectionHeader(
-                activeBlock?.toUpperCase() === 'DIARIAS' ? 'Diárias e Custeio' :
-                  activeBlock?.toUpperCase() === 'OFICIO' ? 'Módulo de Ofício' :
-                    activeBlock?.toUpperCase() === 'COMPRAS' ? 'Novo Pedido' :
-                      activeBlock?.toUpperCase() === 'LICITACAO' ? 'Processo Licitatório' : 'Editor',
-                'Preencha os dados abaixo para gerar o documento'
-              )}
               {renderContentForm()}
             </>
           )}

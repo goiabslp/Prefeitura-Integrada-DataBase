@@ -499,6 +499,15 @@ const App: React.FC = () => {
     setEditingOrder(null);
   };
 
+  const handleBackToModule = () => {
+    setCurrentView('home');
+    // activeBlock is preserved
+    setIsAdminSidebarOpen(false);
+    setAdminTab(null);
+    setIsFinalizedView(false);
+    setEditingOrder(null);
+  };
+
   const handleStartEditing = async () => {
     let defaultTitle = INITIAL_STATE.content.title;
     let defaultRightBlock = INITIAL_STATE.content.rightBlockText;
@@ -646,8 +655,8 @@ const App: React.FC = () => {
         {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} />}
         {(currentView === 'editor' || currentView === 'admin') && currentUser && (
           <div className="flex-1 flex overflow-hidden h-full relative">
-            {!isFinalizedView && adminTab !== 'fleet' && adminTab !== '2fa' && (currentView !== 'admin' || adminTab !== null) && (
-              <AdminSidebar state={appState} onUpdate={setAppState} onPrint={() => window.print()} isOpen={isAdminSidebarOpen} onClose={() => { if (currentView === 'editor') { setIsFinalizedView(true); setIsAdminSidebarOpen(false); } else { setIsAdminSidebarOpen(false); } }} isDownloading={isDownloading} currentUser={currentUser} mode={currentView === 'admin' ? 'admin' : 'editor'} onSaveDefault={async () => { await settingsService.saveGlobalSettings(appState); await db.saveGlobalSettings(appState); }} onFinish={handleFinish} activeTab={adminTab} onTabChange={setAdminTab} availableSignatures={myAvailableSignatures} activeBlock={activeBlock} persons={persons} sectors={sectors} jobs={jobs} />
+            {!isFinalizedView && adminTab !== 'fleet' && adminTab !== '2fa' && adminTab !== 'users' && adminTab !== 'entities' && (currentView !== 'admin' || adminTab !== null) && (
+              <AdminSidebar state={appState} onUpdate={setAppState} onPrint={() => window.print()} isOpen={isAdminSidebarOpen} onClose={() => { if (currentView === 'editor') { setIsFinalizedView(true); setIsAdminSidebarOpen(false); } else { setIsAdminSidebarOpen(false); } }} isDownloading={isDownloading} currentUser={currentUser} mode={currentView === 'admin' ? 'admin' : 'editor'} onSaveDefault={async () => { await settingsService.saveGlobalSettings(appState); await db.saveGlobalSettings(appState); }} onFinish={handleFinish} activeTab={adminTab} onTabChange={setAdminTab} availableSignatures={myAvailableSignatures} activeBlock={activeBlock} persons={persons} sectors={sectors} jobs={jobs} onBack={() => { if (currentView === 'editor') setCurrentView('home'); }} />
             )}
             <main className="flex-1 h-full overflow-hidden flex flex-col relative bg-slate-50">
               {currentView === 'admin' && adminTab === null ? (
@@ -655,6 +664,7 @@ const App: React.FC = () => {
                   <AdminDashboard
                     currentUser={currentUser}
                     onTabChange={(tab) => setAdminTab(tab)}
+                    onBack={handleGoHome}
                   />
                 </div>
               ) : currentView === 'admin' && adminTab === 'users' ? (
@@ -716,6 +726,7 @@ const App: React.FC = () => {
                   jobs={jobs}
                   sectors={sectors}
                   persons={persons}
+                  onBack={() => setAdminTab(null)}
                 />
               ) : currentView === 'admin' && adminTab === '2fa' ? (
                 <TwoFactorAuthScreen
@@ -776,7 +787,9 @@ const App: React.FC = () => {
                     if (success) setJobs(prev => prev.filter(x => x.id !== id));
                     else alert('Erro ao deletar cargo');
                   }}
+                  onBack={() => setAdminTab(null)}
                 />
+
               ) : currentView === 'admin' && adminTab === 'fleet' ? (
                 <FleetManagementScreen
                   vehicles={vehicles}
@@ -843,7 +856,7 @@ const App: React.FC = () => {
         )}
         {currentView === 'tracking' && currentUser && (
           <TrackingScreen
-            onBack={handleGoHome}
+            onBack={handleBackToModule}
             currentUser={currentUser}
             activeBlock={activeBlock}
             orders={orders}
@@ -872,7 +885,7 @@ const App: React.FC = () => {
         )}
         {currentView === 'purchase-management' && currentUser && (
           <PurchaseManagementScreen
-            onBack={handleGoHome}
+            onBack={handleBackToModule}
             currentUser={currentUser}
             orders={purchaseOrders}
             onDownloadPdf={(snapshot) => { const order = purchaseOrders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order); }}

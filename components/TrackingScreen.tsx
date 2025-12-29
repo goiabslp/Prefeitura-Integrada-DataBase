@@ -161,17 +161,23 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <button
-                onClick={onBack}
+                onClick={() => {
+                  if (activeBlock === 'oficio' && onBack) {
+                    onBack();
+                  } else {
+                    onBack();
+                  }
+                }}
                 className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors text-xs font-bold uppercase tracking-widest mb-4 group"
               >
                 <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                Voltar ao Menu
+                {activeBlock === 'oficio' ? 'Voltar para Oficios' : 'Voltar ao Menu'}
               </button>
               <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
                 <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
                   <FileText className="w-6 h-6 text-white" />
                 </div>
-                Histórico: {activeBlock?.toUpperCase()}
+                {activeBlock === 'oficio' ? 'Histórico de Ofícios' : `Histórico: ${activeBlock?.toUpperCase()}`}
               </h2>
               <p className="text-slate-500 text-sm mt-1 font-medium">
                 {isAdmin ? 'Gerenciamento global de registros.' : isCompras ? 'Pedidos de compra autorizados para seu setor.' : 'Seus documentos gerados neste módulo.'}
@@ -370,8 +376,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                               <button
                                 onClick={() => onUpdatePaymentStatus?.(order.id, isPaid ? 'pending' : 'paid')}
                                 className={`relative group flex items-center justify-between w-full max-w-[120px] px-3 py-2 rounded-xl border transition-all duration-300 active:scale-95 ${isPaid
-                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm shadow-emerald-500/10'
-                                    : 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm shadow-emerald-500/10'
+                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm shadow-emerald-500/10'
+                                  : 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm shadow-emerald-500/10'
                                   }`}
                               >
                                 <div className="flex items-center gap-2">
@@ -394,8 +400,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                           ) : (
                             <div className="flex flex-col gap-1">
                               <div className={`inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border w-fit ${isPaid
-                                  ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-500/5'
-                                  : 'bg-amber-50 text-amber-600 border-amber-100 shadow-sm shadow-emerald-500/5'
+                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-500/5'
+                                : 'bg-amber-50 text-amber-600 border-amber-100 shadow-sm shadow-emerald-500/5'
                                 }`}>
                                 {isPaid ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
                                 {isPaid ? 'Pago' : 'Pendente'}
@@ -498,7 +504,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
           <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20">
             <div className="p-8 text-center">
               <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl ${confirmModal.type === 'danger' ? 'bg-rose-50 text-rose-600 shadow-rose-500/10' :
-                  'bg-indigo-50 text-indigo-600 shadow-indigo-500/10'
+                'bg-indigo-50 text-indigo-600 shadow-indigo-500/10'
                 }`}>
                 {confirmModal.type === 'danger' ? <Trash className="w-10 h-10" /> : <Info className="w-10 h-10" />}
               </div>
@@ -509,7 +515,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
               <button
                 onClick={confirmModal.onConfirm}
                 className={`w-full py-4 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl transition-all active:scale-[0.98] ${confirmModal.type === 'danger' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20' :
-                    'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20'
+                  'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20'
                   }`}
               >
                 Confirmar Ação

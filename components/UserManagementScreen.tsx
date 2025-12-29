@@ -5,7 +5,7 @@ import { User, UserRole, Signature, AppPermission, Job, Sector, Person } from '.
 import {
   Plus, Search, Edit2, Trash2, ShieldCheck, Users, Save, X, Key,
   PenTool, LayoutGrid, User as UserIcon, CheckCircle2, Gavel, ShoppingCart, Briefcase, Network,
-  Eye, EyeOff, RotateCcw, AlertTriangle, Clock, Lock, Copy, Check, Info, Trash, ToggleRight
+  Eye, EyeOff, RotateCcw, AlertTriangle, Clock, Lock, Copy, Check, Info, Trash, ToggleRight, ArrowLeft
 } from 'lucide-react';
 
 interface UserManagementScreenProps {
@@ -18,6 +18,7 @@ interface UserManagementScreenProps {
   jobs: Job[];
   sectors: Sector[];
   persons?: Person[];
+  onBack?: () => void;
 }
 
 // Subcomponente para o contador regressivo em tempo real
@@ -58,7 +59,8 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
   availableSignatures,
   jobs,
   sectors,
-  persons = []
+  persons = [],
+  onBack
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -293,11 +295,22 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
   ];
 
   return (
-    <div className="flex-1 h-full bg-slate-100 p-6 md:p-12 overflow-auto custom-scrollbar">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div className="flex-1 h-full bg-slate-100 p-6 overflow-auto custom-scrollbar">
+      <div className="w-full space-y-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">{isAdmin ? 'Gestão de Usuários' : 'Meu Perfil'}</h2>
+            <div className="flex items-center gap-3">
+              {onBack && (
+                <button
+                  onClick={onBack}
+                  className="p-2 -ml-2 text-slate-400 hover:text-slate-800 hover:bg-slate-200 rounded-lg transition-all"
+                  title="Voltar"
+                >
+                  <ArrowLeft className="w-6 h-6" />
+                </button>
+              )}
+              <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">{isAdmin ? 'Gestão de Usuários' : 'Meu Perfil'}</h2>
+            </div>
             <p className="text-slate-500 mt-1">{isAdmin ? 'Configuração de acessos e permissões da equipe.' : 'Gerencie seus dados pessoais de acesso ao sistema.'}</p>
           </div>
           {isAdmin && (
@@ -336,7 +349,7 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                 <div>
                   <h3 className="text-lg font-bold text-slate-800">{user.name}</h3>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 mt-0.5">
-                    <span className="flex items-center gap-1"><Key className="w-3 h-3" /> @{user.username}</span>
+
                     <span className="flex items-center gap-1 px-2 py-0.5 bg-slate-100 rounded text-xs font-semibold text-slate-600">
                       {user.jobTitle || 'Usuário'}
                     </span>
@@ -454,7 +467,7 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                                 }));
                               }
                             }}
-                            className={`${inputClass} pr-10`}
+                            className={`${inputClass} pr-10 cursor-pointer`}
                             placeholder="Comece a digitar para buscar..."
                             // list="persons-list" // Removed to prevent native dropdown conflict
                             disabled={!isAdmin && !isEditingSelf}
@@ -588,38 +601,102 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                   <div className="relative">
                     <label className={labelClass}>Cargo / Função</label>
                     <div className="relative group">
-                      <select
-                        value={formData.jobTitle}
-                        onChange={e => setFormData({ ...formData, jobTitle: e.target.value })}
-                        className={selectClass}
-                        disabled={!isAdmin}
-                      >
-                        <option value="">Selecione um Cargo</option>
-                        {jobs.sort((a, b) => a.name.localeCompare(b.name)).map(j => (
-                          <option key={j.id} value={j.name}>{j.name}</option>
-                        ))}
-                      </select>
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-                        <Briefcase className="w-4 h-4" />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.jobTitle}
+                          onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
+                          className={`${inputClass} pr-10 cursor-pointer`}
+                          placeholder="Selecione ou digite um cargo"
+                          disabled={!isAdmin}
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                          <Briefcase className="w-4 h-4" />
+                        </div>
+                      </div>
+
+                      {/* Custom Dropdown for Jobs */}
+                      <div className="absolute left-0 top-full mt-1 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-48 overflow-y-auto hidden group-focus-within:block z-50 custom-scrollbar animate-slide-up">
+                        {jobs.filter(j => j.name.toLowerCase().includes((formData.jobTitle || '').toLowerCase()) && j.name !== formData.jobTitle).length > 0 ? (
+                          jobs.filter(j => j.name.toLowerCase().includes((formData.jobTitle || '').toLowerCase()) && j.name !== formData.jobTitle)
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(j => (
+                              <button
+                                key={j.id}
+                                type="button"
+                                onMouseDown={(e) => {
+                                  e.preventDefault(); // Prevent blur
+                                  setFormData(prev => ({ ...prev, jobTitle: j.name }));
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-slate-700 text-sm font-medium border-b border-slate-50 last:border-0 flex items-center justify-between group/item transition-colors"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold">
+                                    <Briefcase className="w-3 h-3" />
+                                  </div>
+                                  {j.name}
+                                </span>
+                                <span className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider opacity-0 group-hover/item:opacity-100 transition-opacity">Selecionar</span>
+                              </button>
+                            ))
+                        ) : (
+                          formData.jobTitle && jobs.every(j => j.name !== formData.jobTitle) && (
+                            <div className="p-4 text-center text-slate-400 text-sm italic">
+                              Nenhum cargo encontrado.
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
                   </div>
                   <div className="relative">
                     <label className={labelClass}>Setor</label>
                     <div className="relative group">
-                      <select
-                        value={formData.sector}
-                        onChange={e => setFormData({ ...formData, sector: e.target.value })}
-                        className={selectClass}
-                        disabled={!isAdmin}
-                      >
-                        <option value="">Selecione um Setor</option>
-                        {sectors.sort((a, b) => a.name.localeCompare(b.name)).map(s => (
-                          <option key={s.id} value={s.name}>{s.name}</option>
-                        ))}
-                      </select>
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-                        <Network className="w-4 h-4" />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.sector}
+                          onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+                          className={`${inputClass} pr-10 cursor-pointer`}
+                          placeholder="Selecione ou digite um setor"
+                          disabled={!isAdmin}
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                          <Network className="w-4 h-4" />
+                        </div>
+                      </div>
+
+                      {/* Custom Dropdown for Sectors */}
+                      <div className="absolute left-0 top-full mt-1 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-48 overflow-y-auto hidden group-focus-within:block z-50 custom-scrollbar animate-slide-up">
+                        {sectors.filter(s => s.name.toLowerCase().includes((formData.sector || '').toLowerCase()) && s.name !== formData.sector).length > 0 ? (
+                          sectors.filter(s => s.name.toLowerCase().includes((formData.sector || '').toLowerCase()) && s.name !== formData.sector)
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(s => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onMouseDown={(e) => {
+                                  e.preventDefault(); // Prevent blur
+                                  setFormData(prev => ({ ...prev, sector: s.name }));
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-emerald-50 text-slate-700 text-sm font-medium border-b border-slate-50 last:border-0 flex items-center justify-between group/item transition-colors"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px] font-bold">
+                                    <Network className="w-3 h-3" />
+                                  </div>
+                                  {s.name}
+                                </span>
+                                <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider opacity-0 group-hover/item:opacity-100 transition-opacity">Selecionar</span>
+                              </button>
+                            ))
+                        ) : (
+                          formData.sector && sectors.every(s => s.name !== formData.sector) && (
+                            <div className="p-4 text-center text-slate-400 text-sm italic">
+                              Nenhum setor encontrado.
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
                   </div>
