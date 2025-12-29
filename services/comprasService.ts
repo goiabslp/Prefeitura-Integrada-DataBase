@@ -56,3 +56,11 @@ export const deletePurchaseOrder = async (id: string): Promise<void> => {
     const { error } = await supabase.from('purchase_orders').delete().eq('id', id);
     if (error) throw error;
 };
+
+export const updateAttachments = async (id: string, attachments: any[]): Promise<void> => {
+    const { error } = await supabase
+        .from('purchase_orders')
+        .update({ attachments: attachments })
+        .eq('id', id);
+    if (error) throw error;
+};

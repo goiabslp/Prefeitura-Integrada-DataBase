@@ -432,7 +432,7 @@ const App: React.FC = () => {
       if (o.id === orderId) {
         const updated = { ...o, attachments };
         if (updated.blockType === 'compras') {
-          comprasService.savePurchaseOrder(updated);
+          comprasService.updateAttachments(updated.id, updated.attachments || []);
           setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p));
         } else {
           // For now assume others can have attachments or just ignore if not supported by service yet, 
