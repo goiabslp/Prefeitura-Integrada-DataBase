@@ -64,3 +64,33 @@ export const updateAttachments = async (id: string, attachments: any[]): Promise
         .eq('id', id);
     if (error) throw error;
 };
+
+export const updatePurchaseStatus = async (id: string, status: string, historyEntry: any | null, budgetFileUrl?: string): Promise<void> => {
+    // 1. Fetch current history to ensure we append to the latest version (Atomicity improvement)
+    const { data: current, error: fetchError } = await supabase
+        .from('purchase_orders')
+        .select('status_history')
+        .eq('id', id)
+        .single();
+
+    if (fetchError) throw fetchError;
+
+    const currentHistory = current?.status_history || [];
+    const newHistory = historyEntry ? [...currentHistory, historyEntry] : currentHistory;
+
+    const updatePayload: any = {
+        purchase_status: status,
+        status_history: newHistory
+    };
+
+    if (budgetFileUrl) {
+        updatePayload.budget_file_url = budgetFileUrl;
+    }
+
+    const { error } = await supabase
+        .from('purchase_orders')
+        .update(updatePayload)
+        .eq('id', id);
+
+    if (error) throw error;
+};
