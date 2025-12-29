@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { User as UserType, Order, AppState, BlockType, Attachment } from '../types';
 import { DocumentPreview } from './DocumentPreview';
+import { uploadFile } from '../services/storageService';
 
 const HashIcon = ({ className }: { className?: string }) => (
   <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -54,6 +55,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
   const [attachmentManagerOrder, setAttachmentManagerOrder] = useState<Order | null>(null);
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
   const [priorityJustificationOrder, setPriorityJustificationOrder] = useState<Order | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Modais customizados
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, title: string, message: string, onConfirm: () => void, type: 'danger' | 'warning' }>({
@@ -107,24 +109,33 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     return new Date(content.departureDateTime).toLocaleDateString('pt-BR');
   };
 
-  const handleGenericAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGenericAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && attachmentManagerOrder) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        const newAttachment: Attachment = {
-          id: Date.now().toString(),
-          name: file.name,
-          url: base64,
-          type: file.type,
-          date: new Date().toISOString()
-        };
-        const updatedList = [...(attachmentManagerOrder.attachments || []), newAttachment];
-        onUpdateAttachments?.(attachmentManagerOrder.id, updatedList);
-        setAttachmentManagerOrder({ ...attachmentManagerOrder, attachments: updatedList });
-      };
-      reader.readAsDataURL(file);
+      setIsUploading(true);
+      try {
+        const publicUrl = await uploadFile(file, 'attachments', `user_upload_${attachmentManagerOrder.id}_${Date.now()}_${file.name}`);
+
+        if (publicUrl) {
+          const newAttachment: Attachment = {
+            id: Date.now().toString(),
+            name: file.name,
+            url: publicUrl,
+            type: file.type,
+            date: new Date().toISOString()
+          };
+          const updatedList = [...(attachmentManagerOrder.attachments || []), newAttachment];
+          onUpdateAttachments?.(attachmentManagerOrder.id, updatedList);
+          setAttachmentManagerOrder({ ...attachmentManagerOrder, attachments: updatedList });
+        } else {
+          alert('Erro ao fazer upload do arquivo.');
+        }
+      } catch (error) {
+        console.error("Upload error:", error);
+        alert("Erro ao enviar arquivo.");
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
 
@@ -592,12 +603,21 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
               {(attachmentManagerOrder.userId === currentUser.id || isAdmin) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                   <div
-                    onClick={() => genericAttachmentRef.current?.click()}
-                    className="aspect-video border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center justify-center gap-3 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all cursor-pointer group"
+                    onClick={() => !isUploading && genericAttachmentRef.current?.click()}
+                    className={`aspect-video border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center justify-center gap-3 transition-all relative overflow-hidden ${isUploading ? 'bg-slate-50 cursor-wait' : 'hover:border-emerald-500 hover:bg-emerald-50/50 cursor-pointer group'}`}
                   >
-                    <input type="file" ref={genericAttachmentRef} className="hidden" onChange={handleGenericAttachmentUpload} />
-                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-inner"><Plus className="w-6 h-6" /></div>
-                    <div className="text-center px-4"><p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Novo Anexo</p></div>
+                    <input type="file" ref={genericAttachmentRef} className="hidden" onChange={handleGenericAttachmentUpload} disabled={isUploading} />
+                    {isUploading ? (
+                      <div className="flex flex-col items-center animate-pulse">
+                        <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-2" />
+                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Enviando...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-inner"><Plus className="w-6 h-6" /></div>
+                        <div className="text-center px-4"><p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Novo Anexo</p></div>
+                      </>
+                    )}
                   </div>
 
                   <div className="bg-slate-50/50 border border-slate-200 rounded-[2rem] p-6 flex flex-col justify-center">
