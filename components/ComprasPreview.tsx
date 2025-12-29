@@ -9,6 +9,18 @@ interface ComprasPreviewProps {
 }
 
 export const ComprasPreview: React.FC<ComprasPreviewProps> = ({ state, isGenerating }) => {
+  // Desabilita Marca D'agua especificamente para o módulo de compras
+  const stateNoWatermark = {
+    ...state,
+    branding: {
+      ...state.branding,
+      watermark: {
+        ...state.branding.watermark,
+        enabled: false
+      }
+    }
+  };
+
   const { branding, document: docConfig, content } = state;
 
   const showPriorityNote = content.priority === 'Alta' || content.priority === 'Urgência';
@@ -78,7 +90,7 @@ export const ComprasPreview: React.FC<ComprasPreviewProps> = ({ state, isGenerat
   return (
     <>
       {pages.map((itemsOnPage, pageIndex) => (
-        <PageWrapper key={pageIndex} state={state} pageIndex={pageIndex} totalPages={pages.length} isGenerating={isGenerating}>
+        <PageWrapper key={pageIndex} state={stateNoWatermark} pageIndex={pageIndex} totalPages={pages.length} isGenerating={isGenerating}>
           {pageIndex === 0 && (
             <div className="mb-6">
               {/* 1. Blocos de Endereçamento (Topo) */}

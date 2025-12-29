@@ -9,6 +9,18 @@ interface DiariasPreviewProps {
 }
 
 export const DiariasPreview: React.FC<DiariasPreviewProps> = ({ state, isGenerating }) => {
+  // Desabilita Marca D'agua especificamente para o módulo de diárias
+  const stateNoWatermark = {
+    ...state,
+    branding: {
+      ...state.branding,
+      watermark: {
+        ...state.branding.watermark,
+        enabled: false
+      }
+    }
+  };
+
   const { branding, document: docConfig, content } = state;
 
   const pages = useMemo(() => {
@@ -152,7 +164,7 @@ export const DiariasPreview: React.FC<DiariasPreviewProps> = ({ state, isGenerat
   return (
     <>
       {pages.map((page, pageIndex) => (
-        <PageWrapper key={pageIndex} state={state} pageIndex={pageIndex} totalPages={pages.length} isGenerating={isGenerating}>
+        <PageWrapper key={pageIndex} state={stateNoWatermark} pageIndex={pageIndex} totalPages={pages.length} isGenerating={isGenerating}>
           {page.type === 'diaria-form' ? (
             <>
               <h1 className="font-black mb-4 leading-tight tracking-tighter text-indigo-900 uppercase text-[18pt] text-center border-b-2 border-indigo-100 pb-2">{content.title}</h1>
