@@ -42,8 +42,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const canAccessDiarias = permissions.includes('parent_diarias');
   const canManagePurchaseOrders = permissions.includes('parent_compras_pedidos');
   const canAccessScheduling = permissions.includes('parent_agendamento_veiculo');
+  const canAccessFleet = permissions.includes('parent_frotas');
 
-  const hasAnyPermission = canAccessOficio || canAccessCompras || canAccessLicitacao || canAccessDiarias || canAccessScheduling;
+  const hasAnyPermission = canAccessOficio || canAccessCompras || canAccessLicitacao || canAccessDiarias || canAccessScheduling || canAccessFleet;
   const firstName = userName.split(' ')[0];
 
   const getBlockName = () => {
@@ -144,7 +145,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </button>
               )}
 
-              <FleetShortcutCard onClick={() => onOpenAdmin('fleet')} />
+              {canAccessFleet && <FleetShortcutCard onClick={() => onOpenAdmin('fleet')} />}
             </div>
           </div>
         )}
