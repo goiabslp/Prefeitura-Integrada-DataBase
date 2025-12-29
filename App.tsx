@@ -289,8 +289,8 @@ const App: React.FC = () => {
       const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
       const year = new Date().getFullYear();
 
-      // AUTO-INCREMENT SECTOR COUNTER if Oficio
-      if (activeBlock === 'oficio' || activeBlock === null) {
+      // AUTO-INCREMENT SECTOR COUNTER if Oficio or Compras
+      if (activeBlock === 'oficio' || activeBlock === 'compras' || activeBlock === null) {
         if (currentUser?.sector) {
           const userSector = sectors.find(s => s.name === currentUser.sector);
           if (userSector) {
