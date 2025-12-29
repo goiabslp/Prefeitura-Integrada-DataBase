@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, History, Car, User, MapPin, Clock, Eye, Filter, Calendar } from 'lucide-react';
+import { Search, History, Car, User, MapPin, Clock, Eye, Filter, Calendar, ArrowLeft } from 'lucide-react';
 import { Vehicle, Person, VehicleSchedule, ScheduleStatus } from '../types';
 
 interface VehicleScheduleHistoryProps {
@@ -7,14 +7,15 @@ interface VehicleScheduleHistoryProps {
   vehicles: Vehicle[];
   persons: Person[];
   onViewDetails: (s: VehicleSchedule) => void;
+  onBack?: () => void;
 }
 
 const CheckCircle2 = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" /><path d="m9 12 2 2 4-4" /></svg>
 );
 
 const X = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
 );
 
 const STATUS_MAP: Record<ScheduleStatus, { label: string, color: string, icon: any }> = {
@@ -29,7 +30,8 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
   schedules,
   vehicles,
   persons,
-  onViewDetails
+  onViewDetails,
+  onBack
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -40,9 +42,9 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
         const d = persons.find(p => p.id === s.driverId);
         const term = searchTerm.toLowerCase();
         return (
-          v?.model.toLowerCase().includes(term) || 
-          v?.plate.toLowerCase().includes(term) || 
-          d?.name.toLowerCase().includes(term) || 
+          v?.model.toLowerCase().includes(term) ||
+          v?.plate.toLowerCase().includes(term) ||
+          d?.name.toLowerCase().includes(term) ||
           s.destination.toLowerCase().includes(term)
         );
       })
@@ -52,10 +54,17 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
   return (
     <div className="flex-1 flex flex-col overflow-hidden animate-fade-in bg-slate-50 p-6 md:p-8">
       <div className="max-w-6xl mx-auto w-full space-y-6 flex flex-col h-full">
+        {onBack && (
+          <button onClick={onBack} className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold w-fit transition-all">
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            <span className="text-xs uppercase tracking-widest">Voltar</span>
+          </button>
+        )}
+
         {/* Barra de Busca */}
         <div className="relative group shrink-0">
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder="Pesquisar no histórico (Placa, Motorista, Destino)..."
             className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-[1.5rem] text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all shadow-sm"
             value={searchTerm}
@@ -72,11 +81,11 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                 const v = vehicles.find(veh => veh.id === s.vehicleId);
                 const d = persons.find(p => p.id === s.driverId);
                 const cfg = STATUS_MAP[s.status];
-                
+
                 return (
                   <div key={s.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 group relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-100 group-hover:bg-slate-900 transition-colors"></div>
-                    
+
                     <div className="flex items-center gap-6 flex-1 ml-2">
                       <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all shrink-0">
                         <Car className="w-8 h-8" />
@@ -87,8 +96,8 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                           <span className="font-mono text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 uppercase">{v?.plate || '---'}</span>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-6 gap-y-1 mt-1.5 text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                           <span className="flex items-center gap-2"><User className="w-4 h-4 text-slate-300" /> {d?.name || '---'}</span>
-                           <span className="flex items-center gap-2 text-indigo-600"><MapPin className="w-4 h-4" /> {s.destination}</span>
+                          <span className="flex items-center gap-2"><User className="w-4 h-4 text-slate-300" /> {d?.name || '---'}</span>
+                          <span className="flex items-center gap-2 text-indigo-600"><MapPin className="w-4 h-4" /> {s.destination}</span>
                         </div>
                       </div>
                     </div>
@@ -116,11 +125,11 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
         </div>
 
         <div className="shrink-0 flex justify-between items-center px-4 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
-           <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Total de {filtered.length} agendamentos</span>
-           <div className="flex items-center gap-2">
-              <Filter className="w-3 h-3 text-indigo-500" />
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Filtro Ativo: Todos</span>
-           </div>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Total de {filtered.length} agendamentos</span>
+          <div className="flex items-center gap-2">
+            <Filter className="w-3 h-3 text-indigo-500" />
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Filtro Ativo: Todos</span>
+          </div>
         </div>
       </div>
     </div>

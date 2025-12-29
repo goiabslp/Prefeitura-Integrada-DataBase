@@ -221,41 +221,44 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
   const inputClass = "w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 text-sm font-bold text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 outline-none transition-all placeholder:text-slate-400";
 
   const renderDashboard = () => (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 overflow-y-auto">
-      <div className="max-w-6xl w-full animate-fade-in flex flex-col items-center">
-        <div className="space-y-6 w-full max-w-5xl">
-          <button onClick={onBack} className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold mb-4 transition-all">
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            <span className="text-xs uppercase tracking-widest">Módulos</span>
-          </button>
-          <div className="text-center space-y-3">
-            <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">Gestão de Agendamentos de Veículos</h1>
-            <p className="text-slate-500 font-medium text-lg">Sistema Unificado de Solicitações de Veículos Municipal</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
-            <button onClick={() => setActiveSubView('calendar')} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-64 justify-center">
-              <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform"><Calendar className="w-8 h-8 text-white" /></div>
-              <h2 className="text-xl font-black text-slate-900 mb-1">Agendar</h2>
-              <p className="text-slate-500 text-xs font-medium">Mapa de Disponibilidade.</p>
+    <div className="flex-1 bg-slate-50 font-sans flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col items-center pt-8 px-6 overflow-y-auto bg-gradient-to-b from-white to-slate-50 pb-12 custom-scrollbar">
+        <div className="w-full max-w-6xl animate-fade-in flex flex-col items-center">
+          <div className="space-y-6 w-full max-w-5xl">
+            <button onClick={onBack} className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold mb-4 transition-all">
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              <span className="text-xs uppercase tracking-widest">Módulos</span>
             </button>
+            <div className="text-center space-y-1">
+              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight text-center">Gestão de Agendamentos de Veículos</h2>
+              <p className="text-slate-500 text-xs font-medium">Sistema Unificado de Solicitações de Veículos Municipal</p>
+            </div>
 
-            <button onClick={() => setActiveSubView('history')} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-64 justify-center">
-              <div className="w-16 h-16 bg-purple-600 rounded-2xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform"><History className="w-8 h-8 text-white" /></div>
-              <h2 className="text-xl font-black text-slate-900 mb-1">Histórico</h2>
-              <p className="text-slate-500 text-xs font-medium">Consulta de Registros.</p>
-            </button>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
+              <button onClick={() => setActiveSubView('calendar')} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-56 justify-center">
+                <div className="w-14 h-14 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform"><Calendar className="w-7 h-7 text-white" /></div>
+                <h3 className="text-xl font-black text-slate-900 mb-1">Agendar Veículo</h3>
+                <p className="text-slate-500 text-xs font-medium">Mapa de Disponibilidade.</p>
+              </button>
 
-            <button onClick={() => setActiveSubView('approvals')} className="group relative p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-64 justify-center">
-              <div className="w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform">
-                <ShieldCheck className="w-8 h-8 text-white" />
-                {pendingApprovals > 0 && (<span className="absolute -top-2 -right-2 w-6 h-6 bg-rose-600 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm animate-bounce">{pendingApprovals}</span>)}
-              </div>
-              <h2 className="text-xl font-black text-slate-900 mb-1">Aprovação</h2>
-              <p className="text-slate-500 text-xs font-medium">Fila de Triagem.</p>
-            </button>
+              <button onClick={() => setActiveSubView('history')} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-56 justify-center">
+                <div className="w-14 h-14 bg-purple-600 rounded-xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform"><History className="w-7 h-7 text-white" /></div>
+                <h3 className="text-xl font-black text-slate-900 mb-1">Histórico de Agendamentos de Veiculos</h3>
+                <p className="text-slate-500 text-xs font-medium">Consulta de Registros.</p>
+              </button>
+
+              <button onClick={() => setActiveSubView('approvals')} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-56 justify-center relative">
+                <div className="w-14 h-14 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform">
+                  <ShieldCheck className="w-7 h-7 text-white" />
+                  {pendingApprovals > 0 && (<span className="absolute -top-2 -right-2 w-6 h-6 bg-rose-600 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm animate-bounce">{pendingApprovals}</span>)}
+                </div>
+                <h3 className="text-xl font-black text-slate-900 mb-1">Aprovação de Veiculos</h3>
+                <p className="text-slate-500 text-xs font-medium">Fila de Triagem.</p>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 
@@ -263,7 +266,10 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
     <div className="flex-1 flex flex-col overflow-hidden animate-fade-in h-full">
       <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 z-20">
         <div className="flex items-center gap-4">
-          <button onClick={() => setActiveSubView('menu')} className="p-2.5 bg-slate-50 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all active:scale-90"><ArrowLeft className="w-5 h-5" /></button>
+          <button onClick={() => setActiveSubView('menu')} className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold transition-all p-2 rounded-xl">
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            <span className="text-xs uppercase tracking-widest">Voltar</span>
+          </button>
           <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
           <div><h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2"><Calendar className="w-5 h-5 text-indigo-600" />Mapa de Disponibilidade</h2></div>
         </div>
@@ -329,15 +335,24 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
       {activeSubView === 'menu' && renderDashboard()}
       {activeSubView === 'calendar' && renderCalendar()}
       {activeSubView === 'history' && (
-        <VehicleScheduleHistory schedules={schedules} vehicles={vehicles} persons={persons} onViewDetails={(s) => { setViewingSchedule(s); setIsViewModalOpen(true); }} />
+        <VehicleScheduleHistory
+          schedules={schedules}
+          vehicles={vehicles}
+          persons={persons}
+          onViewDetails={(s) => { setViewingSchedule(s); setIsViewModalOpen(true); }}
+          onBack={() => setActiveSubView('menu')}
+        />
       )}
       {activeSubView === 'approvals' && (
-        <VehicleScheduleApprovals schedules={schedules} vehicles={vehicles} persons={persons} sectors={sectors} onApprove={(s) => onUpdateSchedule({ ...s, status: 'confirmado' })} onReject={(s) => onUpdateSchedule({ ...s, status: 'cancelado' })} />
-      )}
-      {activeSubView !== 'menu' && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[80]">
-          <button onClick={() => setActiveSubView('menu')} className="px-8 py-3 bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-2xl shadow-2xl flex items-center gap-3 border border-white/10 hover:bg-indigo-600 transition-all active:scale-95"><ArrowLeft className="w-4 h-4" /> Voltar ao Dashboard de Frota</button>
-        </div>
+        <VehicleScheduleApprovals
+          schedules={schedules}
+          vehicles={vehicles}
+          persons={persons}
+          sectors={sectors}
+          onApprove={(s) => onUpdateSchedule({ ...s, status: 'confirmado' })}
+          onReject={(s) => onUpdateSchedule({ ...s, status: 'cancelado' })}
+          onBack={() => setActiveSubView('menu')}
+        />
       )}
       {selectedDay && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl animate-fade-in overflow-hidden">

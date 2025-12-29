@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ShieldCheck, Car, User, MapPin, Clock, CheckCircle2, XCircle, AlertCircle, Calendar } from 'lucide-react';
+import { ShieldCheck, Car, User, MapPin, Clock, CheckCircle2, XCircle, AlertCircle, Calendar, ArrowLeft } from 'lucide-react';
 import { Vehicle, Person, VehicleSchedule, Sector } from '../types';
 
 interface VehicleScheduleApprovalsProps {
@@ -10,6 +10,7 @@ interface VehicleScheduleApprovalsProps {
   sectors: Sector[];
   onApprove: (s: VehicleSchedule) => void;
   onReject: (s: VehicleSchedule) => void;
+  onBack?: () => void;
 }
 
 export const VehicleScheduleApprovals: React.FC<VehicleScheduleApprovalsProps> = ({
@@ -18,23 +19,30 @@ export const VehicleScheduleApprovals: React.FC<VehicleScheduleApprovalsProps> =
   persons,
   sectors,
   onApprove,
-  onReject
+  onReject,
+  onBack
 }) => {
-  const pending = schedules.filter(s => s.status === 'pendente').sort((a,b) => a.departureDateTime.localeCompare(b.departureDateTime));
+  const pending = schedules.filter(s => s.status === 'pendente').sort((a, b) => a.departureDateTime.localeCompare(b.departureDateTime));
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden animate-fade-in bg-slate-50 p-6 md:p-8">
       <div className="max-w-5xl mx-auto w-full space-y-6 flex flex-col h-full">
-        
+        {onBack && (
+          <button onClick={onBack} className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold w-fit transition-all">
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            <span className="text-xs uppercase tracking-widest">Voltar</span>
+          </button>
+        )}
+
         <div className="bg-emerald-600 rounded-[2rem] p-8 text-white shadow-xl shadow-emerald-900/10 flex items-center justify-between shrink-0 relative overflow-hidden">
-           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-           <div className="relative z-10">
-              <h3 className="text-2xl font-black uppercase tracking-tight leading-none">Triagem de Frota</h3>
-              <p className="text-emerald-100 text-sm mt-1 font-medium opacity-80">Autorize ou rejeite solicitações de saída de veículos.</p>
-           </div>
-           <div className="bg-white/20 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 text-sm font-black uppercase tracking-widest relative z-10">
-              {pending.length} Pendentes
-           </div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+          <div className="relative z-10">
+            <h3 className="text-2xl font-black uppercase tracking-tight leading-none">Triagem de Frota</h3>
+            <p className="text-emerald-100 text-sm mt-1 font-medium opacity-80">Autorize ou rejeite solicitações de saída de veículos.</p>
+          </div>
+          <div className="bg-white/20 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 text-sm font-black uppercase tracking-widest relative z-10">
+            {pending.length} Pendentes
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
@@ -44,7 +52,7 @@ export const VehicleScheduleApprovals: React.FC<VehicleScheduleApprovalsProps> =
                 const v = vehicles.find(veh => veh.id === s.vehicleId);
                 const d = persons.find(p => p.id === s.driverId);
                 const sec = sectors.find(sec => sec.id === s.serviceSectorId);
-                
+
                 return (
                   <div key={s.id} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden animate-slide-up group">
                     <div className="p-8 flex flex-col md:flex-row gap-10">
@@ -84,13 +92,13 @@ export const VehicleScheduleApprovals: React.FC<VehicleScheduleApprovalsProps> =
                       </div>
 
                       <div className="flex flex-row md:flex-col gap-3 justify-center border-t md:border-t-0 md:border-l border-slate-100 pt-8 md:pt-0 md:pl-10 shrink-0">
-                        <button 
+                        <button
                           onClick={() => onApprove(s)}
                           className="flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all active:scale-95 group"
                         >
                           <CheckCircle2 className="w-5 h-5 group-hover:scale-110 transition-transform" /> Aprovar Saída
                         </button>
-                        <button 
+                        <button
                           onClick={() => onReject(s)}
                           className="flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-white text-rose-600 border border-rose-100 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-50 transition-all active:scale-95"
                         >

@@ -61,8 +61,8 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [viewingDocumentUrl, setViewingDocumentUrl] = useState<{ url: string, name: string, type: 'doc' | 'photo' } | null>(null);
 
-  const [isSectorDropdownOpen, setIsSectorDropdownOpen] = useState(false);
-  const [isResponsibleDropdownOpen, setIsResponsibleDropdownOpen] = useState(false);
+  const [isSectorModalOpen, setIsSectorModalOpen] = useState(false);
+  const [isResponsibleModalOpen, setIsResponsibleModalOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [isMaintDropdownOpen, setIsMaintDropdownOpen] = useState(false);
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
@@ -72,8 +72,6 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   const [brandSearch, setBrandSearch] = useState('');
   const [newBrandName, setNewBrandName] = useState('');
 
-  const sectorDropdownRef = useRef<HTMLDivElement>(null);
-  const responsibleDropdownRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const maintDropdownRef = useRef<HTMLDivElement>(null);
   const brandDropdownRef = useRef<HTMLDivElement>(null);
@@ -105,8 +103,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (sectorDropdownRef.current && !sectorDropdownRef.current.contains(target)) setIsSectorDropdownOpen(false);
-      if (responsibleDropdownRef.current && !responsibleDropdownRef.current.contains(target)) setIsResponsibleDropdownOpen(false);
+
       if (statusDropdownRef.current && !statusDropdownRef.current.contains(target)) setIsStatusDropdownOpen(false);
       if (maintDropdownRef.current && !maintDropdownRef.current.contains(target)) setIsMaintDropdownOpen(false);
       if (brandDropdownRef.current && !brandDropdownRef.current.contains(target)) setIsBrandDropdownOpen(false);
@@ -143,8 +140,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
     setSectorSearch('');
     setResponsibleSearch('');
     setBrandSearch('');
-    setIsSectorDropdownOpen(false);
-    setIsResponsibleDropdownOpen(false);
+
     setIsStatusDropdownOpen(false);
     setIsMaintDropdownOpen(false);
     setIsBrandDropdownOpen(false);
@@ -260,20 +256,22 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] bg-slate-100 flex flex-col animate-fade-in overflow-hidden">
+    <div className="flex-1 bg-slate-50 font-sans flex flex-col overflow-hidden animate-fade-in">
       {/* Header Full-Width */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 shadow-sm">
-        <div className="flex items-center gap-4">
+      <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 shadow-sm relative z-20">
+        <div className="flex items-center gap-6">
           <button
             onClick={onBack}
-            className="p-2.5 bg-slate-50 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all active:scale-90"
-            title="Voltar ao Painel Administrativo"
+            className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold transition-all"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            <span className="text-xs uppercase tracking-widest">Módulos</span>
           </button>
+
           <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
+
           <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
               <Truck className="w-6 h-6 text-indigo-600" />
               Gestão de Frotas
             </h2>
@@ -293,7 +291,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
       </div>
 
       {/* Área de Filtros e Categorias */}
-      <div className="bg-white/50 backdrop-blur-md px-6 py-4 border-b border-slate-200 shrink-0 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="bg-white/50 backdrop-blur-md px-6 py-4 border-b border-slate-200 shrink-0 flex flex-col md:flex-row gap-4 items-center justify-between sticky top-0 z-10">
         <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm w-fit gap-1">
           {[
             { id: 'leve', label: 'Leves', icon: Car },
@@ -325,7 +323,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
       </div>
 
       {/* Conteúdo de Grade 100% */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 bg-slate-50">
         <div className="max-w-[1920px] mx-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             {filteredVehicles.map(v => {
@@ -449,32 +447,32 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xl animate-fade-in">
           <div className="bg-white rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] w-full max-w-6xl overflow-hidden flex flex-col animate-slide-up max-h-[95vh] border border-white/20">
 
-            <div className="px-10 py-8 border-b border-slate-100 flex justify-between items-center bg-white/50 backdrop-blur-sm shrink-0">
-              <div className="flex items-center gap-6">
-                <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-600/20 rotate-[-4deg]">
-                  {activeTab === 'leve' ? <Car className="w-8 h-8" /> : activeTab === 'pesado' ? <Truck className="w-8 h-8" /> : <Wrench className="w-8 h-8" />}
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white/50 backdrop-blur-sm shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-xl shadow-indigo-600/20 rotate-[-4deg]">
+                  {activeTab === 'leve' ? <Car className="w-5 h-5" /> : activeTab === 'pesado' ? <Truck className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
                 </div>
                 <div>
-                  <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight leading-none">
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none">
                     {editingVehicle ? 'Perfil do Veículo' : 'Cadastro de Veículo'}
                   </h3>
-                  <p className="text-xs text-slate-500 font-bold uppercase tracking-[0.1em] mt-1.5 flex items-center gap-2">
-                    <Activity className="w-3 h-3 text-indigo-500" /> Detalhamento Técnico e Patrimonial
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.1em] mt-1 flex items-center gap-2">
+                    <Activity className="w-3 h-3 text-indigo-500" /> Detalhamento Técnico
                   </p>
                 </div>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="p-4 bg-slate-50 hover:bg-rose-50 rounded-2xl text-slate-400 hover:text-rose-600 transition-all active:scale-90 border border-slate-100"><X className="w-7 h-7" /></button>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 bg-slate-50 hover:bg-rose-50 rounded-xl text-slate-400 hover:text-rose-600 transition-all active:scale-90 border border-slate-100"><X className="w-5 h-5" /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
               <div className="grid grid-cols-1 lg:grid-cols-12 h-full">
 
-                <div className="lg:col-span-5 p-10 border-r border-slate-100 bg-white flex flex-col gap-8">
+                <div className="lg:col-span-5 p-6 border-r border-slate-100 bg-white flex flex-col gap-6">
                   <div className="space-y-4">
                     <label className={labelClass}><Camera className="w-3.5 h-3.5 inline mr-2" /> Fotografia do Veículo</label>
                     <div
                       onClick={() => photoInputRef.current?.click()}
-                      className={`relative aspect-[4/3] rounded-[3rem] border-4 border-dashed transition-all cursor-pointer group flex flex-col items-center justify-center overflow-hidden shadow-inner
+                      className={`relative aspect-[4/3] rounded-[2rem] border-4 border-dashed transition-all cursor-pointer group flex flex-col items-center justify-center overflow-hidden shadow-inner
                               ${formData.vehicleImageUrl ? 'border-indigo-600 bg-indigo-50/5' : 'border-slate-100 bg-slate-50 hover:border-indigo-400 hover:bg-white'}
                             `}
                     >
@@ -489,35 +487,35 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                         </>
                       ) : (
                         <div className="flex flex-col items-center gap-4 text-slate-300 group-hover:text-indigo-400 transition-all">
-                          <div className="p-10 bg-white rounded-[2.5rem] shadow-xl group-hover:shadow-indigo-500/10 border border-slate-100 transition-all group-hover:scale-110"><ImageIcon className="w-16 h-16" /></div>
+                          <div className="p-8 bg-white rounded-[2rem] shadow-xl group-hover:shadow-indigo-500/10 border border-slate-100 transition-all group-hover:scale-110"><ImageIcon className="w-12 h-12" /></div>
                           <div className="text-center">
-                            <p className="text-xs font-black uppercase tracking-[0.3em]">Carregar Imagem</p>
-                            <p className="text-[10px] font-bold mt-1 opacity-50">Resolução recomendada: 1200x900px</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.3em]">Carregar Imagem</p>
+                            <p className="text-[9px] font-bold mt-1 opacity-50">Resolução recomendada: 1200x900px</p>
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 space-y-8">
-                    <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                      <Activity className="w-4 h-4" /> Indicadores Operacionais
+                  <div className="bg-slate-50 border border-slate-100 rounded-[2rem] p-6 space-y-6">
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                      <Activity className="w-3.5 h-3.5" /> Indicadores Operacionais
                     </h4>
 
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <div className="relative" ref={statusDropdownRef}>
                         <label className={labelClass}>Status de Disponibilidade</label>
                         <button
                           onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                          className="w-full bg-white border-2 border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-sm hover:border-indigo-400 transition-all group/sel"
+                          className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm hover:border-indigo-400 transition-all group/sel"
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-xl bg-${getStatusConfig(formData.status || 'operacional').color}-600 text-white shadow-md`}>
-                              {React.createElement(getStatusConfig(formData.status || 'operacional').icon, { className: "w-4 h-4" })}
+                            <div className={`p-1.5 rounded-lg bg-${getStatusConfig(formData.status || 'operacional').color}-600 text-white shadow-md`}>
+                              {React.createElement(getStatusConfig(formData.status || 'operacional').icon, { className: "w-3.5 h-3.5" })}
                             </div>
-                            <span className="text-sm font-bold text-slate-900">{getStatusConfig(formData.status || 'operacional').label}</span>
+                            <span className="text-xs font-bold text-slate-900">{getStatusConfig(formData.status || 'operacional').label}</span>
                           </div>
-                          <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         {isStatusDropdownOpen && (
@@ -548,15 +546,15 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                         <label className={labelClass}>Condição de Manutenção</label>
                         <button
                           onClick={() => setIsMaintDropdownOpen(!isMaintDropdownOpen)}
-                          className="w-full bg-white border-2 border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-sm hover:border-indigo-400 transition-all group/sel"
+                          className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm hover:border-indigo-400 transition-all group/sel"
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-xl bg-${getMaintConfig(formData.maintenanceStatus || 'em_dia').color}-600 text-white shadow-md`}>
-                              <Gauge className="w-4 h-4" />
+                            <div className={`p-1.5 rounded-lg bg-${getMaintConfig(formData.maintenanceStatus || 'em_dia').color}-600 text-white shadow-md`}>
+                              <Gauge className="w-3.5 h-3.5" />
                             </div>
-                            <span className="text-sm font-bold text-slate-900">{getMaintConfig(formData.maintenanceStatus || 'em_dia').label}</span>
+                            <span className="text-xs font-bold text-slate-900">{getMaintConfig(formData.maintenanceStatus || 'em_dia').label}</span>
                           </div>
-                          <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isMaintDropdownOpen ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isMaintDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         {isMaintDropdownOpen && (
@@ -586,8 +584,8 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                   </div>
                 </div>
 
-                <div className="lg:col-span-7 p-10 space-y-10">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                <div className="lg:col-span-7 p-8 space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
                     <div className="md:col-span-2">
                       <label className={labelClass}><Layers className="w-4 h-4 inline mr-2 text-indigo-500" /> Identificação do Modelo</label>
                       <input value={formData.model} onChange={e => setFormData({ ...formData, model: e.target.value.toUpperCase() })} className={inputClass} placeholder="Ex: CRONOS" />
@@ -699,11 +697,11 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                       </div>
                     </div>
 
-                    <div className="md:col-span-2 relative" ref={sectorDropdownRef}>
+                    <div className="md:col-span-2">
                       <label className={labelClass}><Network className="w-4 h-4 inline mr-2 text-indigo-500" /> Setor de Lotação / Atribuição</label>
-                      <div
-                        onClick={() => setIsSectorDropdownOpen(!isSectorDropdownOpen)}
-                        className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto ${isSectorDropdownOpen ? 'border-indigo-500 ring-4 ring-indigo-500/5 bg-white' : ''}`}
+                      <button
+                        onClick={() => setIsSectorModalOpen(true)}
+                        className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto w-full`}
                       >
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-xl transition-colors shrink-0 ${formData.sectorId ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
@@ -713,50 +711,15 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                             {selectedSectorName}
                           </span>
                         </div>
-                        <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 shrink-0 ${isSectorDropdownOpen ? 'rotate-180' : ''}`} />
-                      </div>
-
-                      {isSectorDropdownOpen && (
-                        <div className="absolute z-50 left-0 right-0 mt-3 bg-white border border-slate-200 rounded-[2rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] overflow-hidden animate-slide-up flex flex-col border-indigo-100">
-                          <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center gap-3">
-                            <Search className="w-4 h-4 text-indigo-400" />
-                            <input
-                              type="text"
-                              autoFocus
-                              placeholder="Pesquisar setor..."
-                              className="bg-transparent border-none outline-none text-sm font-bold text-slate-700 w-full"
-                              value={sectorSearch}
-                              onChange={(e) => setSectorSearch(e.target.value)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                          <div className="max-h-60 overflow-y-auto custom-scrollbar p-2">
-                            {filteredSectors.map((sector) => (
-                              <button
-                                key={sector.id}
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setFormData({ ...formData, sectorId: sector.id });
-                                  setIsSectorDropdownOpen(false);
-                                  setSectorSearch('');
-                                }}
-                                className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group/item ${formData.sectorId === sector.id ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
-                              >
-                                <span className="text-sm font-bold text-left">{sector.name}</span>
-                                {formData.sectorId === sector.id && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                        <Search className="w-5 h-5 text-slate-400" />
+                      </button>
                     </div>
 
-                    <div className="md:col-span-2 relative" ref={responsibleDropdownRef}>
+                    <div className="md:col-span-2">
                       <label className={labelClass}><User className="w-4 h-4 inline mr-2 text-indigo-500" /> Responsável pelo Veículo</label>
-                      <div
-                        onClick={() => setIsResponsibleDropdownOpen(!isResponsibleDropdownOpen)}
-                        className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto ${isResponsibleDropdownOpen ? 'border-indigo-500 ring-4 ring-indigo-500/5 bg-white' : ''}`}
+                      <button
+                        onClick={() => setIsResponsibleModalOpen(true)}
+                        className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto w-full`}
                       >
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-xl transition-colors shrink-0 ${formData.responsiblePersonId ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
@@ -766,59 +729,8 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                             {selectedResponsibleName}
                           </span>
                         </div>
-                        <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 shrink-0 ${isResponsibleDropdownOpen ? 'rotate-180' : ''}`} />
-                      </div>
-
-                      {isResponsibleDropdownOpen && (
-                        <div className="absolute z-50 left-0 right-0 mt-3 bg-white border border-slate-200 rounded-[2rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] overflow-hidden animate-slide-up flex flex-col border-indigo-100">
-                          <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center gap-3">
-                            <Search className="w-4 h-4 text-indigo-400" />
-                            <input
-                              type="text"
-                              autoFocus
-                              placeholder="Pesquisar responsável..."
-                              className="bg-transparent border-none outline-none text-sm font-bold text-slate-700 w-full"
-                              value={responsibleSearch}
-                              onChange={(e) => setResponsibleSearch(e.target.value)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                          <div className="max-h-60 overflow-y-auto custom-scrollbar p-2">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setFormData({ ...formData, responsiblePersonId: '' });
-                                setIsResponsibleDropdownOpen(false);
-                              }}
-                              className="w-full flex items-center p-4 rounded-2xl text-slate-400 hover:bg-slate-50 italic text-sm"
-                            >
-                              Remover Responsável
-                            </button>
-                            {filteredPersons.map((person) => (
-                              <button
-                                key={person.id}
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setFormData({ ...formData, responsiblePersonId: person.id });
-                                  setIsResponsibleDropdownOpen(false);
-                                  setResponsibleSearch('');
-                                }}
-                                className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group/item ${formData.responsiblePersonId === person.id ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
-                              >
-                                <div className="text-left">
-                                  <span className="text-sm font-bold block">{person.name}</span>
-                                  <span className="text-[10px] uppercase font-medium text-slate-400">
-                                    {jobs.find(j => j.id === person.jobId)?.name || 'Sem Cargo'}
-                                  </span>
-                                </div>
-                                {formData.responsiblePersonId === person.id && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                        <Search className="w-5 h-5 text-slate-400" />
+                      </button>
                     </div>
 
                     <div>
@@ -834,10 +746,10 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
               </div>
             </div>
 
-            <div className="px-10 py-8 border-t border-slate-100 bg-white flex justify-between items-center shrink-0">
-              <button onClick={() => setIsModalOpen(false)} className="px-8 py-4 font-black text-slate-400 hover:text-rose-600 transition-all uppercase text-[11px] tracking-[0.3em]">Descartar Alterações</button>
-              <button onClick={handleSave} className="px-12 py-5 bg-slate-900 text-white font-black rounded-3xl hover:bg-indigo-600 shadow-2xl flex items-center gap-4 transition-all uppercase text-[11px] tracking-[0.3em] active:scale-95">
-                <Save className="w-5 h-5" /> Salvar Registro Patrimonial
+            <div className="px-6 py-4 border-t border-slate-100 bg-white flex justify-between items-center shrink-0">
+              <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 font-black text-slate-400 hover:text-rose-600 transition-all uppercase text-[10px] tracking-[0.2em]">Descartar</button>
+              <button onClick={handleSave} className="px-8 py-3 bg-slate-900 text-white font-black rounded-2xl hover:bg-indigo-600 shadow-xl flex items-center gap-3 transition-all uppercase text-[10px] tracking-[0.2em] active:scale-95">
+                <Save className="w-4 h-4" /> Salvar Veículo
               </button>
             </div>
           </div>
@@ -881,6 +793,152 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
               >
                 Salvar Marca
               </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL DE SELEÇÃO DE SETOR */}
+      {isSectorModalOpen && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20 flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                  <Network className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">Selecionar Setor</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Atribuição do Veículo</p>
+                </div>
+              </div>
+              <button onClick={() => setIsSectorModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 transition-all"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-b border-slate-100 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar setor..."
+                  autoFocus
+                  className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  value={sectorSearch}
+                  onChange={(e) => setSectorSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="overflow-y-auto custom-scrollbar p-4 flex-1">
+              {filteredSectors.length > 0 ? (
+                <div className="grid grid-cols-1 gap-2">
+                  {filteredSectors.map((sector) => (
+                    <button
+                      key={sector.id}
+                      onClick={() => {
+                        setFormData({ ...formData, sectorId: sector.id });
+                        setIsSectorModalOpen(false);
+                        setSectorSearch('');
+                      }}
+                      className={`w-full flex items-center justify-between p-4 rounded-xl transition-all group ${formData.sectorId === sector.id ? 'bg-indigo-50 border border-indigo-100 shadow-sm' : 'bg-white border border-slate-100 hover:border-indigo-200 hover:shadow-md'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${formData.sectorId === sector.id ? 'bg-indigo-200 text-indigo-700' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'}`}>
+                          <Network className="w-4 h-4" />
+                        </div>
+                        <span className={`text-sm font-bold ${formData.sectorId === sector.id ? 'text-indigo-900' : 'text-slate-700 group-hover:text-indigo-900'}`}>{sector.name}</span>
+                      </div>
+                      {formData.sectorId === sector.id && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 p-8">
+                  <Search className="w-12 h-12 mb-2" />
+                  <p className="text-sm font-bold">Nenhum setor encontrado</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL DE SELEÇÃO DE RESPONSÁVEL */}
+      {isResponsibleModalOpen && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20 flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">Selecionar Responsável</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Condutor Principal</p>
+                </div>
+              </div>
+              <button onClick={() => setIsResponsibleModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 transition-all"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-b border-slate-100 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar nome ou cargo..."
+                  autoFocus
+                  className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  value={responsibleSearch}
+                  onChange={(e) => setResponsibleSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="overflow-y-auto custom-scrollbar p-4 flex-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData({ ...formData, responsiblePersonId: '' });
+                  setIsResponsibleModalOpen(false);
+                }}
+                className="w-full mb-3 p-3 bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center justify-center gap-2 border border-slate-100 hover:border-rose-100"
+              >
+                <X className="w-3.5 h-3.5" /> Remover Responsável
+              </button>
+
+              {filteredPersons.length > 0 ? (
+                <div className="grid grid-cols-1 gap-2">
+                  {filteredPersons.map((person) => (
+                    <button
+                      key={person.id}
+                      onClick={() => {
+                        setFormData({ ...formData, responsiblePersonId: person.id });
+                        setIsResponsibleModalOpen(false);
+                        setResponsibleSearch('');
+                      }}
+                      className={`w-full flex items-center justify-between p-4 rounded-xl transition-all group ${formData.responsiblePersonId === person.id ? 'bg-indigo-50 border border-indigo-100 shadow-sm' : 'bg-white border border-slate-100 hover:border-indigo-200 hover:shadow-md'}`}
+                    >
+                      <div className="flex items-center gap-3 text-left">
+                        <div className={`p-2 rounded-lg ${formData.responsiblePersonId === person.id ? 'bg-indigo-200 text-indigo-700' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'}`}>
+                          <User className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className={`text-sm font-bold block ${formData.responsiblePersonId === person.id ? 'text-indigo-900' : 'text-slate-700 group-hover:text-indigo-900'}`}>{person.name}</span>
+                          <span className="text-[10px] uppercase font-bold text-slate-400">{jobs.find(j => j.id === person.jobId)?.name || 'Sem Cargo'}</span>
+                        </div>
+                      </div>
+                      {formData.responsiblePersonId === person.id && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 p-8">
+                  <Search className="w-12 h-12 mb-2" />
+                  <p className="text-sm font-bold">Nenhum responsável encontrado</p>
+                </div>
+              )}
             </div>
           </div>
         </div>,

@@ -817,7 +817,7 @@ const App: React.FC = () => {
                     if (newB) setBrands(p => [...p, newB]);
                     else alert("Erro ao criar marca");
                   }}
-                  onBack={() => setAdminTab(null)}
+                  onBack={handleGoHome}
                 />
               ) : currentView === 'admin' && adminTab === 'ui' ? (
                 <UIPreviewScreen ui={appState.ui} />
