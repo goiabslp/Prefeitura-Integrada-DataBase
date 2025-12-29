@@ -45,6 +45,10 @@ export const uploadFile = async (file: File, bucket: string = 'attachments', pat
                     const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(finalPath);
                     return publicUrlData.publicUrl;
                 }
+            } else if (error.message.includes('row-level security') || error.message.includes('policy')) {
+                // RLS Error
+                console.error('RLS Policy Violation:', error);
+                alert('Erro de Permissão (RLS): O sistema de segurança do banco de dados bloqueou este upload.\n\nSolução: É necessário rodar o script "supabase_permissions.sql" no SQL Editor do Supabase para autorizar uploads neste bucket.');
             } else {
                 // Other error (Permission denied, etc.)
                 alert(`Erro no Upload: ${error.message}`);
