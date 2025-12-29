@@ -128,16 +128,20 @@ export const DiariasPreview: React.FC<DiariasPreviewProps> = ({ state, isGenerat
             </div>
             <div className="grid grid-cols-2 w-full gap-8">
               <div className="border-t border-slate-900 pt-1 text-center"><p className="font-black uppercase text-[8pt]">Visto Contabilidade</p><p className="text-[6.5pt] text-slate-500 font-bold uppercase">Tesouraria</p></div>
-              <div className="border-t border-slate-900 pt-1 text-center">
+              <div className="text-center w-full relative group/sig">
                 {content.digitalSignature?.enabled && (
-                  <div className="mb-1 text-[6pt] text-slate-500 uppercase tracking-widest leading-none pb-1">
+                  <div className="absolute bottom-full left-0 right-0 mb-2 text-[6pt] text-slate-500 uppercase tracking-widest leading-none pb-1">
                     <p className="font-bold text-emerald-600">Assinado Digitalmente</p>
                     <p>IP: {content.digitalSignature.ip}</p>
                     <p>ID: <span className="font-mono">{content.digitalSignature.id}</span></p>
                     <p className="text-[5pt] normal-case opacity-70">{new Date(content.digitalSignature.date).toLocaleString('pt-BR')}</p>
                   </div>
                 )}
-                <p className="font-black uppercase text-[8pt]">{content.signatureName || 'AUTORIZADOR'}</p><p className="text-[6.5pt] text-slate-500 font-bold uppercase leading-none">{content.signatureRole || 'Responsável'}</p></div>
+                <div className="border-t border-slate-900 pt-1">
+                  <p className="font-black uppercase text-[8pt]">{content.signatureName || 'AUTORIZADOR'}</p>
+                  <p className="text-[6.5pt] text-slate-500 font-bold uppercase leading-none">{content.signatureRole || 'Responsável'}</p>
+                </div>
+              </div>
             </div>
           </div>
         )}

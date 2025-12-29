@@ -205,9 +205,9 @@ export const ComprasPreview: React.FC<ComprasPreviewProps> = ({ state, isGenerat
             {pageIndex === pages.length - 1 && (
               <div className="mt-auto">
                 <div className="pt-24 flex justify-center">
-                  <div className="w-72 border-t-2 border-slate-950 pt-2 text-center">
+                  <div className="w-72 text-center relative group/sig">
                     {content.digitalSignature?.enabled && (
-                      <div className="mb-2 text-[7pt] text-slate-500 uppercase tracking-widest leading-tight">
+                      <div className="absolute bottom-full left-0 right-0 mb-2 text-[7pt] text-slate-500 uppercase tracking-widest leading-tight pb-1">
                         <p className="font-bold text-emerald-600">Assinado Digitalmente</p>
                         <p>Autenticador Mobile 2FA</p>
                         <p>IP: {content.digitalSignature.ip}</p>
@@ -215,8 +215,10 @@ export const ComprasPreview: React.FC<ComprasPreviewProps> = ({ state, isGenerat
                         <p className="text-[6pt] normal-case opacity-70">{new Date(content.digitalSignature.date).toLocaleString('pt-BR')}</p>
                       </div>
                     )}
-                    <p className="font-black uppercase text-[10pt] text-black">{content.signatureName || 'Solicitante'}</p>
-                    <p className="text-[8pt] font-bold text-slate-500 uppercase tracking-widest">{content.signatureRole}</p>
+                    <div className="border-t-2 border-slate-950 pt-2">
+                      <p className="font-black uppercase text-[10pt] text-black">{content.signatureName || 'Solicitante'}</p>
+                      <p className="text-[8pt] font-bold text-slate-500 uppercase tracking-widest">{content.signatureRole}</p>
+                    </div>
                   </div>
                 </div>
               </div>
