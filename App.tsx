@@ -105,119 +105,119 @@ const App: React.FC = () => {
   //   }
   // }, [currentUser, currentView]);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const loadedOficios = await oficiosService.getAllOficios();
-        setOficios(loadedOficios);
-        const loadedPurchaseOrders = await comprasService.getAllPurchaseOrders();
-        setPurchaseOrders(loadedPurchaseOrders);
-        const loadedServiceRequests = await diariasService.getAllServiceRequests();
-        setServiceRequests(loadedServiceRequests);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-        // Initial orders state depends on view, empty for now or default to oficios
-        setOrders(loadedOficios);
+  const refreshData = async () => {
+    setIsRefreshing(true);
+    try {
+      const loadedOficios = await oficiosService.getAllOficios();
+      setOficios(loadedOficios);
+      const loadedPurchaseOrders = await comprasService.getAllPurchaseOrders();
+      setPurchaseOrders(loadedPurchaseOrders);
+      const loadedServiceRequests = await diariasService.getAllServiceRequests();
+      setServiceRequests(loadedServiceRequests);
 
-        // Fetch users from Supabase
-        const { data: sbUsers, error: sbError } = await supabase.from('profiles').select('*');
-        if (sbUsers) {
-          const mappedUsers: User[] = sbUsers.map((u: any) => ({
-            id: u.id,
-            username: u.username,
-            name: u.name,
-            role: u.role,
-            sector: u.sector,
-            jobTitle: u.job_title,
-            allowedSignatureIds: u.allowed_signature_ids,
-            permissions: u.permissions,
-            tempPassword: u.temp_password,
-            tempPasswordExpiresAt: u.temp_password_expires_at,
-            twoFactorEnabled: u.two_factor_enabled,
-            twoFactorSecret: u.two_factor_secret
-          }));
-          setUsers(mappedUsers);
-        } else {
-          console.error("Error fetching users:", sbError);
-          // Fallback or empty? keeping default users might cause sync issues, better clear or keep mock if empty
-          if (DEFAULT_USERS.length > 0 && (!sbUsers || sbUsers.length === 0)) {
-            // Optional: could insert default users here if empty
-          }
-        }
-        // const savedSigs = await entityService.getSignatures();
-        // if (savedSigs.length > 0) setSignatures(savedSigs);
+      // Re-evaluate orders based on active view/block if needed, but for now specific block handling in other functions overrides this.
+      // However, to see updates in current list:
+      if (activeBlock === 'compras') setOrders(loadedPurchaseOrders);
+      else if (activeBlock === 'diarias') setOrders(loadedServiceRequests);
+      else setOrders(loadedOficios);
 
 
-
-        // Fetch Global Settings (Try Supabase first, fallback to local)
-        const remoteSettings = await settingsService.getGlobalSettings();
-        if (remoteSettings) {
-          setAppState(prev => ({
-            ...prev,
-            branding: {
-              ...INITIAL_STATE.branding,
-              ...remoteSettings.branding,
-              watermark: {
-                ...INITIAL_STATE.branding.watermark,
-                ...(remoteSettings.branding?.watermark || {})
-              }
-            },
-            document: {
-              ...INITIAL_STATE.document,
-              ...remoteSettings.document,
-              titleStyle: {
-                ...INITIAL_STATE.document.titleStyle,
-                ...(remoteSettings.document?.titleStyle || {})
-              },
-              leftBlockStyle: {
-                ...INITIAL_STATE.document.leftBlockStyle,
-                ...(remoteSettings.document?.leftBlockStyle || {})
-              },
-              rightBlockStyle: {
-                ...INITIAL_STATE.document.rightBlockStyle,
-                ...(remoteSettings.document?.rightBlockStyle || {})
-              }
-            },
-            ui: {
-              ...INITIAL_STATE.ui,
-              ...remoteSettings.ui
-            }
-          }));
-        } else {
-          const savedSettings = await db.getGlobalSettings();
-          if (savedSettings) setAppState(savedSettings);
-        }
-
-        // Fetch entities from Supabase
-        const savedPersons = await entityService.getPersons();
-        setPersons(savedPersons);
-
-        const savedSectors = await entityService.getSectors();
-        setSectors(savedSectors);
-
-        const savedJobs = await entityService.getJobs();
-        setJobs(savedJobs);
-
-        // MARCAS INICIAIS
-        const savedBrands = await entityService.getBrands();
-        setBrands(savedBrands);
-        // Note: We might want to seed initial brands if empty, similar to local DB, pushing to Supabase.
-        // For now, removing the auto-seed on client to avoid spamming the DB on every refresh if fetch fails or is empty.
-
-        // VEÍCULOS INICIAIS
-        const savedVehicles = await entityService.getVehicles();
-        setVehicles(savedVehicles);
-
-        const savedSchedules = await db.getAllSchedules();
-        setSchedules(savedSchedules);
-
-        const counterValue = await db.getGlobalCounter();
-        setGlobalCounter(counterValue);
-
-      } catch (err) {
-        console.error("Failed to load local database", err);
+      // Fetch users from Supabase
+      const { data: sbUsers, error: sbError } = await supabase.from('profiles').select('*');
+      if (sbUsers) {
+        const mappedUsers: User[] = sbUsers.map((u: any) => ({
+          id: u.id,
+          username: u.username,
+          name: u.name,
+          role: u.role,
+          sector: u.sector,
+          jobTitle: u.job_title,
+          allowedSignatureIds: u.allowed_signature_ids,
+          permissions: u.permissions,
+          tempPassword: u.temp_password,
+          tempPasswordExpiresAt: u.temp_password_expires_at,
+          twoFactorEnabled: u.two_factor_enabled,
+          twoFactorSecret: u.two_factor_secret
+        }));
+        setUsers(mappedUsers);
+      } else {
+        console.error("Error fetching users:", sbError);
       }
-    };
-    loadData();
+
+      // Fetch Global Settings (Try Supabase first, fallback to local)
+      const remoteSettings = await settingsService.getGlobalSettings();
+      if (remoteSettings) {
+        setAppState(prev => ({
+          ...prev,
+          branding: {
+            ...INITIAL_STATE.branding,
+            ...remoteSettings.branding,
+            watermark: {
+              ...INITIAL_STATE.branding.watermark,
+              ...(remoteSettings.branding?.watermark || {})
+            }
+          },
+          document: {
+            ...INITIAL_STATE.document,
+            ...remoteSettings.document,
+            titleStyle: {
+              ...INITIAL_STATE.document.titleStyle,
+              ...(remoteSettings.document?.titleStyle || {})
+            },
+            leftBlockStyle: {
+              ...INITIAL_STATE.document.leftBlockStyle,
+              ...(remoteSettings.document?.leftBlockStyle || {})
+            },
+            rightBlockStyle: {
+              ...INITIAL_STATE.document.rightBlockStyle,
+              ...(remoteSettings.document?.rightBlockStyle || {})
+            }
+          },
+          ui: {
+            ...INITIAL_STATE.ui,
+            ...remoteSettings.ui
+          }
+        }));
+      } else {
+        const savedSettings = await db.getGlobalSettings();
+        if (savedSettings) setAppState(savedSettings);
+      }
+
+      // Fetch entities from Supabase
+      const savedPersons = await entityService.getPersons();
+      setPersons(savedPersons);
+
+      const savedSectors = await entityService.getSectors();
+      setSectors(savedSectors);
+
+      const savedJobs = await entityService.getJobs();
+      setJobs(savedJobs);
+
+      // MARCAS INICIAIS
+      const savedBrands = await entityService.getBrands();
+      setBrands(savedBrands);
+
+      // VEÍCULOS INICIAIS
+      const savedVehicles = await entityService.getVehicles();
+      setVehicles(savedVehicles);
+
+      const savedSchedules = await db.getAllSchedules();
+      setSchedules(savedSchedules);
+
+      const counterValue = await db.getGlobalCounter();
+      setGlobalCounter(counterValue);
+
+    } catch (err) {
+      console.error("Failed to load data", err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshData();
   }, []);
 
   const handleLogin = async (u: string, p: string) => {
@@ -650,7 +650,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-50 font-sans flex-col">
-      {currentUser && <AppHeader currentUser={currentUser} uiConfig={appState.ui} activeBlock={activeBlock} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} onGoHome={handleGoHome} currentView={currentView} />}
+      {currentUser && <AppHeader currentUser={currentUser} uiConfig={appState.ui} activeBlock={activeBlock} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} onGoHome={handleGoHome} currentView={currentView} isRefreshing={isRefreshing} onRefresh={refreshData} />}
       <div className="flex-1 flex relative overflow-hidden">
         {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} />}
         {(currentView === 'editor' || currentView === 'admin') && currentUser && (
