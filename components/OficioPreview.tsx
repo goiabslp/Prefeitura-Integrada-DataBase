@@ -84,30 +84,27 @@ export const OficioPreview: React.FC<OficioPreviewProps> = ({ state, isGeneratin
           {pageIndex === 0 && (
             <div className="flex flex-col gap-6 mb-6">
               <div className="flex justify-between items-start">
-                {docConfig.showLeftBlock && content.leftBlockText && (
-                  <div
-                    className="whitespace-pre-wrap max-w-[45%] leading-snug"
-                    style={{
-                      fontSize: `${docConfig.leftBlockStyle?.size || 10}pt`,
-                      color: docConfig.leftBlockStyle?.color || '#191822',
-                      fontWeight: 'normal'
-                    }}
-                  >
-                    {content.leftBlockText}
-                  </div>
-                )}
-                {docConfig.showRightBlock && content.rightBlockText && (
-                  <div
-                    className="whitespace-pre-wrap text-right max-w-[45%] leading-snug"
-                    style={{
-                      fontSize: `${docConfig.rightBlockStyle?.size || 10}pt`,
-                      color: docConfig.rightBlockStyle?.color || '#191822',
-                      fontWeight: 'normal'
-                    }}
-                  >
-                    {content.rightBlockText}
-                  </div>
-                )}
+                <div
+                  className={`whitespace-pre-wrap max-w-[45%] leading-snug ${(!docConfig.showLeftBlock || !content.leftBlockText) ? 'invisible' : ''}`}
+                  style={{
+                    fontSize: `${docConfig.leftBlockStyle?.size || 10}pt`,
+                    color: docConfig.leftBlockStyle?.color || '#191822',
+                    fontWeight: 'normal'
+                  }}
+                >
+                  {content.leftBlockText || ' '}
+                </div>
+
+                <div
+                  className={`whitespace-pre-wrap text-right max-w-[45%] leading-snug ${(!docConfig.showRightBlock || !content.rightBlockText) ? 'invisible' : ''}`}
+                  style={{
+                    fontSize: `${docConfig.rightBlockStyle?.size || 10}pt`,
+                    color: docConfig.rightBlockStyle?.color || '#191822',
+                    fontWeight: 'normal'
+                  }}
+                >
+                  {content.rightBlockText || ' '}
+                </div>
               </div>
               <h1
                 className="font-bold leading-tight tracking-tight"

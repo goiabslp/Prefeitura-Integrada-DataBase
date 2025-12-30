@@ -666,7 +666,7 @@ const App: React.FC = () => {
             leftBlockContent = `Ref: Processo nº ${formattedNum}/${currentYear}`;
           } else {
             // Default Oficio and fallback for others
-            defaultTitle = `Ofício nº ${formattedNum}/${currentYear}`;
+            defaultTitle = `Adicione um Titulo ao seu Documento`;
             leftBlockContent = `Ref: Ofício nº ${formattedNum}/${currentYear}`;
           }
         }

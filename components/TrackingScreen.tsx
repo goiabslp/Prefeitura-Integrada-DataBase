@@ -57,10 +57,15 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
   const [priorityJustificationOrder, setPriorityJustificationOrder] = useState<Order | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Modais customizados
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, title: string, message: string, onConfirm: () => void, type: 'danger' | 'warning' }>({
     isOpen: false, title: '', message: '', onConfirm: () => { }, type: 'warning'
   });
+
+  const extractOficioNumber = (text: string | undefined) => {
+    if (!text) return '---';
+    const match = text.match(/nº\s*(\d+\/\d+)/i);
+    return match ? match[1] : '---';
+  };
 
   const genericAttachmentRef = useRef<HTMLInputElement>(null);
 
@@ -247,7 +252,12 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                 <div className={`${isCompras ? 'md:col-span-1' : 'md:col-span-2'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
                   <HashIcon className="w-3 h-3" /> {isCompras ? 'ID' : 'Protocolo'}
                 </div>
-                <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : 'md:col-span-6'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
+                {activeBlock === 'oficio' && (
+                  <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
+                    <FileText className="w-3 h-3" /> Ofício
+                  </div>
+                )}
+                <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-4' : 'md:col-span-6'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
                   {isDiarias ? <><FileText className="w-3 h-3" /> Solicitante + Destino</> : isCompras ? <><Network className="w-3 h-3" /> Setor / Solicitante</> : <><FileText className="w-3 h-3" /> Solicitante</>}
                 </div>
                 {isDiarias && (
@@ -323,7 +333,13 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                         </span>
                       </div>
 
-                      <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : 'md:col-span-6'}`}>
+                      {activeBlock === 'oficio' && (
+                        <div className="md:col-span-2 text-xs font-bold text-slate-700">
+                          {extractOficioNumber(order.title || order.documentSnapshot?.content.title)}
+                        </div>
+                      )}
+
+                      <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-4' : 'md:col-span-6'}`}>
                         <h3 className="text-sm font-bold text-slate-800 leading-tight">
                           {isDiarias ? (content?.requesterName || '---') : isCompras ? (content?.requesterSector || 'Sem Setor') : order.userName}
                         </h3>
@@ -428,7 +444,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                       ) : !isCompras ? (
                         <div className="md:col-span-2 flex items-center gap-2 text-slate-500 text-xs font-medium">
                           <Clock className="w-3 h-3 opacity-40" />
-                          {new Date(order.createdAt).toLocaleDateString('pt-BR')}
+                          {new Date(order.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </div>
                       ) : null}
 
