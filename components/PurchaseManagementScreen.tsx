@@ -7,7 +7,7 @@ import {
   User, ShoppingBag, Eye, X, Lock, ChevronDown, PackageCheck, Truck, ShoppingCart, CheckCircle,
   History, Calendar, UserCheck, ArrowDown, Landmark, MessageCircle, FileSearch, Scale, ClipboardCheck,
   AlertTriangle, MousePointer2, ChevronRight, Check, Sparkles, Upload, FileText, Paperclip, ExternalLink,
-  Download, Plus, Network, Trash, Send, Info
+  Download, Plus, Network, Trash, Send, Info, Flag, Hash, RefreshCw, ChevronLeft
 } from 'lucide-react';
 import { User as UserType, Order, AppState, StatusMovement, Attachment } from '../types';
 import { DocumentPreview } from './DocumentPreview';
@@ -45,6 +45,8 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
   const [confirmApprovalOrder, setConfirmApprovalOrder] = useState<Order | null>(null);
   const [budgetUploadOrder, setBudgetUploadOrder] = useState<Order | null>(null);
   const [attachmentManagerOrder, setAttachmentManagerOrder] = useState<Order | null>(null);
+  const [datePickerOrder, setDatePickerOrder] = useState<Order | null>(null);
+  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
   const [budgetPreviewUrl, setBudgetPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -95,10 +97,20 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
           // Preserve current status, just update the file URL
           onUpdatePurchaseStatus?.(
             budgetUploadOrder.id,
-            budgetUploadOrder.purchaseStatus || 'recebido',
-            'Orçamento anexado ao pedido (Status mantido).',
+            'aprovacao_orcamento',
+            'Orçamento anexado e enviado para Aprovação.',
             publicUrl
           );
+
+          const newAttachment: Attachment = {
+            id: Date.now().toString(),
+            name: `Orçamento - ${file.name}`,
+            url: publicUrl,
+            type: file.type,
+            date: new Date().toISOString()
+          };
+          onUpdateAttachments?.(budgetUploadOrder.id, [...(budgetUploadOrder.attachments || []), newAttachment]);
+
           setBudgetUploadOrder(null);
         } else {
           alert('Erro ao fazer upload do arquivo. Verifique se o bucket "attachments" existe.');
@@ -223,27 +235,6 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
       <div className="flex flex-col gap-1.5 items-end">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setAttachmentManagerOrder(order)}
-            className="p-2 rounded-xl border bg-white text-slate-400 border-slate-200 hover:text-emerald-600 hover:border-emerald-200 transition-all hover:bg-emerald-50/50 relative group"
-            title="Gerenciar Anexos"
-          >
-            <Paperclip className="w-4 h-4" />
-            {(order.attachments?.length || 0) > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white text-[8px] font-black flex items-center justify-center rounded-full shadow-sm ring-2 ring-white">
-                {order.attachments?.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setHistoryOrder(order)}
-            className="p-2 rounded-xl border bg-white text-slate-400 border-slate-200 hover:text-indigo-600 hover:border-indigo-200 transition-all hover:bg-indigo-50/50"
-            title="Ver Histórico de Movimentação"
-          >
-            <History className="w-4 h-4" />
-          </button>
-
-          <button
             onClick={() => isComprasUser && !isLockedForUser && setStatusSelectionOrder(order)}
             disabled={isLockedForUser}
             className={`flex items-center justify-between gap-3 px-4 py-2 rounded-xl border transition-all duration-300 group
@@ -253,7 +244,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
           >
             <div className="flex items-center gap-2">
               <config.icon className={`w-4 h-4 ${isLockedForUser ? 'animate-pulse' : ''}`} />
-              <span className="text-[10px] font-black uppercase tracking-widest">{config.label}</span>
+              <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">{config.label}</span>
             </div>
             {isLockedForUser ? (
               <Lock className="w-3 h-3 text-purple-400 ml-1" />
@@ -332,150 +323,176 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
 
         <div className="flex-1 overflow-auto custom-scrollbar">
           {filteredOrders.length > 0 ? (
-            <div className="divide-y divide-slate-100">
-              {filteredOrders.map((order) => (
-                <div key={order.id} className="relative group bg-white p-3 rounded-2xl border border-slate-200 hover:border-emerald-500 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="min-w-[1000px]">
+              {/* Table Header */}
+              <div className="flex items-center px-6 py-4 border-b border-slate-200 bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest gap-6 sticky top-0 backdrop-blur-md z-10">
+                <div className="w-20 flex items-center justify-center gap-2"><Calendar className="w-3.5 h-3.5" /> Emissão</div>
+                <div className="w-24 text-center">Prioridade</div>
+                <div className="w-32 text-center">#ID</div>
+                <div className="flex-1 flex items-center gap-2"><Network className="w-3.5 h-3.5" /> Detalhes do Pedido</div>
+                <div className="w-28 text-center flex items-center justify-center gap-2"><Clock className="w-3.5 h-3.5" /> Previsão</div>
+                <div className="w-60 text-center flex items-center justify-center gap-2"><RefreshCw className="w-3.5 h-3.5" /> Status</div>
+                <div className="w-72 text-center">Ações</div>
+              </div>
 
-                    {/* Data e Protocolo (Visual Compacto) */}
-                    <div className="flex items-center gap-3 min-w-[180px]">
-                      <div className="w-10 h-10 bg-slate-50 rounded-xl border border-slate-100 flex flex-col items-center justify-center shrink-0 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
-                        <span className="text-[7px] font-black uppercase tracking-wider">{new Date(order.createdAt).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span>
-                        <span className="text-sm font-black leading-none">{new Date(order.createdAt).getDate()}</span>
+              <div className="divide-y divide-slate-100">
+                {filteredOrders.map((order) => (
+                  <div key={order.id} className="relative group bg-white hover:bg-slate-50 transition-colors duration-200">
+                    <div className="flex items-center px-6 py-4 gap-6">
+
+                      {/* Emissão */}
+                      <div className="w-20 shrink-0">
+                        <div className="w-12 h-12 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center group-hover:border-emerald-200 group-hover:shadow-sm transition-all">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-0.5">{new Date(order.createdAt).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}</span>
+                          <span className="text-xl font-black text-emerald-600 leading-none">{new Date(order.createdAt).getDate()}</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="font-mono text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded w-fit mb-0.5">
-                          {order.protocol}
-                        </span>
-                        {order.documentSnapshot?.content.priority !== 'Normal' && (
-                          <span className="text-[8px] font-black text-rose-500 uppercase tracking-wider flex items-center gap-1">
-                            <AlertCircle className="w-2.5 h-2.5" /> Prioridade Alta
+
+                      {/* Prioridade */}
+                      <div className="w-24 text-center shrink-0">
+                        {order.documentSnapshot?.content.priority !== 'Normal' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 text-[9px] font-black uppercase tracking-wider border border-rose-100">
+                            <AlertCircle className="w-3 h-3" /> Alta
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[9px] font-black uppercase tracking-wider border border-slate-200">
+                            <Flag className="w-3 h-3" /> Normal
                           </span>
                         )}
                       </div>
-                    </div>
 
-                    {/* Informações Principais */}
-                    <div className="flex-1 flex flex-col justify-center min-w-0 px-2 border-l border-slate-100 md:h-8">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <h3 className="text-sm font-bold text-slate-800 line-clamp-1 group-hover:text-emerald-700 transition-colors">
-                          {order.documentSnapshot?.content.requesterSector || 'Setor não informado'}
-                        </h3>
+                      {/* Protocolo */}
+                      <div className="w-32 shrink-0">
+                        <span className="inline-block px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-mono font-bold border border-indigo-100 group-hover:border-indigo-300 transition-colors text-center w-full">
+                          {order.protocol}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-3 text-[10px] text-slate-400 font-medium">
-                        <div className="flex items-center gap-1"><User className="w-3 h-3" /> {order.userName.split(' ')[0]}</div>
-                        <div className="flex items-center gap-1"><ShoppingBag className="w-3 h-3" /> {(order.documentSnapshot?.content.purchaseItems || []).length} itens</div>
 
-                        {/* Previsão (Inline) */}
-                        {order.status === 'approved' && order.completionForecast && (
-                          <div className={`flex items-center gap-1 px-1.5 rounded ${new Date(order.completionForecast) < new Date() ? 'text-rose-500 bg-rose-50' : 'text-slate-400 bg-slate-50'}`}>
-                            <Calendar className="w-3 h-3" />
-                            <span>{new Date(order.completionForecast).toLocaleDateString('pt-BR')}</span>
-                          </div>
+                      {/* Detalhes do Pedido */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-bold text-slate-800 truncate mb-1">{order.documentSnapshot?.content.requesterSector || 'Setor Não Informado'}</h4>
+                        <div className="flex items-center gap-4 text-[10px] text-slate-400 font-medium">
+                          <div className="flex items-center gap-1.5"><User className="w-3 h-3 text-slate-300" /> {order.userName.split(' ')[0]}</div>
+                          <div className="flex items-center gap-1.5"><ShoppingBag className="w-3 h-3 text-slate-300" /> {(order.documentSnapshot?.content.purchaseItems || []).length} itens</div>
+                        </div>
+                      </div>
+
+                      {/* Previsão */}
+                      <div className="w-28 text-center shrink-0 flex flex-col items-center justify-center relative group/date">
+                        {(isAdmin || isComprasUser) && (
+                          <button
+                            onClick={() => {
+                              if (isAdmin || isComprasUser) {
+                                setDatePickerOrder(order);
+                                setCurrentCalendarDate(order.completionForecast ? new Date(order.completionForecast) : new Date());
+                              }
+                            }}
+                            className="absolute inset-0 z-20 w-full h-full cursor-pointer focus:outline-none"
+                            title={isAdmin || isComprasUser ? "Alterar Previsão" : "Sem permissão"}
+                            disabled={!isAdmin && !isComprasUser}
+                          />
                         )}
+
+                        <div className={`w-12 h-12 bg-white rounded-xl border flex flex-col items-center justify-center transition-all ${order.completionForecast
+                          ? new Date(order.completionForecast) < new Date() ? 'border-rose-200 group-hover/date:bg-rose-50' : 'border-slate-200 group-hover/date:border-emerald-200 group-hover/date:shadow-sm'
+                          : 'border-slate-200 group-hover/date:border-indigo-300 group-hover/date:bg-indigo-50'
+                          }`}>
+                          {order.completionForecast ? (
+                            <>
+                              <span className={`text-[9px] font-bold uppercase tracking-wider leading-none mb-0.5 ${new Date(order.completionForecast) < new Date() ? 'text-rose-400' : 'text-slate-400 group-hover/date:text-emerald-600'}`}>
+                                {new Date(order.completionForecast).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}
+                              </span>
+                              <span className={`text-xl font-black leading-none ${new Date(order.completionForecast) < new Date() ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                {new Date(order.completionForecast).getUTCDate()}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-slate-300 text-xs font-black">---</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Status Badge */}
-                    <div className="flex items-center justify-center px-2">
-                      {getStatusBadge(order.status)}
-                    </div>
+                      {/* Status */}
+                      <div className="w-60 text-center shrink-0 flex justify-center">
+                        <PurchaseStatusSelector order={order} />
+                      </div>
 
-                    {/* Ações (Sempre Visíveis) */}
-                    <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-100 shadow-sm shrink-0">
+                      {/* Ações */}
+                      <div className="w-72 flex items-center justify-center gap-2 shrink-0">
+                        {/* Botões Movidos */}
+                        <button onClick={() => setAttachmentManagerOrder(order)} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all relative" title="Anexos">
+                          <Paperclip className="w-4 h-4" />
+                          {(order.attachments?.length || 0) > 0 && (
+                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white text-[8px] font-black flex items-center justify-center rounded-full shadow-sm ring-2 ring-white">{order.attachments?.length}</span>
+                          )}
+                        </button>
 
-                      <PurchaseStatusSelector order={order} />
+                        <button onClick={() => setHistoryOrder(order)} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all" title="Histórico">
+                          <History className="w-4 h-4" />
+                        </button>
 
-                      {isAdmin && order.status === 'approved' && (
-                        <div className="w-px h-5 bg-slate-200 mx-1"></div>
-                      )}
+                        <div className="w-px h-4 bg-slate-200 mx-1"></div>
 
-                      {/* Botões Admin e Gerais */}
-                      <div className="flex items-center gap-1">
                         {isAdmin && (
                           <>
                             {order.purchaseStatus === 'aprovacao_orcamento' && (
-                              <button
-                                onClick={() => setConfirmApprovalOrder(order)}
-                                className="p-1.5 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-600 hover:text-white transition-all shadow-sm active:scale-95"
-                                title="Liberar Pedido"
-                              >
+                              <button onClick={() => setConfirmApprovalOrder(order)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-purple-100 text-purple-600 hover:bg-purple-600 hover:text-white transition-all shadow-sm" title="Liberar Pedido">
                                 <ClipboardCheck className="w-4 h-4" />
                               </button>
                             )}
 
                             <button
                               onClick={() => setConfirmModal({
-                                isOpen: true,
-                                title: "Aprovar Pedido",
-                                message: `Deseja formalizar a aprovação do pedido ${order.protocol}?`,
-                                type: 'warning',
-                                onConfirm: () => {
-                                  onUpdateStatus(order.id, 'approved');
-                                  setConfirmModal({ ...confirmModal, isOpen: false });
-                                }
+                                isOpen: true, title: "Aprovar Pedido", message: `Deseja formalizar a aprovação do pedido ${order.protocol}?`, type: 'warning',
+                                onConfirm: () => { onUpdateStatus(order.id, 'approved'); setConfirmModal({ ...confirmModal, isOpen: false }); }
                               })}
-                              className={`p-1.5 rounded-lg transition-all ${order.status === 'approved' ? 'bg-emerald-100 text-emerald-600 cursor-default' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
-                              title={order.status === 'approved' ? 'Já Aprovado' : "Aprovar"}
                               disabled={order.status === 'approved'}
+                              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${order.status === 'approved' ? 'bg-emerald-100 text-emerald-600 opacity-50 cursor-default' : 'text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                              title="Aprovar"
                             >
                               <CheckCircle2 className="w-4 h-4" />
                             </button>
 
                             <button
                               onClick={() => setRejectionModal({ isOpen: true, orderId: order.id, reason: '' })}
-                              className={`p-1.5 rounded-lg transition-all ${order.status === 'rejected' ? 'bg-rose-100 text-rose-600 cursor-default' : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'}`}
-                              title={order.status === 'rejected' ? 'Já Rejeitado' : "Rejeitar"}
                               disabled={order.status === 'rejected'}
+                              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${order.status === 'rejected' ? 'bg-rose-100 text-rose-600 opacity-50 cursor-default' : 'text-slate-400 hover:bg-rose-50 hover:text-rose-600'}`}
+                              title="Rejeitar"
                             >
                               <XCircle className="w-4 h-4" />
                             </button>
 
-                            <div className="w-px h-3 bg-slate-200 mx-1 lg:block hidden"></div>
+                            <div className="w-px h-4 bg-slate-200 mx-1"></div>
 
-                            <button
-                              onClick={() => setConfirmModal({
-                                isOpen: true,
-                                title: "Excluir Pedido",
-                                message: "Deseja remover permanentemente este pedido?",
-                                type: 'danger',
-                                onConfirm: () => {
-                                  onDeleteOrder(order.id);
-                                  setConfirmModal({ ...confirmModal, isOpen: false });
-                                }
-                              })}
-                              className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                              title="Excluir"
-                            >
+                            <button onClick={() => setConfirmModal({
+                              isOpen: true, title: "Excluir Pedido", message: "Remover este pedido?", type: 'danger',
+                              onConfirm: () => { onDeleteOrder(order.id); setConfirmModal({ ...confirmModal, isOpen: false }); }
+                            })} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-all" title="Excluir">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </>
                         )}
 
-                        {!isAdmin && <div className="w-px h-5 bg-slate-200 mx-1"></div>}
+                        {!isAdmin && (
+                          <>
+                            {/* The 'Green' Upload button equivalent if specific active status */}
+                            {/* ... logic for upload button if needed, but PurchaseStatusSelector has attachments button */}
+                          </>
+                        )}
 
-                        <button
-                          onClick={() => setPreviewOrder(order)}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                          title="Visualizar Detalhes"
-                        >
+                        <button onClick={() => setPreviewOrder(order)} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all" title="Visualizar">
                           <Eye className="w-4 h-4" />
                         </button>
 
-                        <button
-                          onClick={() => handleDownload(order)}
-                          disabled={downloadingId === order.id}
-                          className={`p-1.5 rounded-lg transition-all ${downloadingId === order.id ? 'text-emerald-400' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
-                          title="Baixar PDF do Pedido"
-                        >
+                        <button onClick={() => handleDownload(order)} disabled={downloadingId === order.id} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all" title="Baixar PDF">
                           {downloadingId === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
                         </button>
                       </div>
 
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 p-12 text-center">
@@ -637,6 +654,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                       if (key === 'cancelado') {
                         setCancelModal({ isOpen: true, orderId: statusSelectionOrder.id, reason: '' });
                       } else if (key === 'aprovacao_orcamento') {
+                        onUpdatePurchaseStatus?.(statusSelectionOrder.id, 'aprovacao_orcamento');
                         setBudgetUploadOrder(statusSelectionOrder);
                       } else {
                         onUpdatePurchaseStatus?.(statusSelectionOrder.id, key);
@@ -887,6 +905,84 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
               <div className="flex items-center gap-3"><button onClick={() => handleDownload(previewOrder)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-all"><FileDown className="w-4 h-4" /> Download PDF</button><button onClick={() => setPreviewOrder(null)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><X className="w-6 h-6" /></button></div>
             </div>
             <div className="flex-1 overflow-hidden relative bg-slate-200/50"><div className="h-full overflow-y-auto custom-scrollbar p-8"><div className="flex justify-center"><DocumentPreview state={previewOrder.documentSnapshot} mode="admin" blockType="compras" /></div></div><div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-2 bg-slate-900/90 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl border border-white/10 pointer-events-none flex items-center gap-2"><Lock className="w-3.5 h-3.5" /> Modo de Visualização Protegido</div></div>
+          </div>
+        </div>,
+        document.body
+      )}
+      {/* Modal de Calendário Moderno */}
+      {datePickerOrder && createPortal(
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+          <div className="bg-white rounded-[2rem] shadow-2xl p-6 w-full max-w-sm animate-scale-in border border-white/20">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
+                {currentCalendarDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+              </h3>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentCalendarDate(new Date(currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1)))}
+                  className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setCurrentCalendarDate(new Date(currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1)))}
+                  className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-7 mb-2">
+              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+                <div key={day} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-2">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), 1).getDay() }).map((_, i) => (
+                <div key={`empty-${i}`} />
+              ))}
+              {Array.from({ length: new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + 1, 0).getDate() }).map((_, i) => {
+                const day = i + 1;
+                const date = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), day);
+                const isSelected = datePickerOrder.completionForecast && new Date(datePickerOrder.completionForecast).toDateString() === date.toDateString();
+                const isToday = new Date().toDateString() === date.toDateString();
+
+                return (
+                  <button
+                    key={day}
+                    onClick={() => {
+                      onUpdateCompletionForecast?.(datePickerOrder.id, date.toISOString());
+                      setDatePickerOrder(null);
+                    }}
+                    className={`
+                      aspect-square rounded-xl text-sm font-bold transition-all relative
+                      ${isSelected
+                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-100'
+                        : isToday
+                          ? 'bg-indigo-50 text-indigo-600 border border-indigo-100 font-black'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-emerald-600'
+                      }
+                    `}
+                  >
+                    {day}
+                    {isToday && !isSelected && <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-400 rounded-full"></div>}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setDatePickerOrder(null)}
+                className="px-6 py-2.5 bg-slate-100 text-slate-500 font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-slate-200 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>,
         document.body
