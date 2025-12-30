@@ -45,6 +45,37 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const canAccessFleet = permissions.includes('parent_frotas');
 
   const hasAnyPermission = canAccessOficio || canAccessCompras || canAccessLicitacao || canAccessDiarias || canAccessScheduling || canAccessFleet;
+
+  const visibleModulesCount = [
+    canAccessOficio,
+    canAccessCompras,
+    canAccessLicitacao,
+    canAccessDiarias,
+    canAccessScheduling,
+    canAccessFleet
+  ].filter(Boolean).length;
+
+  const getContainerClass = () => {
+    return 'flex flex-row flex-nowrap items-center justify-center gap-4 md:gap-6 lg:gap-8 w-full max-w-full px-4 overflow-hidden';
+  };
+
+  const getCardClass = (color: string) => {
+    const base = "group relative rounded-[2.5rem] border transition-all duration-500 text-center flex flex-col items-center justify-center overflow-hidden bg-white border-slate-200 hover:scale-[1.05] shrink-0";
+    const hoverShadow = `hover:border-${color}-400`;
+
+    // Dynamic sizing based on module count to fit viewport
+    let sizeClass = "w-64 h-80 p-8"; // Default
+
+    if (visibleModulesCount === 1) sizeClass = "w-[400px] h-[500px] p-12 scale-110";
+    else if (visibleModulesCount === 2) sizeClass = "w-[360px] h-[450px] p-10";
+    else if (visibleModulesCount === 3) sizeClass = "w-[300px] h-96 p-8";
+    else if (visibleModulesCount === 4) sizeClass = "w-64 h-80 p-6";
+    else if (visibleModulesCount === 5) sizeClass = "w-56 h-72 p-5";
+    else if (visibleModulesCount >= 6) sizeClass = "w-48 h-64 p-4";
+
+    return `${base} ${hoverShadow} ${sizeClass}`;
+  };
+
   const firstName = userName.split(' ')[0];
 
   const getBlockName = () => {
@@ -70,12 +101,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 bg-slate-50 font-sans flex flex-col overflow-hidden">
-      <main className="flex-1 flex flex-col items-center pt-8 px-6 overflow-y-auto bg-gradient-to-b from-white to-slate-50 pb-12 custom-scrollbar">
+    <div className="flex-1 bg-slate-50 font-sans flex flex-col overflow-hidden h-screen max-h-screen">
+      <main className={`flex-1 flex flex-col items-center px-6 bg-gradient-to-b from-white to-slate-50 relative ${activeBlock ? 'pt-8 overflow-y-auto custom-scrollbar' : 'justify-center pb-12 overflow-hidden'}`}>
 
         {!activeBlock && (
-          <div className="w-full max-w-6xl animate-fade-in space-y-10">
-            <div className="text-center">
+          <div className="w-full max-w-full animate-fade-in flex flex-col items-center justify-center flex-1 h-full min-h-0 overflow-hidden">
+            <div className="text-center mb-12">
               <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 tracking-tighter mb-2">
                 Bem-vindo, <span className="text-indigo-600">{firstName}</span>
               </h1>
@@ -84,12 +115,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 animate-slide-up w-full">
+            <div className={getContainerClass()}>
               {canAccessOficio && (
-                <button onClick={() => setActiveBlock('oficio')} className="group relative p-8 rounded-[2rem] border shadow-xl transition-all duration-500 text-center flex flex-col items-center justify-center overflow-hidden w-full bg-white border-slate-200 hover:shadow-indigo-500/15 hover:border-indigo-300 h-64 scale-100 hover:scale-[1.02]">
+                <button onClick={() => setActiveBlock('oficio')} className={getCardClass('indigo')}>
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                   <div className="relative z-10 flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-[1.2rem] flex items-center justify-center shadow-lg mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-600 to-indigo-700"><FileText className="w-8 h-8 text-white" /></div>
+                    <div className="w-16 h-16 rounded-[1.2rem] flex items-center justify-center mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-600 to-indigo-700"><FileText className="w-8 h-8 text-white" /></div>
                     <h2 className="text-2xl font-black text-slate-900 mb-1 tracking-tight">Ofícios</h2>
                     <p className="text-slate-500 text-xs font-medium">Geração e histórico.</p>
                   </div>
@@ -98,10 +129,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               )}
 
               {canAccessCompras && (
-                <button onClick={() => setActiveBlock('compras')} className="group relative p-8 rounded-[2rem] border shadow-xl transition-all duration-500 text-center flex flex-col items-center justify-center overflow-hidden w-full bg-white border-slate-200 hover:shadow-emerald-500/15 hover:border-emerald-300 h-64 scale-100 hover:scale-[1.02]">
+                <button onClick={() => setActiveBlock('compras')} className={getCardClass('emerald')}>
                   <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                   <div className="relative z-10 flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-[1.2rem] flex items-center justify-center shadow-lg mb-3 transition-all duration-500 bg-gradient-to-br from-emerald-600 to-emerald-700"><ShoppingCart className="w-8 h-8 text-white" /></div>
+                    <div className="w-16 h-16 rounded-[1.2rem] flex items-center justify-center mb-3 transition-all duration-500 bg-gradient-to-br from-emerald-600 to-emerald-700"><ShoppingCart className="w-8 h-8 text-white" /></div>
                     <h2 className="text-2xl font-black text-slate-900 mb-1 tracking-tight">Compras</h2>
                     <p className="text-slate-500 text-xs font-medium">Pedidos e requisições.</p>
                   </div>
@@ -110,10 +141,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               )}
 
               {canAccessLicitacao && (
-                <button onClick={() => setActiveBlock('licitacao')} className="group relative p-8 rounded-[2rem] border shadow-xl transition-all duration-500 text-center flex flex-col items-center justify-center overflow-hidden w-full bg-white border-slate-200 hover:shadow-blue-500/15 hover:border-blue-300 h-64 scale-100 hover:scale-[1.02]">
+                <button onClick={() => setActiveBlock('licitacao')} className={getCardClass('blue')}>
                   <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                   <div className="relative z-10 flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-[1.2rem] flex items-center justify-center shadow-lg mb-3 transition-all duration-500 bg-gradient-to-br from-blue-600 to-blue-700"><Gavel className="w-8 h-8 text-white" /></div>
+                    <div className="w-16 h-16 rounded-[1.2rem] flex items-center justify-center mb-3 transition-all duration-500 bg-gradient-to-br from-blue-600 to-blue-700"><Gavel className="w-8 h-8 text-white" /></div>
                     <h2 className="text-2xl font-black text-slate-900 mb-1 tracking-tight">Licitação</h2>
                     <p className="text-slate-500 text-xs font-medium">Processos e termos.</p>
                   </div>
@@ -122,10 +153,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               )}
 
               {canAccessDiarias && (
-                <button onClick={() => setActiveBlock('diarias')} className="group relative p-8 rounded-[2rem] border shadow-xl transition-all duration-500 text-center flex flex-col items-center justify-center overflow-hidden w-full bg-white border-slate-200 hover:shadow-amber-500/15 hover:border-amber-300 h-64 scale-100 hover:scale-[1.02]">
+                <button onClick={() => setActiveBlock('diarias')} className={getCardClass('amber')}>
                   <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                   <div className="relative z-10 flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-[1.2rem] flex items-center justify-center shadow-lg mb-3 transition-all duration-500 bg-gradient-to-br from-amber-600 to-amber-700"><Wallet className="w-8 h-8 text-white" /></div>
+                    <div className="w-16 h-16 rounded-[1.2rem] flex items-center justify-center mb-3 transition-all duration-500 bg-gradient-to-br from-amber-600 to-amber-700"><Wallet className="w-8 h-8 text-white" /></div>
                     <h2 className="text-2xl font-black text-slate-900 mb-1 tracking-tight">Diárias</h2>
                     <p className="text-slate-500 text-xs font-medium">Gestão de despesas.</p>
                   </div>
@@ -134,10 +165,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               )}
 
               {canAccessScheduling && (
-                <button onClick={() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }} className="group relative p-8 rounded-[2rem] border shadow-xl transition-all duration-500 text-center flex flex-col items-center justify-center overflow-hidden w-full bg-white border-slate-200 hover:shadow-indigo-500/15 hover:border-indigo-300 h-64 scale-100 hover:scale-[1.02]">
+                <button onClick={() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }} className={getCardClass('indigo')}>
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                   <div className="relative z-10 flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-[1.2rem] flex items-center justify-center shadow-lg mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-50 to-violet-600"><CalendarRange className="w-8 h-8 text-white" /></div>
+                    <div className="w-16 h-16 rounded-[1.2rem] flex items-center justify-center mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-50 to-violet-600"><CalendarRange className="w-8 h-8 text-white" /></div>
                     <h2 className="text-2xl font-black text-slate-900 mb-1 tracking-tight leading-tight">Agendamento de veiculos</h2>
                     <p className="text-slate-500 text-xs font-medium">Controle de frotas.</p>
                   </div>
@@ -145,7 +176,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </button>
               )}
 
-              {canAccessFleet && <FleetShortcutCard onClick={() => onOpenAdmin('fleet')} />}
+              {canAccessFleet && <FleetShortcutCard onClick={() => onOpenAdmin('fleet')} className={getCardClass('cyan')} />}
             </div>
           </div>
         )}
@@ -153,18 +184,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {activeBlock && activeBlock !== 'agendamento' && (
           <div className="w-full max-w-6xl animate-fade-in flex flex-col items-center">
             <div className="space-y-6 w-full max-w-5xl">
-              <button onClick={() => setActiveBlock(null)} className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold mb-4 transition-all"><ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /><span className="text-xs uppercase tracking-widest">Módulos</span></button>
-              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight text-center">{getBlockName()}</h2>
+              <button onClick={() => setActiveBlock(null)} className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold mb-4 transition-all w-fit">
+                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                <span className="text-xs uppercase tracking-widest">Voltar</span>
+              </button>
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight text-center">{getBlockName()}</h2>
+                <p className="text-slate-500 text-xs font-medium">Gestão Integrada Municipal</p>
+              </div>
 
               <div className={`grid grid-cols-1 md:grid-cols-${(activeBlock === 'compras' && canManagePurchaseOrders) ? '3' : '2'} gap-8 pt-4`}>
-                <button onClick={onNewOrder} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-56 justify-center">
-                  <div className="w-14 h-14 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform"><FilePlus className="w-7 h-7 text-white" /></div>
+                <button onClick={onNewOrder} className="group p-8 bg-white border border-slate-200 rounded-[2rem] hover:border-indigo-300 transition-all flex flex-col items-center text-center h-56 justify-center">
+                  <div className="w-14 h-14 bg-indigo-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><FilePlus className="w-7 h-7 text-white" /></div>
                   <h3 className="text-xl font-black text-slate-900 mb-1">{getNewActionLabel()}</h3>
                   <p className="text-slate-500 text-xs font-medium">Criar novo registro.</p>
                 </button>
 
-                <button onClick={onTrackOrder} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-56 justify-center">
-                  <div className="w-14 h-14 bg-purple-600 rounded-xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform"><History className="w-7 h-7 text-white" /></div>
+                <button onClick={onTrackOrder} className="group p-8 bg-white border border-slate-200 rounded-[2rem] hover:border-purple-300 transition-all flex flex-col items-center text-center h-56 justify-center">
+                  <div className="w-14 h-14 bg-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><History className="w-7 h-7 text-white" /></div>
                   <h3 className="text-xl font-black text-slate-900 mb-1">{
                     activeBlock === 'oficio' ? 'Histórico de Ofícios' :
                       activeBlock === 'compras' ? 'Histórico de Compras' :
@@ -175,8 +212,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </button>
 
                 {activeBlock === 'compras' && canManagePurchaseOrders && (
-                  <button onClick={onManagePurchaseOrders} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-56 justify-center">
-                    <div className="w-14 h-14 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform"><Inbox className="w-7 h-7 text-white" /></div>
+                  <button onClick={onManagePurchaseOrders} className="group p-8 bg-white border border-slate-200 rounded-[2rem] hover:border-emerald-300 transition-all flex flex-col items-center text-center h-56 justify-center">
+                    <div className="w-14 h-14 bg-emerald-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Inbox className="w-7 h-7 text-white" /></div>
                     <h3 className="text-xl font-black text-slate-900 mb-1">Pedidos</h3>
                     <p className="text-slate-500 text-xs font-medium">Gestão Administrativa (Admin)</p>
                   </button>
