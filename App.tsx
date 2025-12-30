@@ -667,7 +667,9 @@ const App: React.FC = () => {
           } else {
             // Default Oficio and fallback for others
             defaultTitle = `Adicione um Titulo ao seu Documento`;
-            leftBlockContent = `Ref: Ofício nº ${formattedNum}/${currentYear}`;
+            const defaultLeftBlock = INITIAL_STATE.content.leftBlockText;
+            const extraInfo = defaultLeftBlock.includes('\n') ? defaultLeftBlock.split('\n').slice(1).join('\n') : '';
+            leftBlockContent = `Ref: Ofício nº ${formattedNum}/${currentYear}${extraInfo ? '\n' + extraInfo : ''}`;
           }
         }
       }
@@ -697,6 +699,24 @@ const App: React.FC = () => {
     setIsAdminSidebarOpen(true);
     setIsFinalizedView(false);
   };
+
+  // Effect to initialize editor if accessed directly via URL
+  useEffect(() => {
+    if (currentView === 'editor' && !editingOrder && !appState.content.protocol && currentUser && sectors.length > 0) {
+      // Only run if we don't have a protocol set (heuristic for uninitialized)
+      // We use a small timeout or check to avoid infinite loops if handleStartEditing doesn't set protocol (it sets empty string)
+      // But handleStartEditing sets the leftBlockContent which is the visible "Number".
+      // We check if leftBlockText is default to avoid overwriting user changes?
+      // Better: Just run once when entering view.
+
+      // Creating a flag explicitly or check if title is default? 
+      // Actually, activeBlock dependency in handleStartEditing might be an issue if activeBlock isn't set yet.
+      if (activeBlock) {
+        handleStartEditing();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentView, activeBlock, currentUser, sectors.length]);
 
 
 

@@ -2,20 +2,38 @@
 import { supabase } from './supabaseClient';
 
 export const getNextSectorCount = async (sectorId: string, year: number): Promise<number | null> => {
-    // This is 'peek', just getting the suggestion
+    // 1. Try RPC first
     try {
         const { data, error } = await supabase.rpc('peek_sector_counter', {
             p_sector_id: sectorId,
             p_year: year
         });
 
-        if (error) {
-            console.error('Error peeking sector counter:', error);
+        if (!error && data !== null) {
+            return data as number;
+        }
+    } catch (e) {
+        console.error('Exception in getNextSectorCount RPC:', e);
+    }
+
+    // 2. Fallback: Manual select
+    try {
+        const { data: existing, error } = await supabase
+            .from('sector_counters')
+            .select('count')
+            .eq('sector_id', sectorId)
+            .eq('year', year)
+            .single();
+
+        if (error && error.code !== 'PGRST116') {
+            console.error('Error fetching sector counter fallback:', error);
             return null;
         }
-        return data as number;
+
+        // Return next number (current + 1), or 1 if no record exists
+        return (existing?.count || 0) + 1;
     } catch (e) {
-        console.error('Exception in getNextSectorCount:', e);
+        console.error('Exception in getNextSectorCount fallback:', e);
         return null;
     }
 };
