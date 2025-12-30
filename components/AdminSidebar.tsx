@@ -21,7 +21,7 @@ interface AdminSidebarProps {
   currentUser: User;
   mode: 'admin' | 'editor';
   onSaveDefault?: () => Promise<void> | void;
-  onFinish?: () => void;
+  onFinish?: () => Promise<boolean | void> | void;
   activeTab: string | null;
   onTabChange: (tab: any) => void;
   availableSignatures: Signature[];
@@ -91,7 +91,17 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     }
     setFinishStatus('loading');
     await new Promise(resolve => setTimeout(resolve, 800));
-    if (onFinish) onFinish();
+
+    let result: boolean | void = true;
+    if (onFinish) {
+      result = await onFinish();
+    }
+
+    if (result === false) {
+      setFinishStatus('idle');
+      return;
+    }
+
     setFinishStatus('success');
     setTimeout(() => {
       setFinishStatus('idle');

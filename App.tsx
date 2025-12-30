@@ -231,8 +231,8 @@ const App: React.FC = () => {
     return { error };
   };
 
-  const handleFinish = async (skip2FA = false, digitalSignatureData?: { enabled: boolean, method: string, ip: string, date: string }) => {
-    if (!currentUser || !activeBlock) return;
+  const handleFinish = async (skip2FA = false, digitalSignatureData?: { enabled: boolean, method: string, ip: string, date: string }): Promise<boolean> => {
+    if (!currentUser || !activeBlock) return false;
 
     // 2FA Interception Logic
     if (!skip2FA && appState.content.useDigitalSignature) {
@@ -262,7 +262,7 @@ const App: React.FC = () => {
         // Store intent to proceed
         setPendingParams(true);
         setIs2FAModalOpen(true);
-        return;
+        return false;
       }
     }
 
@@ -351,6 +351,7 @@ const App: React.FC = () => {
     }
     setIsFinalizedView(true);
     setIsAdminSidebarOpen(false);
+    return true;
   };
 
   const handleSendOrder = async () => {
