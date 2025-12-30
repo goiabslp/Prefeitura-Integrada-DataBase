@@ -9,7 +9,7 @@ import {
   AlertTriangle, MousePointer2, ChevronRight, Check, Sparkles, Upload, FileText, Paperclip, ExternalLink,
   Download, Plus, Network, Trash, Send, Info, Flag, Hash, RefreshCw, ChevronLeft
 } from 'lucide-react';
-import { User as UserType, Order, AppState, StatusMovement, Attachment } from '../types';
+import { User as UserType, Order, AppState, StatusMovement, Attachment, BlockType } from '../types';
 import { DocumentPreview } from './DocumentPreview';
 import { uploadFile } from '../services/storageService';
 
@@ -17,7 +17,7 @@ interface PurchaseManagementScreenProps {
   onBack: () => void;
   currentUser: UserType;
   orders: Order[];
-  onDownloadPdf: (snapshot?: AppState) => void;
+  onDownloadPdf: (snapshot: AppState, blockType?: BlockType) => void;
   onUpdateStatus: (orderId: string, status: Order['status'], justification?: string) => void;
   onUpdatePurchaseStatus?: (orderId: string, purchaseStatus: Order['purchaseStatus'], justification?: string, budgetFileUrl?: string) => void;
   onUpdateCompletionForecast?: (orderId: string, date: string) => void;
@@ -83,7 +83,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
 
   const handleDownload = (order: Order) => {
     setDownloadingId(order.id);
-    onDownloadPdf(order.documentSnapshot);
+    onDownloadPdf(order.documentSnapshot!, order.blockType);
     setTimeout(() => setDownloadingId(null), 2000);
   };
 
@@ -488,7 +488,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                           <Eye className="w-4 h-4" />
                         </button>
 
-                        <button onClick={() => handleDownload(order)} disabled={downloadingId === order.id} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all" title="Baixar PDF">
+                        <button onClick={() => onDownloadPdf(order.documentSnapshot!, order.blockType)} disabled={downloadingId === order.id} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all" title="Baixar PDF">
                           {downloadingId === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
                         </button>
                       </div>
@@ -680,13 +680,13 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                       setStatusSelectionOrder(null);
                     }}
                     className={`w-full group relative p-5 rounded-2xl border-2 text-left transition-all duration-300 flex items-center gap-4 ${isSelected ? `bg-${opt.color}-50 border-${opt.color}-500 shadow-md ring-4 ring-${opt.color}-500/5` :
-                        isDisabled ? 'bg-slate-50 border-slate-100 opacity-60 grayscale cursor-not-allowed' :
-                          'bg-white border-transparent hover:border-slate-200 hover:bg-slate-50'
+                      isDisabled ? 'bg-slate-50 border-slate-100 opacity-60 grayscale cursor-not-allowed' :
+                        'bg-white border-transparent hover:border-slate-200 hover:bg-slate-50'
                       }`}
                   >
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all duration-300 ${isSelected ? `bg-${opt.color}-600 text-white` :
-                        isDisabled ? 'bg-slate-200 text-slate-400' :
-                          `bg-slate-100 text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50`
+                      isDisabled ? 'bg-slate-200 text-slate-400' :
+                        `bg-slate-100 text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50`
                       }`}>
                       {isDisabled ? <Lock className="w-5 h-5" /> : <opt.icon className="w-6 h-6" />}
                     </div>
@@ -816,8 +816,8 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                           title="Download"
                         >
                           <Download className="w-4.5 h-4.5" />
-                        </a>
-                        <button
+                        </a
+                        ><button
                           onClick={() => removeAttachment(att.id)}
                           className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
                           title="Excluir"
@@ -933,9 +933,9 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
           <div className="w-full h-full max-w-6xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative animate-slide-up">
             <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
               <div className="flex items-center gap-4"><div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center"><Eye className="w-5 h-5 text-white" /></div><div><h3 className="text-lg font-extrabold text-slate-900">Visualização do Documento</h3><p className="text-xs text-slate-500 font-medium">{previewOrder.protocol} • {previewOrder.documentSnapshot.content.requesterSector || 'Sem Setor'}</p></div></div>
-              <div className="flex items-center gap-3"><button onClick={() => handleDownload(previewOrder)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-all"><FileDown className="w-4 h-4" /> Download PDF</button><button onClick={() => setPreviewOrder(null)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><X className="w-6 h-6" /></button></div>
+              <div className="flex items-center gap-3"><button onClick={() => onDownloadPdf(previewOrder.documentSnapshot!, previewOrder.blockType)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-all"><FileDown className="w-4 h-4" /> Download PDF</button><button onClick={() => setPreviewOrder(null)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><X className="w-6 h-6" /></button></div>
             </div>
-            <div className="flex-1 overflow-hidden relative bg-slate-200/50"><div className="h-full overflow-y-auto custom-scrollbar p-8"><div className="flex justify-center"><DocumentPreview state={previewOrder.documentSnapshot} mode="admin" blockType="compras" /></div></div><div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-2 bg-slate-900/90 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl border border-white/10 pointer-events-none flex items-center gap-2"><Lock className="w-3.5 h-3.5" /> Modo de Visualização Protegido</div></div>
+            <div className="flex-1 overflow-hidden relative bg-slate-200/50"><div className="h-full overflow-y-auto custom-scrollbar p-8"><div className="flex justify-center"><DocumentPreview state={previewOrder.documentSnapshot} mode="admin" blockType={previewOrder.blockType} /></div></div><div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-2 bg-slate-900/90 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl border border-white/10 pointer-events-none flex items-center gap-2"><Lock className="w-3.5 h-3.5" /> Modo de Visualização Protegido</div></div>
           </div>
         </div>,
         document.body

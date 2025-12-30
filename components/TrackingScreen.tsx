@@ -26,7 +26,7 @@ interface TrackingScreenProps {
   currentUser: UserType;
   activeBlock: BlockType | null;
   orders: Order[];
-  onDownloadPdf: (snapshot?: AppState) => void;
+  onDownloadPdf: (snapshot: AppState, blockType?: BlockType) => void;
   onClearAll: () => void;
   onEditOrder: (order: Order) => void;
   onDeleteOrder: (id: string) => void;
@@ -99,7 +99,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
   const handleDownload = (order: Order) => {
     setDownloadingId(order.id);
-    onDownloadPdf(order.documentSnapshot);
+    onDownloadPdf(order.documentSnapshot, order.blockType);
     setTimeout(() => setDownloadingId(null), 2000);
   };
 
@@ -434,45 +434,52 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
                       <div className={`${isCompras ? 'md:col-span-3' : 'md:col-span-2'} flex items-center justify-center gap-1`}>
                         {isCompras && (
-                          <>
-                            <button
-                              onClick={() => setAttachmentManagerOrder(order)}
-                              className="p-2 rounded-xl border bg-white text-slate-400 border-slate-200 hover:text-emerald-600 hover:border-emerald-200 transition-all hover:bg-emerald-50/50 relative group"
-                              title="Gerenciar Anexos"
-                            >
-                              <Paperclip className="w-5 h-5" />
-                              {(order.attachments?.length || 0) > 0 && (
-                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white text-[8px] font-black flex items-center justify-center rounded-full shadow-sm ring-2 ring-white">
-                                  {order.attachments?.length}
-                                </span>
-                              )}
-                            </button>
-                            <button
-                              onClick={() => setPreviewOrder(order)}
-                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                              title="Visualizar Pedido"
-                            >
-                              <Eye className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => setHistoryOrder(order)}
-                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
-                              title="Histórico de Movimentação"
-                            >
-                              <History className="w-5 h-5" />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => setAttachmentManagerOrder(order)}
+                            className="p-2 rounded-xl border bg-white text-slate-400 border-slate-200 hover:text-emerald-600 hover:border-emerald-200 transition-all hover:bg-emerald-50/50 relative group"
+                            title="Gerenciar Anexos"
+                          >
+                            <Paperclip className="w-5 h-5" />
+                            {(order.attachments?.length || 0) > 0 && (
+                              <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white text-[8px] font-black flex items-center justify-center rounded-full shadow-sm ring-2 ring-white">
+                                {order.attachments?.length}
+                              </span>
+                            )}
+                          </button>
+                        )}
+
+                        {(isCompras || activeBlock === 'oficio') && (
+                          <button
+                            onClick={() => setPreviewOrder(order)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title="Visualizar"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
+                        )}
+
+                        {isCompras && (
+                          <button
+                            onClick={() => setHistoryOrder(order)}
+                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                            title="Histórico de Movimentação"
+                          >
+                            <History className="w-5 h-5" />
+                          </button>
                         )}
 
                         <button onClick={() => onEditOrder(order)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Editar"><Edit3 className="w-5 h-5" /></button>
-                        <button
-                          onClick={() => handleDownload(order)}
-                          disabled={downloadingId === order.id}
-                          className={`p-2 rounded-xl transition-all ${downloadingId === order.id ? 'text-indigo-400 bg-indigo-50' : 'text-indigo-600 hover:bg-indigo-600 hover:text-white'}`}
-                          title="Download PDF"
-                        >
-                          {downloadingId === order.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileDown className="w-5 h-5" />}
-                        </button>
+
+                        {activeBlock !== 'oficio' && (
+                          <button
+                            onClick={() => handleDownload(order)}
+                            disabled={downloadingId === order.id}
+                            className={`p-2 rounded-xl transition-all ${downloadingId === order.id ? 'text-indigo-400 bg-indigo-50' : 'text-indigo-600 hover:bg-indigo-600 hover:text-white'}`}
+                            title="Download PDF"
+                          >
+                            {downloadingId === order.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileDown className="w-5 h-5" />}
+                          </button>
+                        )}
                         <button
                           onClick={() => setConfirmModal({
                             isOpen: true,
@@ -755,9 +762,9 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
           <div className="w-full h-full max-w-6xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative animate-slide-up">
             <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
               <div className="flex items-center gap-4"><div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center"><Eye className="w-5 h-5 text-white" /></div><div><h3 className="text-lg font-extrabold text-slate-900">Visualização do Documento</h3><p className="text-xs text-slate-500 font-medium">{previewOrder.protocol} • {previewOrder.title}</p></div></div>
-              <div className="flex items-center gap-3"><button onClick={() => handleDownload(previewOrder)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-all"><FileDown className="w-4 h-4" /> Download PDF</button><button onClick={() => setPreviewOrder(null)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><X className="w-6 h-6" /></button></div>
+              <div className="flex items-center gap-3"><button onClick={() => onDownloadPdf(previewOrder.documentSnapshot, previewOrder.blockType)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-all"><FileDown className="w-4 h-4" /> Download PDF</button><button onClick={() => setPreviewOrder(null)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><X className="w-6 h-6" /></button></div>
             </div>
-            <div className="flex-1 overflow-hidden relative bg-slate-200/50"><div className="h-full overflow-y-auto custom-scrollbar p-8"><div className="flex justify-center"><DocumentPreview state={previewOrder.documentSnapshot} mode="admin" blockType="compras" /></div></div><div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-2 bg-slate-900/90 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl border border-white/10 pointer-events-none flex items-center gap-2"><Lock className="w-3.5 h-3.5" /> Modo de Visualização Protegido</div></div>
+            <div className="flex-1 overflow-hidden relative bg-slate-200/50"><div className="h-full overflow-y-auto custom-scrollbar p-8"><div className="flex justify-center"><DocumentPreview state={previewOrder.documentSnapshot} mode="admin" blockType={previewOrder.blockType} /></div></div><div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-2 bg-slate-900/90 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl border border-white/10 pointer-events-none flex items-center gap-2"><Lock className="w-3.5 h-3.5" /> Modo de Visualização Protegido</div></div>
           </div>
         </div>,
         document.body

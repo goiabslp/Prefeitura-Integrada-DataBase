@@ -90,6 +90,7 @@ const App: React.FC = () => {
 
   const [successOverlay, setSuccessOverlay] = useState<{ show: boolean, protocol: string } | null>(null);
   const [snapshotToDownload, setSnapshotToDownload] = useState<AppState | null>(null);
+  const [blockTypeToDownload, setBlockTypeToDownload] = useState<BlockType | null>(null);
   const backgroundPreviewRef = useRef<HTMLDivElement>(null);
   const componentRef = useRef<HTMLDivElement>(null);
 
@@ -484,10 +485,11 @@ const App: React.FC = () => {
     window.html2pdf().from(element).set(opt).save().finally(() => setIsDownloading(false));
   };
 
-  const handleDownloadFromHistory = async (order: Order) => {
+  const handleDownloadFromHistory = async (order: Order, forcedBlockType?: BlockType) => {
     if (!order.documentSnapshot) return;
     setIsDownloading(true);
     setSnapshotToDownload(order.documentSnapshot);
+    setBlockTypeToDownload(forcedBlockType || order.blockType);
     setTimeout(async () => {
       const element = document.getElementById('background-preview-scaler');
       if (!element) return;
@@ -495,6 +497,7 @@ const App: React.FC = () => {
       // @ts-ignore
       await window.html2pdf().from(element).set(opt).save();
       setSnapshotToDownload(null);
+      setBlockTypeToDownload(null);
       setIsDownloading(false);
     }, 500);
   };
@@ -866,7 +869,7 @@ const App: React.FC = () => {
             currentUser={currentUser}
             activeBlock={activeBlock}
             orders={orders}
-            onDownloadPdf={(snapshot) => { const order = orders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order); }}
+            onDownloadPdf={(snapshot, forcedBlockType) => { const order = orders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order, forcedBlockType); }}
             onClearAll={() => setOrders([])}
             onEditOrder={handleEditOrder}
             onDeleteOrder={async (id) => {
@@ -894,7 +897,7 @@ const App: React.FC = () => {
             onBack={handleBackToModule}
             currentUser={currentUser}
             orders={purchaseOrders}
-            onDownloadPdf={(snapshot) => { const order = purchaseOrders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order); }}
+            onDownloadPdf={(snapshot, forcedBlockType) => { const order = purchaseOrders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order, forcedBlockType); }}
             onUpdateStatus={handleUpdateOrderStatus}
             onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
             onUpdateCompletionForecast={handleUpdateCompletionForecast}
@@ -937,7 +940,13 @@ const App: React.FC = () => {
 
       <div id="background-pdf-generation-container" style={{ position: 'absolute', left: '-9999px', top: '-9999px', pointerEvents: 'none' }} aria-hidden="true">
         {snapshotToDownload && (
-          <DocumentPreview ref={backgroundPreviewRef} state={snapshotToDownload} isGenerating={true} blockType={snapshotToDownload.content.subType ? 'diarias' : (snapshotToDownload.content.purchaseItems ? 'compras' : (activeBlock || 'oficio'))} customId="background-preview-scaler" />
+          <DocumentPreview
+            ref={backgroundPreviewRef}
+            state={snapshotToDownload}
+            isGenerating={true}
+            blockType={blockTypeToDownload || (snapshotToDownload.content.subType ? 'diarias' : (snapshotToDownload.content.purchaseItems && snapshotToDownload.content.purchaseItems.length > 0 ? 'compras' : (activeBlock || 'oficio')))}
+            customId="background-preview-scaler"
+          />
         )}
       </div>
       {currentUser && (
