@@ -8,6 +8,7 @@ interface TwoFactorModalProps {
     onClose: () => void;
     onConfirm: () => void;
     secret: string; // Decrypted secret from signature owner
+    secret2?: string | null;
     signatureName: string;
 }
 
@@ -16,6 +17,7 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
     onClose,
     onConfirm,
     secret,
+    secret2,
     signatureName
 }) => {
     const [token, setToken] = useState('');
@@ -42,16 +44,35 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
         await new Promise(r => setTimeout(r, 500));
 
         try {
-            const totp = new OTPAuth.TOTP({
-                algorithm: 'SHA1',
-                digits: 6,
-                period: 30,
-                secret: OTPAuth.Secret.fromBase32(secret)
-            });
+            // Validate against Secret 1
+            let isValid = false;
 
-            const delta = totp.validate({ token, window: 1 });
+            if (secret) {
+                const totp1 = new OTPAuth.TOTP({
+                    algorithm: 'SHA1',
+                    digits: 6,
+                    period: 30,
+                    secret: OTPAuth.Secret.fromBase32(secret)
+                });
+                if (totp1.validate({ token, window: 1 }) !== null) {
+                    isValid = true;
+                }
+            }
 
-            if (delta !== null) {
+            // If not valid yet and Secret 2 exists, try Secret 2
+            if (!isValid && secret2) {
+                const totp2 = new OTPAuth.TOTP({
+                    algorithm: 'SHA1',
+                    digits: 6,
+                    period: 30,
+                    secret: OTPAuth.Secret.fromBase32(secret2)
+                });
+                if (totp2.validate({ token, window: 1 }) !== null) {
+                    isValid = true;
+                }
+            }
+
+            if (isValid) {
                 onConfirm();
             } else {
                 setError("Código incorreto ou expirado.");

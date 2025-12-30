@@ -13,8 +13,8 @@ export const INITIAL_STATE: AppState = {
       enabled: false,
       imageUrl: null,
       opacity: 20,
-      size: 55,    
-      grayscale: true 
+      size: 55,
+      grayscale: true
     }
   },
   document: {
@@ -50,7 +50,8 @@ export const INITIAL_STATE: AppState = {
     rightBlockText: 'Ao Excelentíssimo Senhor\nPrefeito Municipal de São José do Goiabal\nNesta Cidade',
     purchaseItems: [],
     priority: 'Normal',
-    priorityJustification: ''
+    priorityJustification: '',
+    useDigitalSignature: false
   },
   ui: {
     loginLogoUrl: null,
@@ -150,69 +151,69 @@ export const DEFAULT_PERSONS: Person[] = [
 ];
 
 export const DEFAULT_USERS: User[] = [
-  { 
-    id: 'user_guilherme', 
-    username: 'gaf', 
-    password: 'gaf', 
-    name: 'Guilherme Araújo Ferreira dos Santos', 
-    role: 'admin', 
-    sector: 'Secretaria de Administração', 
-    jobTitle: 'Secretário de Administração e Finanças', 
+  {
+    id: 'user_guilherme',
+    username: 'gaf',
+    password: 'gaf',
+    name: 'Guilherme Araújo Ferreira dos Santos',
+    role: 'admin',
+    sector: 'Secretaria de Administração',
+    jobTitle: 'Secretário de Administração e Finanças',
     allowedSignatureIds: ['sig1', 'sig2', 'sig3'],
     permissions: ['parent_criar_oficio', 'parent_compras', 'parent_diarias', 'parent_admin', 'parent_compras_pedidos', 'parent_agendamento_veiculo']
   },
-  { 
-    id: 'user_juliana', 
-    username: 'jmv', 
-    password: 'jmv', 
-    name: 'Juliana Miranda Vasconcelos', 
-    role: 'admin', 
-    sector: 'Secretaria de Administração', 
-    jobTitle: 'Tecnico Administrativo', 
+  {
+    id: 'user_juliana',
+    username: 'jmv',
+    password: 'jmv',
+    name: 'Juliana Miranda Vasconcelos',
+    role: 'admin',
+    sector: 'Secretaria de Administração',
+    jobTitle: 'Tecnico Administrativo',
     allowedSignatureIds: ['sig1', 'sig2', 'sig3'],
     permissions: ['parent_criar_oficio', 'parent_compras', 'parent_diarias', 'parent_admin', 'parent_compras_pedidos', 'parent_agendamento_veiculo']
   },
-  { 
-    id: 'user_maria', 
-    username: 'mdl', 
-    password: 'mdl', 
-    name: 'Maria Doroteia Dias Lemos', 
-    role: 'collaborator', 
-    sector: 'Gabinete', 
-    jobTitle: 'Chefe De Gabinete', 
+  {
+    id: 'user_maria',
+    username: 'mdl',
+    password: 'mdl',
+    name: 'Maria Doroteia Dias Lemos',
+    role: 'collaborator',
+    sector: 'Gabinete',
+    jobTitle: 'Chefe De Gabinete',
     allowedSignatureIds: ['sig1', 'sig2'],
     permissions: ['parent_criar_oficio', 'parent_compras', 'parent_diarias', 'parent_agendamento_veiculo']
   },
-  { 
-    id: 'user_apoliana', 
-    username: 'apoliana', 
-    password: '123', 
-    name: 'Apoliana Teixeira Silva', 
-    role: 'compras', 
-    sector: 'Departamento de Compras', 
-    jobTitle: 'Chefe Do Servico De Compras', 
+  {
+    id: 'user_apoliana',
+    username: 'apoliana',
+    password: '123',
+    name: 'Apoliana Teixeira Silva',
+    role: 'compras',
+    sector: 'Departamento de Compras',
+    jobTitle: 'Chefe Do Servico De Compras',
     allowedSignatureIds: [],
     permissions: ['parent_criar_oficio', 'parent_compras', 'parent_diarias', 'parent_compras_pedidos', 'parent_agendamento_veiculo']
   },
-  { 
-    id: 'user_vitoria', 
-    username: 'ves', 
-    password: 'ves', 
-    name: 'Vitoria Eduarda Silva De Souza', 
-    role: 'licitacao', 
-    sector: 'Departamento de Licitação', 
-    jobTitle: 'Agente De Contratacao', 
+  {
+    id: 'user_vitoria',
+    username: 'ves',
+    password: 'ves',
+    name: 'Vitoria Eduarda Silva De Souza',
+    role: 'licitacao',
+    sector: 'Departamento de Licitação',
+    jobTitle: 'Agente De Contratacao',
     allowedSignatureIds: [],
     permissions: ['parent_criar_oficio', 'parent_compras', 'parent_diarias', 'parent_agendamento_veiculo']
   },
-  { 
-    id: 'user_marcos', 
-    username: 'mvf', 
-    password: 'mvf', 
-    name: 'Marcos Vinicios Felix Martins', 
-    role: 'admin', 
-    sector: 'Departamento de Informática', 
-    jobTitle: 'Tecnico de TI', 
+  {
+    id: 'user_marcos',
+    username: 'mvf',
+    password: 'mvf',
+    name: 'Marcos Vinicios Felix Martins',
+    role: 'admin',
+    sector: 'Departamento de Informática',
+    jobTitle: 'Tecnico de TI',
     allowedSignatureIds: ['sig1', 'sig2', 'sig3', 'sig4'],
     permissions: ['parent_criar_oficio', 'parent_compras', 'parent_diarias', 'parent_admin', 'parent_compras_pedidos', 'parent_agendamento_veiculo']
   }

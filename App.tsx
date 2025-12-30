@@ -96,6 +96,7 @@ const App: React.FC = () => {
   // 2FA State
   const [is2FAModalOpen, setIs2FAModalOpen] = useState(false);
   const [twoFASecret, setTwoFASecret] = useState('');
+  const [twoFASecret2, setTwoFASecret2] = useState<string | null>(null);
   const [twoFASignatureName, setTwoFASignatureName] = useState('');
   const [pendingParams, setPendingParams] = useState<any>(null); // To store state/action to resume after 2FA
 
@@ -139,7 +140,9 @@ const App: React.FC = () => {
           tempPassword: u.temp_password,
           tempPasswordExpiresAt: u.temp_password_expires_at,
           twoFactorEnabled: u.two_factor_enabled,
-          twoFactorSecret: u.two_factor_secret
+          twoFactorSecret: u.two_factor_secret,
+          twoFactorEnabled2: u.two_factor_enabled_2,
+          twoFactorSecret2: u.two_factor_secret_2
         }));
         setUsers(mappedUsers);
       } else {
@@ -232,7 +235,7 @@ const App: React.FC = () => {
     if (!currentUser || !activeBlock) return;
 
     // 2FA Interception Logic
-    if (!skip2FA) {
+    if (!skip2FA && appState.content.useDigitalSignature) {
       // Find the selected signature user
       // We can infer the selected signer from the content.signatureName (which is text) 
       // OR we need to track the selected signer ID in AppState (better).
@@ -246,8 +249,15 @@ const App: React.FC = () => {
 
       const signerUser = users.find(u => u.name === signerName && (u.jobTitle === signerRole || u.role === 'admin')); // simplified match
 
-      if (signerUser && signerUser.twoFactorEnabled && signerUser.twoFactorSecret) {
-        setTwoFASecret(signerUser.twoFactorSecret);
+      if (signerUser && (signerUser.twoFactorEnabled || signerUser.twoFactorEnabled2)) {
+        // We require 2FA if EITHER is enabled.
+        // We pass BOTH secrets if they exist to allow validation against either.
+
+        if (signerUser.twoFactorSecret) setTwoFASecret(signerUser.twoFactorSecret);
+        else setTwoFASecret(''); // Should handle case where primary is disabled but secondary is enabled? Ideally logic handles this.
+
+        setTwoFASecret2(signerUser.twoFactorSecret2 || null);
+
         setTwoFASignatureName(signerUser.name);
         // Store intent to proceed
         setPendingParams(true);
@@ -621,7 +631,9 @@ const App: React.FC = () => {
       temp_password: u.tempPassword,
       temp_password_expires_at: u.tempPasswordExpiresAt,
       two_factor_enabled: u.twoFactorEnabled,
-      two_factor_secret: u.twoFactorSecret
+      two_factor_secret: u.twoFactorSecret,
+      two_factor_enabled_2: u.twoFactorEnabled2,
+      two_factor_secret_2: u.twoFactorSecret2
     }).eq('id', u.id);
 
     if (u.password) {
@@ -956,6 +968,7 @@ const App: React.FC = () => {
             handleFinish(true, metadata); // Proceed skipping 2FA check with metadata
           }}
           secret={twoFASecret}
+          secret2={twoFASecret2}
           signatureName={twoFASignatureName}
         />
       )}

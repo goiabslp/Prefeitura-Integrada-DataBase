@@ -10,6 +10,7 @@ interface AuthContextType {
     loading: boolean;
     signIn: (email: string, password: string) => Promise<{ error: any }>;
     signOut: () => Promise<void>;
+    refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -75,6 +76,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     jobTitle: data.job_title,
                     allowedSignatureIds: data.allowed_signature_ids || [],
                     permissions: data.permissions || [],
+                    twoFactorEnabled: data.two_factor_enabled,
+                    twoFactorSecret: data.two_factor_secret,
+                    twoFactorEnabled2: data.two_factor_enabled_2,
+                    twoFactorSecret2: data.two_factor_secret_2
                 };
                 setUser(appUser);
             }

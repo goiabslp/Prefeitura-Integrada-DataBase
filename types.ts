@@ -92,6 +92,7 @@ export interface ContentData {
   requestedValue?: string;
   descriptionReason?: string;
   paymentForecast?: string;
+  useDigitalSignature?: boolean;
   digitalSignature?: {
     enabled: boolean;
     method: string;
@@ -136,6 +137,8 @@ export interface User {
   permissions: AppPermission[];
   twoFactorEnabled?: boolean;
   twoFactorSecret?: string;
+  twoFactorEnabled2?: boolean;
+  twoFactorSecret2?: string;
 }
 
 export interface Signature {
