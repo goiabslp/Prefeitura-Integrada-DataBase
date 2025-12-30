@@ -220,6 +220,10 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
     },
   };
 
+  const isBudgetApproved = (order: Order) => {
+    return order.statusHistory?.some(h => h.justification === 'Orçamento Aprovado pelo Administrador') || false;
+  };
+
   const PurchaseStatusSelector = ({ order }: { order: Order }) => {
     const currentStatus = order.purchaseStatus || 'recebido';
     const config = purchaseStatusMap[currentStatus as keyof typeof purchaseStatusMap];
@@ -647,9 +651,23 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
               {(Object.keys(purchaseStatusMap) as Array<keyof typeof purchaseStatusMap>).map((key) => {
                 const opt = purchaseStatusMap[key];
                 const isSelected = statusSelectionOrder.purchaseStatus === key || (!statusSelectionOrder.purchaseStatus && key === 'recebido');
+
+                // Regra de Bloqueio: Coletando Orçamento, Pedido Realizado e Concluído exigem aprovação prévia
+                // EXCETO se o status atual for 'recebido' (permitindo ir para coleta)
+                const restrictedStatuses = ['coletando_orcamento', 'realizado', 'concluido'];
+                const budgetApproved = isBudgetApproved(statusSelectionOrder);
+                const isRestricted = restrictedStatuses.includes(key) && !budgetApproved;
+
+                // Permitir 'coletando_orcamento' se o status atual for 'recebido' (fluxo inicial)
+                const currentStatus = statusSelectionOrder.purchaseStatus || 'recebido';
+                const canMoveToColeta = currentStatus === 'recebido' && key === 'coletando_orcamento';
+
+                const isDisabled = isRestricted && !canMoveToColeta;
+
                 return (
                   <button
                     key={key}
+                    disabled={isDisabled}
                     onClick={() => {
                       if (key === 'cancelado') {
                         setCancelModal({ isOpen: true, orderId: statusSelectionOrder.id, reason: '' });
@@ -661,12 +679,25 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                       }
                       setStatusSelectionOrder(null);
                     }}
-                    className={`w-full group relative p-5 rounded-2xl border-2 text-left transition-all duration-300 flex items-center gap-4 ${isSelected ? `bg-${opt.color}-50 border-${opt.color}-500 shadow-md ring-4 ring-${opt.color}-500/5` : 'bg-white border-transparent hover:border-slate-200 hover:bg-slate-50'}`}
+                    className={`w-full group relative p-5 rounded-2xl border-2 text-left transition-all duration-300 flex items-center gap-4 ${isSelected ? `bg-${opt.color}-50 border-${opt.color}-500 shadow-md ring-4 ring-${opt.color}-500/5` :
+                        isDisabled ? 'bg-slate-50 border-slate-100 opacity-60 grayscale cursor-not-allowed' :
+                          'bg-white border-transparent hover:border-slate-200 hover:bg-slate-50'
+                      }`}
                   >
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all duration-300 ${isSelected ? `bg-${opt.color}-600 text-white` : `bg-slate-100 text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50`}`}><opt.icon className="w-6 h-6" /></div>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all duration-300 ${isSelected ? `bg-${opt.color}-600 text-white` :
+                        isDisabled ? 'bg-slate-200 text-slate-400' :
+                          `bg-slate-100 text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50`
+                      }`}>
+                      {isDisabled ? <Lock className="w-5 h-5" /> : <opt.icon className="w-6 h-6" />}
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className={`text-sm font-black uppercase tracking-tight ${isSelected ? `text-${opt.color}-900` : 'text-slate-800'}`}>{opt.label}</h4>
-                      <p className={`text-[11px] font-medium leading-tight truncate ${isSelected ? `text-${opt.color}-700/80` : 'text-slate-400'}`}>{opt.description}</p>
+                      <h4 className={`text-sm font-black uppercase tracking-tight ${isSelected ? `text-${opt.color}-900` : isDisabled ? 'text-slate-400' : 'text-slate-800'}`}>
+                        {opt.label}
+                        {isDisabled && <span className="ml-2 text-[8px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-md align-middle">Bloqueado</span>}
+                      </h4>
+                      <p className={`text-[11px] font-medium leading-tight truncate ${isSelected ? `text-${opt.color}-700/80` : 'text-slate-400'}`}>
+                        {isDisabled ? 'Requer aprovação prévia do orçamento pelo administrador.' : opt.description}
+                      </p>
                     </div>
                     {isSelected && <div className={`w-6 h-6 rounded-full bg-${opt.color}-600 flex items-center justify-center text-white animate-scale-in`}><Check className="w-3.5 h-3.5 stroke-[3]" /></div>}
                   </button>
