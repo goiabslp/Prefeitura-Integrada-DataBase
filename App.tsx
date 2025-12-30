@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { createPortal } from 'react-dom';
 import {
@@ -132,73 +132,9 @@ const App: React.FC = () => {
   const [pendingParams, setPendingParams] = useState<any>(null); // To store state/action to resume after 2FA
 
   // Routing logic
-  useEffect(() => {
-    const path = window.location.pathname;
-    const state = PATH_TO_STATE[path];
-
-    if (state) {
-      if (state.view !== currentView) setCurrentView(state.view);
-
-      if (state.view === 'admin') {
-        if (state.sub !== adminTab) setAdminTab(state.sub);
-      } else if (['tracking', 'editor', 'home'].includes(state.view)) {
-        if (state.sub !== activeBlock) setActiveBlock(state.sub);
-      }
-      refreshData();
-    } else if (path === '/' || path === '') {
-      if (currentUser) {
-        setCurrentView('home');
-      } else {
-        setCurrentView('login');
-      }
-    }
-
-    const handlePopState = () => {
-      const currentPath = window.location.pathname;
-      const state = PATH_TO_STATE[currentPath];
-      if (state) {
-        setCurrentView(state.view);
-        if (state.view === 'admin') setAdminTab(state.sub);
-        else if (['tracking', 'editor', 'home'].includes(state.view)) setActiveBlock(state.sub);
-        refreshData();
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  useEffect(() => {
-    let stateKey = currentView as string;
-    if (currentView === 'admin' && adminTab) {
-      stateKey = `admin:${adminTab}`;
-    } else if (['tracking', 'editor', 'home'].includes(currentView) && activeBlock) {
-      stateKey = `${currentView}:${activeBlock}`;
-    } else if (currentView === 'admin' && !adminTab) {
-      stateKey = 'admin:dashboard';
-    } else if ((currentView === 'tracking' || currentView === 'editor') && !activeBlock) {
-      stateKey = `${currentView}:oficio`;
-    } else if (currentView === 'home' && !activeBlock) {
-      stateKey = 'home';
-    }
-
-    const expectedPath = VIEW_TO_PATH[stateKey];
-    if (expectedPath && window.location.pathname !== expectedPath) {
-      window.history.pushState(null, '', expectedPath);
-    }
-  }, [currentView, activeBlock, adminTab]);
-
-  useEffect(() => {
-    if (currentUser && currentView === 'login') {
-      setCurrentView('home');
-    } else if (!currentUser && currentView !== 'login') {
-      setCurrentView('login');
-    }
-  }, [currentUser, currentView]);
-
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     setIsRefreshing(true);
     try {
       const loadedOficios = await oficiosService.getAllOficios();
@@ -307,11 +243,83 @@ const App: React.FC = () => {
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, [activeBlock]); // Dependency on activeBlock ensures setOrders logical consistency
 
   useEffect(() => {
+    // Initial load
     refreshData();
   }, []);
+  useEffect(() => {
+    const path = window.location.pathname;
+    const state = PATH_TO_STATE[path];
+
+    if (state) {
+      if (state.view !== currentView) setCurrentView(state.view);
+
+      if (state.view === 'admin') {
+        if (state.sub !== adminTab) setAdminTab(state.sub);
+      } else if (['tracking', 'editor', 'home'].includes(state.view)) {
+        if (state.sub !== activeBlock) setActiveBlock(state.sub);
+      }
+      refreshData();
+    } else if (path === '/' || path === '') {
+      if (currentUser) {
+        setCurrentView('home');
+      } else {
+        setCurrentView('login');
+      }
+    }
+
+    const handlePopState = () => {
+      const currentPath = window.location.pathname;
+      const state = PATH_TO_STATE[currentPath];
+      if (state) {
+        setCurrentView(state.view);
+        if (state.view === 'admin') setAdminTab(state.sub);
+        else if (['tracking', 'editor', 'home'].includes(state.view)) setActiveBlock(state.sub);
+        refreshData();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    let stateKey = currentView as string;
+    if (currentView === 'admin' && adminTab) {
+      stateKey = `admin:${adminTab}`;
+    } else if (['tracking', 'editor', 'home'].includes(currentView) && activeBlock) {
+      stateKey = `${currentView}:${activeBlock}`;
+    } else if (currentView === 'admin' && !adminTab) {
+      stateKey = 'admin:dashboard';
+    } else if ((currentView === 'tracking' || currentView === 'editor') && !activeBlock) {
+      stateKey = `${currentView}:oficio`;
+    } else if (currentView === 'home' && !activeBlock) {
+      stateKey = 'home';
+    }
+
+    const expectedPath = VIEW_TO_PATH[stateKey];
+    if (expectedPath && window.location.pathname !== expectedPath) {
+      window.history.pushState(null, '', expectedPath);
+    }
+
+    // Auto-refresh when route parameters change
+    // We check if it's a substantive change worth refreshing for
+    refreshData();
+    // Auto-refresh when route parameters change
+    refreshData();
+  }, [currentView, activeBlock, adminTab, refreshData]);
+
+  useEffect(() => {
+    if (currentUser && currentView === 'login') {
+      setCurrentView('home');
+    } else if (!currentUser && currentView !== 'login') {
+      setCurrentView('login');
+    }
+  }, [currentUser, currentView]);
+
+
 
   const handleLogin = async (u: string, p: string) => {
     const { error } = await signIn(u, p);
