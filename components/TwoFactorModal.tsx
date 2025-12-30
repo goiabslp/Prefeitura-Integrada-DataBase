@@ -47,28 +47,36 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
             // Validate against Secret 1
             let isValid = false;
 
-            if (secret) {
-                const totp1 = new OTPAuth.TOTP({
-                    algorithm: 'SHA1',
-                    digits: 6,
-                    period: 30,
-                    secret: OTPAuth.Secret.fromBase32(secret)
-                });
-                if (totp1.validate({ token, window: 1 }) !== null) {
-                    isValid = true;
+            if (secret && secret.trim().length > 0) {
+                try {
+                    const totp1 = new OTPAuth.TOTP({
+                        algorithm: 'SHA1',
+                        digits: 6,
+                        period: 30,
+                        secret: OTPAuth.Secret.fromBase32(secret)
+                    });
+                    if (totp1.validate({ token, window: 1 }) !== null) {
+                        isValid = true;
+                    }
+                } catch (e) {
+                    console.error("2FA Primary Validation Error:", e);
                 }
             }
 
             // If not valid yet and Secret 2 exists, try Secret 2
-            if (!isValid && secret2) {
-                const totp2 = new OTPAuth.TOTP({
-                    algorithm: 'SHA1',
-                    digits: 6,
-                    period: 30,
-                    secret: OTPAuth.Secret.fromBase32(secret2)
-                });
-                if (totp2.validate({ token, window: 1 }) !== null) {
-                    isValid = true;
+            if (!isValid && secret2 && secret2.trim().length > 0) {
+                try {
+                    const totp2 = new OTPAuth.TOTP({
+                        algorithm: 'SHA1',
+                        digits: 6,
+                        period: 30,
+                        secret: OTPAuth.Secret.fromBase32(secret2)
+                    });
+                    if (totp2.validate({ token, window: 1 }) !== null) {
+                        isValid = true;
+                    }
+                } catch (e) {
+                    console.error("2FA Secondary Validation Error:", e);
                 }
             }
 

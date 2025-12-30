@@ -144,6 +144,7 @@ const App: React.FC = () => {
       } else if (['tracking', 'editor', 'home'].includes(state.view)) {
         if (state.sub !== activeBlock) setActiveBlock(state.sub);
       }
+      refreshData();
     } else if (path === '/' || path === '') {
       if (currentUser) {
         setCurrentView('home');
@@ -159,6 +160,7 @@ const App: React.FC = () => {
         setCurrentView(state.view);
         if (state.view === 'admin') setAdminTab(state.sub);
         else if (['tracking', 'editor', 'home'].includes(state.view)) setActiveBlock(state.sub);
+        refreshData();
       }
     };
 
@@ -339,12 +341,10 @@ const App: React.FC = () => {
 
       if (signerUser && (signerUser.twoFactorEnabled || signerUser.twoFactorEnabled2)) {
         // We require 2FA if EITHER is enabled.
-        // We pass BOTH secrets if they exist to allow validation against either.
+        // We pass BOTH secrets if they exist AND are enabled to allow validation against either.
 
-        if (signerUser.twoFactorSecret) setTwoFASecret(signerUser.twoFactorSecret);
-        else setTwoFASecret(''); // Should handle case where primary is disabled but secondary is enabled? Ideally logic handles this.
-
-        setTwoFASecret2(signerUser.twoFactorSecret2 || null);
+        setTwoFASecret(signerUser.twoFactorEnabled ? (signerUser.twoFactorSecret || '') : '');
+        setTwoFASecret2(signerUser.twoFactorEnabled2 ? (signerUser.twoFactorSecret2 || null) : null);
 
         setTwoFASignatureName(signerUser.name);
         // Store intent to proceed
