@@ -36,6 +36,36 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { TwoFactorAuthScreen } from './components/TwoFactorAuthScreen';
 import { TwoFactorModal } from './components/TwoFactorModal';
 
+const VIEW_TO_PATH: Record<string, string> = {
+  'login': '/Login',
+  'home': '/PaginaInicial',
+  'home:oficio': '/Oficios',
+  'home:compras': '/Compras',
+  'home:diarias': '/Diarias',
+  'admin:dashboard': '/Admin/Dashboard',
+  'admin:users': '/Admin/Usuarios',
+  'admin:entities': '/Admin/Entidades',
+  'admin:fleet': '/Frota',
+  'admin:signatures': '/Admin/Assinaturas',
+  'admin:ui': '/Admin/Interface',
+  'admin:design': '/Admin/Design',
+  'tracking:oficio': '/Historico/Oficio',
+  'tracking:compras': '/Historico/Compras',
+  'tracking:diarias': '/Historico/Diarias',
+  'editor:oficio': '/Editor/Oficio',
+  'editor:compras': '/Editor/Compras',
+  'editor:diarias': '/Editor/Diarias',
+  'purchase-management': '/GestaoCompras',
+  'vehicle-scheduling': '/AgendamentoVeiculos'
+};
+
+const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
+  Object.entries(VIEW_TO_PATH).map(([stateKey, path]) => {
+    const [view, sub] = stateKey.split(':');
+    return [path, { view, sub }];
+  })
+);
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling'>('login');
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
@@ -101,11 +131,68 @@ const App: React.FC = () => {
   const [twoFASignatureName, setTwoFASignatureName] = useState('');
   const [pendingParams, setPendingParams] = useState<any>(null); // To store state/action to resume after 2FA
 
-  // useEffect(() => {
-  //   if (currentUser && currentView === 'login') {
-  //     setCurrentView('home');
-  //   }
-  // }, [currentUser, currentView]);
+  // Routing logic
+  useEffect(() => {
+    const path = window.location.pathname;
+    const state = PATH_TO_STATE[path];
+
+    if (state) {
+      if (state.view !== currentView) setCurrentView(state.view);
+
+      if (state.view === 'admin') {
+        if (state.sub !== adminTab) setAdminTab(state.sub);
+      } else if (['tracking', 'editor', 'home'].includes(state.view)) {
+        if (state.sub !== activeBlock) setActiveBlock(state.sub);
+      }
+    } else if (path === '/' || path === '') {
+      if (currentUser) {
+        setCurrentView('home');
+      } else {
+        setCurrentView('login');
+      }
+    }
+
+    const handlePopState = () => {
+      const currentPath = window.location.pathname;
+      const state = PATH_TO_STATE[currentPath];
+      if (state) {
+        setCurrentView(state.view);
+        if (state.view === 'admin') setAdminTab(state.sub);
+        else if (['tracking', 'editor', 'home'].includes(state.view)) setActiveBlock(state.sub);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    let stateKey = currentView as string;
+    if (currentView === 'admin' && adminTab) {
+      stateKey = `admin:${adminTab}`;
+    } else if (['tracking', 'editor', 'home'].includes(currentView) && activeBlock) {
+      stateKey = `${currentView}:${activeBlock}`;
+    } else if (currentView === 'admin' && !adminTab) {
+      stateKey = 'admin:dashboard';
+    } else if ((currentView === 'tracking' || currentView === 'editor') && !activeBlock) {
+      stateKey = `${currentView}:oficio`;
+    } else if (currentView === 'home' && !activeBlock) {
+      stateKey = 'home';
+    }
+
+    const expectedPath = VIEW_TO_PATH[stateKey];
+    if (expectedPath && window.location.pathname !== expectedPath) {
+      window.history.pushState(null, '', expectedPath);
+    }
+  }, [currentView, activeBlock, adminTab]);
+
+  useEffect(() => {
+    if (currentUser && currentView === 'login') {
+      setCurrentView('home');
+    } else if (!currentUser && currentView !== 'login') {
+      setCurrentView('login');
+    }
+  }, [currentUser, currentView]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
