@@ -9,6 +9,7 @@ interface DateTimePickerModalProps {
     initialDate?: Date;
     title: string;
     minDate?: Date;
+    maxDate?: Date;
     shouldDisableDate?: (date: Date) => boolean;
 }
 
@@ -19,6 +20,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
     initialDate,
     title,
     minDate,
+    maxDate,
     shouldDisableDate
 }) => {
     const [selectedDate, setSelectedDate] = useState(initialDate || new Date());
@@ -103,12 +105,22 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
 
     const isDayDisabled = (date: Date) => {
         if (shouldDisableDate && shouldDisableDate(date)) return true;
-        if (!minDate) return false;
         const d = new Date(date);
-        d.setHours(23, 59, 59, 999);
-        const min = new Date(minDate);
-        min.setHours(0, 0, 0, 0);
-        return d < min;
+        d.setHours(0, 0, 0, 0);
+
+        if (minDate) {
+            const min = new Date(minDate);
+            min.setHours(0, 0, 0, 0);
+            if (d < min) return true;
+        }
+
+        if (maxDate) {
+            const max = new Date(maxDate);
+            max.setHours(0, 0, 0, 0);
+            if (d > max) return true;
+        }
+
+        return false;
     };
 
     const isSameDay = (d1: Date, d2: Date) => {
@@ -240,16 +252,27 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                             <div className="flex-1 flex flex-col">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mb-2 md:hidden">Hora</span>
                                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 rounded-2xl p-2 space-y-1">
-                                    {hours.map(h => (
-                                        <button
-                                            key={h}
-                                            id={`hour-${h}`}
-                                            onClick={() => updateTime(h, selectedDate.getMinutes())}
-                                            className={`w-full py-2 rounded-lg text-sm font-bold transition-all ${selectedDate.getHours() === h ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-white'}`}
-                                        >
-                                            {String(h).padStart(2, '0')}
-                                        </button>
-                                    ))}
+                                    {hours.map(h => {
+                                        let isDisabled = false;
+                                        if (minDate && isSameDay(selectedDate, minDate)) {
+                                            if (h < minDate.getHours()) isDisabled = true;
+                                        }
+                                        if (maxDate && isSameDay(selectedDate, maxDate)) {
+                                            if (h > maxDate.getHours()) isDisabled = true;
+                                        }
+
+                                        return (
+                                            <button
+                                                key={h}
+                                                id={`hour-${h}`}
+                                                disabled={isDisabled}
+                                                onClick={() => updateTime(h, selectedDate.getMinutes())}
+                                                className={`w-full py-2 rounded-lg text-sm font-bold transition-all ${selectedDate.getHours() === h ? 'bg-indigo-600 text-white shadow-md' : isDisabled ? 'text-slate-300 cursor-not-allowed opacity-50' : 'text-slate-600 hover:bg-white'}`}
+                                            >
+                                                {String(h).padStart(2, '0')}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
@@ -257,16 +280,29 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                             <div className="flex-1 flex flex-col">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mb-2 md:hidden">Minuto</span>
                                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 rounded-2xl p-2 space-y-1">
-                                    {minutes.map(m => (
-                                        <button
-                                            key={m}
-                                            id={`minute-${m}`}
-                                            onClick={() => updateTime(selectedDate.getHours(), m)}
-                                            className={`w-full py-2 rounded-lg text-sm font-bold transition-all ${selectedDate.getMinutes() === m ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-white'}`}
-                                        >
-                                            {String(m).padStart(2, '0')}
-                                        </button>
-                                    ))}
+                                    {minutes.map(m => {
+                                        let isDisabled = false;
+                                        if (minDate && isSameDay(selectedDate, minDate)) {
+                                            if (selectedDate.getHours() === minDate.getHours() && m < minDate.getMinutes()) isDisabled = true;
+                                            if (selectedDate.getHours() < minDate.getHours()) isDisabled = true;
+                                        }
+                                        if (maxDate && isSameDay(selectedDate, maxDate)) {
+                                            if (selectedDate.getHours() === maxDate.getHours() && m > maxDate.getMinutes()) isDisabled = true;
+                                            if (selectedDate.getHours() > maxDate.getHours()) isDisabled = true;
+                                        }
+
+                                        return (
+                                            <button
+                                                key={m}
+                                                id={`minute-${m}`}
+                                                disabled={isDisabled}
+                                                onClick={() => updateTime(selectedDate.getHours(), m)}
+                                                className={`w-full py-2 rounded-lg text-sm font-bold transition-all ${selectedDate.getMinutes() === m ? 'bg-indigo-600 text-white shadow-md' : isDisabled ? 'text-slate-300 cursor-not-allowed opacity-50' : 'text-slate-600 hover:bg-white'}`}
+                                            >
+                                                {String(m).padStart(2, '0')}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>

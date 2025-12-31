@@ -150,12 +150,25 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
               </label>
             </div>
             {docConfig.showLeftBlock && (
-              <textarea
-                value={content.leftBlockText}
-                onChange={(e) => handleUpdate('content', 'leftBlockText', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs h-24 resize-none focus:bg-white transition-all outline-none text-slate-700 font-medium"
-                placeholder="Ref. Pedido..."
-              />
+              <div className="flex flex-col gap-2">
+                <input
+                  type="text"
+                  value={content.leftBlockText?.split('\n')[0] || ''}
+                  disabled
+                  className="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-500 cursor-not-allowed select-none opacity-70"
+                  title="O número da requisição não pode ser alterado aqui."
+                />
+                <textarea
+                  value={content.leftBlockText?.split('\n').slice(1).join('\n') || ''}
+                  onChange={(e) => {
+                    const firstLine = content.leftBlockText?.split('\n')[0] || '';
+                    const newText = e.target.value;
+                    handleUpdate('content', 'leftBlockText', firstLine + (newText ? '\n' + newText : ''));
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs h-20 resize-none focus:bg-white transition-all outline-none text-slate-700 font-medium placeholder:text-slate-400"
+                  placeholder="Informações adicionais..."
+                />
+              </div>
             )}
           </div>
 

@@ -187,56 +187,24 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
 
   const isDateBlocked = (date: Date) => {
     if (!formData.vehicleId) return false;
-    // Check if the whole day is effectively blocked? 
-    // Or just check if there is ANY schedule? 
-    // User asked "bloquear os dias em que o carro selecionado não esteja disponivel"
-    // Interpretation: If the car has confirmed schedules for the *entire* operational day (e.g. 8-18), block it.
-    // Simpler interpretation (safer): If there are schedules that make it "busy", user might want to see them.
-    // But blocking the DATE implies NO possibility of scheduling.
-    // Let's block dates where there is a "full day" booking or significant overlap.
-    // Actually, simple "is there any schedule" might be too aggressive if I just need the car for 1 hour.
-    // Let's try: Block if there is a schedule that covers 08:00 to 18:00?
-    // Or better: Visual indication in calendar is usually binary (available/unavailable).
-    // Let's block only if the vehicle has a schedule that spans the *entire* day (starts before 9am, ends after 5pm?)
-    // Or maybe just check if there is a confirmed schedule that spans > 8 hours?
 
-    // Alternative Interpretation: "Bloquear os dias" might mean "Show as unavailable". 
-    // Let's stick to: If there is *any* confirmed schedule, maybe just style it differently? No, "block".
-
-    // Let's loop through schedules for this vehicle and this day.
+    // Check if there are ANY confirmed schedules for this vehicle on this day.
     const dayStart = new Date(date); dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(date); dayEnd.setHours(23, 59, 59, 999);
 
-    const dayStats = schedules.filter(s => {
+    return schedules.some(s => {
+      // Don't block based on the schedule currently being edited
+      if (s.id === editingSchedule?.id) return false;
+
       if (s.vehicleId !== formData.vehicleId) return false;
       if (s.status !== 'confirmado' && s.status !== 'em_curso') return false;
-      if (s.id === editingSchedule?.id) return false;
 
       const sStart = new Date(s.departureDateTime).getTime();
       const sEnd = new Date(s.returnDateTime).getTime();
 
+      // Check if the schedule overlaps with this day at all
       return (sStart < dayEnd.getTime()) && (sEnd > dayStart.getTime());
     });
-
-    // If there is a schedule that takes the WHOLE day (e.g. > 8 hours overlap within 8am-6pm window?)
-    // Let's define "Unavailable Day" as having > 4 hours of bookings? 
-    // Or just "Has any booking"?
-    // The prompt says "bloquear dias em que o carro não esteja disponível".
-    // If I want to book for 1 hour, a day with 1 hour booking IS available.
-    // So blocking the day prevents me from booking the available slots.
-    // THIS IS TRICKY.
-    // However, usually users want to see "Fully Booked" days. 
-    // I will assume for now that if the user wants to "Block the days", they mean days that are FULLY occupied.
-    // Let's say if total duration of bookings > 12 hours? Or simply if there is a booking that starts <= 8am and ends >= 18pm.
-
-    const isFullyBooked = dayStats.some(s => {
-      const sStart = new Date(s.departureDateTime);
-      const sEnd = new Date(s.returnDateTime);
-      // Covers "business day" essentially
-      return sStart.getHours() <= 9 && sEnd.getHours() >= 17;
-    });
-
-    return isFullyBooked;
   };
 
   const calendarData = useMemo(() => {
@@ -879,6 +847,22 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
         title="Fim do Agendamento"
         initialDate={formData.returnDateTime ? new Date(formData.returnDateTime) : (formData.departureDateTime ? new Date(formData.departureDateTime) : undefined)}
         minDate={formData.departureDateTime ? new Date(formData.departureDateTime) : new Date()}
+        maxDate={(() => {
+          if (!formData.vehicleId || !formData.departureDateTime) return undefined;
+          const start = new Date(formData.departureDateTime).getTime();
+
+          // Find the next confirmed schedule that starts AFTER our start time
+          const nextSchedule = schedules
+            .filter(s => {
+              if (s.vehicleId !== formData.vehicleId) return false;
+              if (s.status !== 'confirmado' && s.status !== 'em_curso') return false;
+              if (s.id === editingSchedule?.id) return false;
+              return new Date(s.departureDateTime).getTime() > start;
+            })
+            .sort((a, b) => new Date(a.departureDateTime).getTime() - new Date(b.departureDateTime).getTime())[0];
+
+          return nextSchedule ? new Date(nextSchedule.departureDateTime) : undefined;
+        })()}
         onSelect={(date) => setFormData({ ...formData, returnDateTime: getLocalISOString(date) })}
         shouldDisableDate={isDateBlocked}
       />

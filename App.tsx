@@ -727,7 +727,7 @@ const App: React.FC = () => {
           const formattedNum = nextNum.toString().padStart(3, '0');
 
           if (activeBlock === 'compras') {
-            defaultTitle = `Requisição de Compras nº ${formattedNum}/${currentYear}`;
+            defaultTitle = 'Requisição de Compras e Serviços';
             leftBlockContent = `Ref: Requisição nº ${formattedNum}/${currentYear}`;
           } else if (activeBlock === 'diarias') {
             defaultTitle = `Solicitação de Diária nº ${formattedNum}/${currentYear}`;
