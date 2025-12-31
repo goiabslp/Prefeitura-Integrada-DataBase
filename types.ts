@@ -139,6 +139,8 @@ export interface User {
   twoFactorSecret?: string;
   twoFactorEnabled2?: boolean;
   twoFactorSecret2?: string;
+  email?: string;
+  whatsapp?: string;
 }
 
 export interface Signature {

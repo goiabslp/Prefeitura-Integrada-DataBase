@@ -86,6 +86,8 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
     sector: '',
     jobTitle: '',
     allowedSignatureIds: [],
+    email: '',
+    whatsapp: '',
     permissions: ['parent_criar_oficio']
   });
 
@@ -95,22 +97,22 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
   };
 
   const sortedUsers = [...users].sort((a, b) => a.name.localeCompare(b.name));
-  
+
   const finalUserList = isAdmin
     ? sortedUsers.filter(u =>
-        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.sector?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.jobTitle?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.sector?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.jobTitle?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
     : sortedUsers.filter(u => u.id === currentUser.id);
 
   // Move current user to the top if they are in the list
   const filteredUsers = isAdmin
     ? [
-        ...finalUserList.filter(u => u.id === currentUser.id),
-        ...finalUserList.filter(u => u.id !== currentUser.id)
-      ]
+      ...finalUserList.filter(u => u.id === currentUser.id),
+      ...finalUserList.filter(u => u.id !== currentUser.id)
+    ]
     : finalUserList;
 
   const handleOpenModal = (user?: User) => {
@@ -139,6 +141,8 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
         sector: '',
         jobTitle: '',
         allowedSignatureIds: [],
+        email: '',
+        whatsapp: '+55',
         permissions: ['parent_criar_oficio']
       });
     }
@@ -344,11 +348,11 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
           {filteredUsers.map(user => {
             const isCurrentUser = user.id === currentUser.id;
             return (
-              <div 
-                key={user.id} 
+              <div
+                key={user.id}
                 className={`p-5 rounded-2xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 
-                  ${isCurrentUser 
-                    ? 'bg-indigo-50/50 border-indigo-200 shadow-md ring-1 ring-indigo-500/20' 
+                  ${isCurrentUser
+                    ? 'bg-indigo-50/50 border-indigo-200 shadow-md ring-1 ring-indigo-500/20'
                     : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
                   }`}
               >
@@ -542,6 +546,43 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                   <div>
                     <label className={labelClass}>Usuário de Acesso</label>
                     <input value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} className={inputClass} disabled={!isAdmin} placeholder="ex: nome.sobrenome" />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Email</label>
+                    <input
+                      type="email"
+                      value={formData.email || ''}
+                      onChange={e => setFormData({ ...formData, email: e.target.value })}
+                      className={inputClass}
+                      placeholder="ex: usuario@exemplo.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>WhatsApp</label>
+                    <input
+                      type="text"
+                      value={formData.whatsapp || ''}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, '');
+                        // Mask: +00 00 0 0000-0000 (13 digits)
+                        // +CC DD D NNNN-NNNN (e.g. +55 31 9 8888-8888)
+
+                        if (val.length > 13) val = val.slice(0, 13);
+
+                        let formatted = '';
+                        if (val.length > 0) formatted += '+' + val.slice(0, 2); // CC
+                        if (val.length > 2) formatted += ' ' + val.slice(2, 4); // DDD
+                        if (val.length > 4) formatted += ' ' + val.slice(4, 5); // 9
+                        if (val.length > 5) formatted += ' ' + val.slice(5, 9); // First 4
+                        if (val.length > 9) formatted += '-' + val.slice(9, 13); // Last 4
+
+                        setFormData({ ...formData, whatsapp: formatted });
+                      }}
+                      className={inputClass}
+                      placeholder="+55 00 0 0000-0000"
+                    />
                   </div>
 
                   <div>
