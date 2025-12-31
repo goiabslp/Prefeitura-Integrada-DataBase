@@ -63,12 +63,14 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
 
   const [isSectorModalOpen, setIsSectorModalOpen] = useState(false);
   const [isResponsibleModalOpen, setIsResponsibleModalOpen] = useState(false);
+  const [isRequestManagerModalOpen, setIsRequestManagerModalOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [isMaintDropdownOpen, setIsMaintDropdownOpen] = useState(false);
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
 
   const [sectorSearch, setSectorSearch] = useState('');
   const [responsibleSearch, setResponsibleSearch] = useState('');
+  const [requestManagerSearch, setRequestManagerSearch] = useState('');
   const [brandSearch, setBrandSearch] = useState('');
   const [newBrandName, setNewBrandName] = useState('');
 
@@ -97,7 +99,8 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
     vehicleImageUrl: '',
     status: 'operacional',
     maintenanceStatus: 'em_dia',
-    fuelTypes: []
+    fuelTypes: [],
+    requestManagerIds: []
   });
 
   useEffect(() => {
@@ -115,7 +118,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   const handleOpenModal = (v?: Vehicle) => {
     if (v) {
       setEditingVehicle(v);
-      setFormData({ ...v, fuelTypes: v.fuelTypes || [] });
+      setFormData({ ...v, fuelTypes: v.fuelTypes || [], requestManagerIds: v.requestManagerIds || [] });
     } else {
       setEditingVehicle(null);
       setFormData({
@@ -134,11 +137,13 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
         vehicleImageUrl: '',
         status: 'operacional',
         maintenanceStatus: 'em_dia',
-        fuelTypes: []
+        fuelTypes: [],
+        requestManagerIds: []
       });
     }
     setSectorSearch('');
     setResponsibleSearch('');
+    setRequestManagerSearch('');
     setBrandSearch('');
 
     setIsStatusDropdownOpen(false);
@@ -199,6 +204,17 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
     });
   };
 
+  const toggleRequestManager = (personId: string) => {
+    setFormData(prev => {
+      const current = prev.requestManagerIds || [];
+      if (current.includes(personId)) {
+        return { ...prev, requestManagerIds: current.filter(id => id !== personId) };
+      } else {
+        return { ...prev, requestManagerIds: [...current, personId] };
+      }
+    });
+  };
+
   const handleSave = () => {
     if (!formData.model || !formData.plate || !formData.sectorId) {
       alert("Por favor, preencha o modelo, a placa e o setor do veículo.");
@@ -235,6 +251,12 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [persons, responsibleSearch]);
 
+  const filteredRequestManagers = useMemo(() => {
+    return persons
+      .filter(p => p.name.toLowerCase().includes(requestManagerSearch.toLowerCase()))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [persons, requestManagerSearch]);
+
   const filteredBrands = useMemo(() => {
     return brands
       .filter(b => b.category === activeTab && b.name.toLowerCase().includes(brandSearch.toLowerCase()))
@@ -243,6 +265,10 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
 
   const selectedSectorName = sectors.find(s => s.id === formData.sectorId)?.name || 'Selecione o Setor';
   const selectedResponsibleName = persons.find(p => p.id === formData.responsiblePersonId)?.name || 'Selecione o Responsável';
+  const selectedManagersNames = (formData.requestManagerIds || [])
+    .map(id => persons.find(p => p.id === id)?.name)
+    .filter(Boolean)
+    .join(', ') || 'Nenhum gestor selecionado';
 
   const inputClass = "w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 outline-none transition-all text-sm font-bold placeholder:text-slate-400 placeholder:font-normal";
   const labelClass = "block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1";
@@ -716,7 +742,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className={labelClass}><User className="w-4 h-4 inline mr-2 text-indigo-500" /> Responsável pelo Veículo</label>
+                      <label className={labelClass}><User className="w-4 h-4 inline mr-2 text-indigo-500" /> Responsável pelo Veículo (Condutor)</label>
                       <button
                         onClick={() => setIsResponsibleModalOpen(true)}
                         className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto w-full`}
@@ -730,6 +756,29 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                           </span>
                         </div>
                         <Search className="w-5 h-5 text-slate-400" />
+                      </button>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className={labelClass}><ShieldCheck className="w-4 h-4 inline mr-2 text-indigo-500" /> Gestor de Solicitações (Pode aprovar saídas)</label>
+                      <button
+                        onClick={() => setIsRequestManagerModalOpen(true)}
+                        className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto w-full group/mgr`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`p-2 rounded-xl transition-colors shrink-0 ${formData.requestManagerIds?.length ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                            <ShieldCheck className="w-4 h-4" />
+                          </div>
+                          <span className={`${formData.requestManagerIds?.length ? 'text-slate-900 font-bold' : 'text-slate-400'} leading-tight text-left truncate`}>
+                            {selectedManagersNames}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {formData.requestManagerIds?.length ? (
+                            <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black px-2 py-0.5 rounded-lg whitespace-nowrap">{formData.requestManagerIds.length} selecionados</span>
+                          ) : null}
+                          <Plus className="w-5 h-5 text-slate-400 group-hover/mgr:text-indigo-600 transition-colors" />
+                        </div>
                       </button>
                     </div>
 
@@ -937,6 +986,86 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 p-8">
                   <Search className="w-12 h-12 mb-2" />
                   <p className="text-sm font-bold">Nenhum responsável encontrado</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL DE SELEÇÃO DE GESTORES DE SOLICITAÇÕES */}
+      {isRequestManagerModalOpen && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20 flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                  <ShieldCheck className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">Gestores de Solicitações</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Quem pode aprovar este veículo</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsRequestManagerModalOpen(false)}
+                className="px-6 py-2 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-indigo-600 transition-all active:scale-95"
+              >
+                Concluído
+              </button>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-b border-slate-100 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar gestor..."
+                  autoFocus
+                  className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  value={requestManagerSearch}
+                  onChange={(e) => setRequestManagerSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="overflow-y-auto custom-scrollbar p-4 flex-1">
+              <div className="mb-4 flex items-center justify-between px-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lista de Colaboradores</span>
+                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{formData.requestManagerIds?.length || 0} Selecionados</span>
+              </div>
+
+              {filteredRequestManagers.length > 0 ? (
+                <div className="grid grid-cols-1 gap-2">
+                  {filteredRequestManagers.map((person) => {
+                    const isSelected = formData.requestManagerIds?.includes(person.id);
+                    return (
+                      <button
+                        key={person.id}
+                        onClick={() => toggleRequestManager(person.id)}
+                        className={`w-full flex items-center justify-between p-4 rounded-xl transition-all group ${isSelected ? 'bg-indigo-50 border border-indigo-100 shadow-sm' : 'bg-white border border-slate-100 hover:border-indigo-200 hover:shadow-md'}`}
+                      >
+                        <div className="flex items-center gap-3 text-left">
+                          <div className={`p-2 rounded-lg transition-all ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'}`}>
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className={`text-sm font-bold block ${isSelected ? 'text-indigo-900' : 'text-slate-700 group-hover:text-indigo-900'}`}>{person.name}</span>
+                            <span className="text-[10px] uppercase font-bold text-slate-400">{jobs.find(j => j.id === person.jobId)?.name || 'Sem Cargo'}</span>
+                          </div>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white scale-110' : 'border-slate-200 group-hover:border-indigo-400'}`}>
+                          {isSelected && <Check className="w-3.5 h-3.5" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 p-8">
+                  <Search className="w-12 h-12 mb-2" />
+                  <p className="text-sm font-bold">Nenhum colaborador encontrado</p>
                 </div>
               )}
             </div>

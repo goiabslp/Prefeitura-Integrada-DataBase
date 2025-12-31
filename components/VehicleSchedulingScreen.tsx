@@ -27,6 +27,7 @@ interface VehicleSchedulingScreenProps {
   onDeleteSchedule: (id: string) => Promise<void>;
   onBack: () => void;
   currentUserId: string;
+  currentUserName?: string;
   currentUserRole: UserRole;
   requestedView?: 'menu' | 'calendar' | 'history' | 'approvals';
   onNavigate?: (path: string) => void;
@@ -70,12 +71,19 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
   onDeleteSchedule,
   onBack,
   currentUserId,
+  currentUserName,
   currentUserRole,
   requestedView,
   onNavigate,
   state
 }) => {
   const [activeSubView, setActiveSubView] = useState<'menu' | 'calendar' | 'history' | 'approvals'>('menu');
+
+  const currentUserPersonId = useMemo(() => {
+    if (!currentUserName) return undefined;
+    const person = persons.find(p => p.name.toLowerCase() === currentUserName.toLowerCase());
+    return person?.id;
+  }, [persons, currentUserName]);
 
   const visibleSchedules = useMemo(() => {
     if (currentUserRole === 'admin') return schedules;
@@ -473,13 +481,16 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
       )}
       {activeSubView === 'approvals' && (
         <VehicleScheduleApprovals
-          schedules={visibleSchedules}
+          schedules={schedules}
           vehicles={vehicles}
           persons={persons}
           sectors={sectors}
           onApprove={(s) => onUpdateSchedule({ ...s, status: 'confirmado' })}
           onReject={(s) => onUpdateSchedule({ ...s, status: 'cancelado' })}
           onBack={() => handleSubViewChange('menu')}
+          currentUserId={currentUserId}
+          currentUserPersonId={currentUserPersonId}
+          currentUserRole={currentUserRole}
         />
       )}
       {selectedDay && createPortal(

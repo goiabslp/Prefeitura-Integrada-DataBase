@@ -1121,6 +1121,7 @@ const App: React.FC = () => {
             }}
             onBack={handleGoHome}
             currentUserId={currentUser.id}
+            currentUserName={currentUser.name}
             currentUserRole={currentUser.role}
             requestedView={activeBlock === 'vs_calendar' ? 'calendar' : activeBlock === 'vs_history' ? 'history' : activeBlock === 'vs_approvals' ? 'approvals' : 'menu'}
             onNavigate={(path) => {

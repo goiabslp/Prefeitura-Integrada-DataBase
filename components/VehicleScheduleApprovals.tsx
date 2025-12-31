@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ShieldCheck, Car, User, MapPin, Clock, CheckCircle2, XCircle, AlertCircle, Calendar, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Car, User, MapPin, Clock, CheckCircle2, XCircle, AlertCircle, Calendar, ArrowLeft, Lock, Info } from 'lucide-react';
 import { Vehicle, Person, VehicleSchedule, Sector } from '../types';
 
 interface VehicleScheduleApprovalsProps {
@@ -11,6 +11,9 @@ interface VehicleScheduleApprovalsProps {
   onApprove: (s: VehicleSchedule) => void;
   onReject: (s: VehicleSchedule) => void;
   onBack?: () => void;
+  currentUserId: string;
+  currentUserRole: string;
+  currentUserPersonId?: string;
 }
 
 export const VehicleScheduleApprovals: React.FC<VehicleScheduleApprovalsProps> = ({
@@ -20,7 +23,10 @@ export const VehicleScheduleApprovals: React.FC<VehicleScheduleApprovalsProps> =
   sectors,
   onApprove,
   onReject,
-  onBack
+  onBack,
+  currentUserId,
+  currentUserRole,
+  currentUserPersonId
 }) => {
   const pending = schedules.filter(s => s.status === 'pendente').sort((a, b) => a.departureDateTime.localeCompare(b.departureDateTime));
 
@@ -91,20 +97,27 @@ export const VehicleScheduleApprovals: React.FC<VehicleScheduleApprovalsProps> =
                         </div>
                       </div>
 
-                      <div className="flex flex-row md:flex-col gap-3 justify-center border-t md:border-t-0 md:border-l border-slate-100 pt-8 md:pt-0 md:pl-10 shrink-0">
-                        <button
-                          onClick={() => onApprove(s)}
-                          className="flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all active:scale-95 group"
-                        >
-                          <CheckCircle2 className="w-5 h-5 group-hover:scale-110 transition-transform" /> Aprovar Saída
-                        </button>
-                        <button
-                          onClick={() => onReject(s)}
-                          className="flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-white text-rose-600 border border-rose-100 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-50 transition-all active:scale-95"
-                        >
-                          <XCircle className="w-5 h-5" /> Rejeitar
-                        </button>
-                      </div>
+                      {(currentUserRole === 'admin' || (currentUserPersonId && (v?.requestManagerIds?.includes(currentUserPersonId) || v?.responsiblePersonId === currentUserPersonId))) ? (
+                        <div className="flex flex-row md:flex-col gap-3 justify-center border-t md:border-t-0 md:border-l border-slate-100 pt-8 md:pt-0 md:pl-10 shrink-0">
+                          <button
+                            onClick={() => onApprove(s)}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all active:scale-95 group"
+                          >
+                            <CheckCircle2 className="w-5 h-5 group-hover:scale-110 transition-transform" /> Aprovar Saída
+                          </button>
+                          <button
+                            onClick={() => onReject(s)}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-white text-rose-600 border border-rose-100 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-50 transition-all active:scale-95"
+                          >
+                            <XCircle className="w-5 h-5" /> Rejeitar
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-2 px-8 py-5 bg-slate-50 rounded-3xl border border-slate-100 md:ml-10 max-w-[200px] text-center shrink-0">
+                          <Lock className="w-6 h-6 text-slate-300" />
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-tight">Aprovação restrita aos gestores autorizados</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

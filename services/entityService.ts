@@ -202,7 +202,8 @@ export const getVehicles = async (): Promise<Vehicle[]> => {
         vehicleImageUrl: v.vehicle_image_url,
         status: v.status,
         maintenanceStatus: v.maintenance_status,
-        fuelTypes: v.fuel_types
+        fuelTypes: v.fuel_types,
+        requestManagerIds: v.request_manager_ids || []
     })) || [];
 };
 
@@ -230,7 +231,8 @@ export const createVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         vehicle_image_url: vehicle.vehicleImageUrl,
         status: vehicle.status,
         maintenance_status: vehicle.maintenanceStatus,
-        fuel_types: vehicle.fuelTypes
+        fuel_types: vehicle.fuelTypes,
+        request_manager_ids: vehicle.requestManagerIds || []
     };
 
     const { data, error } = await supabase
@@ -261,7 +263,8 @@ export const createVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         vehicleImageUrl: data.vehicle_image_url,
         status: data.status,
         maintenanceStatus: data.maintenance_status,
-        fuelTypes: data.fuel_types
+        fuelTypes: data.fuel_types,
+        requestManagerIds: data.request_manager_ids || []
     };
 };
 
@@ -282,7 +285,8 @@ export const updateVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         vehicle_image_url: vehicle.vehicleImageUrl,
         status: vehicle.status,
         maintenance_status: vehicle.maintenanceStatus,
-        fuel_types: vehicle.fuelTypes
+        fuel_types: vehicle.fuelTypes,
+        request_manager_ids: vehicle.requestManagerIds || []
     };
 
     const { data, error } = await supabase
@@ -314,7 +318,8 @@ export const updateVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         vehicleImageUrl: data.vehicle_image_url,
         status: data.status,
         maintenanceStatus: data.maintenance_status,
-        fuelTypes: data.fuel_types
+        fuelTypes: data.fuel_types,
+        requestManagerIds: data.request_manager_ids || []
     };
 };
 
