@@ -235,6 +235,7 @@ export type ScheduleStatus = 'pendente' | 'confirmado' | 'em_curso' | 'concluido
 
 export interface VehicleSchedule {
   id: string;
+  protocol: string;
   vehicleId: string;
   driverId: string;
   serviceSectorId?: string;

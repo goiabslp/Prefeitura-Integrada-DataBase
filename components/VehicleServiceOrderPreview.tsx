@@ -2,7 +2,15 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, VehicleSchedule, Vehicle, Person, Sector } from '../types';
 import { PageWrapper } from './PageWrapper';
-import { Car, User, MapPin, Calendar, Clock, Target, Building2, Ticket, X, Printer } from 'lucide-react';
+import { Car, User, MapPin, Calendar, Clock, Target, Building2, Ticket, X, Printer, ShieldCheck, CheckCircle2, History, XCircle } from 'lucide-react';
+
+const STATUS_MAP: any = {
+    pendente: { label: 'Aguardando Aprovação', color: 'amber', icon: Clock },
+    confirmado: { label: 'Agendamento Confirmado', color: 'emerald', icon: CheckCircle2 },
+    em_curso: { label: 'Viagem em Curso', color: 'blue', icon: MapPin },
+    concluido: { label: 'Serviço Concluído', color: 'slate', icon: History },
+    cancelado: { label: 'Cancelado/Rejeitado', color: 'rose', icon: XCircle },
+};
 
 interface VehicleServiceOrderPreviewProps {
     schedule: VehicleSchedule;
@@ -41,7 +49,7 @@ export const VehicleServiceOrderPreview: React.FC<VehicleServiceOrderPreviewProp
         content: {
             ...state.content,
             title: "ORDEM DE TRÁFEGO / SERVIÇO",
-            protocol: schedule.id.substring(0, 8).toUpperCase(), // Short ID for protocol
+            protocol: schedule.protocol,
             signatureSector: sector?.name || 'Setor de Transportes',
             // We don't necessarily use the standard body text, we render custom children
         }
@@ -57,7 +65,7 @@ export const VehicleServiceOrderPreview: React.FC<VehicleServiceOrderPreviewProp
             if (element) {
                 const opt = {
                     margin: 0,
-                    filename: `Ordem-Servico-${schedule.id.substring(0, 8).toUpperCase()}.pdf`,
+                    filename: `Ordem-Servico-${schedule.protocol}.pdf`,
                     image: { type: 'jpeg', quality: 0.98 },
                     html2canvas: {
                         scale: 2,
@@ -85,7 +93,7 @@ export const VehicleServiceOrderPreview: React.FC<VehicleServiceOrderPreviewProp
     };
 
     return createPortal(
-        <div className={`fixed inset-0 z-[9999] bg-slate-900/95 backdrop-blur-md animate-fade-in ${isGenerating ? 'bg-white' : ''}`}>
+        <div className={`fixed inset-0 z-[9999] bg-slate-900/40 backdrop-blur-xl animate-fade-in ${isGenerating ? 'bg-white' : ''}`}>
 
             {/* Camada de Interface (Botões Fixos) */}
             {!isGenerating && (
@@ -133,6 +141,29 @@ export const VehicleServiceOrderPreview: React.FC<VehicleServiceOrderPreviewProp
                         <div id="os-preview-content" className={`${isGenerating ? 'scale-100 transform-none' : 'scale-[0.6] sm:scale-[0.7] md:scale-[0.8] lg:scale-[0.9]'} origin-top transition-all duration-300 bg-white`}>
                             <PageWrapper state={previewState} pageIndex={0} totalPages={1} isGenerating={isGenerating}>
                                 <div className="flex flex-col gap-6 mt-4">
+
+                                    {/* Status and Creation Section */}
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="border-2 border-slate-100 rounded-xl p-4 bg-slate-50 flex items-center gap-4">
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-${STATUS_MAP[schedule.status].color}-100 text-${STATUS_MAP[schedule.status].color}-600 shrink-0`}>
+                                                {React.createElement(STATUS_MAP[schedule.status].icon, { className: "w-5 h-5" })}
+                                            </div>
+                                            <div>
+                                                <p className="text-[7pt] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Status do Documento</p>
+                                                <p className={`text-[11pt] font-black uppercase tracking-tight text-${STATUS_MAP[schedule.status].color}-700`}>
+                                                    {STATUS_MAP[schedule.status].label}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col justify-center">
+                                            <p className="text-[8pt] font-black uppercase text-slate-400 tracking-widest mb-1 flex items-center gap-1">
+                                                <Clock className="w-3 h-3" /> Registrado no Sistema em:
+                                            </p>
+                                            <p className="text-[10pt] font-bold text-slate-700">
+                                                {new Date(schedule.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                        </div>
+                                    </div>
 
                                     {/* Summary Cards */}
                                     <div className="grid grid-cols-2 gap-6">
@@ -187,6 +218,8 @@ export const VehicleServiceOrderPreview: React.FC<VehicleServiceOrderPreviewProp
                                             <p className="text-[10pt] font-bold text-slate-700">{requester?.name || '---'}</p>
                                         </div>
                                     </div>
+
+
 
                                     {/* Trip Details Section */}
                                     <div className="border border-slate-200 rounded-xl overflow-hidden">

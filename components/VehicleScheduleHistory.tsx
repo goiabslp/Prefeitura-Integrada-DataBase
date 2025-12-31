@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, History, Car, User, MapPin, Clock, Eye, Filter, Calendar, ArrowLeft, Building2, Target, FileText } from 'lucide-react';
+import { Search, History, Car, User, MapPin, Clock, Eye, Filter, Calendar, ArrowLeft, Building2, Target, FileText, Trash2, Edit3, ChevronDown, XCircle } from 'lucide-react';
 import { Vehicle, Person, VehicleSchedule, ScheduleStatus, Sector, AppState } from '../types';
 import { VehicleServiceOrderPreview } from './VehicleServiceOrderPreview';
 
@@ -10,7 +10,11 @@ interface VehicleScheduleHistoryProps {
   sectors: Sector[];
   state: AppState;
   onViewDetails: (s: VehicleSchedule) => void;
+  onEdit: (s: VehicleSchedule) => void;
+  onUpdateStatus: (id: string, status: ScheduleStatus) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
   onBack?: () => void;
+  currentUserId: string;
 }
 
 const CheckCircle2 = ({ className }: { className?: string }) => (
@@ -36,11 +40,16 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
   sectors,
   state,
   onViewDetails,
-  onBack
+  onEdit,
+  onUpdateStatus,
+  onDelete,
+  onBack,
+  currentUserId
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewingPurpose, setViewingPurpose] = useState<VehicleSchedule | null>(null);
   const [previewingOS, setPreviewingOS] = useState<VehicleSchedule | null>(null);
+  const [statusMenuOpen, setStatusMenuOpen] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return schedules
@@ -55,7 +64,7 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
           s.destination.toLowerCase().includes(term)
         );
       })
-      .sort((a, b) => b.departureDateTime.localeCompare(a.departureDateTime));
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }, [schedules, vehicles, persons, searchTerm]);
 
   return (
@@ -92,11 +101,13 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                 const cfg = STATUS_MAP[s.status];
 
                 return (
-                  <div key={s.id} className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(99,102,241,0.15)] transition-all duration-300 hover:-translate-y-1 flex flex-col gap-3 group relative overflow-hidden">
+                  <div key={s.id} className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(99,102,241,0.15)] transition-all duration-300 hover:-translate-y-1 flex flex-col gap-3 group relative">
 
                     {/* Decorative Elements */}
-                    <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none">
-                      <Car className="w-24 h-24 text-indigo-900 transform rotate-12 translate-x-8 -translate-y-8" />
+                    <div className="absolute inset-0 rounded-[2rem] overflow-hidden pointer-events-none">
+                      <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-10 transition-opacity duration-500">
+                        <Car className="w-24 h-24 text-indigo-900 transform rotate-12 translate-x-8 -translate-y-8" />
+                      </div>
                     </div>
 
                     {/* Cabeçalho do Card */}
@@ -109,9 +120,19 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                           <div className="w-12 h-12 bg-gradient-to-br from-indigo-50 to-slate-50 rounded-2xl flex items-center justify-center text-indigo-400 group-hover:text-indigo-600 group-hover:scale-110 transition-all duration-300 shadow-inner border border-white">
                             <Car className="w-5 h-5" />
                           </div>
-                          <div>
-                            <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight group-hover:text-indigo-700 transition-colors">{v?.model || 'Desconhecido'}</h4>
-                            <span className="inline-block mt-0.5 font-mono text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200 uppercase tracking-wider">{v?.plate || '---'}</span>
+                          <div className="flex flex-col gap-1 items-start">
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight group-hover:text-indigo-700 transition-colors">{v?.model || 'Desconhecido'}</h4>
+                              <div className="px-2 py-0.5 rounded-lg bg-indigo-600 text-white text-[9px] font-black uppercase tracking-wider shadow-sm">
+                                ID: {s.protocol}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="inline-block font-mono text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200 uppercase tracking-wider">{v?.plate || '---'}</span>
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5" /> Criado em: {new Date(s.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -119,7 +140,7 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                         <div className="hidden lg:block w-px h-10 bg-slate-100 mx-1"></div>
 
                         {/* Informações de Viagem (Datas e Destino) - Header */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-1">
                           <div className="group/item flex flex-col gap-1.5">
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Calendar className="w-3 h-3" /> Saída</p>
                             <div className="w-12 h-14 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center shadow-sm shrink-0 group-hover/item:border-indigo-200 group-hover/item:shadow-indigo-500/10 transition-all p-1">
@@ -156,38 +177,84 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                             )}
                           </div>
 
-                          <div className="group/item overflow-hidden flex flex-col justify-center">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5 group-hover/item:text-indigo-500 transition-colors"><MapPin className="w-3 h-3" /> Destino</p>
-                            <p className="text-xs font-bold text-slate-700 truncate" title={s.destination}>{s.destination}</p>
-                          </div>
-
                           {/* Botão Ver Motivo - No Header */}
                           <div className="flex items-center">
                             <button
                               onClick={() => setViewingPurpose(s)}
                               className="w-full px-3 py-2 bg-indigo-50 border border-indigo-100 text-indigo-600 text-[9px] font-bold uppercase tracking-wide rounded-xl hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 group/btn"
                             >
-                              <Target className="w-3.5 h-3.5 group-hover/btn:scale-110 transition-transform" /> Ver Motivo da Viagem
+                              <Target className="w-3.5 h-3.5 group-hover/btn:scale-110 transition-transform" /> Ver Motivo
                             </button>
                           </div>
                         </div>
                       </div>
 
                       {/* Lado Direito: Status e Ações */}
-                      <div className="flex items-center gap-2 shrink-0 lg:self-center self-start">
-                        <div className={`px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest shadow-sm backdrop-blur-sm bg-${cfg.color}-50/80 text-${cfg.color}-700 border-${cfg.color}-200 flex items-center gap-1.5`}>
-                          <cfg.icon className="w-3 h-3" /> {cfg.label}
+                      <div className={`flex items-center gap-2 shrink-0 lg:self-center self-start ${statusMenuOpen === s.id ? 'z-[60]' : 'z-[5]'}`}>
+                        {/* Status Badge - Clickable */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setStatusMenuOpen(statusMenuOpen === s.id ? null : s.id)}
+                            className={`px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest shadow-sm backdrop-blur-sm bg-${cfg.color}-50/80 text-${cfg.color}-700 border-${cfg.color}-200 flex items-center gap-1.5 hover:shadow-md hover:-translate-y-0.5 transition-all active:scale-95`}
+                          >
+                            <cfg.icon className="w-3 h-3" /> {cfg.label}
+                            {s.status !== 'cancelado' && <ChevronDown className="w-2.5 h-2.5 opacity-50" />}
+                          </button>
+
+                          {/* Quick Status Menu (Cancellation) */}
+                          {statusMenuOpen === s.id && s.status !== 'cancelado' && s.requesterId === currentUserId && (
+                            <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-[100] animate-slide-up">
+                              <button
+                                onClick={async () => {
+                                  if (window.confirm('Deseja realmente cancelar este agendamento?')) {
+                                    await onUpdateStatus(s.id, 'cancelado');
+                                  }
+                                  setStatusMenuOpen(null);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-rose-600 hover:bg-rose-50 rounded-xl transition-all text-left group/cancel"
+                              >
+                                <XCircle className="w-4 h-4 group-hover/cancel:scale-110 transition-transform" />
+                                <div className="flex flex-col">
+                                  <span className="text-[10px] font-black uppercase tracking-tight">Cancelar Agendamento</span>
+                                  <span className="text-[8px] font-bold text-rose-400 uppercase tracking-widest leading-none">Ação irreversível</span>
+                                </div>
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        <button onClick={() => setPreviewingOS(s)} className="px-3 py-2 bg-white border border-slate-200 text-slate-500 hover:bg-slate-900 hover:text-white hover:border-slate-900 rounded-lg transition-all active:scale-95 shadow-sm hover:shadow-md flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5" />
-                          <span className="text-[9px] font-black uppercase tracking-wide">OS</span>
+
+                        {/* Backdrop to close menu when clicking outside */}
+                        {statusMenuOpen === s.id && (
+                          <div
+                            className="fixed inset-0 z-[90]"
+                            onClick={() => setStatusMenuOpen(null)}
+                          />
+                        )}
+                        <button onClick={() => setPreviewingOS(s)} className="px-3 py-2 bg-white border border-slate-200 text-slate-500 hover:bg-slate-900 hover:text-white hover:border-slate-900 rounded-lg transition-all active:scale-95 shadow-sm hover:shadow-md flex items-center gap-1.5 group/os">
+                          <FileText className="w-3.5 h-3.5 group-hover/os:scale-110 transition-transform" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.1em]">OS</span>
                         </button>
-                        <button onClick={() => onViewDetails(s)} className="p-2 bg-white border border-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white hover:border-slate-900 rounded-lg transition-all active:scale-95 shadow-sm hover:shadow-md"><Eye className="w-4 h-4" /></button>
+                        {s.requesterId === currentUserId && (
+                          <>
+                            <button onClick={() => onEdit(s)} className="p-2 bg-white border border-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white hover:border-slate-900 rounded-lg transition-all active:scale-95 shadow-sm hover:shadow-md" title="Editar Agendamento"><Edit3 className="w-4 h-4" /></button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm('Deseja realmente excluir este agendamento?')) {
+                                  onDelete(s.id);
+                                }
+                              }}
+                              className="p-2 bg-white border border-slate-100 text-rose-400 hover:bg-rose-600 hover:text-white hover:border-rose-600 rounded-lg transition-all active:scale-95 shadow-sm hover:shadow-md"
+                              title="Excluir Agendamento"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
 
                     {/* Grid de Informações Secundárias */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-slate-50/80 rounded-2xl border border-slate-100 relative z-10 transition-colors group-hover:bg-indigo-50/30 group-hover:border-indigo-100/50">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3 bg-slate-50/80 rounded-2xl border border-slate-100 relative z-0 transition-colors group-hover:bg-indigo-50/30 group-hover:border-indigo-100/50">
                       {/* Solicitante */}
                       <div className="space-y-0.5">
                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><User className="w-3 h-3" /> Solicitante</p>
@@ -204,6 +271,12 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                       <div className="space-y-0.5">
                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Building2 className="w-3 h-3" /> Setor</p>
                         <p className="text-[10px] font-bold text-slate-600 truncate" title={sector?.name}>{sector?.name || '---'}</p>
+                      </div>
+
+                      {/* Destino */}
+                      <div className="space-y-0.5">
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><MapPin className="w-3 h-3 text-indigo-500" /> Destino</p>
+                        <p className="text-[10px] font-black text-indigo-600 uppercase truncate" title={s.destination}>{s.destination}</p>
                       </div>
                     </div>
                   </div>

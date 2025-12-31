@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Vehicle, Person, VehicleSchedule, ScheduleStatus, Sector, AppState } from '../types';
+import { Vehicle, Person, VehicleSchedule, ScheduleStatus, Sector, AppState, UserRole } from '../types';
 import {
   ArrowLeft, Plus, Search, Calendar, Clock, MapPin,
   User as UserIcon, Car, Info, Trash2, Edit3, CheckCircle2,
@@ -27,6 +27,7 @@ interface VehicleSchedulingScreenProps {
   onDeleteSchedule: (id: string) => Promise<void>;
   onBack: () => void;
   currentUserId: string;
+  currentUserRole: UserRole;
   requestedView?: 'menu' | 'calendar' | 'history' | 'approvals';
   onNavigate?: (path: string) => void;
   state: AppState;
@@ -69,11 +70,17 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
   onDeleteSchedule,
   onBack,
   currentUserId,
+  currentUserRole,
   requestedView,
   onNavigate,
   state
 }) => {
   const [activeSubView, setActiveSubView] = useState<'menu' | 'calendar' | 'history' | 'approvals'>('menu');
+
+  const visibleSchedules = useMemo(() => {
+    if (currentUserRole === 'admin') return schedules;
+    return schedules.filter(s => s.requesterId === currentUserId);
+  }, [schedules, currentUserRole, currentUserId]);
 
   useEffect(() => {
     if (requestedView && requestedView !== activeSubView) {
@@ -146,6 +153,19 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
   const showToast = (message: string, type: 'error' | 'success' | 'warning' = 'error') => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+  };
+
+
+  const onUpdateStatusSchedule = async (id: string, status: ScheduleStatus) => {
+    const schedule = (schedules || []).find(s => s.id === id);
+    if (schedule) {
+      try {
+        await onUpdateSchedule({ ...schedule, status });
+        showToast("Status atualizado com sucesso!", "success");
+      } catch (error) {
+        showToast("Erro ao atualizar status.", "error");
+      }
+    }
   };
 
   const isDateBeforeToday = (date: Date) => {
@@ -438,18 +458,22 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
       {activeSubView === 'calendar' && renderCalendar()}
       {activeSubView === 'history' && (
         <VehicleScheduleHistory
-          schedules={schedules}
+          schedules={visibleSchedules}
           vehicles={vehicles}
           persons={persons}
           sectors={sectors}
           state={state}
           onViewDetails={(s) => { setViewingSchedule(s); setIsViewModalOpen(true); }}
+          onEdit={(s) => handleOpenModal(s)}
+          onUpdateStatus={onUpdateStatusSchedule}
+          onDelete={onDeleteSchedule}
           onBack={() => handleSubViewChange('menu')}
+          currentUserId={currentUserId}
         />
       )}
       {activeSubView === 'approvals' && (
         <VehicleScheduleApprovals
-          schedules={schedules}
+          schedules={visibleSchedules}
           vehicles={vehicles}
           persons={persons}
           sectors={sectors}
@@ -487,7 +511,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                       const dayKey = `${String(selectedDay.getDate()).padStart(2, '0')}-${String(selectedDay.getMonth() + 1).padStart(2, '0')}`;
                       const holiday = HOLIDAYS[dayKey];
                       if (daySchedules.length === 0 && !holiday) return (<div className="py-20 flex flex-col items-center justify-center text-center space-y-4 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200"><div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200"><Calendar className="w-8 h-8" /></div><p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Nenhuma saída registrada para este dia.</p></div>);
-                      return (<>{holiday && (<div className="bg-rose-50 border border-rose-100 p-6 rounded-[2.5rem] flex items-center gap-5 mb-4 animate-fade-in shadow-sm"><div className="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-rose-600/20 rotate-3"><Gift className="w-6 h-6" /></div><div><span className="text-[9px] font-black text-rose-400 uppercase tracking-widest leading-none">Feriado Nacional</span><h4 className="text-lg font-black text-rose-900 leading-tight uppercase mt-0.5">{holiday}</h4></div></div>)}{daySchedules.map(s => { const v = vehicles.find(veh => veh.id === s.vehicleId); const d = persons.find(p => p.id === s.driverId); const sec = sectors.find(sec => sec.id === s.serviceSectorId); const cfg = STATUS_MAP[s.status]; const vehicleSector = sectors.find(sec => sec.id === v?.sectorId)?.name || 'Sem Setor'; const depDate = new Date(s.departureDateTime); const retDate = new Date(s.returnDateTime); const formatDT = (dt: Date) => dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); return (<div key={s.id} className="bg-white p-5 rounded-[2.5rem] border border-slate-200 flex flex-col gap-4 hover:shadow-xl transition-all group shadow-sm border-l-[6px]" style={{ borderLeftColor: `var(--tw-color-${cfg.color}-500)` }}><div className="flex justify-between items-center"><div className="flex items-center gap-4 min-w-0"><div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform bg-${cfg.color}-50 text-${cfg.color}-600`}><Car className="w-6 h-6" /></div><div className="min-w-0"><h4 className="text-lg font-black text-slate-900 uppercase tracking-tight truncate leading-none">{v?.model || 'Desconhecido'} <span className="text-slate-400 text-[10px] font-bold ml-1">{v?.brand}</span>{v?.sectorId && (<span className="text-[9px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded ml-2 align-middle">{vehicleSector}</span>)}</h4><div className="flex items-center gap-2 mt-1.5"><span className="font-mono text-[9px] font-bold text-white bg-slate-900 px-2 py-0.5 rounded-md tracking-wider">{v?.plate || '---'}</span></div></div></div><div className="flex items-center gap-1"><button onClick={() => { setViewingSchedule(s); setIsViewModalOpen(true); }} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><Eye className="w-4.5 h-4.5" /></button><button onClick={() => handleOpenModal(s)} className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"><Edit3 className="w-4.5 h-4.5" /></button></div></div><div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center"><div className="md:col-span-3"><div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest bg-${cfg.color}-50 text-${cfg.color}-700 border-${cfg.color}-200/50`}><cfg.icon className="w-3.5 h-3.5" /> {cfg.label}</div></div><div className="md:col-span-4 flex items-center gap-2 min-w-0"><UserIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" /><div className="flex flex-col min-w-0"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-0.5">Condutor Responsável</span><span className="text-xs font-bold text-slate-600 truncate">{d?.name || '---'}</span></div></div><div className="md:col-span-5 flex items-center gap-2 min-w-0"><MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" /><div className="flex flex-col min-w-0"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-0.5">Destino da Viagem</span><span className="text-xs font-black text-indigo-600 uppercase truncate" title={s.destination}>{s.destination}</span></div></div></div><div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3 border-t border-slate-50 items-center"><div className="md:col-span-8 flex items-center gap-2"><Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" /><div className="flex items-center gap-4"><div className="flex flex-col"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1">Saída</span><span className="bg-slate-50 px-2 py-1 rounded border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tighter">{formatDT(depDate)}</span></div><ArrowRight className="w-3 h-3 text-slate-300 mt-2" /><div className="flex flex-col"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1">Retorno</span><span className="bg-slate-50 px-2 py-1 rounded border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tighter">{formatDT(retDate)}</span></div></div></div><div className="md:col-span-4 flex items-center justify-end min-w-0"><div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 w-full md:w-auto"><div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0"><Building2 className="w-4 h-4 text-indigo-600" /></div><div className="flex flex-col min-w-0"><span className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Setor Atendido</span><span className="text-[10px] font-bold text-slate-800 uppercase leading-tight truncate">{sec?.name || 'Não informado'}</span></div></div></div></div></div>); })} </>);
+                      return (<>{holiday && (<div className="bg-rose-50 border border-rose-100 p-6 rounded-[2.5rem] flex items-center gap-5 mb-4 animate-fade-in shadow-sm"><div className="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-rose-600/20 rotate-3"><Gift className="w-6 h-6" /></div><div><span className="text-[9px] font-black text-rose-400 uppercase tracking-widest leading-none">Feriado Nacional</span><h4 className="text-lg font-black text-rose-900 leading-tight uppercase mt-0.5">{holiday}</h4></div></div>)}{daySchedules.map(s => { const v = vehicles.find(veh => veh.id === s.vehicleId); const d = persons.find(p => p.id === s.driverId); const sec = sectors.find(sec => sec.id === s.serviceSectorId); const cfg = STATUS_MAP[s.status]; const vehicleSector = sectors.find(sec => sec.id === v?.sectorId)?.name || 'Sem Setor'; const depDate = new Date(s.departureDateTime); const retDate = new Date(s.returnDateTime); const formatDT = (dt: Date) => dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); return (<div key={s.id} className="bg-white p-5 rounded-[2.5rem] border border-slate-200 flex flex-col gap-4 hover:shadow-xl transition-all group shadow-sm border-l-[6px]" style={{ borderLeftColor: `var(--tw-color-${cfg.color}-500)` }}><div className="flex justify-between items-center"><div className="flex items-center gap-4 min-w-0"><div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform bg-${cfg.color}-50 text-${cfg.color}-600`}><Car className="w-6 h-6" /></div><div className="min-w-0 flex flex-col gap-1 items-start"><div className="flex items-center gap-2"><h4 className="text-lg font-black text-slate-900 uppercase tracking-tight truncate leading-none">{v?.model || 'Desconhecido'} <span className="text-slate-400 text-[10px] font-bold ml-1">{v?.brand}</span></h4><div className="px-2 py-0.5 rounded-lg bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest shadow-sm">ID: {s.protocol}</div>{v?.sectorId && (<span className="text-[9px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded align-middle">{vehicleSector}</span>)}</div><div className="flex items-center gap-2"><span className="font-mono text-[9px] font-bold text-white bg-slate-900 px-2 py-0.5 rounded-md tracking-wider">{v?.plate || '---'}</span><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Clock className="w-2.5 h-2.5" /> Criado em: {new Date(s.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span></div></div></div><div className="flex items-center gap-1"><button onClick={() => { setViewingSchedule(s); setIsViewModalOpen(true); }} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><Eye className="w-4.5 h-4.5" /></button>{s.requesterId === currentUserId && (<button onClick={() => handleOpenModal(s)} className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"><Edit3 className="w-4.5 h-4.5" /></button>)}</div></div><div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center"><div className="md:col-span-3"><div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest bg-${cfg.color}-50 text-${cfg.color}-700 border-${cfg.color}-200/50`}><cfg.icon className="w-3.5 h-3.5" /> {cfg.label}</div></div><div className="md:col-span-4 flex items-center gap-2 min-w-0"><UserIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" /><div className="flex flex-col min-w-0"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-0.5">Condutor Responsável</span><span className="text-xs font-bold text-slate-600 truncate">{d?.name || '---'}</span></div></div><div className="md:col-span-5 flex items-center gap-2 min-w-0"><MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" /><div className="flex flex-col min-w-0"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-0.5">Destino da Viagem</span><span className="text-xs font-black text-indigo-600 uppercase truncate" title={s.destination}>{s.destination}</span></div></div></div><div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3 border-t border-slate-50 items-center"><div className="md:col-span-8 flex items-center gap-2"><Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" /><div className="flex items-center gap-4"><div className="flex flex-col"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1">Saída</span><span className="bg-slate-50 px-2 py-1 rounded border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tighter">{formatDT(depDate)}</span></div><ArrowRight className="w-3 h-3 text-slate-300 mt-2" /><div className="flex flex-col"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1">Retorno</span><span className="bg-slate-50 px-2 py-1 rounded border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tighter">{formatDT(retDate)}</span></div></div></div><div className="md:col-span-4 flex items-center justify-end min-w-0"><div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 w-full md:w-auto"><div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0"><Building2 className="w-4 h-4 text-indigo-600" /></div><div className="flex flex-col min-w-0"><span className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Setor Atendido</span><span className="text-[10px] font-bold text-slate-800 uppercase leading-tight truncate">{sec?.name || 'Não informado'}</span></div></div></div></div></div>); })} </>);
                     })()}
                   </div>
                 </div>
@@ -551,7 +575,12 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                 <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg rotate-[-4deg] shrink-0"><Calendar className="w-5 h-5" /></div>
                 <div>
                   <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-tight">{editingSchedule ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">O veículo ficará indisponível durante o intervalo se confirmado</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">O veículo ficará indisponível durante o intervalo se confirmado</p>
+                    {editingSchedule?.status === 'confirmado' && (
+                      <span className="flex items-center gap-1 text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 uppercase tracking-widest"><Lock className="w-2 h-2" /> Agendamento Confirmado: Edição Restrita</span>
+                    )}
+                  </div>
                 </div>
               </div>
               <button onClick={() => setIsModalOpen(false)} className="p-2 bg-slate-50 hover:bg-rose-50 rounded-xl text-slate-400 hover:text-rose-600 transition-all"><X className="w-5 h-5" /></button>
@@ -560,13 +589,22 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
                   <label className={labelClass}><Car className="w-3 h-3 inline mr-2" /> Veículo Operacional</label>
-                  <button onClick={() => setActiveSelectionField('vehicle')} className={`${inputClass} flex items-center justify-between hover:bg-white transition-all text-left`}>
+                  <button
+                    onClick={() => {
+                      if (editingSchedule?.status === 'confirmado') {
+                        showToast("Não é possível alterar o veículo de um agendamento já confirmado.", "warning");
+                        return;
+                      }
+                      setActiveSelectionField('vehicle');
+                    }}
+                    className={`${inputClass} flex items-center justify-between transition-all text-left ${editingSchedule?.status === 'confirmado' ? 'bg-slate-50 cursor-not-allowed border-slate-200' : 'hover:bg-white'}`}
+                  >
                     <span className={formData.vehicleId ? 'text-slate-900 font-bold' : 'text-slate-400'}>
                       {vehicles.find(v => v.id === formData.vehicleId)
                         ? `${vehicles.find(v => v.id === formData.vehicleId)?.brand} ${vehicles.find(v => v.id === formData.vehicleId)?.model} (${vehicles.find(v => v.id === formData.vehicleId)?.plate})`
                         : 'Selecione o veículo...'}
                     </span>
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                    {editingSchedule?.status === 'confirmado' ? <Lock className="w-4 h-4 text-slate-300" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                   </button>
                 </div>
 
@@ -582,31 +620,58 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
 
                 <div>
                   <label className={labelClass}><UserCircle className="w-3 h-3 inline mr-2 text-indigo-500" /> Solicitante (Requerente)</label>
-                  <button onClick={() => setActiveSelectionField('requester')} className={`${inputClass} flex items-center justify-between hover:bg-white transition-all text-left`}>
+                  <button
+                    onClick={() => {
+                      if (editingSchedule?.status === 'confirmado') {
+                        showToast("Não é possível alterar o solicitante de um agendamento já confirmado.", "warning");
+                        return;
+                      }
+                      setActiveSelectionField('requester');
+                    }}
+                    className={`${inputClass} flex items-center justify-between transition-all text-left ${editingSchedule?.status === 'confirmado' ? 'bg-slate-50 cursor-not-allowed border-slate-200' : 'hover:bg-white'}`}
+                  >
                     <span className={formData.requesterPersonId ? 'text-slate-900 font-bold' : 'text-slate-400'}>
                       {persons.find(p => p.id === formData.requesterPersonId)?.name || 'Quem está solicitando?'}
                     </span>
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                    {editingSchedule?.status === 'confirmado' ? <Lock className="w-4 h-4 text-slate-300" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                   </button>
                 </div>
 
                 <div>
                   <label className={labelClass}><Landmark className="w-3 h-3 inline mr-2 text-indigo-500" /> Setor de Atendimento</label>
-                  <button onClick={() => setActiveSelectionField('sector')} className={`${inputClass} flex items-center justify-between hover:bg-white transition-all text-left`}>
+                  <button
+                    onClick={() => {
+                      if (editingSchedule?.status === 'confirmado') {
+                        showToast("Não é possível alterar o setor de um agendamento já confirmado.", "warning");
+                        return;
+                      }
+                      setActiveSelectionField('sector');
+                    }}
+                    className={`${inputClass} flex items-center justify-between transition-all text-left ${editingSchedule?.status === 'confirmado' ? 'bg-slate-50 cursor-not-allowed border-slate-200' : 'hover:bg-white'}`}
+                  >
                     <span className={formData.serviceSectorId ? 'text-slate-900 font-bold' : 'text-slate-400'}>
                       {sectors.find(s => s.id === formData.serviceSectorId)?.name || 'Qual setor será atendido?'}
                     </span>
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                    {editingSchedule?.status === 'confirmado' ? <Lock className="w-4 h-4 text-slate-300" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                   </button>
                 </div>
 
                 <div className="md:col-span-2">
                   <label className={labelClass}><MapPin className="w-3 h-3 inline mr-2" /> Itinerário / Destino</label>
-                  <button onClick={() => setActiveSelectionField('city')} className={`${inputClass} flex items-center justify-between hover:bg-white transition-all text-left`}>
+                  <button
+                    onClick={() => {
+                      if (editingSchedule?.status === 'confirmado') {
+                        showToast("Não é possível alterar o destino de um agendamento já confirmado.", "warning");
+                        return;
+                      }
+                      setActiveSelectionField('city');
+                    }}
+                    className={`${inputClass} flex items-center justify-between transition-all text-left ${editingSchedule?.status === 'confirmado' ? 'bg-slate-50 cursor-not-allowed border-slate-200' : 'hover:bg-white'}`}
+                  >
                     <span className={formData.destination ? 'text-slate-900 font-bold' : 'text-slate-400'}>
                       {formData.destination || 'Selecione ou busque a cidade...'}
                     </span>
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                    {editingSchedule?.status === 'confirmado' ? <Lock className="w-4 h-4 text-slate-300" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                   </button>
                 </div>
 
@@ -615,34 +680,54 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                   <div>
                     <label className={labelClass}><Clock className="w-3 h-3 inline mr-2" /> Início Agendamento</label>
                     <button
-                      onClick={() => !formData.vehicleId ? showToast("Selecione um veículo antes de definir a data.", "warning") : setActiveDateField('departure')}
-                      disabled={!formData.vehicleId}
-                      className={`${inputClass} h-[52px] flex items-center justify-between transition-all text-left ${!formData.vehicleId ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'hover:bg-white'}`}
+                      onClick={() => {
+                        if (editingSchedule?.status === 'confirmado') {
+                          showToast("Não é possível alterar a data/hora de um agendamento já confirmado.", "warning");
+                          return;
+                        }
+                        if (!formData.vehicleId) {
+                          showToast("Selecione um veículo antes de definir a data.", "warning");
+                          return;
+                        }
+                        setActiveDateField('departure');
+                      }}
+                      disabled={!formData.vehicleId && editingSchedule?.status !== 'confirmado'}
+                      className={`${inputClass} h-[52px] flex items-center justify-between transition-all text-left ${(!formData.vehicleId || editingSchedule?.status === 'confirmado') ? 'bg-slate-50 cursor-not-allowed border-slate-200' : 'hover:bg-white'}`}
                       title={!formData.vehicleId ? "Selecione um veículo primeiro" : ""}
                     >
                       <span className={formData.departureDateTime ? 'text-slate-900 font-bold' : 'text-slate-400'}>
                         {formatDateDisplay(formData.departureDateTime)}
                       </span>
-                      <Calendar className="w-4 h-4 text-slate-400" />
+                      {editingSchedule?.status === 'confirmado' ? <Lock className="w-4 h-4 text-slate-300" /> : <Calendar className="w-4 h-4 text-slate-400" />}
                     </button>
                     {/* Input Hidden for compatibility if needed, but we rely on state */}
                   </div>
                   <div>
                     <label className={labelClass}><Clock className="w-3 h-3 inline mr-2" /> Fim Agendamento</label>
                     <button
-                      onClick={() => !formData.vehicleId ? showToast("Selecione um veículo antes de definir a data.", "warning") : setActiveDateField('return')}
-                      disabled={!formData.vehicleId}
-                      className={`${inputClass} h-[52px] flex items-center justify-between transition-all text-left ${!formData.vehicleId ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'hover:bg-white'}`}
+                      onClick={() => {
+                        if (editingSchedule?.status === 'confirmado') {
+                          showToast("Não é possível alterar a data/hora de um agendamento já confirmado.", "warning");
+                          return;
+                        }
+                        if (!formData.vehicleId) {
+                          showToast("Selecione um veículo antes de definir a data.", "warning");
+                          return;
+                        }
+                        setActiveDateField('return');
+                      }}
+                      disabled={!formData.vehicleId && editingSchedule?.status !== 'confirmado'}
+                      className={`${inputClass} h-[52px] flex items-center justify-between transition-all text-left ${(!formData.vehicleId || editingSchedule?.status === 'confirmado') ? 'bg-slate-50 cursor-not-allowed border-slate-200' : 'hover:bg-white'}`}
                       title={!formData.vehicleId ? "Selecione um veículo primeiro" : ""}
                     >
                       <span className={formData.returnDateTime ? 'text-slate-900 font-bold' : 'text-slate-400'}>
                         {formatDateDisplay(formData.returnDateTime)}
                       </span>
-                      <Calendar className="w-4 h-4 text-slate-400" />
+                      {editingSchedule?.status === 'confirmado' ? <Lock className="w-4 h-4 text-slate-300" /> : <Calendar className="w-4 h-4 text-slate-400" />}
                     </button>
                   </div>
                 </div>
-                <div className="md:col-span-2"><label className={labelClass}><Info className="w-3 h-3 inline mr-2" /> Objetivo da Viagem</label><textarea value={formData.purpose} onChange={e => setFormData({ ...formData, purpose: e.target.value })} className={`${inputClass} min-h-[100px] resize-none pt-4`} placeholder="Descreva brevemente o motivo da saída..." /></div>
+                <div className="md:col-span-2"><label className={labelClass}><Info className="w-3 h-3 inline mr-2" /> Objetivo da Viagem</label><textarea value={formData.purpose} onChange={e => setFormData({ ...formData, purpose: e.target.value })} readOnly={editingSchedule?.status === 'confirmado'} className={`${inputClass} min-h-[100px] resize-none pt-4 ${editingSchedule?.status === 'confirmado' ? 'bg-slate-50 cursor-not-allowed border-slate-200' : ''}`} placeholder="Descreva brevemente o motivo da saída..." /></div>
                 {editingSchedule && (
                   <div className="md:col-span-2 flex justify-end">
                     <button onClick={() => { if (confirm("Remover agendamento?")) { onDeleteSchedule(editingSchedule.id); setIsModalOpen(false); } }} className="py-3.5 px-6 bg-rose-50 text-rose-600 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-rose-600 hover:text-white transition-all active:scale-95 border border-rose-100 h-[52px] shrink-0"><Trash2 className="w-4 h-4" /> Excluir Registro</button>

@@ -5,7 +5,7 @@ export const getSchedules = async (): Promise<VehicleSchedule[]> => {
     const { data, error } = await supabase
         .from('vehicle_schedules')
         .select('*')
-        .order('departure_date_time', { ascending: true });
+        .order('created_at', { ascending: false });
 
     if (error) {
         console.error('Error fetching schedules:', error);
@@ -14,6 +14,7 @@ export const getSchedules = async (): Promise<VehicleSchedule[]> => {
 
     return data.map((s: any) => ({
         id: s.id,
+        protocol: s.protocol,
         vehicleId: s.vehicle_id,
         driverId: s.driver_id,
         requesterPersonId: s.requester_person_id,
@@ -29,8 +30,38 @@ export const getSchedules = async (): Promise<VehicleSchedule[]> => {
     }));
 };
 
-export const createSchedule = async (schedule: Omit<VehicleSchedule, 'id' | 'createdAt'>): Promise<VehicleSchedule | null> => {
+const generateProtocol = async (): Promise<string> => {
+    const year = new Date().getFullYear();
+    // Use a generic ID for vehicle scheduling counter
+    const counterId = 'vehicle_scheduling_protocol';
+
+    try {
+        // Try to get next count from counterService (if it existed) or manual logic
+        // For simplicity and since counterService is available, let's try to use RPC if possible or simple timestamp/random as fallback
+        const { data, error } = await supabase.rpc('increment_sector_counter', {
+            p_sector_id: counterId,
+            p_year: year
+        });
+
+        if (!error && data !== null) {
+            return `OS-${year}${String(data).padStart(5, '0')}`;
+        }
+
+        // Fallback if RPC fails: Date based unique ID
+        const timestamp = Date.now().toString().slice(-6);
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        return `OS-${year}${timestamp}${random}`;
+    } catch (e) {
+        console.error('Error generating protocol:', e);
+        return `OS-${year}${Date.now()}`;
+    }
+};
+
+export const createSchedule = async (schedule: Omit<VehicleSchedule, 'id' | 'createdAt' | 'protocol'>): Promise<VehicleSchedule | null> => {
+    const protocol = await generateProtocol();
+
     const dbSchedule = {
+        protocol,
         vehicle_id: schedule.vehicleId,
         driver_id: schedule.driverId,
         requester_person_id: schedule.requesterPersonId,
@@ -57,6 +88,7 @@ export const createSchedule = async (schedule: Omit<VehicleSchedule, 'id' | 'cre
 
     return {
         id: data.id,
+        protocol: data.protocol,
         vehicleId: data.vehicle_id,
         driverId: data.driver_id,
         requesterPersonId: data.requester_person_id,
@@ -101,6 +133,7 @@ export const updateSchedule = async (schedule: VehicleSchedule): Promise<Vehicle
 
     return {
         id: data.id,
+        protocol: data.protocol,
         vehicleId: data.vehicle_id,
         driverId: data.driver_id,
         requesterPersonId: data.requester_person_id,
@@ -114,6 +147,20 @@ export const updateSchedule = async (schedule: VehicleSchedule): Promise<Vehicle
         status: data.status,
         createdAt: data.created_at
     };
+};
+
+
+export const updateScheduleStatus = async (id: string, status: ScheduleStatus): Promise<boolean> => {
+    const { error } = await supabase
+        .from('vehicle_schedules')
+        .update({ status })
+        .eq('id', id);
+
+    if (error) {
+        console.error('Error updating schedule status:', error);
+        return false;
+    }
+    return true;
 };
 
 export const deleteSchedule = async (id: string): Promise<boolean> => {
