@@ -297,7 +297,7 @@ const App: React.FC = () => {
     let stateKey = currentView as string;
     if (currentView === 'admin' && adminTab) {
       stateKey = `admin:${adminTab}`;
-    } else if (['tracking', 'editor', 'home'].includes(currentView) && activeBlock) {
+    } else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(currentView) && activeBlock) {
       stateKey = `${currentView}:${activeBlock}`;
     } else if (currentView === 'admin' && !adminTab) {
       stateKey = 'admin:dashboard';
