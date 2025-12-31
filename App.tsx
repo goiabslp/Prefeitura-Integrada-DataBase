@@ -452,6 +452,7 @@ const App: React.FC = () => {
         setOrders(prev => [finalOrder, ...prev]);
       }
       setAppState(finalSnapshot);
+      clearDraft(); // CLEAR DRAFT ON SUCCESS
     }
     setIsFinalizedView(true);
     setIsAdminSidebarOpen(false);
@@ -614,6 +615,7 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     await signOut();
+    clearDraft(); // Clear draft on logout
     setCurrentView('login');
     setActiveBlock(null);
     setIsFinalizedView(false);
@@ -621,6 +623,7 @@ const App: React.FC = () => {
   };
 
   const handleGoHome = () => {
+    if (currentView === 'editor' && !isFinalizedView) clearDraft(); // Clear draft if cancelling editor
     setCurrentView('home');
     setActiveBlock(null);
     setIsAdminSidebarOpen(false);
@@ -630,6 +633,10 @@ const App: React.FC = () => {
   };
 
   const handleBackToModule = () => {
+    // Only clear if we were in editor? handleBackToModule is usually for TrackingScreen/PurchaseManagement back button.
+    // TrackingScreen is distinct from Editor. So no need to clear draft here usually.
+    // But if we use it for generic back?
+    // Let's assume it's for non-editor views.
     setCurrentView('home');
     // activeBlock is preserved
     setIsAdminSidebarOpen(false);
@@ -638,11 +645,68 @@ const App: React.FC = () => {
     setEditingOrder(null);
   };
 
+
+
+  // --- PERSISTENCE LOGIC START ---
+  // Save draft to localStorage whenever content changes in editor mode
+  useEffect(() => {
+    if (currentView === 'editor' && !editingOrder && activeBlock) {
+      const draftKey = `draft_${activeBlock}`;
+      const draftData = {
+        content: appState.content,
+        timestamp: Date.now()
+      };
+      // Debounce saving if needed, but for now simple write is okay for text
+      localStorage.setItem(draftKey, JSON.stringify(draftData));
+    }
+  }, [appState.content, currentView, editingOrder, activeBlock]);
+
+  // Clear draft on successful finish or explicit exit
+  const clearDraft = useCallback(() => {
+    if (activeBlock) {
+      localStorage.removeItem(`draft_${activeBlock}`);
+    }
+  }, [activeBlock]);
+  // --- PERSISTENCE LOGIC END ---
+
+
+
+
+  // MODIFIED handleStartEditing to check for drafts
   const handleStartEditing = async () => {
     let defaultTitle = INITIAL_STATE.content.title;
     let defaultRightBlock = INITIAL_STATE.content.rightBlockText;
     let leftBlockContent = INITIAL_STATE.content.leftBlockText;
     const currentYear = new Date().getFullYear();
+
+    // CHECK FOR DRAFT FIRST
+    if (activeBlock) {
+      const draftKey = `draft_${activeBlock}`;
+      const savedDraft = localStorage.getItem(draftKey);
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft);
+          // Optional: Check timestamp expiry? For now keep it indefinitely until finished/cleared
+          if (parsed && parsed.content) {
+            setAppState(prev => ({
+              ...prev,
+              content: {
+                ...prev.content,
+                ...parsed.content
+              }
+            }));
+            setCurrentView('editor');
+            setAdminTab('content');
+            setIsAdminSidebarOpen(true);
+            setIsFinalizedView(false);
+            setEditingOrder(null);
+            return; // EXIT EARLY IF DRAFT RESTORED
+          }
+        } catch (e) {
+          console.error("Error parsing draft", e);
+        }
+      }
+    }
 
     if (activeBlock === 'compras') {
       defaultTitle = 'Requisição de Compras e Serviços';

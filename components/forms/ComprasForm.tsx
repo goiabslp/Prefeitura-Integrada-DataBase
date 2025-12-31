@@ -143,24 +143,6 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bloco Direito (Destino)</span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" checked={docConfig.showRightBlock} onChange={(e) => handleUpdate('document', 'showRightBlock', e.target.checked)} className="sr-only peer" />
-                <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
-              </label>
-            </div>
-            {docConfig.showRightBlock && (
-              <textarea
-                value={content.rightBlockText}
-                onChange={(e) => handleUpdate('content', 'rightBlockText', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs h-24 resize-none focus:bg-white transition-all outline-none text-slate-700 font-medium"
-                placeholder={"Ao Departamento de Compras da\nPrefeitura de São José do Goiabal-MG"}
-              />
-            )}
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-            <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bloco Esquerdo (Ref)</span>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" checked={docConfig.showLeftBlock} onChange={(e) => handleUpdate('document', 'showLeftBlock', e.target.checked)} className="sr-only peer" />
@@ -173,6 +155,24 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
                 onChange={(e) => handleUpdate('content', 'leftBlockText', e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs h-24 resize-none focus:bg-white transition-all outline-none text-slate-700 font-medium"
                 placeholder="Ref. Pedido..."
+              />
+            )}
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bloco Direito (Destino)</span>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked={docConfig.showRightBlock} onChange={(e) => handleUpdate('document', 'showRightBlock', e.target.checked)} className="sr-only peer" />
+                <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+              </label>
+            </div>
+            {docConfig.showRightBlock && (
+              <textarea
+                value={content.rightBlockText}
+                onChange={(e) => handleUpdate('content', 'rightBlockText', e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs h-24 resize-none focus:bg-white transition-all outline-none text-slate-700 font-medium"
+                placeholder={"Ao Departamento de Compras da\nPrefeitura de São José do Goiabal-MG"}
               />
             )}
           </div>
