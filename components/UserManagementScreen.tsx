@@ -94,14 +94,24 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
     setTimeout(() => setToast({ ...toast, show: false }), 3000);
   };
 
+  const sortedUsers = [...users].sort((a, b) => a.name.localeCompare(b.name));
+  
+  const finalUserList = isAdmin
+    ? sortedUsers.filter(u =>
+        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.sector?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.jobTitle?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : sortedUsers.filter(u => u.id === currentUser.id);
+
+  // Move current user to the top if they are in the list
   const filteredUsers = isAdmin
-    ? users.filter(u =>
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.sector?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.jobTitle?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    : users.filter(u => u.id === currentUser.id);
+    ? [
+        ...finalUserList.filter(u => u.id === currentUser.id),
+        ...finalUserList.filter(u => u.id !== currentUser.id)
+      ]
+    : finalUserList;
 
   const handleOpenModal = (user?: User) => {
     setShowPassword(false);
@@ -331,56 +341,73 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
         )}
 
         <div className="grid gap-4">
-          {filteredUsers.map(user => (
-            <div key={user.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold shadow-sm ${user.role === 'admin' ? 'bg-indigo-600 text-white' :
-                  (user.role === 'licitacao' || user.role === 'compras') ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
-                  }`}>
-                  {user.name.charAt(0)}
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">{user.name}</h3>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 mt-0.5">
+          {filteredUsers.map(user => {
+            const isCurrentUser = user.id === currentUser.id;
+            return (
+              <div 
+                key={user.id} 
+                className={`p-5 rounded-2xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 
+                  ${isCurrentUser 
+                    ? 'bg-indigo-50/50 border-indigo-200 shadow-md ring-1 ring-indigo-500/20' 
+                    : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
+                  }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold shadow-sm ${user.role === 'admin' ? 'bg-indigo-600 text-white' :
+                    (user.role === 'licitacao' || user.role === 'compras') ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                    {user.name.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-slate-800">{user.name}</h3>
+                      {isCurrentUser && (
+                        <span className="px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider rounded-md shadow-sm">
+                          Você
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 mt-0.5">
 
-                    <span className="flex items-center gap-1 px-2 py-0.5 bg-slate-100 rounded text-xs font-semibold text-slate-600">
-                      {user.jobTitle || 'Usuário'}
-                    </span>
-                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter ${user.role === 'admin' ? 'bg-indigo-100 text-indigo-700' :
-                      user.role === 'licitacao' ? 'bg-blue-100 text-blue-700' :
-                        user.role === 'compras' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                      }`}>
-                      {user.role}
-                    </span>
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-slate-100/80 rounded text-xs font-semibold text-slate-600">
+                        {user.jobTitle || 'Usuário'}
+                      </span>
+                      <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter ${user.role === 'admin' ? 'bg-indigo-100 text-indigo-700' :
+                        user.role === 'licitacao' ? 'bg-blue-100 text-blue-700' :
+                          user.role === 'compras' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                        {user.role}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => handleOpenModal(user)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
+                    {isAdmin && user.username !== 'admin' && user.id !== currentUser.id && (
+                      <button
+                        onClick={() => setConfirmModal({
+                          isOpen: true,
+                          title: "Excluir Usuário",
+                          message: `Deseja realmente remover o acesso de "${user.name}"? Esta ação é irreversível.`,
+                          type: 'danger',
+                          onConfirm: () => {
+                            onDeleteUser(user.id);
+                            showToast("Usuário removido.");
+                            setConfirmModal({ ...confirmModal, isOpen: false });
+                          }
+                        })}
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
-                  <button onClick={() => handleOpenModal(user)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
-                  {isAdmin && user.username !== 'admin' && user.id !== currentUser.id && (
-                    <button
-                      onClick={() => setConfirmModal({
-                        isOpen: true,
-                        title: "Excluir Usuário",
-                        message: `Deseja realmente remover o acesso de "${user.name}"? Esta ação é irreversível.`,
-                        type: 'danger',
-                        onConfirm: () => {
-                          onDeleteUser(user.id);
-                          showToast("Usuário removido.");
-                          setConfirmModal({ ...confirmModal, isOpen: false });
-                        }
-                      })}
-                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* MODAL DE EDIÇÃO/CADASTRO */}

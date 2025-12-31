@@ -1123,6 +1123,7 @@ const App: React.FC = () => {
             currentUserId={currentUser.id}
             currentUserName={currentUser.name}
             currentUserRole={currentUser.role}
+            currentUserPermissions={currentUser.permissions}
             requestedView={activeBlock === 'vs_calendar' ? 'calendar' : activeBlock === 'vs_history' ? 'history' : activeBlock === 'vs_approvals' ? 'approvals' : 'menu'}
             onNavigate={(path) => {
               window.history.pushState(null, '', path);

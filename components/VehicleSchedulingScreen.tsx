@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Vehicle, Person, VehicleSchedule, ScheduleStatus, Sector, AppState, UserRole } from '../types';
+import { Vehicle, Person, VehicleSchedule, ScheduleStatus, Sector, AppState, UserRole, AppPermission } from '../types';
 import {
   ArrowLeft, Plus, Search, Calendar, Clock, MapPin,
   User as UserIcon, Car, Info, Trash2, Edit3, CheckCircle2,
@@ -29,6 +29,7 @@ interface VehicleSchedulingScreenProps {
   currentUserId: string;
   currentUserName?: string;
   currentUserRole: UserRole;
+  currentUserPermissions?: AppPermission[];
   requestedView?: 'menu' | 'calendar' | 'history' | 'approvals';
   onNavigate?: (path: string) => void;
   state: AppState;
@@ -73,6 +74,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
   currentUserId,
   currentUserName,
   currentUserRole,
+  currentUserPermissions = [],
   requestedView,
   onNavigate,
   state
@@ -84,6 +86,16 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
     const person = persons.find(p => p.name.toLowerCase() === currentUserName.toLowerCase());
     return person?.id;
   }, [persons, currentUserName]);
+
+  const canViewApprovals = useMemo(() => {
+    if (currentUserRole === 'admin') return true;
+    const isVehicleManager = currentUserPermissions?.includes('parent_frotas');
+    const isVehicleResponsible = vehicles.some(v =>
+      v.requestManagerIds?.includes(currentUserPersonId || '') ||
+      v.responsiblePersonId === currentUserPersonId
+    );
+    return isVehicleManager || isVehicleResponsible;
+  }, [currentUserRole, currentUserPermissions, vehicles, currentUserPersonId]);
 
   const visibleSchedules = useMemo(() => {
     if (currentUserRole === 'admin') return schedules;
@@ -365,16 +377,18 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                 </div>
               </button>
 
-              <button onClick={() => handleSubViewChange('approvals')} className="flex flex-col items-center justify-center gap-4 bg-white p-8 rounded-[3rem] shadow-xl shadow-amber-900/5 hover:scale-[1.02] hover:shadow-2xl hover:shadow-amber-900/10 transition-all group border border-white cursor-pointer relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 via-amber-500/0 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-[2rem] flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-500">
-                  <ShieldCheck className="w-10 h-10" />
-                </div>
-                <div className="text-center relative z-10">
-                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-1">Aprovações</h3>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Gestão de Solicitações</p>
-                </div>
-              </button>
+              {canViewApprovals && (
+                <button onClick={() => handleSubViewChange('approvals')} className="flex flex-col items-center justify-center gap-4 bg-white p-8 rounded-[3rem] shadow-xl shadow-amber-900/5 hover:scale-[1.02] hover:shadow-2xl hover:shadow-amber-900/10 transition-all group border border-white cursor-pointer relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 via-amber-500/0 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-[2rem] flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-500">
+                    <ShieldCheck className="w-10 h-10" />
+                  </div>
+                  <div className="text-center relative z-10">
+                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-1">Aprovações</h3>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Gestão de Solicitações</p>
+                  </div>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -479,7 +493,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
           currentUserId={currentUserId}
         />
       )}
-      {activeSubView === 'approvals' && (
+      {activeSubView === 'approvals' && canViewApprovals && (
         <VehicleScheduleApprovals
           schedules={schedules}
           vehicles={vehicles}
