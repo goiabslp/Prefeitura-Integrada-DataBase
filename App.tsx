@@ -1099,6 +1099,7 @@ const App: React.FC = () => {
         )}
         {currentView === 'vehicle-scheduling' && currentUser && (
           <VehicleSchedulingScreen
+            state={appState}
             schedules={schedules}
             vehicles={vehicles}
             persons={persons}

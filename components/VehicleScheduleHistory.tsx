@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { Search, History, Car, User, MapPin, Clock, Eye, Filter, Calendar, ArrowLeft, Building2, Target } from 'lucide-react';
-import { Vehicle, Person, VehicleSchedule, ScheduleStatus, Sector } from '../types';
+import { Search, History, Car, User, MapPin, Clock, Eye, Filter, Calendar, ArrowLeft, Building2, Target, FileText } from 'lucide-react';
+import { Vehicle, Person, VehicleSchedule, ScheduleStatus, Sector, AppState } from '../types';
+import { VehicleServiceOrderPreview } from './VehicleServiceOrderPreview';
 
 interface VehicleScheduleHistoryProps {
   schedules: VehicleSchedule[];
   vehicles: Vehicle[];
   persons: Person[];
   sectors: Sector[];
+  state: AppState;
   onViewDetails: (s: VehicleSchedule) => void;
   onBack?: () => void;
 }
@@ -32,11 +34,13 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
   vehicles,
   persons,
   sectors,
+  state,
   onViewDetails,
   onBack
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewingPurpose, setViewingPurpose] = useState<VehicleSchedule | null>(null);
+  const [previewingOS, setPreviewingOS] = useState<VehicleSchedule | null>(null);
 
   const filtered = useMemo(() => {
     return schedules
@@ -174,6 +178,10 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                         <div className={`px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest shadow-sm backdrop-blur-sm bg-${cfg.color}-50/80 text-${cfg.color}-700 border-${cfg.color}-200 flex items-center gap-1.5`}>
                           <cfg.icon className="w-3 h-3" /> {cfg.label}
                         </div>
+                        <button onClick={() => setPreviewingOS(s)} className="px-3 py-2 bg-white border border-slate-200 text-slate-500 hover:bg-slate-900 hover:text-white hover:border-slate-900 rounded-lg transition-all active:scale-95 shadow-sm hover:shadow-md flex items-center gap-1.5">
+                          <FileText className="w-3.5 h-3.5" />
+                          <span className="text-[9px] font-black uppercase tracking-wide">OS</span>
+                        </button>
                         <button onClick={() => onViewDetails(s)} className="p-2 bg-white border border-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white hover:border-slate-900 rounded-lg transition-all active:scale-95 shadow-sm hover:shadow-md"><Eye className="w-4 h-4" /></button>
                       </div>
                     </div>
@@ -251,6 +259,19 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Preview da OS */}
+      {previewingOS && (
+        <VehicleServiceOrderPreview
+          schedule={previewingOS}
+          vehicle={vehicles.find(v => v.id === previewingOS.vehicleId)!}
+          driver={persons.find(p => p.id === previewingOS.driverId)!}
+          requester={persons.find(p => p.id === previewingOS.requesterPersonId)}
+          sector={sectors.find(s => s.id === previewingOS.serviceSectorId)}
+          state={state}
+          onClose={() => setPreviewingOS(null)}
+        />
       )}
     </div>
   );

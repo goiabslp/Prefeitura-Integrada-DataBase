@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Vehicle, Person, VehicleSchedule, ScheduleStatus, Sector } from '../types';
+import { Vehicle, Person, VehicleSchedule, ScheduleStatus, Sector, AppState } from '../types';
 import {
   ArrowLeft, Plus, Search, Calendar, Clock, MapPin,
   User as UserIcon, Car, Info, Trash2, Edit3, CheckCircle2,
@@ -29,6 +29,7 @@ interface VehicleSchedulingScreenProps {
   currentUserId: string;
   requestedView?: 'menu' | 'calendar' | 'history' | 'approvals';
   onNavigate?: (path: string) => void;
+  state: AppState;
 }
 
 const STATUS_MAP: Record<ScheduleStatus, { label: string, color: string, icon: any }> = {
@@ -69,7 +70,8 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
   onBack,
   currentUserId,
   requestedView,
-  onNavigate
+  onNavigate,
+  state
 }) => {
   const [activeSubView, setActiveSubView] = useState<'menu' | 'calendar' | 'history' | 'approvals'>('menu');
 
@@ -440,6 +442,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
           vehicles={vehicles}
           persons={persons}
           sectors={sectors}
+          state={state}
           onViewDetails={(s) => { setViewingSchedule(s); setIsViewModalOpen(true); }}
           onBack={() => handleSubViewChange('menu')}
         />
