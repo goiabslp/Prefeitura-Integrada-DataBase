@@ -121,7 +121,7 @@ export type UserRole = 'admin' | 'collaborator' | 'licitacao' | 'compras';
 
 export type AppPermission = 'parent_criar_oficio' | 'parent_admin' | 'parent_compras' | 'parent_licitacao' | 'parent_diarias' | 'parent_compras_pedidos' | 'parent_frotas' | 'parent_agendamento_veiculo';
 
-export type BlockType = 'oficio' | 'compras' | 'licitacao' | 'diarias' | 'agendamento';
+export type BlockType = 'oficio' | 'compras' | 'licitacao' | 'diarias' | 'agendamento' | 'vs_calendar' | 'vs_history' | 'vs_approvals';
 
 export interface User {
   id: string;

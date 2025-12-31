@@ -57,7 +57,10 @@ const VIEW_TO_PATH: Record<string, string> = {
   'editor:compras': '/Editor/Compras',
   'editor:diarias': '/Editor/Diarias',
   'purchase-management': '/GestaoCompras',
-  'vehicle-scheduling': '/AgendamentoVeiculos'
+  'vehicle-scheduling': '/AgendamentoVeiculos',
+  'vehicle-scheduling:vs_calendar': '/AgendamentoVeiculos/Agendar',
+  'vehicle-scheduling:vs_history': '/AgendamentoVeiculos/Historico',
+  'vehicle-scheduling:vs_approvals': '/AgendamentoVeiculos/Aprovacoes'
 };
 
 const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
@@ -261,8 +264,10 @@ const App: React.FC = () => {
 
       if (state.view === 'admin') {
         if (state.sub !== adminTab) setAdminTab(state.sub);
-      } else if (['tracking', 'editor', 'home'].includes(state.view)) {
-        if (state.sub !== activeBlock) setActiveBlock(state.sub);
+      } else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(state.view)) {
+        // Ensure we explicitly handle null/undefined for main menu vs sub-routes
+        const newBlock = state.sub || null;
+        if (newBlock !== activeBlock) setActiveBlock(newBlock);
       }
       refreshData();
     } else if (path === '/' || path === '') {
@@ -279,7 +284,7 @@ const App: React.FC = () => {
       if (state) {
         setCurrentView(state.view);
         if (state.view === 'admin') setAdminTab(state.sub);
-        else if (['tracking', 'editor', 'home'].includes(state.view)) setActiveBlock(state.sub);
+        else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(state.view)) setActiveBlock(state.sub || null);
         refreshData();
       }
     };
@@ -1051,6 +1056,20 @@ const App: React.FC = () => {
             }}
             onBack={handleGoHome}
             currentUserId={currentUser.id}
+            requestedView={activeBlock === 'vs_calendar' ? 'calendar' : activeBlock === 'vs_history' ? 'history' : activeBlock === 'vs_approvals' ? 'approvals' : 'menu'}
+            onNavigate={(path) => {
+              window.history.pushState(null, '', path);
+              // Manually trigger popstate or update state to reflect change if needed, 
+              // but usually pushState needs an event dispatch for App.useEffect to catch it? 
+              // actually App.useEffect uses window.addEventListener('popstate'). pushState does NOT trigger popstate.
+              // So we must manually update state or assume the child updates its UI and we just sync URL.
+              // BETTER: Update local state directly here to sync with URL?
+              // The App's useEffect listens to popstate (browser back/fwd). 
+              // For internal nav, we should probably just update the state directly if we want consistent internal processing.
+              // However, to keep it simple and robust with the existing "Router":
+              const evt = new PopStateEvent('popstate');
+              window.dispatchEvent(evt); // Trigger App's listener
+            }}
           />
         )}
       </div>

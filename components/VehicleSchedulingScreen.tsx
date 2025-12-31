@@ -27,6 +27,8 @@ interface VehicleSchedulingScreenProps {
   onDeleteSchedule: (id: string) => Promise<void>;
   onBack: () => void;
   currentUserId: string;
+  requestedView?: 'menu' | 'calendar' | 'history' | 'approvals';
+  onNavigate?: (path: string) => void;
 }
 
 const STATUS_MAP: Record<ScheduleStatus, { label: string, color: string, icon: any }> = {
@@ -65,9 +67,30 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
   onUpdateSchedule,
   onDeleteSchedule,
   onBack,
-  currentUserId
+  currentUserId,
+  requestedView,
+  onNavigate
 }) => {
   const [activeSubView, setActiveSubView] = useState<'menu' | 'calendar' | 'history' | 'approvals'>('menu');
+
+  useEffect(() => {
+    if (requestedView && requestedView !== activeSubView) {
+      setActiveSubView(requestedView);
+    }
+  }, [requestedView]);
+
+  const handleSubViewChange = (view: 'menu' | 'calendar' | 'history' | 'approvals') => {
+    setActiveSubView(view);
+    if (onNavigate) {
+      const paths = {
+        'menu': '/AgendamentoVeiculos',
+        'calendar': '/AgendamentoVeiculos/Agendar',
+        'history': '/AgendamentoVeiculos/Historico',
+        'approvals': '/AgendamentoVeiculos/Aprovacoes'
+      };
+      onNavigate(paths[view]);
+    }
+  };
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -322,25 +345,37 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
-              <button onClick={() => setActiveSubView('calendar')} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-56 justify-center">
-                <div className="w-14 h-14 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform"><Calendar className="w-7 h-7 text-white" /></div>
-                <h3 className="text-xl font-black text-slate-900 mb-1">Agendar Veículo</h3>
-                <p className="text-slate-500 text-xs font-medium">Mapa de Disponibilidade.</p>
-              </button>
-
-              <button onClick={() => setActiveSubView('history')} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-56 justify-center">
-                <div className="w-14 h-14 bg-purple-600 rounded-xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform"><History className="w-7 h-7 text-white" /></div>
-                <h3 className="text-xl font-black text-slate-900 mb-1">Histórico de Agendamentos de Veiculos</h3>
-                <p className="text-slate-500 text-xs font-medium">Consulta de Registros.</p>
-              </button>
-
-              <button onClick={() => setActiveSubView('approvals')} className="group p-8 bg-white border border-slate-200 rounded-[2rem] shadow-lg hover:shadow-xl transition-all flex flex-col items-center text-center h-56 justify-center relative">
-                <div className="w-14 h-14 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform">
-                  <ShieldCheck className="w-7 h-7 text-white" />
-                  {pendingApprovals > 0 && (<span className="absolute -top-2 -right-2 w-6 h-6 bg-rose-600 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm animate-bounce">{pendingApprovals}</span>)}
+              <button onClick={() => handleSubViewChange('calendar')} className="flex flex-col items-center justify-center gap-4 bg-white p-8 rounded-[3rem] shadow-xl shadow-indigo-900/5 hover:scale-[1.02] hover:shadow-2xl hover:shadow-indigo-900/10 transition-all group border border-white cursor-pointer relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 via-indigo-500/0 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-[2rem] flex items-center justify-center shadow-sm group-hover:rotate-3 transition-transform duration-500">
+                  <Calendar className="w-10 h-10" />
                 </div>
-                <h3 className="text-xl font-black text-slate-900 mb-1">Aprovação de Veiculos</h3>
-                <p className="text-slate-500 text-xs font-medium">Fila de Triagem.</p>
+                <div className="text-center relative z-10">
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-1">Agendar Veículo</h3>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Solicitar nova viagem</p>
+                </div>
+              </button>
+
+              <button onClick={() => handleSubViewChange('history')} className="flex flex-col items-center justify-center gap-4 bg-white p-8 rounded-[3rem] shadow-xl shadow-emerald-900/5 hover:scale-[1.02] hover:shadow-2xl hover:shadow-emerald-900/10 transition-all group border border-white cursor-pointer relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 via-emerald-500/0 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-[2rem] flex items-center justify-center shadow-sm group-hover:-rotate-3 transition-transform duration-500">
+                  <History className="w-10 h-10" />
+                </div>
+                <div className="text-center relative z-10">
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-1">Meus Agendamentos</h3>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Histórico e Status</p>
+                </div>
+              </button>
+
+              <button onClick={() => handleSubViewChange('approvals')} className="flex flex-col items-center justify-center gap-4 bg-white p-8 rounded-[3rem] shadow-xl shadow-amber-900/5 hover:scale-[1.02] hover:shadow-2xl hover:shadow-amber-900/10 transition-all group border border-white cursor-pointer relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 via-amber-500/0 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-[2rem] flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-500">
+                  <ShieldCheck className="w-10 h-10" />
+                </div>
+                <div className="text-center relative z-10">
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-1">Aprovações</h3>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Gestão de Solicitações</p>
+                </div>
               </button>
             </div>
           </div>
@@ -353,12 +388,13 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
     <div className="flex-1 flex flex-col overflow-hidden animate-fade-in h-full">
       <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 z-20">
         <div className="flex items-center gap-4">
-          <button onClick={() => setActiveSubView('menu')} className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold transition-all p-2 rounded-xl">
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            <span className="text-xs uppercase tracking-widest">Voltar</span>
+          <button onClick={() => handleSubViewChange('menu')} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 shadow-sm transition-all active:scale-95">
+            <ArrowLeft className="w-6 h-6" />
           </button>
-          <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
-          <div><h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2"><Calendar className="w-5 h-5 text-indigo-600" />Mapa de Disponibilidade</h2></div>
+          <div>
+            <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight leading-none">Agendar Veículo</h2>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Nova Solicitação</p>
+          </div>
         </div>
         <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
           <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="p-2 hover:bg-white hover:shadow-sm rounded-xl text-slate-600 transition-all"><ChevronLeft className="w-5 h-5" /></button>
@@ -436,7 +472,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
           vehicles={vehicles}
           persons={persons}
           onViewDetails={(s) => { setViewingSchedule(s); setIsViewModalOpen(true); }}
-          onBack={() => setActiveSubView('menu')}
+          onBack={() => handleSubViewChange('menu')}
         />
       )}
       {activeSubView === 'approvals' && (
@@ -447,7 +483,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
           sectors={sectors}
           onApprove={(s) => onUpdateSchedule({ ...s, status: 'confirmado' })}
           onReject={(s) => onUpdateSchedule({ ...s, status: 'cancelado' })}
-          onBack={() => setActiveSubView('menu')}
+          onBack={() => handleSubViewChange('menu')}
         />
       )}
       {selectedDay && createPortal(
