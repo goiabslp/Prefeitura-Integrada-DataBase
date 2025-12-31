@@ -192,7 +192,7 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                       {/* Lado Direito: Status e Ações */}
                       <div className={`flex items-center gap-2 shrink-0 lg:self-center self-start ${statusMenuOpen === s.id ? 'z-[60]' : 'z-[5]'}`}>
                         {/* Status Badge - Clickable */}
-                        <div className="relative">
+                        <div className="relative group/tooltip">
                           <button
                             onClick={() => setStatusMenuOpen(statusMenuOpen === s.id ? null : s.id)}
                             className={`px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest shadow-sm backdrop-blur-sm bg-${cfg.color}-50/80 text-${cfg.color}-700 border-${cfg.color}-200 flex items-center gap-1.5 hover:shadow-md hover:-translate-y-0.5 transition-all active:scale-95`}
@@ -200,6 +200,20 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                             <cfg.icon className="w-3 h-3" /> {cfg.label}
                             {s.status !== 'cancelado' && <ChevronDown className="w-2.5 h-2.5 opacity-50" />}
                           </button>
+
+                          {/* Modern Custom Tooltip */}
+                          {s.status === 'confirmado' && s.authorizedByName && (
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max px-4 py-2 bg-slate-900/95 backdrop-blur-md text-white rounded-xl shadow-xl border border-white/10 opacity-0 group-hover/tooltip:opacity-100 -translate-y-2 group-hover/tooltip:translate-y-0 transition-all duration-300 pointer-events-none z-[70]">
+                              <div className="flex flex-col items-center gap-0.5">
+                                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none">Autorizado por</span>
+                                <span className="text-[10px] font-black tracking-wide bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                                  {s.authorizedByName}
+                                </span>
+                              </div>
+                              {/* Arrow */}
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-b-[6px] border-b-slate-900/95 border-r-[6px] border-r-transparent"></div>
+                            </div>
+                          )}
 
                           {/* Quick Status Menu (Cancellation) */}
                           {statusMenuOpen === s.id && s.status !== 'cancelado' && s.requesterId === currentUserId && (

@@ -249,4 +249,5 @@ export interface VehicleSchedule {
   requesterId: string;
   createdAt: string;
   vehicleLocation?: string;
+  authorizedByName?: string;
 }

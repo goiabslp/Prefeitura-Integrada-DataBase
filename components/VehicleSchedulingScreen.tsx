@@ -499,7 +499,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
           vehicles={vehicles}
           persons={persons}
           sectors={sectors}
-          onApprove={(s) => onUpdateSchedule({ ...s, status: 'confirmado' })}
+          onApprove={(s) => onUpdateSchedule({ ...s, status: 'confirmado', authorizedByName: currentUserName })}
           onReject={(s) => onUpdateSchedule({ ...s, status: 'cancelado' })}
           onBack={() => handleSubViewChange('menu')}
           currentUserId={currentUserId}
