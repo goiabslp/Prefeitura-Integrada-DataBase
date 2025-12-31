@@ -439,6 +439,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
           schedules={schedules}
           vehicles={vehicles}
           persons={persons}
+          sectors={sectors}
           onViewDetails={(s) => { setViewingSchedule(s); setIsViewModalOpen(true); }}
           onBack={() => handleSubViewChange('menu')}
         />

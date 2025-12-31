@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Search, History, Car, User, MapPin, Clock, Eye, Filter, Calendar, ArrowLeft } from 'lucide-react';
-import { Vehicle, Person, VehicleSchedule, ScheduleStatus } from '../types';
+import { Search, History, Car, User, MapPin, Clock, Eye, Filter, Calendar, ArrowLeft, Building2, Target } from 'lucide-react';
+import { Vehicle, Person, VehicleSchedule, ScheduleStatus, Sector } from '../types';
 
 interface VehicleScheduleHistoryProps {
   schedules: VehicleSchedule[];
   vehicles: Vehicle[];
   persons: Person[];
+  sectors: Sector[];
   onViewDetails: (s: VehicleSchedule) => void;
   onBack?: () => void;
 }
@@ -30,10 +31,12 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
   schedules,
   vehicles,
   persons,
+  sectors,
   onViewDetails,
   onBack
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewingPurpose, setViewingPurpose] = useState<VehicleSchedule | null>(null);
 
   const filtered = useMemo(() => {
     return schedules
@@ -52,7 +55,7 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
   }, [schedules, vehicles, persons, searchTerm]);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden animate-fade-in bg-slate-50 p-6 md:p-8">
+    <div className="flex-1 flex flex-col overflow-hidden animate-fade-in bg-slate-50 p-6 md:p-8 relative">
       <div className="max-w-6xl mx-auto w-full space-y-6 flex flex-col h-full">
         {onBack && (
           <button onClick={onBack} className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold w-fit transition-all">
@@ -80,37 +83,120 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
               filtered.map(s => {
                 const v = vehicles.find(veh => veh.id === s.vehicleId);
                 const d = persons.find(p => p.id === s.driverId);
+                const requesterPerson = persons.find(p => p.id === s.requesterPersonId);
+                const sector = sectors.find(sec => sec.id === s.serviceSectorId);
                 const cfg = STATUS_MAP[s.status];
 
                 return (
-                  <div key={s.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 group relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-100 group-hover:bg-slate-900 transition-colors"></div>
+                  <div key={s.id} className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(99,102,241,0.15)] transition-all duration-300 hover:-translate-y-1 flex flex-col gap-3 group relative overflow-hidden">
 
-                    <div className="flex items-center gap-6 flex-1 ml-2">
-                      <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all shrink-0">
-                        <Car className="w-8 h-8" />
+                    {/* Decorative Elements */}
+                    <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none">
+                      <Car className="w-24 h-24 text-indigo-900 transform rotate-12 translate-x-8 -translate-y-8" />
+                    </div>
+
+                    {/* Cabeçalho do Card */}
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 relative z-10">
+                      {/* Lado Esquerdo: Veículo e Informações Principais */}
+                      <div className="flex flex-col lg:flex-row gap-4 lg:items-center flex-1">
+
+                        {/* Veículo Icon & Info */}
+                        <div className="flex items-center gap-4 shrink-0">
+                          <div className="w-12 h-12 bg-gradient-to-br from-indigo-50 to-slate-50 rounded-2xl flex items-center justify-center text-indigo-400 group-hover:text-indigo-600 group-hover:scale-110 transition-all duration-300 shadow-inner border border-white">
+                            <Car className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight group-hover:text-indigo-700 transition-colors">{v?.model || 'Desconhecido'}</h4>
+                            <span className="inline-block mt-0.5 font-mono text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200 uppercase tracking-wider">{v?.plate || '---'}</span>
+                          </div>
+                        </div>
+
+                        {/* Divider Mobile/Desktop */}
+                        <div className="hidden lg:block w-px h-10 bg-slate-100 mx-1"></div>
+
+                        {/* Informações de Viagem (Datas e Destino) - Header */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
+                          <div className="group/item flex flex-col gap-1.5">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Calendar className="w-3 h-3" /> Saída</p>
+                            <div className="w-12 h-14 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center shadow-sm shrink-0 group-hover/item:border-indigo-200 group-hover/item:shadow-indigo-500/10 transition-all p-1">
+                              <span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-0.5">
+                                {new Date(s.departureDateTime).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
+                              </span>
+                              <span className="text-lg font-black text-slate-700 leading-none group-hover/item:text-indigo-600 transition-colors mb-0.5">
+                                {new Date(s.departureDateTime).getDate()}
+                              </span>
+                              <span className="text-[8px] font-bold text-slate-500 bg-slate-50 px-1 py-px rounded border border-slate-100">
+                                {new Date(s.departureDateTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="group/item flex flex-col gap-1.5">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Calendar className="w-3 h-3" /> Retorno</p>
+                            {s.returnDateTime ? (
+                              <div className="w-12 h-14 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center shadow-sm shrink-0 group-hover/item:border-indigo-200 group-hover/item:shadow-indigo-500/10 transition-all p-1">
+                                <span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-0.5">
+                                  {new Date(s.returnDateTime).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
+                                </span>
+                                <span className="text-lg font-black text-slate-700 leading-none group-hover/item:text-indigo-600 transition-colors mb-0.5">
+                                  {new Date(s.returnDateTime).getDate()}
+                                </span>
+                                <span className="text-[8px] font-bold text-slate-500 bg-slate-50 px-1 py-px rounded border border-slate-100">
+                                  {new Date(s.returnDateTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="w-12 h-14 bg-slate-50 rounded-xl border border-slate-100 flex flex-col items-center justify-center shrink-0">
+                                <span className="text-[10px] font-black text-slate-300">--</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="group/item overflow-hidden flex flex-col justify-center">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5 group-hover/item:text-indigo-500 transition-colors"><MapPin className="w-3 h-3" /> Destino</p>
+                            <p className="text-xs font-bold text-slate-700 truncate" title={s.destination}>{s.destination}</p>
+                          </div>
+
+                          {/* Botão Ver Motivo - No Header */}
+                          <div className="flex items-center">
+                            <button
+                              onClick={() => setViewingPurpose(s)}
+                              className="w-full px-3 py-2 bg-indigo-50 border border-indigo-100 text-indigo-600 text-[9px] font-bold uppercase tracking-wide rounded-xl hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 group/btn"
+                            >
+                              <Target className="w-3.5 h-3.5 group-hover/btn:scale-110 transition-transform" /> Ver Motivo da Viagem
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-3">
-                          <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight truncate">{v?.model || 'Desconhecido'}</h4>
-                          <span className="font-mono text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 uppercase">{v?.plate || '---'}</span>
+
+                      {/* Lado Direito: Status e Ações */}
+                      <div className="flex items-center gap-2 shrink-0 lg:self-center self-start">
+                        <div className={`px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest shadow-sm backdrop-blur-sm bg-${cfg.color}-50/80 text-${cfg.color}-700 border-${cfg.color}-200 flex items-center gap-1.5`}>
+                          <cfg.icon className="w-3 h-3" /> {cfg.label}
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 mt-1.5 text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                          <span className="flex items-center gap-2"><User className="w-4 h-4 text-slate-300" /> {d?.name || '---'}</span>
-                          <span className="flex items-center gap-2 text-indigo-600"><MapPin className="w-4 h-4" /> {s.destination}</span>
-                        </div>
+                        <button onClick={() => onViewDetails(s)} className="p-2 bg-white border border-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white hover:border-slate-900 rounded-lg transition-all active:scale-95 shadow-sm hover:shadow-md"><Eye className="w-4 h-4" /></button>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-6 shrink-0 md:border-l md:border-slate-100 md:pl-8">
-                      <div className="text-right">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Partida em</p>
-                        <p className="text-sm font-black text-slate-800">{new Date(s.departureDateTime).toLocaleString('pt-BR')}</p>
+                    {/* Grid de Informações Secundárias */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-slate-50/80 rounded-2xl border border-slate-100 relative z-10 transition-colors group-hover:bg-indigo-50/30 group-hover:border-indigo-100/50">
+                      {/* Solicitante */}
+                      <div className="space-y-0.5">
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><User className="w-3 h-3" /> Solicitante</p>
+                        <p className="text-[10px] font-bold text-slate-600 truncate" title={requesterPerson?.name}>{requesterPerson?.name || '---'}</p>
                       </div>
-                      <div className={`px-5 py-2.5 rounded-full border text-[10px] font-black uppercase tracking-widest bg-${cfg.color}-50 text-${cfg.color}-700 border-${cfg.color}-200 flex items-center gap-2.5`}>
-                        <cfg.icon className="w-4 h-4" /> {cfg.label}
+
+                      {/* Motorista */}
+                      <div className="space-y-0.5">
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><User className="w-3 h-3" /> Motorista</p>
+                        <p className="text-[10px] font-bold text-slate-600 truncate" title={d?.name}>{d?.name || '---'}</p>
                       </div>
-                      <button onClick={() => onViewDetails(s)} className="p-3 bg-slate-100 text-slate-400 hover:bg-indigo-600 hover:text-white rounded-xl transition-all active:scale-95"><Eye className="w-5 h-5" /></button>
+
+                      {/* Setor */}
+                      <div className="space-y-0.5">
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Building2 className="w-3 h-3" /> Setor</p>
+                        <p className="text-[10px] font-bold text-slate-600 truncate" title={sector?.name}>{sector?.name || '---'}</p>
+                      </div>
                     </div>
                   </div>
                 );
@@ -132,6 +218,40 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal de Visualização do Objetivo */}
+      {viewingPurpose && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-slide-up">
+            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                  <Target className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Objetivo da Viagem</h3>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Detalhes do Agendamento</p>
+                </div>
+              </div>
+              <button onClick={() => setViewingPurpose(null)} className="p-3 hover:bg-white hover:shadow-md rounded-2xl text-slate-400 hover:text-slate-900 transition-all active:scale-90"><X className="w-6 h-6" /></button>
+            </div>
+
+            <div className="p-8">
+              <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-6 relative">
+                <p className="text-base text-slate-700 font-medium leading-relaxed">
+                  "{viewingPurpose.purpose}"
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 border-t border-slate-100 shrink-0">
+              <button onClick={() => setViewingPurpose(null)} className="w-full py-4 bg-slate-900 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl hover:bg-indigo-600 transition-all">
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
