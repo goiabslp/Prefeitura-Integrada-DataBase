@@ -14,6 +14,7 @@ import * as comprasService from './services/comprasService';
 import * as diariasService from './services/diariasService';
 import * as counterService from './services/counterService';
 import * as signatureService from './services/signatureService';
+import * as vehicleSchedulingService from './services/vehicleSchedulingService';
 import { Send, CheckCircle2, X } from 'lucide-react';
 
 // Components
@@ -232,7 +233,9 @@ const App: React.FC = () => {
       const savedVehicles = await entityService.getVehicles();
       setVehicles(savedVehicles);
 
-      const savedSchedules = await db.getAllSchedules();
+
+
+      const savedSchedules = await vehicleSchedulingService.getSchedules();
       setSchedules(savedSchedules);
 
       const counterValue = await db.getGlobalCounter();
@@ -1026,7 +1029,29 @@ const App: React.FC = () => {
           />
         )}
         {currentView === 'vehicle-scheduling' && currentUser && (
-          <VehicleSchedulingScreen schedules={schedules} vehicles={vehicles} persons={persons} sectors={sectors} onAddSchedule={s => { db.saveSchedule(s); setSchedules(prev => [...prev, s]); }} onUpdateSchedule={s => { db.saveSchedule(s); setSchedules(prev => prev.map(x => x.id === s.id ? s : x)); }} onDeleteSchedule={id => { db.deleteSchedule(id); setSchedules(prev => prev.filter(x => x.id !== id)); }} onBack={handleGoHome} currentUserId={currentUser.id} />
+          <VehicleSchedulingScreen
+            schedules={schedules}
+            vehicles={vehicles}
+            persons={persons}
+            sectors={sectors}
+            onAddSchedule={async (s) => {
+              const newSchedule = await vehicleSchedulingService.createSchedule(s);
+              if (newSchedule) setSchedules(prev => [...prev, newSchedule]);
+              else alert("Erro ao criar agendamento");
+            }}
+            onUpdateSchedule={async (s) => {
+              const updated = await vehicleSchedulingService.updateSchedule(s);
+              if (updated) setSchedules(prev => prev.map(x => x.id === s.id ? updated : x));
+              else alert("Erro ao atualizar agendamento");
+            }}
+            onDeleteSchedule={async (id) => {
+              const success = await vehicleSchedulingService.deleteSchedule(id);
+              if (success) setSchedules(prev => prev.filter(x => x.id !== id));
+              else alert("Erro ao excluir agendamento");
+            }}
+            onBack={handleGoHome}
+            currentUserId={currentUser.id}
+          />
         )}
       </div>
 

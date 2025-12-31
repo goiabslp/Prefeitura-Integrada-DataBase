@@ -12,17 +12,19 @@ import {
   PackageCheck, Sparkles, Truck, CheckCircle, Activity, Flame,
   Building2, ArrowRightLeft, UserCircle, Landmark
 } from 'lucide-react';
+import { DateTimePickerModal } from './DateTimePickerModal';
 import { VehicleScheduleHistory } from './VehicleScheduleHistory';
 import { VehicleScheduleApprovals } from './VehicleScheduleApprovals';
+import { SelectionModal } from './SelectionModal';
 
 interface VehicleSchedulingScreenProps {
   schedules: VehicleSchedule[];
   vehicles: Vehicle[];
   persons: Person[];
   sectors: Sector[];
-  onAddSchedule: (s: VehicleSchedule) => void;
-  onUpdateSchedule: (s: VehicleSchedule) => void;
-  onDeleteSchedule: (id: string) => void;
+  onAddSchedule: (s: Omit<VehicleSchedule, 'id' | 'createdAt'>) => Promise<void>;
+  onUpdateSchedule: (s: VehicleSchedule) => Promise<void>;
+  onDeleteSchedule: (id: string) => Promise<void>;
   onBack: () => void;
   currentUserId: string;
 }
@@ -47,7 +49,8 @@ const HOLIDAYS: Record<string, string> = {
   '25-12': 'Natal',
 };
 
-const COMMON_CITIES = [
+// Initial common cities to show before fetching or while loading
+const INITIAL_CITIES = [
   'SÃO JOSÉ DO GOIABAL - MG', 'JOÃO MONLEVADE - MG', 'BELO HORIZONTE - MG',
   'IPATINGA - MG', 'ITABIRA - MG', 'ALVINÓPOLIS - MG', 'RIO PIRACICABA - MG',
   'PONTE NOVA - MG', 'DOM SILVÉRIO - MG', 'DIONÍSIO - MG', 'SÃO DOMINGOS DO PRATA - MG'
@@ -70,19 +73,40 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<VehicleSchedule | null>(null);
   const [viewingSchedule, setViewingSchedule] = useState<VehicleSchedule | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [cities, setCities] = useState<string[]>(INITIAL_CITIES);
 
-  const [isVehicleDropdownOpen, setIsVehicleDropdownOpen] = useState(false);
-  const [isDriverDropdownOpen, setIsDriverDropdownOpen] = useState(false);
-  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
-  const [isSectorDropdownOpen, setIsSectorDropdownOpen] = useState(false);
-  const [isRequesterDropdownOpen, setIsRequesterDropdownOpen] = useState(false);
+  useEffect(() => {
+    // Fetch all cities from IBGE
+    const fetchCities = async () => {
+      try {
+        const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/municipios');
+        if (!response.ok) throw new Error('Failed to fetch cities');
+        const data = await response.json();
+        // Format: "CITY NAME - UF"
+        const formattedCities = data.map((c: any) => {
+          const name = c.nome?.toUpperCase() || 'DESCONHECIDO';
+          const uf = c.microrregiao?.mesorregiao?.UF?.sigla || 'BR';
+          return `${name} - ${uf}`;
+        }).sort((a: string, b: string) => a.localeCompare(b, 'pt-BR'));
 
-  const [vehicleSearch, setVehicleSearch] = useState('');
-  const [driverSearch, setDriverSearch] = useState('');
-  const [citySearch, setCitySearch] = useState('');
-  const [sectorSearch, setSectorSearch] = useState('');
-  const [requesterSearch, setRequesterSearch] = useState('');
+        setCities(formattedCities);
+        // Optional: showToast("Lista de cidades atualizada.", "success");
+      } catch (error: any) {
+        console.error("Error fetching cities:", error);
+        showToast("Erro ao carregar cidades. Usando lista básica.", "error");
+        // Fallback to initial list if fails
+      }
+    };
+    fetchCities();
+  }, []);
+
+  type SelectionField = 'vehicle' | 'driver' | 'sector' | 'requester' | 'city' | null;
+  const [activeSelectionField, setActiveSelectionField] = useState<SelectionField>(null);
+
+  const [activeDateField, setActiveDateField] = useState<'departure' | 'return' | null>(null);
 
   const [toast, setToast] = useState<{ show: boolean, message: string, type: 'error' | 'success' | 'warning' }>({
     show: false, message: '', type: 'error'
@@ -93,14 +117,6 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
     departureDateTime: '', returnDateTime: '', destination: '', purpose: '', status: 'pendente',
     vehicleLocation: ''
   });
-
-  const refs = {
-    vehicle: useRef<HTMLDivElement>(null),
-    driver: useRef<HTMLDivElement>(null),
-    city: useRef<HTMLDivElement>(null),
-    sector: useRef<HTMLDivElement>(null),
-    requester: useRef<HTMLDivElement>(null)
-  };
 
   const showToast = (message: string, type: 'error' | 'success' | 'warning' = 'error') => {
     setToast({ show: true, message, type });
@@ -120,17 +136,13 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
     return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
   };
 
+  const formatDateDisplay = (isoString?: string) => {
+    if (!isoString) return 'Selecione a data/hora...';
+    return new Date(isoString).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  };
+
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (refs.vehicle.current && !refs.vehicle.current.contains(target)) setIsVehicleDropdownOpen(false);
-      if (refs.driver.current && !refs.driver.current.contains(target)) setIsDriverDropdownOpen(false);
-      if (refs.city.current && !refs.city.current.contains(target)) setIsCityDropdownOpen(false);
-      if (refs.sector.current && !refs.sector.current.contains(target)) setIsSectorDropdownOpen(false);
-      if (refs.requester.current && !refs.requester.current.contains(target)) setIsRequesterDropdownOpen(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    // Clean up or initial logic if needed
   }, []);
 
   const isVehicleAvailable = (vehicleId: string, start: string, end: string, excludeScheduleId?: string) => {
@@ -148,6 +160,60 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
 
       return (startTime < sEnd) && (endTime > sStart);
     });
+  };
+
+  const isDateBlocked = (date: Date) => {
+    if (!formData.vehicleId) return false;
+    // Check if the whole day is effectively blocked? 
+    // Or just check if there is ANY schedule? 
+    // User asked "bloquear os dias em que o carro selecionado não esteja disponivel"
+    // Interpretation: If the car has confirmed schedules for the *entire* operational day (e.g. 8-18), block it.
+    // Simpler interpretation (safer): If there are schedules that make it "busy", user might want to see them.
+    // But blocking the DATE implies NO possibility of scheduling.
+    // Let's block dates where there is a "full day" booking or significant overlap.
+    // Actually, simple "is there any schedule" might be too aggressive if I just need the car for 1 hour.
+    // Let's try: Block if there is a schedule that covers 08:00 to 18:00?
+    // Or better: Visual indication in calendar is usually binary (available/unavailable).
+    // Let's block only if the vehicle has a schedule that spans the *entire* day (starts before 9am, ends after 5pm?)
+    // Or maybe just check if there is a confirmed schedule that spans > 8 hours?
+
+    // Alternative Interpretation: "Bloquear os dias" might mean "Show as unavailable". 
+    // Let's stick to: If there is *any* confirmed schedule, maybe just style it differently? No, "block".
+
+    // Let's loop through schedules for this vehicle and this day.
+    const dayStart = new Date(date); dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(date); dayEnd.setHours(23, 59, 59, 999);
+
+    const dayStats = schedules.filter(s => {
+      if (s.vehicleId !== formData.vehicleId) return false;
+      if (s.status !== 'confirmado' && s.status !== 'em_curso') return false;
+      if (s.id === editingSchedule?.id) return false;
+
+      const sStart = new Date(s.departureDateTime).getTime();
+      const sEnd = new Date(s.returnDateTime).getTime();
+
+      return (sStart < dayEnd.getTime()) && (sEnd > dayStart.getTime());
+    });
+
+    // If there is a schedule that takes the WHOLE day (e.g. > 8 hours overlap within 8am-6pm window?)
+    // Let's define "Unavailable Day" as having > 4 hours of bookings? 
+    // Or just "Has any booking"?
+    // The prompt says "bloquear dias em que o carro não esteja disponível".
+    // If I want to book for 1 hour, a day with 1 hour booking IS available.
+    // So blocking the day prevents me from booking the available slots.
+    // THIS IS TRICKY.
+    // However, usually users want to see "Fully Booked" days. 
+    // I will assume for now that if the user wants to "Block the days", they mean days that are FULLY occupied.
+    // Let's say if total duration of bookings > 12 hours? Or simply if there is a booking that starts <= 8am and ends >= 18pm.
+
+    const isFullyBooked = dayStats.some(s => {
+      const sStart = new Date(s.departureDateTime);
+      const sEnd = new Date(s.returnDateTime);
+      // Covers "business day" essentially
+      return sStart.getHours() <= 9 && sEnd.getHours() >= 17;
+    });
+
+    return isFullyBooked;
   };
 
   const calendarData = useMemo(() => {
@@ -185,7 +251,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.vehicleId || !formData.driverId || !formData.departureDateTime || !formData.returnDateTime || !formData.destination || !formData.requesterPersonId || !formData.serviceSectorId) {
       showToast("Preencha todos os campos obrigatórios.", "warning");
       return;
@@ -205,15 +271,36 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
       showToast("Este veículo já possui um agendamento CONFIRMADO neste período.", "error");
       return;
     }
-    const data = {
-      ...formData,
-      id: editingSchedule ? editingSchedule.id : Date.now().toString(),
-      requesterId: currentUserId,
-      createdAt: editingSchedule ? editingSchedule.createdAt : new Date().toISOString()
-    } as VehicleSchedule;
-    editingSchedule ? onUpdateSchedule(data) : onAddSchedule(data);
-    setIsModalOpen(false);
-    showToast(editingSchedule ? "Agendamento atualizado!" : "Agendamento realizado com sucesso!", "success");
+
+    setIsSaving(true);
+    try {
+      if (editingSchedule) {
+        // Update
+        const data = {
+          ...formData,
+          id: editingSchedule.id,
+          createdAt: editingSchedule.createdAt,
+          requesterId: editingSchedule.requesterId
+        } as VehicleSchedule;
+        await onUpdateSchedule(data);
+        showToast("Agendamento atualizado!", "success");
+      } else {
+        // Create
+        const data = {
+          ...formData,
+          requesterId: currentUserId,
+          // id and createdAt will be generated by backend
+        } as any; // Cast to any or strict omit type 
+        await onAddSchedule(data);
+        showToast("Agendamento realizado com sucesso!", "success");
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+      showToast("Erro ao processar agendamento. Tente novamente.", "error");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const pendingApprovals = schedules.filter(s => s.status === 'pendente').length;
@@ -392,7 +479,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                       const dayKey = `${String(selectedDay.getDate()).padStart(2, '0')}-${String(selectedDay.getMonth() + 1).padStart(2, '0')}`;
                       const holiday = HOLIDAYS[dayKey];
                       if (daySchedules.length === 0 && !holiday) return (<div className="py-20 flex flex-col items-center justify-center text-center space-y-4 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200"><div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200"><Calendar className="w-8 h-8" /></div><p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Nenhuma saída registrada para este dia.</p></div>);
-                      return (<>{holiday && (<div className="bg-rose-50 border border-rose-100 p-6 rounded-[2.5rem] flex items-center gap-5 mb-4 animate-fade-in shadow-sm"><div className="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-rose-600/20 rotate-3"><Gift className="w-6 h-6" /></div><div><span className="text-[9px] font-black text-rose-400 uppercase tracking-widest leading-none">Feriado Nacional</span><h4 className="text-lg font-black text-rose-900 leading-tight uppercase mt-0.5">{holiday}</h4></div></div>)}{daySchedules.map(s => { const v = vehicles.find(veh => veh.id === s.vehicleId); const d = persons.find(p => p.id === s.driverId); const sec = sectors.find(sec => sec.id === s.serviceSectorId); const cfg = STATUS_MAP[s.status]; const vehicleSector = sectors.find(sec => sec.id === v?.sectorId)?.name || 'Sem Setor'; const depDate = new Date(s.departureDateTime); const retDate = new Date(s.returnDateTime); const formatDT = (dt: Date) => dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); return (<div key={s.id} className="bg-white p-5 rounded-[2.5rem] border border-slate-200 flex flex-col gap-4 hover:shadow-xl transition-all group shadow-sm border-l-[6px]" style={{ borderLeftColor: `var(--tw-color-${cfg.color}-500)` }}><div className="flex justify-between items-center"><div className="flex items-center gap-4 min-w-0"><div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform bg-${cfg.color}-50 text-${cfg.color}-600`}><Car className="w-6 h-6" /></div><div className="min-w-0"><h4 className="text-lg font-black text-slate-900 uppercase tracking-tight truncate leading-none">{v?.model || 'Desconhecido'} <span className="text-slate-400 text-[10px] font-bold ml-1">{v?.brand}</span>{v?.sectorId && (<span className="text-[9px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded ml-2 align-middle">{vehicleSector}</span>)}</h4><div className="flex items-center gap-2 mt-1.5"><span className="font-mono text-[9px] font-bold text-white bg-slate-900 px-2 py-0.5 rounded-md tracking-wider">{v?.plate || '---'}</span></div></div></div><div className="flex items-center gap-1"><button onClick={() => { setViewingSchedule(s); setIsViewModalOpen(true); }} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><Eye className="w-4.5 h-4.5" /></button><button onClick={() => handleOpenModal(s)} className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"><Edit3 className="w-4.5 h-4.5" /></button></div></div><div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center"><div className="md:col-span-3"><div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest bg-${cfg.color}-50 text-${cfg.color}-700 border-${cfg.color}-200/50`}><cfg.icon className="w-3.5 h-3.5" /> {cfg.label}</div></div><div className="md:col-span-4 flex items-center gap-2 min-w-0"><UserIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" /><div className="flex flex-col min-w-0"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-0.5">Condutor Responsável</span><span className="text-xs font-bold text-slate-600 truncate">{d?.name || '---'}</span></div></div><div className="md:col-span-5 flex items-center gap-2 min-w-0"><MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" /><div className="flex flex-col min-w-0"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-0.5">Destino da Viagem</span><span className="text-xs font-black text-indigo-600 uppercase truncate" title={s.destination}>{s.destination}</span></div></div></div>{s.vehicleLocation && (<div className="flex items-center gap-2 mt-1 ml-1 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100 w-fit"><MapPin className="w-3 h-3 text-slate-400" /><span className="text-[8px] font-black text-slate-400 uppercase">Localização:</span><span className="text-[10px] font-bold text-slate-600">{s.vehicleLocation}</span></div>)}<div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3 border-t border-slate-50 items-center"><div className="md:col-span-8 flex items-center gap-2"><Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" /><div className="flex items-center gap-4"><div className="flex flex-col"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1">Saída</span><span className="bg-slate-50 px-2 py-1 rounded border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tighter">{formatDT(depDate)}</span></div><ArrowRight className="w-3 h-3 text-slate-300 mt-2" /><div className="flex flex-col"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1">Retorno</span><span className="bg-slate-50 px-2 py-1 rounded border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tighter">{formatDT(retDate)}</span></div></div></div><div className="md:col-span-4 flex items-center justify-end min-w-0"><div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 w-full md:w-auto"><Building2 className="w-3.5 h-3.5 text-indigo-500 shrink-0" /><div className="flex items-center gap-1.5 min-w-0"><span className="text-[8px] font-black text-slate-400 uppercase whitespace-nowrap shrink-0">Setor Atendido:</span><span className="text-[10px] font-bold text-slate-700 uppercase leading-tight">{sec?.name || 'Não informado'}</span></div></div></div></div></div>); })} </>);
+                      return (<>{holiday && (<div className="bg-rose-50 border border-rose-100 p-6 rounded-[2.5rem] flex items-center gap-5 mb-4 animate-fade-in shadow-sm"><div className="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-rose-600/20 rotate-3"><Gift className="w-6 h-6" /></div><div><span className="text-[9px] font-black text-rose-400 uppercase tracking-widest leading-none">Feriado Nacional</span><h4 className="text-lg font-black text-rose-900 leading-tight uppercase mt-0.5">{holiday}</h4></div></div>)}{daySchedules.map(s => { const v = vehicles.find(veh => veh.id === s.vehicleId); const d = persons.find(p => p.id === s.driverId); const sec = sectors.find(sec => sec.id === s.serviceSectorId); const cfg = STATUS_MAP[s.status]; const vehicleSector = sectors.find(sec => sec.id === v?.sectorId)?.name || 'Sem Setor'; const depDate = new Date(s.departureDateTime); const retDate = new Date(s.returnDateTime); const formatDT = (dt: Date) => dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); return (<div key={s.id} className="bg-white p-5 rounded-[2.5rem] border border-slate-200 flex flex-col gap-4 hover:shadow-xl transition-all group shadow-sm border-l-[6px]" style={{ borderLeftColor: `var(--tw-color-${cfg.color}-500)` }}><div className="flex justify-between items-center"><div className="flex items-center gap-4 min-w-0"><div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform bg-${cfg.color}-50 text-${cfg.color}-600`}><Car className="w-6 h-6" /></div><div className="min-w-0"><h4 className="text-lg font-black text-slate-900 uppercase tracking-tight truncate leading-none">{v?.model || 'Desconhecido'} <span className="text-slate-400 text-[10px] font-bold ml-1">{v?.brand}</span>{v?.sectorId && (<span className="text-[9px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded ml-2 align-middle">{vehicleSector}</span>)}</h4><div className="flex items-center gap-2 mt-1.5"><span className="font-mono text-[9px] font-bold text-white bg-slate-900 px-2 py-0.5 rounded-md tracking-wider">{v?.plate || '---'}</span></div></div></div><div className="flex items-center gap-1"><button onClick={() => { setViewingSchedule(s); setIsViewModalOpen(true); }} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><Eye className="w-4.5 h-4.5" /></button><button onClick={() => handleOpenModal(s)} className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"><Edit3 className="w-4.5 h-4.5" /></button></div></div><div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center"><div className="md:col-span-3"><div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest bg-${cfg.color}-50 text-${cfg.color}-700 border-${cfg.color}-200/50`}><cfg.icon className="w-3.5 h-3.5" /> {cfg.label}</div></div><div className="md:col-span-4 flex items-center gap-2 min-w-0"><UserIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" /><div className="flex flex-col min-w-0"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-0.5">Condutor Responsável</span><span className="text-xs font-bold text-slate-600 truncate">{d?.name || '---'}</span></div></div><div className="md:col-span-5 flex items-center gap-2 min-w-0"><MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" /><div className="flex flex-col min-w-0"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-0.5">Destino da Viagem</span><span className="text-xs font-black text-indigo-600 uppercase truncate" title={s.destination}>{s.destination}</span></div></div></div><div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3 border-t border-slate-50 items-center"><div className="md:col-span-8 flex items-center gap-2"><Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" /><div className="flex items-center gap-4"><div className="flex flex-col"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1">Saída</span><span className="bg-slate-50 px-2 py-1 rounded border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tighter">{formatDT(depDate)}</span></div><ArrowRight className="w-3 h-3 text-slate-300 mt-2" /><div className="flex flex-col"><span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1">Retorno</span><span className="bg-slate-50 px-2 py-1 rounded border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tighter">{formatDT(retDate)}</span></div></div></div><div className="md:col-span-4 flex items-center justify-end min-w-0"><div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 w-full md:w-auto"><div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0"><Building2 className="w-4 h-4 text-indigo-600" /></div><div className="flex flex-col min-w-0"><span className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Setor Atendido</span><span className="text-[10px] font-bold text-slate-800 uppercase leading-tight truncate">{sec?.name || 'Não informado'}</span></div></div></div></div></div>); })} </>);
                     })()}
                   </div>
                 </div>
@@ -423,7 +510,22 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                       })()}
                     </div>
                   ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4"><div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-300"><Clock className="w-8 h-8" /></div><div><p className="text-xs font-black text-slate-400 uppercase tracking-widest">Data Passada</p><p className="text-[10px] text-slate-400 font-medium mt-1 leading-relaxed">Não é permitido realizar agendamentos em períodos retroativos.</p></div></div>
+                    <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-6 bg-rose-50/50 m-4 rounded-[2.5rem] border border-rose-100/50">
+                      <div className="w-20 h-20 bg-rose-100 rounded-2xl flex items-center justify-center text-rose-500 shadow-xl shadow-rose-500/10 rotate-3">
+                        <AlertCircle className="w-10 h-10" />
+                      </div>
+                      <div className="max-w-xs mx-auto">
+                        <h3 className="text-lg font-black text-rose-900 uppercase tracking-tight mb-2">Data Passada</h3>
+                        <p className="text-xs font-bold text-rose-600/80 leading-relaxed uppercase tracking-wide">
+                          Não é permitido realizar agendamentos em períodos retroativos.
+                        </p>
+                        <div className="mt-4 px-4 py-2 bg-rose-100/50 rounded-xl border border-rose-200/50 inline-block">
+                          <p className="text-[10px] font-black text-rose-700 uppercase tracking-widest">
+                            Tente a partir de {new Date().toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -436,76 +538,100 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
       {isModalOpen && createPortal(
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xl animate-fade-in">
           <div className="bg-white rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] w-full max-w-5xl overflow-hidden flex flex-col animate-slide-up border border-white/20 max-h-[90vh]">
-            <div className="px-10 py-8 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
-              <div className="flex items-center gap-6">
-                <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl rotate-[-4deg] shrink-0"><Calendar className="w-8 h-8" /></div>
+            <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg rotate-[-4deg] shrink-0"><Calendar className="w-5 h-5" /></div>
                 <div>
-                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight leading-tight">{editingSchedule ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">O veículo ficará indisponível durante o intervalo se confirmado</p>
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-tight">{editingSchedule ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">O veículo ficará indisponível durante o intervalo se confirmado</p>
                 </div>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="p-3 bg-slate-50 hover:bg-rose-50 rounded-2xl text-slate-400 hover:text-rose-600 transition-all"><X className="w-6 h-6" /></button>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 bg-slate-50 hover:bg-rose-50 rounded-xl text-slate-400 hover:text-rose-600 transition-all"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-10 flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="relative" ref={refs.vehicle}>
+                <div>
                   <label className={labelClass}><Car className="w-3 h-3 inline mr-2" /> Veículo Operacional</label>
-                  <div onClick={() => setIsVehicleDropdownOpen(!isVehicleDropdownOpen)} className={`${inputClass} flex items-center justify-between cursor-pointer py-3.5 ${isVehicleDropdownOpen ? 'border-indigo-500 ring-4 ring-indigo-500/5 bg-white' : ''}`}>
-                    <span className={formData.vehicleId ? 'text-slate-900 font-bold' : 'text-slate-400'}>{vehicles.find(v => v.id === formData.vehicleId) ? `${vehicles.find(v => v.id === formData.vehicleId)?.brand} ${vehicles.find(v => v.id === formData.vehicleId)?.model}` : 'Selecione o veículo...'}</span>
-                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isVehicleDropdownOpen ? 'rotate-180' : ''}`} />
-                  </div>
-                  {isVehicleDropdownOpen && (
-                    <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-slide-up"><div className="p-3 bg-slate-50 border-b border-slate-100"><input type="text" placeholder="Filtrar por placa ou modelo..." autoFocus className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500" value={vehicleSearch} onChange={e => setVehicleSearch(e.target.value)} onClick={e => e.stopPropagation()} /></div><div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
-                      {vehicles.filter(v => v.status === 'operacional' && (v.model.toLowerCase().includes(vehicleSearch.toLowerCase()) || v.plate.toLowerCase().includes(vehicleSearch.toLowerCase()) || v.brand.toLowerCase().includes(vehicleSearch.toLowerCase()))).map(v => { const isAvail = isVehicleAvailable(v.id, formData.departureDateTime!, formData.returnDateTime!, editingSchedule?.id); const vehicleSector = sectors.find(s => s.id === v.sectorId)?.name || 'Sem Setor'; return (<button key={v.id} disabled={!isAvail} onClick={() => { setFormData({ ...formData, vehicleId: v.id }); setIsVehicleDropdownOpen(false); }} className={`w-full px-4 py-3 flex items-center justify-between rounded-xl transition-colors text-left group ${!isAvail ? 'opacity-30 grayscale cursor-not-allowed' : 'hover:bg-indigo-50'}`}><div className="flex flex-col"><div className="flex items-center gap-2"><span className={`text-sm font-black uppercase ${!isAvail ? 'text-slate-400' : 'text-slate-700 group-hover:text-indigo-700'}`}>{v.brand} {v.model}</span><span className="font-mono text-[9px] font-bold text-white bg-slate-900 px-1.5 py-0.5 rounded tracking-widest">{v.plate}</span></div><span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 flex items-center gap-1"><Landmark className="w-2.5 h-2.5" /> {vehicleSector}</span>{!isAvail && <span className="text-[8px] text-rose-500 font-black uppercase mt-1">Ocupado no período</span>}</div>{formData.vehicleId === v.id && <Check className="w-4 h-4 text-indigo-600" />}</button>); })}
-                    </div></div>
-                  )}
+                  <button onClick={() => setActiveSelectionField('vehicle')} className={`${inputClass} flex items-center justify-between hover:bg-white transition-all text-left`}>
+                    <span className={formData.vehicleId ? 'text-slate-900 font-bold' : 'text-slate-400'}>
+                      {vehicles.find(v => v.id === formData.vehicleId)
+                        ? `${vehicles.find(v => v.id === formData.vehicleId)?.brand} ${vehicles.find(v => v.id === formData.vehicleId)?.model} (${vehicles.find(v => v.id === formData.vehicleId)?.plate})`
+                        : 'Selecione o veículo...'}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  </button>
                 </div>
-                <div className="relative" ref={refs.driver}>
+
+                <div>
                   <label className={labelClass}><UserIcon className="w-3 h-3 inline mr-2" /> Motorista Responsável</label>
-                  <div onClick={() => setIsDriverDropdownOpen(!isDriverDropdownOpen)} className={`${inputClass} flex items-center justify-between cursor-pointer py-3.5 ${isDriverDropdownOpen ? 'border-indigo-500 ring-4 ring-indigo-500/5 bg-white' : ''}`}><span className={formData.driverId ? 'text-slate-900 font-bold' : 'text-slate-400'}>{persons.find(p => p.id === formData.driverId)?.name || 'Selecione o motorista...'}</span><ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isDriverDropdownOpen ? 'rotate-180' : ''}`} /></div>
-                  {isDriverDropdownOpen && (
-                    <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-slide-up"><div className="p-3 bg-slate-50 border-b border-slate-100"><input type="text" placeholder="Filtrar motorista..." autoFocus className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500" value={driverSearch} onChange={e => setDriverSearch(e.target.value)} onClick={e => e.stopPropagation()} /></div><div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
-                      {persons.filter(p => p.name.toLowerCase().includes(driverSearch.toLowerCase())).map(d => (<button key={d.id} onClick={() => { setFormData({ ...formData, driverId: d.id }); setIsDriverDropdownOpen(false); }} className="w-full px-4 py-3 flex items-center justify-between hover:bg-indigo-50 rounded-xl transition-colors text-left group"><span className="text-sm font-bold text-slate-700 group-hover:text-indigo-700">{d.name}</span>{formData.driverId === d.id && <Check className="w-4 h-4 text-indigo-600" />}</button>))}
-                    </div></div>
-                  )}
+                  <button onClick={() => setActiveSelectionField('driver')} className={`${inputClass} flex items-center justify-between hover:bg-white transition-all text-left`}>
+                    <span className={formData.driverId ? 'text-slate-900 font-bold' : 'text-slate-400'}>
+                      {persons.find(p => p.id === formData.driverId)?.name || 'Selecione o motorista...'}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  </button>
                 </div>
-                <div className="relative" ref={refs.requester}>
+
+                <div>
                   <label className={labelClass}><UserCircle className="w-3 h-3 inline mr-2 text-indigo-500" /> Solicitante (Requerente)</label>
-                  <div onClick={() => setIsRequesterDropdownOpen(!isRequesterDropdownOpen)} className={`${inputClass} flex items-center justify-between cursor-pointer py-3.5 ${isRequesterDropdownOpen ? 'border-indigo-500 ring-4 ring-indigo-500/5 bg-white' : ''}`}><span className={formData.requesterPersonId ? 'text-slate-900 font-bold' : 'text-slate-400'}>{persons.find(p => p.id === formData.requesterPersonId)?.name || 'Quem está solicitando?'}</span><ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isRequesterDropdownOpen ? 'rotate-180' : ''}`} /></div>
-                  {isRequesterDropdownOpen && (
-                    <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-slide-up"><div className="p-3 bg-slate-50 border-b border-slate-100"><input type="text" placeholder="Buscar pessoa..." autoFocus className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500" value={requesterSearch} onChange={e => setRequesterSearch(e.target.value)} onClick={e => e.stopPropagation()} /></div><div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
-                      {persons.filter(p => p.name.toLowerCase().includes(requesterSearch.toLowerCase())).map(p => (<button key={p.id} onClick={() => { setFormData({ ...formData, requesterPersonId: p.id }); setIsRequesterDropdownOpen(false); }} className="w-full px-4 py-3 flex items-center justify-between hover:bg-indigo-50 rounded-xl transition-colors text-left group"><div className="flex flex-col"><span className="text-sm font-bold text-slate-700 group-hover:text-indigo-700">{p.name}</span></div>{formData.requesterPersonId === p.id && <Check className="w-4 h-4 text-indigo-600" />}</button>))}
-                    </div></div>
-                  )}
+                  <button onClick={() => setActiveSelectionField('requester')} className={`${inputClass} flex items-center justify-between hover:bg-white transition-all text-left`}>
+                    <span className={formData.requesterPersonId ? 'text-slate-900 font-bold' : 'text-slate-400'}>
+                      {persons.find(p => p.id === formData.requesterPersonId)?.name || 'Quem está solicitando?'}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  </button>
                 </div>
-                <div className="relative" ref={refs.sector}>
+
+                <div>
                   <label className={labelClass}><Landmark className="w-3 h-3 inline mr-2 text-indigo-500" /> Setor de Atendimento</label>
-                  <div onClick={() => setIsSectorDropdownOpen(!isSectorDropdownOpen)} className={`${inputClass} flex items-center justify-between cursor-pointer py-3.5 ${isSectorDropdownOpen ? 'border-indigo-500 ring-4 ring-indigo-500/5 bg-white' : ''}`}><span className={formData.serviceSectorId ? 'text-slate-900 font-bold' : 'text-slate-400'}>{sectors.find(s => s.id === formData.serviceSectorId)?.name || 'Qual setor será atendido?'}</span><ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isSectorDropdownOpen ? 'rotate-180' : ''}`} /></div>
-                  {isSectorDropdownOpen && (
-                    <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-slide-up"><div className="p-3 bg-slate-50 border-b border-slate-100"><input type="text" placeholder="Buscar setor..." autoFocus className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500" value={sectorSearch} onChange={e => setSectorSearch(e.target.value)} onClick={e => e.stopPropagation()} /></div><div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
-                      {sectors.filter(s => s.name.toLowerCase().includes(sectorSearch.toLowerCase())).map(s => (<button key={s.id} onClick={() => { setFormData({ ...formData, serviceSectorId: s.id }); setIsSectorDropdownOpen(false); }} className="w-full px-4 py-3 flex items-center justify-between hover:bg-indigo-50 rounded-xl transition-colors text-left group"><span className="text-sm font-bold text-slate-700 group-hover:text-indigo-700">{s.name}</span>{formData.serviceSectorId === s.id && <Check className="w-4 h-4 text-indigo-600" />}</button>))}
-                    </div></div>
-                  )}
+                  <button onClick={() => setActiveSelectionField('sector')} className={`${inputClass} flex items-center justify-between hover:bg-white transition-all text-left`}>
+                    <span className={formData.serviceSectorId ? 'text-slate-900 font-bold' : 'text-slate-400'}>
+                      {sectors.find(s => s.id === formData.serviceSectorId)?.name || 'Qual setor será atendido?'}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  </button>
                 </div>
-                <div className="md:col-span-2 relative" ref={refs.city}>
-                  <label className={labelClass}><MapPin className="w-3 h-3 inline mr-2" /> Itinerário / Destino</label>
-                  <div onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)} className={`${inputClass} flex items-center justify-between cursor-pointer py-3.5 ${isCityDropdownOpen ? 'border-indigo-500 ring-4 ring-indigo-500/5 bg-white' : ''}`}><span className={formData.destination ? 'text-slate-900 font-bold' : 'text-slate-400'}>{formData.destination || 'Selecione a cidade...'}</span><ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isCityDropdownOpen ? 'rotate-180' : ''}`} /></div>
-                  {isCityDropdownOpen && (
-                    <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[350px]"><div className="p-3 bg-slate-50 border-b border-slate-100 flex flex-col gap-2 shrink-0"><input type="text" placeholder="Filtrar ou digitar cidade..." autoFocus className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-sm outline-none focus:border-indigo-500" value={citySearch} onChange={e => setCitySearch(e.target.value)} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter' && citySearch.trim()) { setFormData({ ...formData, destination: citySearch.toUpperCase() }); setIsCityDropdownOpen(false); setCitySearch(''); } }} /></div><div className="overflow-y-auto custom-scrollbar p-1">{COMMON_CITIES.filter(c => c.toLowerCase().includes(citySearch.toLowerCase())).map((city, idx) => (<button key={idx} onClick={() => { setFormData({ ...formData, destination: city }); setIsCityDropdownOpen(false); setCitySearch(''); }} className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-indigo-50 rounded-xl transition-colors text-left group"><span className="text-sm font-bold text-slate-700 group-hover:text-indigo-700">{city}</span>{formData.destination === city && <Check className="w-4 h-4 text-indigo-600" />}</button>))}</div></div>
-                  )}
-                </div>
+
                 <div className="md:col-span-2">
-                  <label className={labelClass}><MapPin className="w-3 h-3 inline mr-2 text-indigo-500" /> Localização do Veículo (Onde o veículo estará?)</label>
-                  <input value={formData.vehicleLocation} onChange={e => setFormData({ ...formData, vehicleLocation: e.target.value })} className={inputClass} placeholder="Ex: Pátio da Secretaria, Garagem Municipal, Praça Central..." />
+                  <label className={labelClass}><MapPin className="w-3 h-3 inline mr-2" /> Itinerário / Destino</label>
+                  <button onClick={() => setActiveSelectionField('city')} className={`${inputClass} flex items-center justify-between hover:bg-white transition-all text-left`}>
+                    <span className={formData.destination ? 'text-slate-900 font-bold' : 'text-slate-400'}>
+                      {formData.destination || 'Selecione ou busque a cidade...'}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  </button>
                 </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:col-span-2">
+
                   <div>
                     <label className={labelClass}><Clock className="w-3 h-3 inline mr-2" /> Início Agendamento</label>
-                    <input type="datetime-local" value={formData.departureDateTime} min={getLocalISOString()} onChange={e => setFormData({ ...formData, departureDateTime: e.target.value })} className={`${inputClass} h-[52px]`} />
+                    <button
+                      onClick={() => !formData.vehicleId ? showToast("Selecione um veículo antes de definir a data.", "warning") : setActiveDateField('departure')}
+                      disabled={!formData.vehicleId}
+                      className={`${inputClass} h-[52px] flex items-center justify-between transition-all text-left ${!formData.vehicleId ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'hover:bg-white'}`}
+                      title={!formData.vehicleId ? "Selecione um veículo primeiro" : ""}
+                    >
+                      <span className={formData.departureDateTime ? 'text-slate-900 font-bold' : 'text-slate-400'}>
+                        {formatDateDisplay(formData.departureDateTime)}
+                      </span>
+                      <Calendar className="w-4 h-4 text-slate-400" />
+                    </button>
+                    {/* Input Hidden for compatibility if needed, but we rely on state */}
                   </div>
                   <div>
                     <label className={labelClass}><Clock className="w-3 h-3 inline mr-2" /> Fim Agendamento</label>
-                    <input type="datetime-local" value={formData.returnDateTime} min={formData.departureDateTime || getLocalISOString()} onChange={e => setFormData({ ...formData, returnDateTime: e.target.value })} className={`${inputClass} h-[52px]`} />
+                    <button
+                      onClick={() => !formData.vehicleId ? showToast("Selecione um veículo antes de definir a data.", "warning") : setActiveDateField('return')}
+                      disabled={!formData.vehicleId}
+                      className={`${inputClass} h-[52px] flex items-center justify-between transition-all text-left ${!formData.vehicleId ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'hover:bg-white'}`}
+                      title={!formData.vehicleId ? "Selecione um veículo primeiro" : ""}
+                    >
+                      <span className={formData.returnDateTime ? 'text-slate-900 font-bold' : 'text-slate-400'}>
+                        {formatDateDisplay(formData.returnDateTime)}
+                      </span>
+                      <Calendar className="w-4 h-4 text-slate-400" />
+                    </button>
                   </div>
                 </div>
                 <div className="md:col-span-2"><label className={labelClass}><Info className="w-3 h-3 inline mr-2" /> Objetivo da Viagem</label><textarea value={formData.purpose} onChange={e => setFormData({ ...formData, purpose: e.target.value })} className={`${inputClass} min-h-[100px] resize-none pt-4`} placeholder="Descreva brevemente o motivo da saída..." /></div>
@@ -516,9 +642,12 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                 )}
               </div>
             </div>
-            <div className="p-10 border-t border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0">
-              <button onClick={() => setIsModalOpen(false)} className="px-8 py-4 font-black text-slate-400 hover:text-rose-600 transition-all uppercase text-[11px] tracking-[0.3em]">Descartar</button>
-              <button onClick={handleSave} className="px-12 py-5 bg-slate-900 text-white font-black rounded-3xl hover:bg-indigo-600 shadow-2xl flex items-center justify-center gap-4 transition-all uppercase text-[11px] tracking-[0.3em] active:scale-95"><Save className="w-5 h-5" /> {editingSchedule ? 'Atualizar Dados' : 'Confirmar Agendamento'}</button>
+            <div className="px-8 py-5 border-t border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0">
+              <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 font-black text-slate-400 hover:text-rose-600 transition-all uppercase text-[10px] tracking-[0.2em]" disabled={isSaving}>Descartar</button>
+              <button onClick={handleSave} disabled={isSaving} className="px-8 py-3 bg-slate-900 text-white font-black rounded-2xl hover:bg-indigo-600 shadow-xl flex items-center justify-center gap-3 transition-all uppercase text-[10px] tracking-[0.2em] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSaving ? 'Processando...' : (editingSchedule ? 'Atualizar Dados' : 'Confirmar Agendamento')}
+              </button>
             </div>
           </div>
         </div>,
@@ -563,6 +692,160 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
         </div>,
         document.body
       )}
+
+      {/* SELECTION MODALS */}
+      <SelectionModal
+        isOpen={activeSelectionField === 'vehicle'}
+        onClose={() => setActiveSelectionField(null)}
+        title="Selecionar Veículo"
+        subtitle="Escolha um veículo disponível para a viagem"
+        options={vehicles.filter(v => v.status === 'operacional')}
+        getInternalId={(v) => v.id}
+        searchPlaceholder="Buscar por modelo, placa ou marca..."
+        filterFunction={(v, query) => {
+          const lowerQuery = query.toLowerCase();
+          return v.model.toLowerCase().includes(lowerQuery) || v.plate.toLowerCase().includes(lowerQuery) || v.brand.toLowerCase().includes(lowerQuery);
+        }}
+        onSelect={(v) => setFormData({ ...formData, vehicleId: v.id })}
+        selectedItem={vehicles.find(v => v.id === formData.vehicleId)}
+        renderItem={(v, isSelected) => {
+          const vehicleSector = sectors.find(s => s.id === v.sectorId)?.name || 'Sem Setor';
+          const isAvail = isVehicleAvailable(v.id, formData.departureDateTime!, formData.returnDateTime!, editingSchedule?.id);
+
+          return (
+            <div className={`p-4 flex items-center gap-4 ${!isAvail ? 'opacity-50 grayscale' : ''}`}>
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
+                <Car className="w-6 h-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-sm font-black uppercase ${isSelected ? 'text-indigo-900' : 'text-slate-900'}`}>{v.brand} {v.model}</span>
+                  <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{v.plate}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1"><Landmark className="w-3 h-3" /> {vehicleSector}</span>
+                  {!isAvail && <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest ml-auto">Ocupado</span>}
+                </div>
+              </div>
+              {isSelected && <CheckCircle2 className="w-6 h-6 text-indigo-600 shrink-0" />}
+            </div>
+          );
+        }}
+      />
+
+      <SelectionModal
+        isOpen={activeSelectionField === 'driver'}
+        onClose={() => setActiveSelectionField(null)}
+        title="Selecionar Motorista"
+        subtitle="Quem será o condutor responsável?"
+        options={persons}
+        getInternalId={(p) => p.id}
+        searchPlaceholder="Buscar por nome..."
+        filterFunction={(p, query) => p.name.toLowerCase().includes(query.toLowerCase())}
+        onSelect={(p) => setFormData({ ...formData, driverId: p.id })}
+        selectedItem={persons.find(p => p.id === formData.driverId)}
+        renderItem={(p, isSelected) => (
+          <div className="p-4 flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isSelected ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
+              <UserIcon className="w-5 h-5" />
+            </div>
+            <span className={`text-sm font-bold flex-1 ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>{p.name}</span>
+            {isSelected && <Check className="w-5 h-5 text-indigo-600 shrink-0" />}
+          </div>
+        )}
+      />
+
+      <SelectionModal
+        isOpen={activeSelectionField === 'requester'}
+        onClose={() => setActiveSelectionField(null)}
+        title="Selecionar Solicitante"
+        subtitle="Quem está requisitando o veículo?"
+        options={persons}
+        getInternalId={(p) => p.id}
+        searchPlaceholder="Buscar por nome..."
+        filterFunction={(p, query) => p.name.toLowerCase().includes(query.toLowerCase())}
+        onSelect={(p) => setFormData({ ...formData, requesterPersonId: p.id })}
+        selectedItem={persons.find(p => p.id === formData.requesterPersonId)}
+        renderItem={(p, isSelected) => (
+          <div className="p-4 flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isSelected ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
+              <UserCircle className="w-5 h-5" />
+            </div>
+            <span className={`text-sm font-bold flex-1 ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>{p.name}</span>
+            {isSelected && <Check className="w-5 h-5 text-indigo-600 shrink-0" />}
+          </div>
+        )}
+      />
+
+      <SelectionModal
+        isOpen={activeSelectionField === 'sector'}
+        onClose={() => setActiveSelectionField(null)}
+        title="Setor de Atendimento"
+        subtitle="Para qual setor é esta viagem?"
+        options={sectors}
+        getInternalId={(s) => s.id}
+        searchPlaceholder="Buscar setor..."
+        filterFunction={(s, query) => s.name.toLowerCase().includes(query.toLowerCase())}
+        onSelect={(s) => setFormData({ ...formData, serviceSectorId: s.id })}
+        selectedItem={sectors.find(s => s.id === formData.serviceSectorId)}
+        renderItem={(s, isSelected) => (
+          <div className="p-4 flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
+              <Landmark className="w-5 h-5" />
+            </div>
+            <span className={`text-sm font-bold flex-1 uppercase ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>{s.name}</span>
+            {isSelected && <Check className="w-5 h-5 text-indigo-600 shrink-0" />}
+          </div>
+        )}
+      />
+
+
+      <SelectionModal
+        isOpen={activeSelectionField === 'city'}
+        onClose={() => setActiveSelectionField(null)}
+        title="Selecionar Destino"
+        subtitle="Qual a cidade de destino?"
+        options={cities}
+        getInternalId={(c) => c}
+        searchPlaceholder="Buscar cidade..."
+        filterFunction={(c, query) => {
+          const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+          return normalize(c).includes(normalize(query));
+        }}
+        initialFilter={(c) => c.endsWith(' - MG')} // Show only MG cities initially
+        onSelect={(c) => setFormData({ ...formData, destination: c })}
+        selectedItem={formData.destination}
+        renderItem={(c, isSelected) => (
+          <div className="p-4 flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
+              <MapPin className="w-5 h-5" />
+            </div>
+            <span className={`text-sm font-bold flex-1 ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>{c}</span>
+            {isSelected && <Check className="w-5 h-5 text-indigo-600 shrink-0" />}
+          </div>
+        )}
+      />
+
+      {/* DATE TIME PICKERS */}
+      <DateTimePickerModal
+        isOpen={activeDateField === 'departure'}
+        onClose={() => setActiveDateField(null)}
+        title="Início do Agendamento"
+        initialDate={formData.departureDateTime ? new Date(formData.departureDateTime) : undefined}
+        minDate={new Date()}
+        onSelect={(date) => setFormData({ ...formData, departureDateTime: getLocalISOString(date) })}
+        shouldDisableDate={isDateBlocked}
+      />
+
+      <DateTimePickerModal
+        isOpen={activeDateField === 'return'}
+        onClose={() => setActiveDateField(null)}
+        title="Fim do Agendamento"
+        initialDate={formData.returnDateTime ? new Date(formData.returnDateTime) : (formData.departureDateTime ? new Date(formData.departureDateTime) : undefined)}
+        minDate={formData.departureDateTime ? new Date(formData.departureDateTime) : new Date()}
+        onSelect={(date) => setFormData({ ...formData, returnDateTime: getLocalISOString(date) })}
+        shouldDisableDate={isDateBlocked}
+      />
     </div>
   );
 };
