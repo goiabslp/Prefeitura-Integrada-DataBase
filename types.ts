@@ -134,7 +134,7 @@ export type UserRole = 'admin' | 'collaborator' | 'licitacao' | 'compras';
 
 export type AppPermission = 'parent_criar_oficio' | 'parent_admin' | 'parent_compras' | 'parent_licitacao' | 'parent_diarias' | 'parent_compras_pedidos' | 'parent_frotas' | 'parent_agendamento_veiculo';
 
-export type BlockType = 'oficio' | 'compras' | 'licitacao' | 'diarias' | 'agendamento' | 'vs_calendar' | 'vs_history' | 'vs_approvals';
+export type BlockType = 'oficio' | 'compras' | 'licitacao' | 'diarias' | 'agendamento' | 'vs_calendar' | 'vs_history' | 'vs_approvals' | 'licitacao_screening';
 
 export interface User {
   id: string;
@@ -182,7 +182,7 @@ export interface Order {
   id: string;
   protocol: string;
   title: string;
-  status: 'pending' | 'completed' | 'canceled' | 'approved' | 'rejected';
+  status: 'pending' | 'completed' | 'canceled' | 'approved' | 'rejected' | 'awaiting_approval';
   purchaseStatus?: 'recebido' | 'coletando_orcamento' | 'aprovacao_orcamento' | 'coletando_dotacao' | 'realizado' | 'concluido' | 'cancelado';
   statusHistory?: StatusMovement[];
   createdAt: string;

@@ -6,7 +6,7 @@ import {
   FileDown, Calendar, Edit3, TrendingUp, Loader2,
   CheckCircle2, AlertCircle, CalendarCheck, Check, RotateCcw,
   Paperclip, PackageCheck, FileSearch, Scale, Landmark, ShoppingCart, CheckCircle, XCircle,
-  Eye, History, X, Lock, User, MessageCircle, Sparkles, Plus, Upload, Download, AlertTriangle, ShieldAlert, Zap, Info, Network, Trash
+  Eye, History, X, Lock, User, MessageCircle, Sparkles, Plus, Upload, Download, AlertTriangle, ShieldAlert, Zap, Info, Network, Trash, ArrowRight
 } from 'lucide-react';
 import { User as UserType, Order, AppState, BlockType, Attachment } from '../types';
 import { DocumentPreview } from './DocumentPreview';
@@ -33,6 +33,7 @@ interface TrackingScreenProps {
   onUpdateAttachments?: (orderId: string, attachments: Attachment[]) => void;
   totalCounter: number;
   onUpdatePaymentStatus?: (orderId: string, status: 'pending' | 'paid') => void;
+  onUpdateOrderStatus?: (orderId: string, status: Order['status']) => Promise<void>;
 }
 
 export const TrackingScreen: React.FC<TrackingScreenProps> = ({
@@ -46,7 +47,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
   onDeleteOrder,
   onUpdateAttachments,
   totalCounter,
-  onUpdatePaymentStatus
+  onUpdatePaymentStatus,
+  onUpdateOrderStatus
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -471,9 +473,36 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                             </span>
                           </div>
                           <div className="md:col-span-2 flex justify-center">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
-                              {order.status === 'pending' ? 'Em Andamento' : order.status === 'completed' ? 'Concluído' : order.status}
-                            </span>
+                            {order.status === 'pending' ? (
+                              <button
+                                onClick={() => setConfirmModal({
+                                  isOpen: true,
+                                  title: "Enviar Solicitação",
+                                  message: "Deseja enviar este processo para análise da Triagem? O status mudará para 'Em Aprovação'.",
+                                  type: 'warning',
+                                  onConfirm: async () => {
+                                    if (onUpdateOrderStatus) {
+                                      await onUpdateOrderStatus(order.id, 'awaiting_approval');
+                                    }
+                                    setConfirmModal({ ...confirmModal, isOpen: false });
+                                  }
+                                })}
+                                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-amber-500 hover:bg-amber-600 text-white shadow-sm shadow-amber-500/20 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95"
+                              >
+                                Enviar <ArrowRight className="w-3 h-3" />
+                              </button>
+                            ) : (
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                  order.status === 'awaiting_approval' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                    'bg-indigo-50 text-indigo-700 border-indigo-100' // approved or others
+                                }`}>
+                                {order.status === 'pending' ? 'Em Andamento' :
+                                  order.status === 'completed' ? 'Concluído' :
+                                    order.status === 'awaiting_approval' ? 'Em Aprovação' :
+                                      order.status === 'approved' ? 'Aprovado' :
+                                        order.status}
+                              </span>
+                            )}
                           </div>
                         </>
                       ) : null}

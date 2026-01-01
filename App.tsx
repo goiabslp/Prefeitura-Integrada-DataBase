@@ -39,6 +39,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { TwoFactorAuthScreen } from './components/TwoFactorAuthScreen';
 import { TwoFactorModal } from './components/TwoFactorModal';
 import { ProcessStepper } from './components/common/ProcessStepper';
+import { LicitacaoScreeningScreen } from './components/LicitacaoScreeningScreen';
 
 const VIEW_TO_PATH: Record<string, string> = {
   'login': '/Login',
@@ -46,6 +47,8 @@ const VIEW_TO_PATH: Record<string, string> = {
   'home:oficio': '/Oficios',
   'home:compras': '/Compras',
   'home:diarias': '/Diarias',
+  'home:licitacao': '/Licitacao',
+  'licitacao-screening': '/Licitacao/Triagem',
   'admin:dashboard': '/Admin/Dashboard',
   'admin:users': '/Admin/Usuarios',
   'admin:entities': '/Admin/Entidades',
@@ -74,7 +77,7 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 );
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling'>('login');
+  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening'>('login');
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
   const [appState, setAppState] = useState<AppState>(INITIAL_STATE);
   const [activeBlock, setActiveBlock] = useState<BlockType | null>(null);
@@ -128,6 +131,19 @@ const App: React.FC = () => {
   const [isFinalizedView, setIsFinalizedView] = useState(false);
 
   const [successOverlay, setSuccessOverlay] = useState<{ show: boolean, protocol: string } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'info' | 'warning' | 'error';
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: () => { }
+  });
   const [snapshotToDownload, setSnapshotToDownload] = useState<AppState | null>(null);
   const [blockTypeToDownload, setBlockTypeToDownload] = useState<BlockType | null>(null);
   const backgroundPreviewRef = useRef<HTMLDivElement>(null);
@@ -984,7 +1000,7 @@ const App: React.FC = () => {
     <div className="flex h-screen w-full overflow-hidden bg-slate-50 font-sans flex-col">
       {currentUser && <AppHeader currentUser={currentUser} uiConfig={appState.ui} activeBlock={activeBlock} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} onGoHome={handleGoHome} currentView={currentView} isRefreshing={isRefreshing} onRefresh={refreshData} />}
       <div className="flex-1 flex relative overflow-hidden">
-        {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} />}
+        {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onManageLicitacaoScreening={() => setCurrentView('licitacao-screening')} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} />}
         {(currentView === 'editor' || currentView === 'admin') && currentUser && (
           <div className="flex-1 flex flex-col overflow-hidden h-full relative">
             {/* GLOBAL STEPPER FOR LICITACAO */}
@@ -998,6 +1014,12 @@ const App: React.FC = () => {
                       currentStep={appState.content.viewingStageIndex ?? (appState.content.currentStageIndex || 0)}
                       maxCompletedStep={(appState.content.currentStageIndex || 0) - 1}
                       onStepClick={(idx) => {
+                        // Restrict stepper navigation: Only Admin or Licitacao
+                        if (currentUser.role !== 'admin' && currentUser.role !== 'licitacao') {
+                          alert("Acesso restrito. Apenas Administradores e Usuários da Licitação podem navegar pelo histórico.");
+                          return;
+                        }
+
                         setAppState(prev => {
                           const currentIdx = prev.content.currentStageIndex || 0;
                           const oldViewIdx = prev.content.viewingStageIndex ?? currentIdx;
@@ -1108,6 +1130,10 @@ const App: React.FC = () => {
                           const isBodyEmpty = !content.body || content.body.replace(/<[^>]*>?/gm, '').trim() === '';
 
                           let newHistoric = [...(content.licitacaoStages || [])];
+
+                          // Ensure array is large enough (fill holes with undefined if needed, though spread handles it)
+                          // We want to save at 'currentIdx'.
+
                           if (!isBodyEmpty) {
                             const currentStageData = {
                               id: Date.now().toString(),
@@ -1115,9 +1141,28 @@ const App: React.FC = () => {
                               body: content.body,
                               signatureName: content.signatureName,
                               signatureRole: content.signatureRole,
-                              signatureSector: content.signatureSector
+                              signatureSector: content.signatureSector,
+                              signatures: content.signatures || []
                             };
-                            newHistoric.push(currentStageData);
+                            // Save at specific index to maintain order even if previous stages were skipped/empty
+                            newHistoric[currentIdx] = currentStageData;
+                          } else {
+                            // If empty, we might want to explicitly set it to null/undefined or just do nothing
+                            // But to allow "going back and filling it", we should probably ensure the slot exists if we want strict indexing?
+                            // Actually, if we just don't set it, it's undefined.
+                            // But if we want to overwrite a previously filled stage with empty, we should delete it.
+                            // But here we are Advancing (Active), implying we just finished it.
+                            // If it WAS filled before (maybe we went back?), we should update it. 
+                            // Wait, "Advance Mode" logic is usually for the *latest* stage.
+                            // But if I go back to stage 1 (which was empty), edit it, and click "Concluir Etapa", 
+                            // does it trigger this "Advance" block or the "History" block?
+
+                            // It triggers "Update Mode (History)" if viewIdx < currentIdx.
+                            // So this "Advance" block is ONLY for the *current* active tip of the process.
+                            // So if I am at Stage 2 (Active) and finish it empty, I just don't save it.
+                            // But I need to ensure newHistoric has length.
+                            // Actually, relying on index assignment `newHistoric[currentIdx] = ...` handles sparse arrays perfectly.
+                            delete newHistoric[currentIdx]; // Ensure it's empty if body is empty (e.g. user cleared it)
                           }
 
                           nextAppState = {
@@ -1181,6 +1226,24 @@ const App: React.FC = () => {
                           setEditingOrder(orderToSave);
                           setAppState(nextAppState);
                           console.log(isHistory ? "History stage updated" : "Process advanced and saved");
+
+                          // SHOW MODAL IF THE NEWLY COMPLETED STAGE WAS "INÍCIO" (index 0 becoming 1)
+                          // Note: We just saved 'orderToSave'.
+                          // If currentIdx was 0, we just finished Início.
+                          if (!isHistory && currentIdx === 0) {
+                            setConfirmModal({
+                              isOpen: true,
+                              title: "Etapa Início Concluída",
+                              message: "O conteúdo foi salvo. Para prosseguir, acesse 'Meus Processos' e clique em 'Enviar' para encaminhar o processo para a Triagem.",
+                              type: 'info',
+                              onConfirm: () => {
+                                setConfirmModal({ ...confirmModal, isOpen: false });
+                                setActiveBlock('licitacao');
+                                setCurrentView('tracking');
+                              }
+                            });
+                          }
+
                         } catch (err) {
                           console.error("Failed to save process", err);
                           alert("Erro ao salvar. Tente novamente.");
@@ -1475,6 +1538,42 @@ const App: React.FC = () => {
             onUpdateAttachments={handleUpdateOrderAttachments}
             totalCounter={globalCounter}
             onUpdatePaymentStatus={handleUpdatePaymentStatus}
+            onUpdateOrderStatus={async (id, status) => {
+              if (activeBlock === 'licitacao') {
+                // Optimistic update
+                setLicitacaoProcesses(p => p.map(o => o.id === id ? { ...o, status } : o));
+                setOrders(p => p.map(o => o.id === id ? { ...o, status } : o));
+
+                // Persist
+                // We need to implement updateStatus in licitacaoService if not exists, or update the whole object
+                // Let's assume we can update the whole object for now or find the object
+                const order = licitacaoProcesses.find(o => o.id === id);
+                if (order) {
+                  await licitacaoService.saveLicitacaoProcess({ ...order, status });
+                }
+              }
+            }}
+          />
+        )}
+        {currentView === 'licitacao-screening' && currentUser && (
+          <LicitacaoScreeningScreen
+            onBack={handleBackToModule}
+            currentUser={currentUser}
+            orders={licitacaoProcesses}
+            onEditOrder={handleEditOrder}
+            onDeleteOrder={async (id) => {
+              await licitacaoService.deleteLicitacaoProcess(id);
+              setLicitacaoProcesses(p => p.filter(o => o.id !== id));
+              setOrders(p => p.filter(o => o.id !== id));
+            }}
+            onUpdateOrderStatus={async (id, status) => {
+              setLicitacaoProcesses(p => p.map(o => o.id === id ? { ...o, status } : o));
+              setOrders(p => p.map(o => o.id === id ? { ...o, status } : o));
+              const order = licitacaoProcesses.find(o => o.id === id);
+              if (order) {
+                await licitacaoService.saveLicitacaoProcess({ ...order, status });
+              }
+            }}
           />
         )}
         {currentView === 'purchase-management' && currentUser && (
@@ -1539,6 +1638,46 @@ const App: React.FC = () => {
           />
         )}
       </div>
+
+      {
+        confirmModal.isOpen && createPortal(
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl animate-fade-in">
+            <div className="w-full max-w-lg bg-white rounded-[2rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-scale-in">
+              <div className="p-8 text-center flex flex-col items-center">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 shadow-xl ${confirmModal.type === 'error' ? 'bg-rose-100 text-rose-600 shadow-rose-500/20' :
+                  confirmModal.type === 'warning' ? 'bg-amber-100 text-amber-600 shadow-amber-500/20' :
+                    'bg-blue-100 text-blue-600 shadow-blue-500/20'
+                  }`}>
+                  {confirmModal.type === 'error' ? <X className="w-8 h-8" /> :
+                    confirmModal.type === 'warning' ? <Send className="w-8 h-8" /> :
+                      <CheckCircle2 className="w-8 h-8" />}
+                </div>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2 uppercase">{confirmModal.title}</h3>
+                <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">{confirmModal.message}</p>
+
+                <div className="flex w-full gap-3">
+                  <button
+                    onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                    className="flex-1 py-3 text-slate-400 font-bold text-xs uppercase tracking-widest hover:bg-slate-50 rounded-xl transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmModal.onConfirm}
+                    className={`flex-1 py-3 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-[0.98] ${confirmModal.type === 'error' ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/20' :
+                      confirmModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20' :
+                        'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
+                      }`}
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      }
 
       {
         successOverlay?.show && createPortal(

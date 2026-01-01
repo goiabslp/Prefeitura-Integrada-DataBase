@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { AppState } from '../types';
 import { PageWrapper } from './PageWrapper';
@@ -32,7 +31,17 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
     const MAX_LINES_PER_PAGE = TOTAL_LINES_CAPACITY - SECURITY_MARGIN_LINES - HEADER_ESTIMATED_LINES;
     const CHARS_PER_LINE = 80;
 
-    const historicStages = content.licitacaoStages || [];
+    // 1. Get VALID history stages (ignoring empty ones) - Ensure sparse array is handled
+    const historicStagesRaw = content.licitacaoStages || [];
+    // We don't filter immediately if we are viewing history, because we need to map by INDEX.
+    // If we map by index, we need the sparse array.
+    // BUT for rendering, we want to filter empty ones.
+
+    // Wait, if we use index mapping for "View History", we iterate 0..viewIdx.
+    // If we filter, indices shift.
+    // We must FILTER at the very end (when combining into allStages).
+
+    const historicStages = historicStagesRaw;
     const currentIdx = content.currentStageIndex || 0;
     const viewIdx = content.viewingStageIndex ?? currentIdx;
 
@@ -42,8 +51,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
 
     if (viewIdx < currentIdx) {
       // VIEWING/EDITING HISTORY
-      // Map over history and replace the one we are currently looking at with live data
-      // This ensures edits show up in the correct spot and future stages are hidden
+      // Map over history UP TO viewIdx
       allStages = historicStages.slice(0, viewIdx + 1).map((s, i) => {
         if (i === viewIdx) {
           return {
@@ -59,6 +67,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
       });
     } else {
       // VIEWING/EDITING CURRENT DRAFT
+      // Use all historic stages + current
       const currentStage = {
         id: 'current',
         title: STAGES_TITLES[currentIdx] || `Etapa ${(currentIdx + 1).toString().padStart(2, '0')}`,
@@ -68,10 +77,14 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
         signatureSector: content.signatureSector,
         signatures: content.signatures
       };
+      // Ensure we preserve order of historic stages, even if sparse
+      // We will filter out empty/null/undefined ones at the RENDERING step (below)
       allStages = [...historicStages, currentStage];
     }
 
-    // Process stages INDEPENDENTLY to enforce page breaks
+    // NOW FILTER EMPTY STAGES
+    allStages = allStages.filter(s => s && s.body && s.body.trim() !== '');
+
     // Process stages INDEPENDENTLY to enforce page breaks
     let allPages: { html: string, isStartStage: boolean }[] = [];
 
