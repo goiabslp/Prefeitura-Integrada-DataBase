@@ -30,6 +30,9 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
     if (!content.licitacaoStages) {
       handleUpdate('content', 'licitacaoStages', []);
     }
+    if (!content.signatures) {
+      handleUpdate('content', 'signatures', []);
+    }
   }, []);
 
   const STAGES = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
@@ -79,16 +82,18 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
           <Gavel className="w-4 h-4 text-blue-600" /> {STAGES[viewingIndex]} {isViewingHistory ? '(Visualizando Histórico)' : ''}
         </h3>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200">
-          <label className="block text-xs font-semibold text-slate-500 mb-2">Objeto da Licitação (Geral)</label>
-          <input
-            value={content.title}
-            onChange={(e) => handleUpdate('content', 'title', e.target.value)}
-            disabled={isViewingHistory}
-            className={`w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 outline-none ${isViewingHistory ? 'opacity-60 cursor-not-allowed' : ''}`}
-            placeholder="Ex: Credenciamento de Saúde nº 01/2024"
-          />
-        </div>
+        {viewingIndex > 0 && (
+          <div className="bg-white p-4 rounded-xl border border-slate-200">
+            <label className="block text-xs font-semibold text-slate-500 mb-2">Objeto da Licitação (Geral)</label>
+            <input
+              value={content.title}
+              onChange={(e) => handleUpdate('content', 'title', e.target.value)}
+              disabled={isViewingHistory}
+              className={`w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 outline-none ${isViewingHistory ? 'opacity-60 cursor-not-allowed' : ''}`}
+              placeholder="Ex: Credenciamento de Saúde nº 01/2024"
+            />
+          </div>
+        )}
       </div>
 
       <div className="space-y-4 border-t border-slate-200 pt-6">
@@ -96,6 +101,19 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
         <div className={`bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm ${isViewingHistory ? 'bg-slate-50' : ''}`}>
           <div
             ref={editorRef}
+            onClick={(e) => {
+              // Handle Tag Deletion via Event Delegation (Robust React State Update)
+              const target = e.target as HTMLElement;
+              const deleteBtn = target.closest('.signature-delete-btn');
+              if (deleteBtn && !isViewingHistory) {
+                const tag = deleteBtn.closest('.signature-tag');
+                if (tag) {
+                  tag.remove();
+                  // Force state update immediately after DOM manipulation
+                  handleUpdate('content', 'body', (e.currentTarget as HTMLDivElement).innerHTML);
+                }
+              }
+            }}
             onInput={(e) => {
               if (!isViewingHistory) {
                 handleUpdate('content', 'body', (e.target as HTMLDivElement).innerHTML);
@@ -107,31 +125,60 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
       </div>
 
 
-      {!isViewingHistory && (
-        <div className="space-y-4 border-t border-slate-200 pt-6">
-          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2"><PenTool className="w-4 h-4" /> Assinatura da Etapa</h3>
+      <div className="space-y-4 border-t border-slate-200 pt-6">
+        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2"><PenTool className="w-4 h-4" /> Assinatura da Etapa</h3>
+
+
+
+        {/* Signature Selection Buttons */}
+        {!isViewingHistory && (
           <div className="grid grid-cols-1 gap-3">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Adicionar Assinatura:</p>
             {allowedSignatures.map((sig) => {
-              const isSelected = content.signatureName === sig.name;
               return (
                 <button
                   key={sig.id}
-                  onClick={() => onUpdate({ ...state, content: { ...state.content, signatureName: sig.name, signatureRole: sig.role, signatureSector: sig.sector } })}
-                  className={`text-left p-4 rounded-2xl border transition-all ${isSelected ? 'bg-blue-50 border-blue-500 shadow-md' : 'bg-white border-slate-200 hover:border-blue-300'}`}
+                  onClick={() => {
+                    // Insert marker as a TAG
+                    // We store the raw data in data-marker for the preview to parse
+                    // We add contentEditable=false to make it atomic
+                    // We add signature-delete-btn class for the global click handler to catch
+                    const markerData = `[ASSINATURA: ${sig.name} | ${sig.role} | ${sig.sector}]`;
+                    const tagHtml = `&nbsp;<span contenteditable="false" class="signature-tag bg-blue-50 border border-blue-200 text-blue-800 px-2 py-1 rounded inline-flex items-center gap-2 text-xs font-bold select-none cursor-default" data-marker="${markerData}"><span class="pointer-events-none">🖊️ ${sig.name}</span><span class="signature-delete-btn cursor-pointer text-red-500 hover:text-red-700 font-black px-1 ml-1 hover:bg-white rounded" title="Remover">✕</span></span><br>&nbsp;`;
+
+                    // 1. Update DOM directly if ref exists (Immediate visual feedback)
+                    let newBody = (content.body || '') + tagHtml;
+                    if (editorRef.current) {
+                      newBody = editorRef.current.innerHTML + tagHtml;
+                      editorRef.current.innerHTML = newBody;
+                    }
+
+                    // 2. Update State
+                    onUpdate({
+                      ...state,
+                      content: {
+                        ...state.content,
+                        body: newBody
+                      }
+                    });
+                  }}
+                  className="text-left p-4 rounded-2xl border bg-white border-slate-200 hover:border-blue-300 hover:shadow-md transition-all active:scale-[0.98]"
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-bold text-slate-800">{sig.name}</p>
                       <p className="text-[10px] uppercase font-medium text-slate-500">{sig.role}</p>
                     </div>
-                    {isSelected && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
+                    <div className="bg-blue-50 text-blue-600 rounded-full p-1">
+                      <span className="text-[10px] font-bold px-2">INSERIR</span>
+                    </div>
                   </div>
                 </button>
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

@@ -51,6 +51,7 @@ export const INITIAL_STATE: AppState = {
     purchaseItems: [],
     priority: 'Normal',
     priorityJustification: '',
+    signatures: [],
     useDigitalSignature: false
   },
   ui: {

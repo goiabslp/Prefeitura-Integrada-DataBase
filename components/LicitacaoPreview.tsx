@@ -15,7 +15,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
   const getSignatureHtml = (name?: string, role?: string, sector?: string) => {
     if (!name) return '';
     return `
-      <div class="signature-block mt-auto pt-10 break-inside-avoid flex flex-col items-center justify-center" style="line-height: 0.3;">
+      <div class="signature-block m-0 p-0 break-inside-avoid flex flex-col items-center justify-center" style="line-height: 0.3;">
         <div class="w-64 border-t border-slate-900 text-center" style="padding-top: 0px; border-color: #0f172a;">
              <p style="margin: 0; padding: 0; line-height: 1.1; font-size: 10pt; font-weight: 700; text-transform: uppercase; color: #0f172a;">${name}</p>
              <p style="margin: 0; padding: 0; line-height: 1.1; font-size: 8pt; color: #64748b; margin-top: 2px;">${role || 'Responsável'}</p>
@@ -26,9 +26,9 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
   };
 
   const pages = useMemo(() => {
-    const TOTAL_LINES_CAPACITY = 36;
-    const SECURITY_MARGIN_LINES = 3;
-    const HEADER_ESTIMATED_LINES = 10; // Header takes significant space now
+    const TOTAL_LINES_CAPACITY = 44;
+    const SECURITY_MARGIN_LINES = 1;
+    const HEADER_ESTIMATED_LINES = 6; // Header takes significant space now
     const MAX_LINES_PER_PAGE = TOTAL_LINES_CAPACITY - SECURITY_MARGIN_LINES - HEADER_ESTIMATED_LINES;
     const CHARS_PER_LINE = 80;
 
@@ -43,13 +43,15 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
       body: content.body,
       signatureName: content.signatureName,
       signatureRole: content.signatureRole,
-      signatureSector: content.signatureSector
+      signatureSector: content.signatureSector,
+      signatures: content.signatures
     };
 
     const allStages = [...historicStages, currentStage];
 
     // Process stages INDEPENDENTLY to enforce page breaks
-    let allPages: string[] = [];
+    // Process stages INDEPENDENTLY to enforce page breaks
+    let allPages: { html: string, isStartStage: boolean }[] = [];
 
     allStages.forEach((stage, index) => {
       let stageHtml = '';
@@ -61,12 +63,20 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
       // Body
       stageHtml += stage.body || '<p class="text-slate-400 italic py-4">[Conteúdo da etapa em elaboração]</p>';
 
-      // Signature (Always at bottom of this stage's content)
-      stageHtml += getSignatureHtml(stage.signatureName, stage.signatureRole, stage.signatureSector);
+      // Process Inline Signatures (Markers)
+      // Regex detects: <span ... data-marker="[ASSINATURA: Name | Role | Sector]" ...>...</span>
+      // Replace with getSignatureHtml output
+      stageHtml = stageHtml.replace(/<span[^>]*data-marker="\[ASSINATURA:\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\]"[^>]*>(?:<span[^>]*>[\s\S]*?<\/span>|[\s\S])*?<\/span>/g, (match, name, role, sector) => {
+        return getSignatureHtml(name, role, sector);
+      });
+      // Fallback for plain text markers (legacy or pasted)
+      stageHtml = stageHtml.replace(/(?<!data-marker=")(?<!<span[^>]*>)\[ASSINATURA:\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\]/g, (match, name, role, sector) => {
+        return getSignatureHtml(name, role, sector);
+      });
 
       // Split THIS stage into its own pages
       // Fix: Use lookbehind for <br> so it is preserved in the previous block instead of consumed
-      const blocks = stageHtml.split(/(?<=<\/p>)|(?<=<\/div>)|(?<=<br\s*\/?>)/g);
+      const blocks = stageHtml.split(/(?<=<\/p>)|(?<=<\/div>)|(?<=<br\s*\/?>)/g).filter(b => b.trim());
 
       // Initialize first page for this stage
       let currentStagePages: string[] = [];
@@ -81,8 +91,11 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
         // Estimate lines
         let linesInBlock = Math.max(1, Math.ceil(plainText.length / CHARS_PER_LINE));
 
+        // Add spacing cost for paragraphs (visual margin)
+        if (blockHTML.includes('<p') || blockHTML.includes('<div')) linesInBlock += 0.8;
+
         // Adjust estimation for special blocks
-        if (isSignature) linesInBlock += 6;
+        if (isSignature) linesInBlock += 5;
         if (blockHTML.includes('<h3')) linesInBlock += 3;
 
         if ((currentLinesUsed + linesInBlock) > MAX_LINES_PER_PAGE) {
@@ -99,39 +112,68 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
 
       if (currentPageContent) currentStagePages.push(currentPageContent);
 
-      // append this stage's pages to the master list
-      allPages = [...allPages, ...currentStagePages];
+      // append this stage's pages to the master list with metadata
+      const isStartStage = index === 0;
+      currentStagePages.forEach(html => {
+        allPages.push({ html, isStartStage });
+      });
     });
 
     return allPages;
-  }, [content.body, content.licitacaoStages, content.signatureName, content.signatureRole, content.signatureSector, content.currentStageIndex]);
+  }, [content.body, content.licitacaoStages, content.signatureName, content.signatureRole, content.signatureSector, content.signatures, content.currentStageIndex]);
+
+  const startStagePagesCount = pages.filter(p => p.isStartStage).length;
+  const standardPagesCount = pages.length - startStagePagesCount;
 
   return (
     <>
-      {pages.map((pageHtml, pageIndex) => (
-        <PageWrapper key={pageIndex} state={state} pageIndex={pageIndex} totalPages={pages.length} isGenerating={isGenerating}>
-          <div className="mb-6">
-            <div className="bg-blue-900 text-white px-4 py-2 rounded-lg font-black text-xs uppercase tracking-[0.3em] mb-4 text-center">
-              Processo Administrativo / Licitatório
-            </div>
-            <h1 className="font-black leading-tight tracking-tight text-[24pt] text-blue-900 text-center uppercase">
-              {content.title}
-            </h1>
-            <div className="w-20 h-1 bg-blue-900 mx-auto mt-4" />
-          </div>
-          <div className="max-w-none w-full text-gray-800 leading-relaxed text-justify text-[10.5pt] whitespace-pre-wrap font-serif break-words" dangerouslySetInnerHTML={{ __html: pageHtml }} />
+      {pages.map((pageData, globalIndex) => {
+        let localPageIndex;
+        let localTotalPages;
+        let forceHide;
 
-          {/* Global Digital Signature Footer (if enabled) - Only on last page */}
-          {pageIndex === pages.length - 1 && content.digitalSignature?.enabled && (
-            <div className="mt-auto pt-10 flex justify-center">
-              <div className="text-[7pt] text-slate-500 uppercase tracking-widest leading-tight text-center">
-                <p className="font-bold text-emerald-600">Documento Finalizado e Consolidado</p>
-                <p>Hash Validador: <span className="font-mono text-slate-900">{content.digitalSignature.id}</span></p>
+        if (pageData.isStartStage) {
+          localPageIndex = globalIndex;
+          localTotalPages = startStagePagesCount;
+          forceHide = true;
+        } else {
+          localPageIndex = globalIndex - startStagePagesCount;
+          localTotalPages = standardPagesCount;
+          forceHide = false;
+        }
+
+        return (
+          <PageWrapper
+            key={globalIndex}
+            state={state}
+            pageIndex={localPageIndex}
+            totalPages={localTotalPages}
+            isGenerating={isGenerating}
+            forceHidePageNumbers={forceHide}
+          >
+            <div className="mb-6">
+              <div className="bg-blue-900 text-white px-4 py-2 rounded-lg font-black text-xs uppercase tracking-[0.3em] mb-4 text-center">
+                Processo Administrativo / Licitatório
               </div>
+              <h1 className="font-black leading-tight tracking-tight text-[24pt] text-blue-900 text-center uppercase">
+                {content.title}
+              </h1>
+              <div className="w-20 h-1 bg-blue-900 mx-auto mt-4" />
             </div>
-          )}
-        </PageWrapper>
-      ))}
+            <div className="max-w-none w-full text-gray-800 leading-relaxed text-justify text-[10.5pt] whitespace-pre-wrap font-serif break-words" dangerouslySetInnerHTML={{ __html: pageData.html }} />
+
+            {/* Global Digital Signature Footer (if enabled) - Only on last page */}
+            {globalIndex === pages.length - 1 && content.digitalSignature?.enabled && (
+              <div className="mt-auto pt-10 flex justify-center">
+                <div className="text-[7pt] text-slate-500 uppercase tracking-widest leading-tight text-center">
+                  <p className="font-bold text-emerald-600">Documento Finalizado e Consolidado</p>
+                  <p>Hash Validador: <span className="font-mono text-slate-900">{content.digitalSignature.id}</span></p>
+                </div>
+              </div>
+            )}
+          </PageWrapper>
+        );
+      })}
     </>
   );
 };

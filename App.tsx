@@ -17,7 +17,7 @@ import * as signatureService from './services/signatureService';
 
 import * as vehicleSchedulingService from './services/vehicleSchedulingService';
 import * as licitacaoService from './services/licitacaoService';
-import { Send, CheckCircle2, X } from 'lucide-react';
+import { Send, CheckCircle2, X, Download } from 'lucide-react';
 
 // Components
 import { LoginScreen } from './components/LoginScreen';
@@ -627,6 +627,57 @@ const App: React.FC = () => {
     }, 500);
   };
 
+  const handleDownloadLicitacaoStage = async () => {
+    const { content } = appState;
+    const viewIdx = content.viewingStageIndex ?? (content.currentStageIndex || 0);
+    const stagesNames = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
+    const stageName = stagesNames[viewIdx] || 'Etapa';
+
+    // Create a snapshot that only contains the target stage
+    let stageContent = { ...content };
+
+    if (viewIdx < (content.currentStageIndex || 0)) {
+      // Viewing a historical stage
+      const historicalStage = content.licitacaoStages?.[viewIdx];
+      if (historicalStage) {
+        stageContent = {
+          ...content,
+          body: historicalStage.body,
+          signatureName: historicalStage.signatureName,
+          signatureRole: historicalStage.signatureRole,
+          signatureSector: historicalStage.signatureSector,
+          licitacaoStages: [] // Mask history to show only this one
+        };
+      }
+    } else {
+      // Viewing current (in progress) stage
+      stageContent = {
+        ...content,
+        licitacaoStages: [] // Mask history
+      };
+    }
+
+    const tempSnapshot = {
+      ...appState,
+      content: stageContent
+    };
+
+    setIsDownloading(true);
+    setSnapshotToDownload(tempSnapshot);
+    setBlockTypeToDownload('licitacao');
+
+    setTimeout(async () => {
+      const element = document.getElementById('background-preview-scaler');
+      if (!element) return;
+      const opt = { margin: 0, filename: `${content.title || 'licitacao'}_${stageName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0, scrollX: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: 'css' } };
+      // @ts-ignore
+      await window.html2pdf().from(element).set(opt).save();
+      setSnapshotToDownload(null);
+      setBlockTypeToDownload(null);
+      setIsDownloading(false);
+    }, 500);
+  };
+
   const handleOpenAdmin = (tab?: string | null) => {
     setCurrentView('admin');
     setAdminTab(tab || null);
@@ -682,7 +733,8 @@ const App: React.FC = () => {
     }
   }, [appState.content, currentView, editingOrder, activeBlock]);
 
-  // AUTO-SAVE FOR LICITACAO
+  // AUTO-SAVE FOR LICITACAO (DISABLED BY REQUEST)
+  /*
   useEffect(() => {
     if (activeBlock === 'licitacao' && currentView === 'editor' && editingOrder) {
       const timer = setTimeout(() => {
@@ -699,6 +751,7 @@ const App: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [appState, activeBlock, currentView, editingOrder]);
+  */
 
 
   // Clear draft on successful finish or explicit exit
@@ -808,49 +861,30 @@ const App: React.FC = () => {
 
 
 
-    // AUTO-CREATION FOR LICITACAO
+    // INITIALIZATION FOR LICITACAO (DO NOT SAVE TO DB YET)
     if (activeBlock === 'licitacao') {
-      const nextVal = await db.incrementGlobalCounter(); // Or use separate counter
-      setGlobalCounter(nextVal);
+      const year = new Date().getFullYear();
       const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-      // Ensure protocol logic matches general logic or is specific
-      // For now using the same generation logic as handleFinish for consistency, but immediately.
-      // Note: handleFinish uses 'LIC' prefix.
-      const protocolString = `LIC-${currentYear}-${randomPart}`;
+      const protocolString = `LIC-${year}-${randomPart}`;
 
       const newSnapshot = {
         ...INITIAL_STATE,
         content: {
           ...INITIAL_STATE.content,
           title: defaultTitle,
+          leftBlockText: leftBlockContent,
+          rightBlockText: defaultRightBlock,
           protocol: protocolString,
-          // Ensure stage is initialized
           currentStageIndex: 0,
           licitacaoStages: []
+        },
+        document: {
+          ...INITIAL_STATE.document
         }
       };
 
       setAppState(newSnapshot);
-
-      const newOrder: Order = {
-        id: Date.now().toString(),
-        protocol: protocolString,
-        title: defaultTitle,
-        status: 'pending', // "Em andamento"
-        createdAt: new Date().toISOString(),
-        userId: currentUser?.id || '',
-        userName: currentUser?.name || '',
-        blockType: 'licitacao',
-        documentSnapshot: newSnapshot,
-        stage: 'Início',
-        requestingSector: currentUser?.sector || ''
-      };
-
-      await licitacaoService.saveLicitacaoProcess(newOrder);
-      setLicitacaoProcesses(prev => [newOrder, ...prev]);
-      setEditingOrder(newOrder);
-      setOrders(prev => [newOrder, ...prev]);
+      setEditingOrder(null); // Explicitly null to indicate it's not saved yet
     } else {
       setEditingOrder(null);
     }
@@ -966,54 +1000,111 @@ const App: React.FC = () => {
                       onStepClick={(idx) => setAppState(prev => ({ ...prev, content: { ...prev.content, viewingStageIndex: idx } }))}
                     />
                   </div>
-                  {/* Action Button for Licitacao Steps */}
-                  {(!appState.content.viewingStageIndex || appState.content.viewingStageIndex === (appState.content.currentStageIndex || 0)) && (
-                    <button
-                      onClick={() => {
-                        const { content } = appState;
-                        const currentIdx = content.currentStageIndex || 0;
-                        const historic = content.licitacaoStages || [];
-                        const stages = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
+                  {/* Action Buttons for Licitacao Steps */}
+                  <div className="flex items-center gap-2">
+                    {(!appState.content.viewingStageIndex || appState.content.viewingStageIndex === (appState.content.currentStageIndex || 0)) && (
+                      <button
+                        onClick={async () => {
+                          const { content } = appState;
+                          const currentIdx = content.currentStageIndex || 0;
+                          const historic = content.licitacaoStages || [];
+                          const stagesNames = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
 
-                        if (currentIdx >= 6) { // Last stage
-                          handleFinish();
-                          return;
-                        }
-
-                        const currentStageData = {
-                          id: Date.now().toString(),
-                          title: stages[currentIdx],
-                          body: content.body,
-                          signatureName: content.signatureName,
-                          signatureRole: content.signatureRole,
-                          signatureSector: content.signatureSector
-                        };
-
-                        setAppState(prev => ({
-                          ...prev,
-                          content: {
-                            ...prev.content,
-                            licitacaoStages: [...historic, currentStageData],
-                            currentStageIndex: currentIdx + 1,
-                            viewingStageIndex: currentIdx + 1,
-                            body: ''
+                          if (currentIdx >= 6) { // Last stage
+                            handleFinish();
+                            return;
                           }
-                        }));
-                      }}
-                      className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all active:scale-95 ${(appState.content.currentStageIndex || 0) === 6
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
-                        }`}
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>
-                        {(appState.content.currentStageIndex || 0) === 6
-                          ? 'Concluir Processo'
-                          : 'Concluir Etapa'
-                        }
-                      </span>
-                    </button>
-                  )}
+
+                          const currentStageData = {
+                            id: Date.now().toString(),
+                            title: stagesNames[currentIdx],
+                            body: content.body,
+                            signatureName: content.signatureName,
+                            signatureRole: content.signatureRole,
+                            signatureSector: content.signatureSector
+                          };
+
+                          const nextAppState = {
+                            ...appState,
+                            content: {
+                              ...appState.content,
+                              licitacaoStages: [...historic, currentStageData],
+                              currentStageIndex: currentIdx + 1,
+                              viewingStageIndex: currentIdx + 1,
+                              body: '',
+                              signatureName: '',
+                              signatureRole: '',
+                              signatureSector: '',
+                              signatures: []
+                            }
+                          };
+
+                          // MANUAL SAVE LOGIC
+                          let orderToSave: Order;
+                          if (!editingOrder) {
+                            // INCREMENT GLOBAL COUNTER (First save only)
+                            try {
+                              const nextVal = await db.incrementGlobalCounter();
+                              setGlobalCounter(nextVal);
+                            } catch (cErr) {
+                              console.error("Error incrementing counter during first save", cErr);
+                              // Fallback: continue without counter update if critical
+                            }
+
+                            // Create NEW entry in DB
+                            orderToSave = {
+                              id: Date.now().toString(),
+                              protocol: content.protocol,
+                              title: content.title,
+                              status: 'pending',
+                              createdAt: new Date().toISOString(),
+                              userId: currentUser?.id || '',
+                              userName: currentUser?.name || '',
+                              blockType: 'licitacao',
+                              documentSnapshot: nextAppState,
+                              stage: stagesNames[currentIdx + 1] || 'Finalizado',
+                              requestingSector: currentUser?.sector || '',
+                              attachments: []
+                            };
+                            setLicitacaoProcesses(prev => [orderToSave, ...prev]);
+                            setOrders(prev => [orderToSave, ...prev]);
+                          } else {
+                            // Update EXISTING entry
+                            orderToSave = {
+                              ...editingOrder,
+                              title: content.title,
+                              documentSnapshot: nextAppState,
+                              stage: stagesNames[currentIdx + 1] || 'Finalizado'
+                            };
+                            setLicitacaoProcesses(prev => prev.map(p => p.id === orderToSave.id ? orderToSave : p));
+                            setOrders(prev => prev.map(p => p.id === orderToSave.id ? orderToSave : p));
+                          }
+
+                          try {
+                            await licitacaoService.saveLicitacaoProcess(orderToSave);
+                            setEditingOrder(orderToSave);
+                            setAppState(nextAppState);
+                            console.log("Process saved successfully on stage completion");
+                          } catch (err) {
+                            console.error("Failed to save process on stage completion", err);
+                            alert("Erro ao salvar o progresso da etapa. Tente novamente.");
+                          }
+                        }}
+                        className={`flex items-center gap-2 px-6 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all active:scale-95 whitespace-nowrap min-w-fit ${(appState.content.currentStageIndex || 0) === 6
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                          }`}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>
+                          {(appState.content.currentStageIndex || 0) === 6
+                            ? 'Concluir Processo'
+                            : 'Concluir Etapa'
+                          }
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1191,6 +1282,30 @@ const App: React.FC = () => {
                   <AdminDocumentPreview state={appState} />
                 ) : (
                   <DocumentPreview ref={componentRef} state={appState} isGenerating={isDownloading} mode={currentView === 'admin' ? 'admin' : 'editor'} blockType={activeBlock} />
+                )}
+
+                {/* COMPACT FLOATING STAGE DOWNLOAD BUTTON FOR LICITACAO */}
+                {activeBlock === 'licitacao' && currentView === 'editor' && !isFinalizedView && (
+                  <div className="absolute top-6 right-8 z-[70] flex flex-col items-end gap-2 pointer-events-none group">
+                    <button
+                      onClick={handleDownloadLicitacaoStage}
+                      title={`Baixar PDF: ${['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'][appState.content.viewingStageIndex ?? (appState.content.currentStageIndex || 0)]}`}
+                      className="group pointer-events-auto flex items-center gap-3 bg-white/40 hover:bg-white backdrop-blur-xl p-2 pr-4 rounded-full shadow-lg border border-white/50 transition-all duration-300 hover:shadow-indigo-500/20 hover:-translate-y-1 active:scale-95"
+                    >
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-md group-hover:rotate-12 transition-transform">
+                        <Download className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex flex-col items-start leading-none gap-0.5">
+                        <span className="text-slate-900 font-extrabold text-[10px] uppercase tracking-tighter">Baixar Etapa</span>
+                        <span className="text-blue-600 text-[9px] font-black uppercase tracking-widest opacity-80">
+                          {['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'][appState.content.viewingStageIndex ?? (appState.content.currentStageIndex || 0)]}
+                        </span>
+                      </div>
+                    </button>
+                    <div className="bg-slate-900/10 backdrop-blur-sm text-slate-500 text-[8px] uppercase tracking-[0.2em] font-black px-3 py-1 rounded-full border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none select-none">
+                      Ação Rápida
+                    </div>
+                  </div>
                 )}
                 {isFinalizedView && (
                   <FinalizedActionBar

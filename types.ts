@@ -100,6 +100,7 @@ export interface ContentData {
     date: string;
     id: string;
   };
+  signatures?: { name: string; role: string; sector: string; id?: string }[];
   licitacaoStages?: {
     id: string;
     title: string;
@@ -107,6 +108,7 @@ export interface ContentData {
     signatureName?: string;
     signatureRole?: string;
     signatureSector?: string;
+    signatures?: { name: string; role: string; sector: string; id?: string }[];
   }[];
   currentStageIndex?: number;
   viewingStageIndex?: number;

@@ -8,6 +8,7 @@ interface PageWrapperProps {
   totalPages: number;
   isGenerating: boolean;
   children: React.ReactNode;
+  forceHidePageNumbers?: boolean;
 }
 
 export const PageWrapper: React.FC<PageWrapperProps> = ({
@@ -15,7 +16,8 @@ export const PageWrapper: React.FC<PageWrapperProps> = ({
   pageIndex,
   totalPages,
   isGenerating,
-  children
+  children,
+  ...props
 }) => {
   const { branding, document: docConfig, content } = state;
   const watermarkImg = branding.watermark.imageUrl || branding.logoUrl;
@@ -102,7 +104,7 @@ export const PageWrapper: React.FC<PageWrapperProps> = ({
               <span className="text-[8px] font-mono font-bold text-slate-600">{content.protocol}</span>
             </div>
           )}
-          {docConfig.showPageNumbers && (
+          {docConfig.showPageNumbers && !props.forceHidePageNumbers && (
             <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold text-[8px] uppercase tracking-widest">Página {pageIndex + 1} de {totalPages}</span>
           )}
         </div>
