@@ -110,6 +110,7 @@ export interface ContentData {
     signatureSector?: string;
     signatures?: { name: string; role: string; sector: string; id?: string }[];
   }[];
+  licitacaoActiveDraft?: { body: string; signatureName?: string; signatureRole?: string; signatureSector?: string; signatures?: { name: string; role: string; sector: string; id?: string }[] };
   currentStageIndex?: number;
   viewingStageIndex?: number;
 }

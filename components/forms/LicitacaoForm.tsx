@@ -54,18 +54,15 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
       const shouldUpdate = isStageChange || (!editorRef.current.innerHTML && content.body);
 
       if (shouldUpdate) {
-        if (viewingIndex < currentStageIndex && historicStages[viewingIndex]) {
-          // Viewing history
-          editorRef.current.innerHTML = historicStages[viewingIndex].body;
-          editorRef.current.contentEditable = "false";
-        } else {
-          // Viewing current
-          // Only overwrite if it's a stage change to avoid losing cursor position
-          if (isStageChange) {
+        // ALWAYS EDITABLE - the App.tsx logic handles swapping the data
+        if (isStageChange) {
+          if (viewingIndex < currentStageIndex && historicStages[viewingIndex]) {
+            editorRef.current.innerHTML = historicStages[viewingIndex].body;
+          } else if (viewingIndex === currentStageIndex) {
             editorRef.current.innerHTML = content.body;
           }
-          editorRef.current.contentEditable = "true";
         }
+        editorRef.current.contentEditable = "true";
         lastViewingIndexRef.current = viewingIndex;
       }
     }
@@ -88,8 +85,7 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
             <input
               value={content.title}
               onChange={(e) => handleUpdate('content', 'title', e.target.value)}
-              disabled={isViewingHistory}
-              className={`w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 outline-none ${isViewingHistory ? 'opacity-60 cursor-not-allowed' : ''}`}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 outline-none"
               placeholder="Ex: Credenciamento de Saúde nº 01/2024"
             />
           </div>
@@ -105,7 +101,7 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
               // Handle Tag Deletion via Event Delegation (Robust React State Update)
               const target = e.target as HTMLElement;
               const deleteBtn = target.closest('.signature-delete-btn');
-              if (deleteBtn && !isViewingHistory) {
+              if (deleteBtn) {
                 const tag = deleteBtn.closest('.signature-tag');
                 if (tag) {
                   tag.remove();
@@ -115,9 +111,7 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
               }
             }}
             onInput={(e) => {
-              if (!isViewingHistory) {
-                handleUpdate('content', 'body', (e.target as HTMLDivElement).innerHTML);
-              }
+              handleUpdate('content', 'body', (e.target as HTMLDivElement).innerHTML);
             }}
             className="w-full bg-white p-6 text-sm leading-relaxed min-h-[400px] outline-none prose prose-slate max-w-none empty:before:content-['Digite_os_detalhes_desta_etapa...'] empty:before:text-slate-300"
           />
@@ -131,53 +125,48 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
 
 
         {/* Signature Selection Buttons */}
-        {!isViewingHistory && (
-          <div className="grid grid-cols-1 gap-3">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Adicionar Assinatura:</p>
-            {allowedSignatures.map((sig) => {
-              return (
-                <button
-                  key={sig.id}
-                  onClick={() => {
-                    // Insert marker as a TAG
-                    // We store the raw data in data-marker for the preview to parse
-                    // We add contentEditable=false to make it atomic
-                    // We add signature-delete-btn class for the global click handler to catch
-                    const markerData = `[ASSINATURA: ${sig.name} | ${sig.role} | ${sig.sector}]`;
-                    const tagHtml = `&nbsp;<span contenteditable="false" class="signature-tag bg-blue-50 border border-blue-200 text-blue-800 px-2 py-1 rounded inline-flex items-center gap-2 text-xs font-bold select-none cursor-default" data-marker="${markerData}"><span class="pointer-events-none">🖊️ ${sig.name}</span><span class="signature-delete-btn cursor-pointer text-red-500 hover:text-red-700 font-black px-1 ml-1 hover:bg-white rounded" title="Remover">✕</span></span><br>&nbsp;`;
+        <div className="grid grid-cols-1 gap-3">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Adicionar Assinatura:</p>
+          {allowedSignatures.map((sig) => {
+            return (
+              <button
+                key={sig.id}
+                onClick={() => {
+                  // Insert marker as a TAG
+                  const markerData = `[ASSINATURA: ${sig.name} | ${sig.role} | ${sig.sector}]`;
+                  const tagHtml = `&nbsp;<span contenteditable="false" class="signature-tag bg-blue-50 border border-blue-200 text-blue-800 px-2 py-1 rounded inline-flex items-center gap-2 text-xs font-bold select-none cursor-default" data-marker="${markerData}"><span class="pointer-events-none">🖊️ ${sig.name}</span><span class="signature-delete-btn cursor-pointer text-red-500 hover:text-red-700 font-black px-1 ml-1 hover:bg-white rounded" title="Remover">✕</span></span><br>&nbsp;`;
 
-                    // 1. Update DOM directly if ref exists (Immediate visual feedback)
-                    let newBody = (content.body || '') + tagHtml;
-                    if (editorRef.current) {
-                      newBody = editorRef.current.innerHTML + tagHtml;
-                      editorRef.current.innerHTML = newBody;
+                  // 1. Update DOM directly if ref exists
+                  let newBody = (content.body || '') + tagHtml;
+                  if (editorRef.current) {
+                    newBody = editorRef.current.innerHTML + tagHtml;
+                    editorRef.current.innerHTML = newBody;
+                  }
+
+                  // 2. Update State
+                  onUpdate({
+                    ...state,
+                    content: {
+                      ...state.content,
+                      body: newBody
                     }
-
-                    // 2. Update State
-                    onUpdate({
-                      ...state,
-                      content: {
-                        ...state.content,
-                        body: newBody
-                      }
-                    });
-                  }}
-                  className="text-left p-4 rounded-2xl border bg-white border-slate-200 hover:border-blue-300 hover:shadow-md transition-all active:scale-[0.98]"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">{sig.name}</p>
-                      <p className="text-[10px] uppercase font-medium text-slate-500">{sig.role}</p>
-                    </div>
-                    <div className="bg-blue-50 text-blue-600 rounded-full p-1">
-                      <span className="text-[10px] font-bold px-2">INSERIR</span>
-                    </div>
+                  });
+                }}
+                className="text-left p-4 rounded-2xl border bg-white border-slate-200 hover:border-blue-300 hover:shadow-md transition-all active:scale-[0.98]"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">{sig.name}</p>
+                    <p className="text-[10px] uppercase font-medium text-slate-500">{sig.role}</p>
                   </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
+                  <div className="bg-blue-50 text-blue-600 rounded-full p-1">
+                    <span className="text-[10px] font-bold px-2">INSERIR</span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

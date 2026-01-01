@@ -33,21 +33,43 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
     const CHARS_PER_LINE = 80;
 
     const historicStages = content.licitacaoStages || [];
+    const currentIdx = content.currentStageIndex || 0;
+    const viewIdx = content.viewingStageIndex ?? currentIdx;
 
-    // Construct the "Current" stage using current form data
-    const currentStage = {
-      id: 'current',
-      title: content.currentStageIndex !== undefined
-        ? (['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'][content.currentStageIndex] || `Etapa ${(content.currentStageIndex + 1).toString().padStart(2, '0')}`)
-        : 'Início',
-      body: content.body,
-      signatureName: content.signatureName,
-      signatureRole: content.signatureRole,
-      signatureSector: content.signatureSector,
-      signatures: content.signatures
-    };
+    let allStages: any[] = [];
 
-    const allStages = [...historicStages, currentStage];
+    const STAGES_TITLES = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
+
+    if (viewIdx < currentIdx) {
+      // VIEWING/EDITING HISTORY
+      // Map over history and replace the one we are currently looking at with live data
+      // This ensures edits show up in the correct spot and future stages are hidden
+      allStages = historicStages.slice(0, viewIdx + 1).map((s, i) => {
+        if (i === viewIdx) {
+          return {
+            ...s,
+            body: content.body,
+            signatureName: content.signatureName,
+            signatureRole: content.signatureRole,
+            signatureSector: content.signatureSector,
+            signatures: content.signatures
+          };
+        }
+        return s;
+      });
+    } else {
+      // VIEWING/EDITING CURRENT DRAFT
+      const currentStage = {
+        id: 'current',
+        title: STAGES_TITLES[currentIdx] || `Etapa ${(currentIdx + 1).toString().padStart(2, '0')}`,
+        body: content.body,
+        signatureName: content.signatureName,
+        signatureRole: content.signatureRole,
+        signatureSector: content.signatureSector,
+        signatures: content.signatures
+      };
+      allStages = [...historicStages, currentStage];
+    }
 
     // Process stages INDEPENDENTLY to enforce page breaks
     // Process stages INDEPENDENTLY to enforce page breaks
@@ -120,7 +142,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
     });
 
     return allPages;
-  }, [content.body, content.licitacaoStages, content.signatureName, content.signatureRole, content.signatureSector, content.signatures, content.currentStageIndex]);
+  }, [content.body, content.licitacaoStages, content.signatureName, content.signatureRole, content.signatureSector, content.signatures, content.currentStageIndex, content.viewingStageIndex]);
 
   const startStagePagesCount = pages.filter(p => p.isStartStage).length;
   const standardPagesCount = pages.length - startStagePagesCount;
