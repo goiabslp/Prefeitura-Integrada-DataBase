@@ -1015,20 +1015,27 @@ const App: React.FC = () => {
                             return;
                           }
 
-                          const currentStageData = {
-                            id: Date.now().toString(),
-                            title: stagesNames[currentIdx],
-                            body: content.body,
-                            signatureName: content.signatureName,
-                            signatureRole: content.signatureRole,
-                            signatureSector: content.signatureSector
-                          };
+                          // CHECK IF BODY IS EMPTY (ignoring HTML tags)
+                          const isBodyEmpty = !content.body || content.body.replace(/<[^>]*>?/gm, '').trim() === '';
+
+                          let newHistoric = [...historic];
+                          if (!isBodyEmpty) {
+                            const currentStageData = {
+                              id: Date.now().toString(),
+                              title: stagesNames[currentIdx],
+                              body: content.body,
+                              signatureName: content.signatureName,
+                              signatureRole: content.signatureRole,
+                              signatureSector: content.signatureSector
+                            };
+                            newHistoric.push(currentStageData);
+                          }
 
                           const nextAppState = {
                             ...appState,
                             content: {
                               ...appState.content,
-                              licitacaoStages: [...historic, currentStageData],
+                              licitacaoStages: newHistoric,
                               currentStageIndex: currentIdx + 1,
                               viewingStageIndex: currentIdx + 1,
                               body: '',
@@ -1285,28 +1292,38 @@ const App: React.FC = () => {
                 )}
 
                 {/* COMPACT FLOATING STAGE DOWNLOAD BUTTON FOR LICITACAO */}
-                {activeBlock === 'licitacao' && currentView === 'editor' && !isFinalizedView && (
-                  <div className="absolute top-6 right-8 z-[70] flex flex-col items-end gap-2 pointer-events-none group">
-                    <button
-                      onClick={handleDownloadLicitacaoStage}
-                      title={`Baixar PDF: ${['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'][appState.content.viewingStageIndex ?? (appState.content.currentStageIndex || 0)]}`}
-                      className="group pointer-events-auto flex items-center gap-3 bg-white/40 hover:bg-white backdrop-blur-xl p-2 pr-4 rounded-full shadow-lg border border-white/50 transition-all duration-300 hover:shadow-indigo-500/20 hover:-translate-y-1 active:scale-95"
-                    >
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-md group-hover:rotate-12 transition-transform">
-                        <Download className="w-4 h-4 text-white" />
+                {activeBlock === 'licitacao' && currentView === 'editor' && !isFinalizedView && (() => {
+                  const viewIdx = appState.content.viewingStageIndex ?? (appState.content.currentStageIndex || 0);
+                  const isHistory = viewIdx < (appState.content.currentStageIndex || 0);
+                  const hasHistoricData = isHistory && appState.content.licitacaoStages?.[viewIdx];
+                  const hasActiveData = !isHistory && appState.content.body && appState.content.body.replace(/<[^>]*>?/gm, '').trim() !== '';
+
+                  // Only show if there is actually content to download
+                  if (!hasHistoricData && !hasActiveData) return null;
+
+                  return (
+                    <div className="absolute top-6 right-8 z-[70] flex flex-col items-end gap-2 pointer-events-none group">
+                      <button
+                        onClick={handleDownloadLicitacaoStage}
+                        title={`Baixar PDF: ${['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'][viewIdx]}`}
+                        className="group pointer-events-auto flex items-center gap-3 bg-white/40 hover:bg-white backdrop-blur-xl p-2 pr-4 rounded-full shadow-lg border border-white/50 transition-all duration-300 hover:shadow-indigo-500/20 hover:-translate-y-1 active:scale-95"
+                      >
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-md group-hover:rotate-12 transition-transform">
+                          <Download className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="flex flex-col items-start leading-none gap-0.5">
+                          <span className="text-slate-900 font-extrabold text-[10px] uppercase tracking-tighter">Baixar Etapa</span>
+                          <span className="text-blue-600 text-[9px] font-black uppercase tracking-widest opacity-80">
+                            {['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'][viewIdx]}
+                          </span>
+                        </div>
+                      </button>
+                      <div className="bg-slate-900/10 backdrop-blur-sm text-slate-500 text-[8px] uppercase tracking-[0.2em] font-black px-3 py-1 rounded-full border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none select-none">
+                        Ação Rápida
                       </div>
-                      <div className="flex flex-col items-start leading-none gap-0.5">
-                        <span className="text-slate-900 font-extrabold text-[10px] uppercase tracking-tighter">Baixar Etapa</span>
-                        <span className="text-blue-600 text-[9px] font-black uppercase tracking-widest opacity-80">
-                          {['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'][appState.content.viewingStageIndex ?? (appState.content.currentStageIndex || 0)]}
-                        </span>
-                      </div>
-                    </button>
-                    <div className="bg-slate-900/10 backdrop-blur-sm text-slate-500 text-[8px] uppercase tracking-[0.2em] font-black px-3 py-1 rounded-full border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none select-none">
-                      Ação Rápida
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
                 {isFinalizedView && (
                   <FinalizedActionBar
                     onDownload={handleDownloadPdf}
