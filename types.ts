@@ -100,6 +100,16 @@ export interface ContentData {
     date: string;
     id: string;
   };
+  licitacaoStages?: {
+    id: string;
+    title: string;
+    body: string;
+    signatureName?: string;
+    signatureRole?: string;
+    signatureSector?: string;
+  }[];
+  currentStageIndex?: number;
+  viewingStageIndex?: number;
 }
 
 export interface UIConfig {

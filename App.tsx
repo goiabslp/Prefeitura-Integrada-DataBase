@@ -36,6 +36,7 @@ import { PurchaseManagementScreen } from './components/PurchaseManagementScreen'
 import { AdminDashboard } from './components/AdminDashboard';
 import { TwoFactorAuthScreen } from './components/TwoFactorAuthScreen';
 import { TwoFactorModal } from './components/TwoFactorModal';
+import { ProcessStepper } from './components/common/ProcessStepper';
 
 const VIEW_TO_PATH: Record<string, string> = {
   'login': '/Login',
@@ -789,8 +790,20 @@ const App: React.FC = () => {
         handleStartEditing();
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView, activeBlock, currentUser, sectors.length]);
+
+  // Ensure viewingStageIndex is synced when entering Licitação or changing stages
+  useEffect(() => {
+    if (activeBlock === 'licitacao' && appState.content.currentStageIndex !== undefined) {
+      // Only if viewingStageIndex is undefined, set it to current
+      if (appState.content.viewingStageIndex === undefined) {
+        setAppState(prev => ({
+          ...prev,
+          content: { ...prev.content, viewingStageIndex: prev.content.currentStageIndex }
+        }));
+      }
+    }
+  }, [activeBlock, appState.content.currentStageIndex]);
 
 
 
@@ -854,206 +867,225 @@ const App: React.FC = () => {
       <div className="flex-1 flex relative overflow-hidden">
         {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} />}
         {(currentView === 'editor' || currentView === 'admin') && currentUser && (
-          <div className="flex-1 flex overflow-hidden h-full relative">
-            {!isFinalizedView && adminTab !== 'fleet' && adminTab !== '2fa' && adminTab !== 'users' && adminTab !== 'entities' && (currentView !== 'admin' || adminTab !== null) && (
-              <AdminSidebar state={appState} onUpdate={setAppState} onPrint={() => window.print()} isOpen={isAdminSidebarOpen} onClose={() => { if (currentView === 'editor') { setIsFinalizedView(true); setIsAdminSidebarOpen(false); } else { setIsAdminSidebarOpen(false); } }} isDownloading={isDownloading} currentUser={currentUser} mode={currentView === 'admin' ? 'admin' : 'editor'} onSaveDefault={async () => { await settingsService.saveGlobalSettings(appState); await db.saveGlobalSettings(appState); }} onFinish={handleFinish} activeTab={adminTab} onTabChange={setAdminTab} availableSignatures={myAvailableSignatures} activeBlock={activeBlock} persons={persons} sectors={sectors} jobs={jobs} onBack={() => { if (currentView === 'editor') setCurrentView('home'); }} />
-            )}
-            <main className="flex-1 h-full overflow-hidden flex flex-col relative bg-slate-50">
-              {currentView === 'admin' && adminTab === null ? (
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
-                  <AdminDashboard
-                    currentUser={currentUser}
-                    onTabChange={(tab) => setAdminTab(tab)}
-                    onBack={handleGoHome}
-                  />
+          <div className="flex-1 flex flex-col overflow-hidden h-full relative">
+            {/* GLOBAL STEPPER FOR LICITACAO */}
+            {activeBlock === 'licitacao' && currentView === 'editor' && !isFinalizedView && (
+              <div className="w-full bg-white border-b border-slate-200 shadow-sm z-[60] shrink-0 px-8 py-2">
+                <div className="max-w-7xl mx-auto flex items-center gap-4">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Esteira</span>
+                  <div className="flex-1">
+                    <ProcessStepper
+                      steps={['Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06']}
+                      currentStep={appState.content.viewingStageIndex ?? (appState.content.currentStageIndex || 0)}
+                      maxCompletedStep={(appState.content.currentStageIndex || 0) - 1}
+                      onStepClick={(idx) => setAppState(prev => ({ ...prev, content: { ...prev.content, viewingStageIndex: idx } }))}
+                    />
+                  </div>
                 </div>
-              ) : currentView === 'admin' && adminTab === 'users' ? (
-                <UserManagementScreen
-                  users={users}
-                  currentUser={currentUser}
-                  onAddUser={async (u) => {
-                    // Prepare user data for Supabase
-                    const email = u.username.includes('@') ? u.username : `${u.username}@projeto.local`;
-                    const userData = {
-                      ...u,
-                      jobTitle: u.jobTitle,
-                      allowedSignatureIds: u.allowedSignatureIds,
-                      twoFactorEnabled: false
-                    };
+              </div>
+            )}
 
-                    const { data: newId, error } = await supabase.rpc('create_user_admin', {
-                      email: email,
-                      password: u.password || '12345678', // Default if missing, though UI enforces it
-                      user_data: userData
-                    });
-
-                    if (error) {
-                      console.error("Error creating user:", error);
-                      alert("Erro ao criar usuário: " + error.message);
-                    } else {
-                      // Refresh users
-                      const { data: refreshed } = await supabase.from('profiles').select('*');
-                      if (refreshed) {
-                        const mapped = refreshed.map((ru: any) => ({
-                          id: ru.id,
-                          username: ru.username,
-                          name: ru.name,
-                          role: ru.role,
-                          sector: ru.sector,
-                          jobTitle: ru.job_title,
-                          email: ru.email,
-                          whatsapp: ru.whatsapp,
-                          allowedSignatureIds: ru.allowed_signature_ids,
-                          permissions: ru.permissions,
-                          tempPassword: ru.temp_password,
-                          tempPasswordExpiresAt: ru.temp_password_expires_at,
-                          twoFactorEnabled: ru.two_factor_enabled,
-                          twoFactorSecret: ru.two_factor_secret
-                        }));
-                        setUsers(mapped);
-                      }
-                    }
-                  }}
-                  onUpdateUser={handleUpdateUserInApp}
-                  onDeleteUser={async (id) => {
-                    const { error } = await supabase.rpc('delete_user_admin', { user_id: id });
-                    if (error) {
-                      console.error("Error deleting user:", error);
-                      alert("Erro ao deletar: " + error.message);
-                    } else {
-                      setUsers(p => p.filter(u => u.id !== id));
-                    }
-                  }}
-                  availableSignatures={allSignatures}
-                  jobs={jobs}
-                  sectors={sectors}
-                  persons={persons}
-                  onBack={() => setAdminTab(null)}
-                />
-              ) : currentView === 'admin' && adminTab === '2fa' ? (
-                <TwoFactorAuthScreen
-                  currentUser={currentUser}
-                  onUpdateUser={(u) => {
-                    handleUpdateUserInApp(u);
-                    // Also update local current user state if needed
-                  }}
-                  onBack={() => setAdminTab(null)}
-                />
-              ) : currentView === 'admin' && adminTab === 'entities' ? (
-                <EntityManagementScreen
-                  persons={persons}
-                  sectors={sectors}
-                  jobs={jobs}
-                  onAddPerson={async p => {
-                    const newPerson = await entityService.createPerson(p);
-                    if (newPerson) setPersons(prev => [...prev, newPerson]);
-                    else alert('Erro ao criar pessoa');
-                  }}
-                  onUpdatePerson={async p => {
-                    const updated = await entityService.updatePerson(p);
-                    if (updated) setPersons(prev => prev.map(x => x.id === p.id ? updated : x));
-                    else alert('Erro ao atualizar pessoa');
-                  }}
-                  onDeletePerson={async id => {
-                    const success = await entityService.deletePerson(id);
-                    if (success) setPersons(prev => prev.filter(x => x.id !== id));
-                    else alert('Erro ao deletar pessoa');
-                  }}
-                  onAddSector={async s => {
-                    const newSector = await entityService.createSector(s);
-                    if (newSector) setSectors(prev => [...prev, newSector]);
-                    else alert('Erro ao criar setor');
-                  }}
-                  onUpdateSector={async s => {
-                    const updated = await entityService.updateSector(s);
-                    if (updated) setSectors(prev => prev.map(x => x.id === s.id ? updated : x));
-                    else alert('Erro ao atualizar setor');
-                  }}
-                  onDeleteSector={async id => {
-                    const success = await entityService.deleteSector(id);
-                    if (success) setSectors(prev => prev.filter(x => x.id !== id));
-                    else alert('Erro ao deletar setor');
-                  }}
-                  onAddJob={async j => {
-                    const newJob = await entityService.createJob(j);
-                    if (newJob) setJobs(prev => [...prev, newJob]);
-                    else alert('Erro ao criar cargo');
-                  }}
-                  onUpdateJob={async j => {
-                    const updated = await entityService.updateJob(j);
-                    if (updated) setJobs(prev => prev.map(x => x.id === j.id ? updated : x));
-                    else alert('Erro ao atualizar cargo');
-                  }}
-                  onDeleteJob={async id => {
-                    const success = await entityService.deleteJob(id);
-                    if (success) setJobs(prev => prev.filter(x => x.id !== id));
-                    else alert('Erro ao deletar cargo');
-                  }}
-                  onBack={() => setAdminTab(null)}
-                />
-
-              ) : currentView === 'admin' && adminTab === 'fleet' ? (
-                <FleetManagementScreen
-                  vehicles={vehicles}
-                  sectors={sectors}
-                  persons={persons}
-                  jobs={jobs}
-                  brands={brands}
-                  onAddVehicle={async v => {
-                    const newV = await entityService.createVehicle(v);
-                    if (newV) setVehicles(p => [...p, newV]);
-                    else alert("Erro ao criar veículo");
-                  }}
-                  onUpdateVehicle={async v => {
-                    const updated = await entityService.updateVehicle(v);
-                    if (updated) setVehicles(p => p.map(vi => vi.id === v.id ? updated : vi));
-                    else alert("Erro ao atualizar veículo");
-                  }}
-                  onDeleteVehicle={async id => {
-                    const success = await entityService.deleteVehicle(id);
-                    if (success) setVehicles(p => p.filter(v => v.id !== id));
-                    else alert("Erro ao deletar veículo");
-                  }}
-                  onAddBrand={async b => {
-                    const newB = await entityService.createBrand(b);
-                    if (newB) setBrands(p => [...p, newB]);
-                    else alert("Erro ao criar marca");
-                  }}
-                  onBack={handleGoHome}
-                />
-              ) : currentView === 'admin' && adminTab === 'ui' ? (
-                <UIPreviewScreen ui={appState.ui} />
-              ) : currentView === 'admin' && adminTab === 'design' ? (
-                <AdminDocumentPreview state={appState} />
-              ) : (
-                <DocumentPreview ref={componentRef} state={appState} isGenerating={isDownloading} mode={currentView === 'admin' ? 'admin' : 'editor'} blockType={activeBlock} />
+            <div className="flex-1 flex overflow-hidden h-full relative">
+              {!isFinalizedView && adminTab !== 'fleet' && adminTab !== '2fa' && adminTab !== 'users' && adminTab !== 'entities' && (currentView !== 'admin' || adminTab !== null) && (
+                <AdminSidebar state={appState} onUpdate={setAppState} onPrint={() => window.print()} isOpen={isAdminSidebarOpen} onClose={() => { if (currentView === 'editor') { setIsFinalizedView(true); setIsAdminSidebarOpen(false); } else { setIsAdminSidebarOpen(false); } }} isDownloading={isDownloading} currentUser={currentUser} mode={currentView === 'admin' ? 'admin' : 'editor'} onSaveDefault={async () => { await settingsService.saveGlobalSettings(appState); await db.saveGlobalSettings(appState); }} onFinish={handleFinish} activeTab={adminTab} onTabChange={setAdminTab} availableSignatures={myAvailableSignatures} activeBlock={activeBlock} persons={persons} sectors={sectors} jobs={jobs} onBack={() => { if (currentView === 'editor') setCurrentView('home'); }} />
               )}
-              {isFinalizedView && (
-                <FinalizedActionBar
-                  onDownload={handleDownloadPdf}
-                  onBack={handleGoHome}
-                  onEdit={() => { setIsFinalizedView(false); setIsAdminSidebarOpen(true); }}
-                  onSend={handleSendOrder}
-                  showSendButton={activeBlock === 'compras'}
-                  isDownloading={isDownloading}
-                  documentTitle={appState.content.title}
-                  onToggleDigitalSignature={() => {
-                    setAppState(prev => ({
-                      ...prev,
-                      content: {
-                        ...prev.content,
-                        digitalSignature: {
-                          ...prev.content.digitalSignature!,
-                          enabled: !prev.content.digitalSignature?.enabled
+              <main className="flex-1 h-full overflow-hidden flex flex-col relative bg-slate-50">
+                {currentView === 'admin' && adminTab === null ? (
+                  <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+                    <AdminDashboard
+                      currentUser={currentUser}
+                      onTabChange={(tab) => setAdminTab(tab)}
+                      onBack={handleGoHome}
+                    />
+                  </div>
+                ) : currentView === 'admin' && adminTab === 'users' ? (
+                  <UserManagementScreen
+                    users={users}
+                    currentUser={currentUser}
+                    onAddUser={async (u) => {
+                      // Prepare user data for Supabase
+                      const email = u.username.includes('@') ? u.username : `${u.username}@projeto.local`;
+                      const userData = {
+                        ...u,
+                        jobTitle: u.jobTitle,
+                        allowedSignatureIds: u.allowedSignatureIds,
+                        twoFactorEnabled: false
+                      };
+
+                      const { data: newId, error } = await supabase.rpc('create_user_admin', {
+                        email: email,
+                        password: u.password || '12345678', // Default if missing, though UI enforces it
+                        user_data: userData
+                      });
+
+                      if (error) {
+                        console.error("Error creating user:", error);
+                        alert("Erro ao criar usuário: " + error.message);
+                      } else {
+                        // Refresh users
+                        const { data: refreshed } = await supabase.from('profiles').select('*');
+                        if (refreshed) {
+                          const mapped = refreshed.map((ru: any) => ({
+                            id: ru.id,
+                            username: ru.username,
+                            name: ru.name,
+                            role: ru.role,
+                            sector: ru.sector,
+                            jobTitle: ru.job_title,
+                            email: ru.email,
+                            whatsapp: ru.whatsapp,
+                            allowedSignatureIds: ru.allowed_signature_ids,
+                            permissions: ru.permissions,
+                            tempPassword: ru.temp_password,
+                            tempPasswordExpiresAt: ru.temp_password_expires_at,
+                            twoFactorEnabled: ru.two_factor_enabled,
+                            twoFactorSecret: ru.two_factor_secret
+                          }));
+                          setUsers(mapped);
                         }
                       }
-                    }));
-                  }}
-                  isDigitalSignatureVisible={!!appState.content.digitalSignature?.enabled}
-                  hasDigitalSignature={!!appState.content.digitalSignature}
-                />
-              )}
-            </main>
+                    }}
+                    onUpdateUser={handleUpdateUserInApp}
+                    onDeleteUser={async (id) => {
+                      const { error } = await supabase.rpc('delete_user_admin', { user_id: id });
+                      if (error) {
+                        console.error("Error deleting user:", error);
+                        alert("Erro ao deletar: " + error.message);
+                      } else {
+                        setUsers(p => p.filter(u => u.id !== id));
+                      }
+                    }}
+                    availableSignatures={allSignatures}
+                    jobs={jobs}
+                    sectors={sectors}
+                    persons={persons}
+                    onBack={() => setAdminTab(null)}
+                  />
+                ) : currentView === 'admin' && adminTab === '2fa' ? (
+                  <TwoFactorAuthScreen
+                    currentUser={currentUser}
+                    onUpdateUser={(u) => {
+                      handleUpdateUserInApp(u);
+                      // Also update local current user state if needed
+                    }}
+                    onBack={() => setAdminTab(null)}
+                  />
+                ) : currentView === 'admin' && adminTab === 'entities' ? (
+                  <EntityManagementScreen
+                    persons={persons}
+                    sectors={sectors}
+                    jobs={jobs}
+                    onAddPerson={async p => {
+                      const newPerson = await entityService.createPerson(p);
+                      if (newPerson) setPersons(prev => [...prev, newPerson]);
+                      else alert('Erro ao criar pessoa');
+                    }}
+                    onUpdatePerson={async p => {
+                      const updated = await entityService.updatePerson(p);
+                      if (updated) setPersons(prev => prev.map(x => x.id === p.id ? updated : x));
+                      else alert('Erro ao atualizar pessoa');
+                    }}
+                    onDeletePerson={async id => {
+                      const success = await entityService.deletePerson(id);
+                      if (success) setPersons(prev => prev.filter(x => x.id !== id));
+                      else alert('Erro ao deletar pessoa');
+                    }}
+                    onAddSector={async s => {
+                      const newSector = await entityService.createSector(s);
+                      if (newSector) setSectors(prev => [...prev, newSector]);
+                      else alert('Erro ao criar setor');
+                    }}
+                    onUpdateSector={async s => {
+                      const updated = await entityService.updateSector(s);
+                      if (updated) setSectors(prev => prev.map(x => x.id === s.id ? updated : x));
+                      else alert('Erro ao atualizar setor');
+                    }}
+                    onDeleteSector={async id => {
+                      const success = await entityService.deleteSector(id);
+                      if (success) setSectors(prev => prev.filter(x => x.id !== id));
+                      else alert('Erro ao deletar setor');
+                    }}
+                    onAddJob={async j => {
+                      const newJob = await entityService.createJob(j);
+                      if (newJob) setJobs(prev => [...prev, newJob]);
+                      else alert('Erro ao criar cargo');
+                    }}
+                    onUpdateJob={async j => {
+                      const updated = await entityService.updateJob(j);
+                      if (updated) setJobs(prev => prev.map(x => x.id === j.id ? updated : x));
+                      else alert('Erro ao atualizar cargo');
+                    }}
+                    onDeleteJob={async id => {
+                      const success = await entityService.deleteJob(id);
+                      if (success) setJobs(prev => prev.filter(x => x.id !== id));
+                      else alert('Erro ao deletar cargo');
+                    }}
+                    onBack={() => setAdminTab(null)}
+                  />
+
+                ) : currentView === 'admin' && adminTab === 'fleet' ? (
+                  <FleetManagementScreen
+                    vehicles={vehicles}
+                    sectors={sectors}
+                    persons={persons}
+                    jobs={jobs}
+                    brands={brands}
+                    onAddVehicle={async v => {
+                      const newV = await entityService.createVehicle(v);
+                      if (newV) setVehicles(p => [...p, newV]);
+                      else alert("Erro ao criar veículo");
+                    }}
+                    onUpdateVehicle={async v => {
+                      const updated = await entityService.updateVehicle(v);
+                      if (updated) setVehicles(p => p.map(vi => vi.id === v.id ? updated : vi));
+                      else alert("Erro ao atualizar veículo");
+                    }}
+                    onDeleteVehicle={async id => {
+                      const success = await entityService.deleteVehicle(id);
+                      if (success) setVehicles(p => p.filter(v => v.id !== id));
+                      else alert("Erro ao deletar veículo");
+                    }}
+                    onAddBrand={async b => {
+                      const newB = await entityService.createBrand(b);
+                      if (newB) setBrands(p => [...p, newB]);
+                      else alert("Erro ao criar marca");
+                    }}
+                    onBack={handleGoHome}
+                  />
+                ) : currentView === 'admin' && adminTab === 'ui' ? (
+                  <UIPreviewScreen ui={appState.ui} />
+                ) : currentView === 'admin' && adminTab === 'design' ? (
+                  <AdminDocumentPreview state={appState} />
+                ) : (
+                  <DocumentPreview ref={componentRef} state={appState} isGenerating={isDownloading} mode={currentView === 'admin' ? 'admin' : 'editor'} blockType={activeBlock} />
+                )}
+                {isFinalizedView && (
+                  <FinalizedActionBar
+                    onDownload={handleDownloadPdf}
+                    onBack={handleGoHome}
+                    onEdit={() => { setIsFinalizedView(false); setIsAdminSidebarOpen(true); }}
+                    onSend={handleSendOrder}
+                    showSendButton={activeBlock === 'compras'}
+                    isDownloading={isDownloading}
+                    documentTitle={appState.content.title}
+                    onToggleDigitalSignature={() => {
+                      setAppState(prev => ({
+                        ...prev,
+                        content: {
+                          ...prev.content,
+                          digitalSignature: {
+                            ...prev.content.digitalSignature!,
+                            enabled: !prev.content.digitalSignature?.enabled
+                          }
+                        }
+                      }));
+                    }}
+                    isDigitalSignatureVisible={!!appState.content.digitalSignature?.enabled}
+                    hasDigitalSignature={!!appState.content.digitalSignature}
+                  />
+                )}
+              </main>
+            </div>
           </div>
         )}
         {currentView === 'tracking' && currentUser && (
@@ -1148,28 +1180,30 @@ const App: React.FC = () => {
         )}
       </div>
 
-      {successOverlay?.show && createPortal(
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl animate-fade-in">
-          <div className="w-full max-w-lg bg-white rounded-[3rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-scale-in">
-            <div className="p-12 text-center flex flex-col items-center">
-              <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-8 shadow-2xl shadow-emerald-500/20">
-                <CheckCircle2 className="w-14 h-14" />
-              </div>
-              <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-4 uppercase">Pedido Enviado!</h3>
-              <p className="text-slate-500 text-base font-medium leading-relaxed mb-10">O seu documento foi processado com sucesso e encaminhado para análise do setor competente.</p>
-              <div className="w-full bg-slate-50 rounded-3xl p-6 border border-slate-100 flex flex-col items-center mb-10">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Protocolo de Rastreio</span>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-600 rounded-lg text-white shadow-lg"><Send className="w-4 h-4" /></div>
-                  <span className="text-2xl font-mono font-bold text-slate-900 tracking-wider">{successOverlay.protocol}</span>
+      {
+        successOverlay?.show && createPortal(
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl animate-fade-in">
+            <div className="w-full max-w-lg bg-white rounded-[3rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-scale-in">
+              <div className="p-12 text-center flex flex-col items-center">
+                <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-8 shadow-2xl shadow-emerald-500/20">
+                  <CheckCircle2 className="w-14 h-14" />
                 </div>
+                <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-4 uppercase">Pedido Enviado!</h3>
+                <p className="text-slate-500 text-base font-medium leading-relaxed mb-10">O seu documento foi processado com sucesso e encaminhado para análise do setor competente.</p>
+                <div className="w-full bg-slate-50 rounded-3xl p-6 border border-slate-100 flex flex-col items-center mb-10">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Protocolo de Rastreio</span>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-600 rounded-lg text-white shadow-lg"><Send className="w-4 h-4" /></div>
+                    <span className="text-2xl font-mono font-bold text-slate-900 tracking-wider">{successOverlay.protocol}</span>
+                  </div>
+                </div>
+                <button onClick={() => { setSuccessOverlay(null); handleGoHome(); }} className="w-full py-5 bg-slate-900 text-white font-black text-sm uppercase tracking-[0.2em] rounded-3xl shadow-2xl shadow-slate-900/20 hover:bg-emerald-600 transition-all active:scale-[0.98]">Voltar ao Menu Inicial</button>
               </div>
-              <button onClick={() => { setSuccessOverlay(null); handleGoHome(); }} className="w-full py-5 bg-slate-900 text-white font-black text-sm uppercase tracking-[0.2em] rounded-3xl shadow-2xl shadow-slate-900/20 hover:bg-emerald-600 transition-all active:scale-[0.98]">Voltar ao Menu Inicial</button>
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body
+        )
+      }
 
       <div id="background-pdf-generation-container" style={{ position: 'absolute', left: '-9999px', top: '-9999px', pointerEvents: 'none' }} aria-hidden="true">
         {snapshotToDownload && (
@@ -1182,39 +1216,41 @@ const App: React.FC = () => {
           />
         )}
       </div>
-      {currentUser && (
-        <TwoFactorModal
-          isOpen={is2FAModalOpen}
-          onClose={() => setIs2FAModalOpen(false)}
-          onConfirm={async () => {
-            setIs2FAModalOpen(false);
+      {
+        currentUser && (
+          <TwoFactorModal
+            isOpen={is2FAModalOpen}
+            onClose={() => setIs2FAModalOpen(false)}
+            onConfirm={async () => {
+              setIs2FAModalOpen(false);
 
-            // Capture Metadata
-            let ip = 'Não detectado';
-            try {
-              const res = await fetch('https://api.ipify.org?format=json');
-              const data = await res.json();
-              ip = data.ip;
-            } catch (e) { console.error("IP fallback", e); }
+              // Capture Metadata
+              let ip = 'Não detectado';
+              try {
+                const res = await fetch('https://api.ipify.org?format=json');
+                const data = await res.json();
+                ip = data.ip;
+              } catch (e) { console.error("IP fallback", e); }
 
-            // Generate Unique Signature ID via Supabase
-            const signatureId = await signatureService.createSignatureLog(currentUser.id, ip, appState.content.title);
+              // Generate Unique Signature ID via Supabase
+              const signatureId = await signatureService.createSignatureLog(currentUser.id, ip, appState.content.title);
 
-            const metadata = {
-              enabled: true,
-              method: 'Autenticador Mobile 2FA',
-              ip: ip,
-              date: new Date().toISOString(),
-              id: signatureId || 'ERR-GEN-ID'
-            };
+              const metadata = {
+                enabled: true,
+                method: 'Autenticador Mobile 2FA',
+                ip: ip,
+                date: new Date().toISOString(),
+                id: signatureId || 'ERR-GEN-ID'
+              };
 
-            handleFinish(true, metadata); // Proceed skipping 2FA check with metadata
-          }}
-          secret={twoFASecret}
-          secret2={twoFASecret2}
-          signatureName={twoFASignatureName}
-        />
-      )}
+              handleFinish(true, metadata); // Proceed skipping 2FA check with metadata
+            }}
+            secret={twoFASecret}
+            secret2={twoFASecret2}
+            signatureName={twoFASignatureName}
+          />
+        )
+      }
     </div>
   );
 };
