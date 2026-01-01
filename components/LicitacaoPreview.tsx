@@ -28,7 +28,8 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
   const pages = useMemo(() => {
     const TOTAL_LINES_CAPACITY = 36;
     const SECURITY_MARGIN_LINES = 3;
-    const MAX_LINES_PER_PAGE = TOTAL_LINES_CAPACITY - SECURITY_MARGIN_LINES; // 33
+    const HEADER_ESTIMATED_LINES = 10; // Header takes significant space now
+    const MAX_LINES_PER_PAGE = TOTAL_LINES_CAPACITY - SECURITY_MARGIN_LINES - HEADER_ESTIMATED_LINES;
     const CHARS_PER_LINE = 80;
 
     const historicStages = content.licitacaoStages || [];
@@ -37,8 +38,8 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
     const currentStage = {
       id: 'current',
       title: content.currentStageIndex !== undefined
-        ? `Etapa ${(content.currentStageIndex + 1).toString().padStart(2, '0')}`
-        : 'Etapa Atual',
+        ? (['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'][content.currentStageIndex] || `Etapa ${(content.currentStageIndex + 1).toString().padStart(2, '0')}`)
+        : 'Início',
       body: content.body,
       signatureName: content.signatureName,
       signatureRole: content.signatureRole,
@@ -52,7 +53,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
 
     allStages.forEach((stage, index) => {
       let stageHtml = '';
-      const stageInternalTitle = stage.title || `Etapa ${(index + 1).toString().padStart(2, '0')}`;
+      const stageInternalTitle = stage.title || (['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'][index] || `Etapa ${(index + 1).toString().padStart(2, '0')}`);
 
       // Header for the stage
       stageHtml += `<h3 class="text-blue-900 font-bold uppercase text-sm mb-6 pb-2 border-b border-blue-100">${stageInternalTitle}</h3>`;
@@ -109,17 +110,15 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
     <>
       {pages.map((pageHtml, pageIndex) => (
         <PageWrapper key={pageIndex} state={state} pageIndex={pageIndex} totalPages={pages.length} isGenerating={isGenerating}>
-          {pageIndex === 0 && (
-            <div className="mb-6">
-              <div className="bg-blue-900 text-white px-4 py-2 rounded-lg font-black text-xs uppercase tracking-[0.3em] mb-4 text-center">
-                Processo Administrativo / Licitatório
-              </div>
-              <h1 className="font-black leading-tight tracking-tight text-[24pt] text-blue-900 text-center uppercase">
-                {content.title}
-              </h1>
-              <div className="w-20 h-1 bg-blue-900 mx-auto mt-4" />
+          <div className="mb-6">
+            <div className="bg-blue-900 text-white px-4 py-2 rounded-lg font-black text-xs uppercase tracking-[0.3em] mb-4 text-center">
+              Processo Administrativo / Licitatório
             </div>
-          )}
+            <h1 className="font-black leading-tight tracking-tight text-[24pt] text-blue-900 text-center uppercase">
+              {content.title}
+            </h1>
+            <div className="w-20 h-1 bg-blue-900 mx-auto mt-4" />
+          </div>
           <div className="max-w-none w-full text-gray-800 leading-relaxed text-justify text-[10.5pt] whitespace-pre-wrap font-serif break-words" dangerouslySetInnerHTML={{ __html: pageHtml }} />
 
           {/* Global Digital Signature Footer (if enabled) - Only on last page */}

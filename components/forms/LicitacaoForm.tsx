@@ -9,6 +9,7 @@ interface LicitacaoFormProps {
   allowedSignatures: Signature[];
   handleUpdate: (section: keyof AppState, key: string, value: any) => void;
   onUpdate: (newState: AppState) => void;
+  onFinish?: () => void;
 }
 
 export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
@@ -16,7 +17,8 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
   content,
   allowedSignatures,
   handleUpdate,
-  onUpdate
+  onUpdate,
+  onFinish
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -30,7 +32,7 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
     }
   }, []);
 
-  const STAGES = ['Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
+  const STAGES = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
   const currentStageIndex = content.currentStageIndex || 0;
   const historicStages = content.licitacaoStages || [];
 
@@ -65,33 +67,6 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
       }
     }
   }, [content.body, viewingIndex, currentStageIndex, historicStages]);
-
-  const handleNextStage = () => {
-    // 1. Save current stage
-    const currentStageData = {
-      id: Date.now().toString(),
-      title: STAGES[currentStageIndex],
-      body: content.body,
-      signatureName: content.signatureName,
-      signatureRole: content.signatureRole,
-      signatureSector: content.signatureSector
-    };
-
-    const newStages = [...historicStages, currentStageData];
-
-    // 2. Update state: add stage to history, increment index, clear body for new stage
-    // Also update viewingIndex to new stage
-    onUpdate({
-      ...state,
-      content: {
-        ...state.content,
-        licitacaoStages: newStages,
-        currentStageIndex: currentStageIndex + 1,
-        viewingStageIndex: currentStageIndex + 1, // Advance view
-        body: '', // Clear for next stage
-      }
-    });
-  };
 
   const isViewingHistory = viewingIndex < currentStageIndex;
 
@@ -131,17 +106,6 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
         </div>
       </div>
 
-      {!isViewingHistory && (
-        <div className="flex justify-end pt-4">
-          <button
-            onClick={handleNextStage}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-blue-500/30 transition-all active:scale-95"
-          >
-            <CheckCircle2 className="w-5 h-5" />
-            <span>Concluir {STAGES[currentStageIndex]} e Avançar</span>
-          </button>
-        </div>
-      )}
 
       {!isViewingHistory && (
         <div className="space-y-4 border-t border-slate-200 pt-6">

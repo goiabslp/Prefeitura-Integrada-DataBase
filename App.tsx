@@ -14,7 +14,9 @@ import * as comprasService from './services/comprasService';
 import * as diariasService from './services/diariasService';
 import * as counterService from './services/counterService';
 import * as signatureService from './services/signatureService';
+
 import * as vehicleSchedulingService from './services/vehicleSchedulingService';
+import * as licitacaoService from './services/licitacaoService';
 import { Send, CheckCircle2, X } from 'lucide-react';
 
 // Components
@@ -78,7 +80,9 @@ const App: React.FC = () => {
   const [activeBlock, setActiveBlock] = useState<BlockType | null>(null);
   const [oficios, setOficios] = useState<Order[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<Order[]>([]);
+
   const [serviceRequests, setServiceRequests] = useState<Order[]>([]);
+  const [licitacaoProcesses, setLicitacaoProcesses] = useState<Order[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<User[]>(DEFAULT_USERS);
   // const [signatures, setSignatures] = useState<Signature[]>([]); // DEPRECATED: Signatures are now derived from Users
@@ -147,12 +151,16 @@ const App: React.FC = () => {
       const loadedPurchaseOrders = await comprasService.getAllPurchaseOrders();
       setPurchaseOrders(loadedPurchaseOrders);
       const loadedServiceRequests = await diariasService.getAllServiceRequests();
+
       setServiceRequests(loadedServiceRequests);
+      const loadedLicitacao = await licitacaoService.getAllLicitacaoProcesses();
+      setLicitacaoProcesses(loadedLicitacao);
 
       // Re-evaluate orders based on active view/block if needed, but for now specific block handling in other functions overrides this.
       // However, to see updates in current list:
       if (activeBlock === 'compras') setOrders(loadedPurchaseOrders);
       else if (activeBlock === 'diarias') setOrders(loadedServiceRequests);
+      else if (activeBlock === 'licitacao') setOrders(loadedLicitacao);
       else setOrders(loadedOficios);
 
 
@@ -393,6 +401,9 @@ const App: React.FC = () => {
       } else if (finalOrder.blockType === 'diarias') {
         await diariasService.saveServiceRequest(finalOrder);
         setServiceRequests(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
+      } else if (finalOrder.blockType === 'licitacao') {
+        await licitacaoService.saveLicitacaoProcess(finalOrder);
+        setLicitacaoProcesses(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
       } else {
         // Default to Oficio
         await oficiosService.saveOficio(finalOrder);
@@ -449,6 +460,10 @@ const App: React.FC = () => {
         await diariasService.saveServiceRequest(finalOrder);
         setServiceRequests(prev => [finalOrder, ...prev]);
         setOrders(prev => [finalOrder, ...prev]);
+      } else if (activeBlock === 'licitacao') {
+        await licitacaoService.saveLicitacaoProcess(finalOrder);
+        setLicitacaoProcesses(prev => [finalOrder, ...prev]);
+        setOrders(prev => [finalOrder, ...prev]);
       } else {
         await oficiosService.saveOficio(finalOrder);
         setOficios(prev => [finalOrder, ...prev]);
@@ -495,6 +510,9 @@ const App: React.FC = () => {
         } else if (updated.blockType === 'diarias') {
           diariasService.saveServiceRequest(updated);
           setServiceRequests(prev => prev.map(p => p.id === updated.id ? updated : p));
+        } else if (updated.blockType === 'licitacao') {
+          licitacaoService.saveLicitacaoProcess(updated);
+          setLicitacaoProcesses(prev => prev.map(p => p.id === updated.id ? updated : p));
         } else {
           oficiosService.saveOficio(updated);
           setOficios(prev => prev.map(p => p.id === updated.id ? updated : p));
@@ -664,6 +682,25 @@ const App: React.FC = () => {
     }
   }, [appState.content, currentView, editingOrder, activeBlock]);
 
+  // AUTO-SAVE FOR LICITACAO
+  useEffect(() => {
+    if (activeBlock === 'licitacao' && currentView === 'editor' && editingOrder) {
+      const timer = setTimeout(() => {
+        const orderToSave: Order = {
+          ...editingOrder,
+          title: appState.content.title,
+          documentSnapshot: appState
+        };
+        licitacaoService.saveLicitacaoProcess(orderToSave).then(() => {
+          console.log("Auto-saved licitacao process");
+        }).catch(err => console.error("Auto-save failed", err));
+      }, 2000); // 2 seconds debounce
+
+      return () => clearTimeout(timer);
+    }
+  }, [appState, activeBlock, currentView, editingOrder]);
+
+
   // Clear draft on successful finish or explicit exit
   const clearDraft = useCallback(() => {
     if (activeBlock) {
@@ -682,8 +719,8 @@ const App: React.FC = () => {
     let leftBlockContent = INITIAL_STATE.content.leftBlockText;
     const currentYear = new Date().getFullYear();
 
-    // CHECK FOR DRAFT FIRST
-    if (activeBlock) {
+    // CHECK FOR DRAFT FIRST (Skip for Licitacao to always start fresh/auto-create)
+    if (activeBlock && activeBlock !== 'licitacao') {
       const draftKey = `draft_${activeBlock}`;
       const savedDraft = localStorage.getItem(draftKey);
       if (savedDraft) {
@@ -768,7 +805,55 @@ const App: React.FC = () => {
       }
     }));
 
-    setEditingOrder(null);
+
+
+
+    // AUTO-CREATION FOR LICITACAO
+    if (activeBlock === 'licitacao') {
+      const nextVal = await db.incrementGlobalCounter(); // Or use separate counter
+      setGlobalCounter(nextVal);
+      const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+      // Ensure protocol logic matches general logic or is specific
+      // For now using the same generation logic as handleFinish for consistency, but immediately.
+      // Note: handleFinish uses 'LIC' prefix.
+      const protocolString = `LIC-${currentYear}-${randomPart}`;
+
+      const newSnapshot = {
+        ...INITIAL_STATE,
+        content: {
+          ...INITIAL_STATE.content,
+          title: defaultTitle,
+          protocol: protocolString,
+          // Ensure stage is initialized
+          currentStageIndex: 0,
+          licitacaoStages: []
+        }
+      };
+
+      setAppState(newSnapshot);
+
+      const newOrder: Order = {
+        id: Date.now().toString(),
+        protocol: protocolString,
+        title: defaultTitle,
+        status: 'pending', // "Em andamento"
+        createdAt: new Date().toISOString(),
+        userId: currentUser?.id || '',
+        userName: currentUser?.name || '',
+        blockType: 'licitacao',
+        documentSnapshot: newSnapshot,
+        stage: 'Início',
+        requestingSector: currentUser?.sector || ''
+      };
+
+      await licitacaoService.saveLicitacaoProcess(newOrder);
+      setLicitacaoProcesses(prev => [newOrder, ...prev]);
+      setEditingOrder(newOrder);
+      setOrders(prev => [newOrder, ...prev]);
+    } else {
+      setEditingOrder(null);
+    }
     setCurrentView('editor');
     setAdminTab('content');
     setIsAdminSidebarOpen(true);
@@ -875,12 +960,60 @@ const App: React.FC = () => {
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Esteira</span>
                   <div className="flex-1">
                     <ProcessStepper
-                      steps={['Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06']}
+                      steps={['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06']}
                       currentStep={appState.content.viewingStageIndex ?? (appState.content.currentStageIndex || 0)}
                       maxCompletedStep={(appState.content.currentStageIndex || 0) - 1}
                       onStepClick={(idx) => setAppState(prev => ({ ...prev, content: { ...prev.content, viewingStageIndex: idx } }))}
                     />
                   </div>
+                  {/* Action Button for Licitacao Steps */}
+                  {(!appState.content.viewingStageIndex || appState.content.viewingStageIndex === (appState.content.currentStageIndex || 0)) && (
+                    <button
+                      onClick={() => {
+                        const { content } = appState;
+                        const currentIdx = content.currentStageIndex || 0;
+                        const historic = content.licitacaoStages || [];
+                        const stages = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
+
+                        if (currentIdx >= 6) { // Last stage
+                          handleFinish();
+                          return;
+                        }
+
+                        const currentStageData = {
+                          id: Date.now().toString(),
+                          title: stages[currentIdx],
+                          body: content.body,
+                          signatureName: content.signatureName,
+                          signatureRole: content.signatureRole,
+                          signatureSector: content.signatureSector
+                        };
+
+                        setAppState(prev => ({
+                          ...prev,
+                          content: {
+                            ...prev.content,
+                            licitacaoStages: [...historic, currentStageData],
+                            currentStageIndex: currentIdx + 1,
+                            viewingStageIndex: currentIdx + 1,
+                            body: ''
+                          }
+                        }));
+                      }}
+                      className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all active:scale-95 ${(appState.content.currentStageIndex || 0) === 6
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>
+                        {(appState.content.currentStageIndex || 0) === 6
+                          ? 'Concluir Processo'
+                          : 'Concluir Etapa'
+                        }
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -1105,6 +1238,10 @@ const App: React.FC = () => {
               } else if (activeBlock === 'diarias') {
                 await diariasService.deleteServiceRequest(id);
                 setServiceRequests(p => p.filter(o => o.id !== id));
+                setOrders(p => p.filter(o => o.id !== id));
+              } else if (activeBlock === 'licitacao') {
+                await licitacaoService.deleteLicitacaoProcess(id);
+                setLicitacaoProcesses(p => p.filter(o => o.id !== id));
                 setOrders(p => p.filter(o => o.id !== id));
               } else {
                 await oficiosService.deleteOficio(id);

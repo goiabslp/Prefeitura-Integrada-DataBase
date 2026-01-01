@@ -39,7 +39,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const getModuleTitle = () => {
     if (currentView === 'admin') return "Painel Administrativo";
-    if (currentView === 'tracking') return `Histórico: ${activeBlock?.toUpperCase()}`;
+    if (currentView === 'tracking') {
+      if (activeBlock === 'licitacao') return "Histórico de Processos";
+      return `Histórico: ${activeBlock?.toUpperCase()}`;
+    }
     if (currentView === 'vehicle-scheduling') return "Gestão de Veículos Municipais";
 
     switch (activeBlock) {

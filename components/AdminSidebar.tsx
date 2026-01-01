@@ -163,6 +163,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           <LicitacaoForm
             state={state} content={content}
             allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate}
+            onFinish={onFinish ? handleFinishWithAnimation : undefined}
           />
         );
       default:
@@ -282,7 +283,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </div>
         )}
 
-        {mode !== 'admin' && activeTab === 'content' && (
+        {mode !== 'admin' && activeTab === 'content' && activeBlock !== 'licitacao' && (
           <div className="p-6 border-t border-gray-200 bg-white/80 backdrop-blur-xl sticky bottom-0 z-20">
             <button onClick={handleFinishWithAnimation} disabled={finishStatus === 'loading' || finishStatus === 'success'} className={`w-full font-black py-4 px-6 rounded-2xl shadow-xl transform transition-all duration-300 flex items-center justify-center gap-3 uppercase tracking-widest text-xs ${finishStatus === 'success' ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white hover:bg-indigo-600 active:scale-95'}`}>
               {finishStatus === 'loading' ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Processando...</span></> : finishStatus === 'success' ? <><Check className="w-4 h-4" /><span>Concluído!</span></> : <><Check className="w-4 h-4" /><span>Finalizar Edição</span></>}

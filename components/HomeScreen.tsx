@@ -206,7 +206,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     activeBlock === 'oficio' ? 'Histórico de Ofícios' :
                       activeBlock === 'compras' ? 'Histórico de Compras' :
                         activeBlock === 'diarias' ? 'Histórico de Solicitações' :
-                          'Histórico'
+                          activeBlock === 'licitacao' ? 'Meus Processos' :
+                            'Histórico'
                   }</h3>
                   <p className="text-slate-500 text-xs font-medium">Consulte registros de {activeBlock.toUpperCase()}.</p>
                 </button>

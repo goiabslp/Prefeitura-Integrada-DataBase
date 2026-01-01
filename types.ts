@@ -192,6 +192,8 @@ export interface Order {
   budgetFileUrl?: string;
   attachments?: Attachment[];
   completionForecast?: string;
+  stage?: string;
+  requestingSector?: string;
 }
 
 export interface Person {
