@@ -86,7 +86,7 @@ export const OficioForm: React.FC<OficioFormProps> = ({
             value={content.title}
             onChange={(e) => handleUpdate('content', 'title', e.target.value)}
             className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:bg-white transition-all outline-none"
-            placeholder="Adicione um Titulo ao seu Documento"
+            placeholder="Novo Ofício"
           />
         </div>
       </div>

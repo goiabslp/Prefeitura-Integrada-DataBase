@@ -292,7 +292,7 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
               value={content.title}
               onChange={(e) => handleUpdate('content', 'title', e.target.value)}
               className={`${inputClass} font-bold text-slate-900 text-base`}
-              placeholder="Ex: Requisição de Compras e Serviços de Material Escolar"
+              placeholder="Novo Pedido"
             />
           </div>
 

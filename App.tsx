@@ -234,47 +234,52 @@ const App: React.FC = () => {
       // Fetch Global Settings (Try Supabase first, fallback to local)
       const remoteSettings = await settingsService.getGlobalSettings();
       if (remoteSettings) {
-        const mergedState = {
-          ...appState, // Use current state as base to preserve any local edits not yet saved? Actually better to merge remote into INITIAL or current defaults
-          branding: {
-            ...INITIAL_STATE.branding,
-            ...remoteSettings.branding,
-            watermark: {
-              ...INITIAL_STATE.branding.watermark,
-              ...(remoteSettings.branding?.watermark || {})
-            }
-          },
-          document: {
-            ...INITIAL_STATE.document,
-            ...remoteSettings.document,
-            titleStyle: {
-              ...INITIAL_STATE.document.titleStyle,
-              ...(remoteSettings.document?.titleStyle || {})
-            },
-            leftBlockStyle: {
-              ...INITIAL_STATE.document.leftBlockStyle,
-              ...(remoteSettings.document?.leftBlockStyle || {})
-            },
-            rightBlockStyle: {
-              ...INITIAL_STATE.document.rightBlockStyle,
-              ...(remoteSettings.document?.rightBlockStyle || {})
-            }
-          },
-          ui: {
-            ...INITIAL_STATE.ui,
-            ...remoteSettings.ui
-          }
-        };
-
         setAppState(prev => {
-          const newState = { ...prev, ...mergedState };
+          const newState = {
+            ...prev,
+            branding: {
+              ...prev.branding,
+              ...remoteSettings.branding,
+              watermark: {
+                ...prev.branding.watermark,
+                ...(remoteSettings.branding?.watermark || {})
+              }
+            },
+            document: {
+              ...prev.document,
+              ...remoteSettings.document,
+              titleStyle: {
+                ...prev.document.titleStyle,
+                ...(remoteSettings.document?.titleStyle || {})
+              },
+              leftBlockStyle: {
+                ...prev.document.leftBlockStyle,
+                ...(remoteSettings.document?.leftBlockStyle || {})
+              },
+              rightBlockStyle: {
+                ...prev.document.rightBlockStyle,
+                ...(remoteSettings.document?.rightBlockStyle || {})
+              }
+            },
+            ui: {
+              ...prev.ui,
+              ...remoteSettings.ui
+            }
+          };
           // Cache to LocalStorage
           localStorage.setItem('cachedAppState', JSON.stringify(newState));
           return newState;
         });
       } else {
         const savedSettings = await db.getGlobalSettings();
-        if (savedSettings) setAppState(savedSettings);
+        if (savedSettings) {
+          setAppState(prev => ({
+            ...prev,
+            branding: savedSettings.branding || prev.branding,
+            document: savedSettings.document || prev.document,
+            ui: savedSettings.ui || prev.ui
+          }));
+        }
       }
 
       // Fetch entities from Supabase
@@ -428,28 +433,6 @@ const App: React.FC = () => {
 
     // Auto-refresh handled by useCallback dependency if needed
   }, [currentView, activeBlock, adminTab, editingOrder]);
-  // Ensure data is refreshed when switching blocks (Update lists and potentially settings)
-  useEffect(() => {
-    if (activeBlock) {
-      refreshData();
-    }
-  }, [activeBlock, refreshData]);
-
-  // Persistence: Refresh data when tab becomes visible or on focus to restore potential lost state (logos, etc)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        refreshData();
-      }
-    };
-
-    window.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleVisibilityChange);
-    return () => {
-      window.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleVisibilityChange);
-    };
-  }, [refreshData]);
 
 
   useEffect(() => {
@@ -954,28 +937,48 @@ const App: React.FC = () => {
 
 
   // MODIFIED handleStartEditing to check for drafts
-  const handleStartEditing = async () => {
+  const handleStartEditing = async (blockOverride?: BlockType) => {
+    const currentBlock = blockOverride || activeBlock;
     let defaultTitle = INITIAL_STATE.content.title;
     let defaultRightBlock = INITIAL_STATE.content.rightBlockText;
     let leftBlockContent = INITIAL_STATE.content.leftBlockText;
     const currentYear = new Date().getFullYear();
 
     // CHECK FOR DRAFT FIRST (Skip for Licitacao to always start fresh/auto-create)
-    if (activeBlock && activeBlock !== 'licitacao') {
-      const draftKey = `draft_${activeBlock}`;
+    if (currentBlock && currentBlock !== 'licitacao') {
+      const draftKey = `draft_${currentBlock}`;
       const savedDraft = localStorage.getItem(draftKey);
       if (savedDraft) {
         try {
           const parsed = JSON.parse(savedDraft);
           // Optional: Check timestamp expiry? For now keep it indefinitely until finished/cleared
           if (parsed && parsed.content) {
-            setAppState(prev => ({
-              ...prev,
-              content: {
-                ...prev.content,
+            setAppState(prev => {
+              const mergedContent = {
+                ...INITIAL_STATE.content,
                 ...parsed.content
+              };
+
+              // Validate title for the current block to prevent leaks from drafts
+              if (currentBlock === 'oficio' && (mergedContent.title?.includes('Diária') || mergedContent.title?.includes('Pedido'))) {
+                mergedContent.title = 'Novo Ofício';
+              } else if (currentBlock === 'compras' && (mergedContent.title?.includes('Ofício') || mergedContent.title?.includes('Diária'))) {
+                mergedContent.title = 'Novo Pedido';
+              } else if (currentBlock === 'diarias' && (mergedContent.title?.includes('Ofício') || mergedContent.title?.includes('Pedido'))) {
+                mergedContent.title = 'Requisição de Diária';
               }
-            }));
+
+              return {
+                ...prev,
+                content: mergedContent
+              };
+            });
+
+            // Explicitly set activeBlock to currentBlock to prevent race conditions
+            if (activeBlock !== currentBlock) {
+              setActiveBlock(currentBlock);
+            }
+
             setCurrentView('editor');
             setAdminTab('content');
             setIsAdminSidebarOpen(true);
@@ -989,13 +992,18 @@ const App: React.FC = () => {
       }
     }
 
-    if (activeBlock === 'compras') {
-      defaultTitle = 'Requisição de Compras e Serviços';
+    if (currentBlock === 'compras') {
+      defaultTitle = 'Novo Pedido';
       defaultRightBlock = 'Ao Departamento de Compras da\nPrefeitura de São José do Goiabal-MG';
-    } else if (activeBlock === 'licitacao') {
-      defaultTitle = 'Processo Licitatório nº 01/2024';
-    } else if (activeBlock === 'diarias') {
+    } else if (currentBlock === 'licitacao') {
+      defaultTitle = 'PROCESSO LICITATÓRIO';
+    } else if (currentBlock === 'diarias') {
       defaultTitle = 'Requisição de Diária';
+    } else if (currentBlock === 'oficio') {
+      defaultTitle = 'Novo Ofício';
+    } else {
+      // Fallback
+      defaultTitle = INITIAL_STATE.content.title;
     }
 
     // Logic for Sector numbering (Unified for ALL blocks)
@@ -1007,19 +1015,19 @@ const App: React.FC = () => {
         if (nextNum) {
           const formattedNum = nextNum.toString().padStart(3, '0');
 
-          if (activeBlock === 'compras') {
-            defaultTitle = 'Requisição de Compras e Serviços';
+          if (currentBlock === 'compras') {
+            defaultTitle = 'Novo Pedido';
             leftBlockContent = `Ref: Requisição nº ${formattedNum}/${currentYear}`;
-          } else if (activeBlock === 'diarias') {
+          } else if (currentBlock === 'diarias') {
             defaultTitle = `Solicitação de Diária nº ${formattedNum}/${currentYear}`;
             leftBlockContent = `Ref: Solicitação nº ${formattedNum}/${currentYear}`;
-          } else if (activeBlock === 'licitacao') {
+          } else if (currentBlock === 'licitacao') {
             // Assuming Licitacao also follows this pattern or has a specific title format using the number
-            defaultTitle = `Processo Licitatório nº ${formattedNum}/${currentYear}`;
+            defaultTitle = `PROCESSO LICITATÓRIO`;
             leftBlockContent = `Ref: Processo nº ${formattedNum}/${currentYear}`;
           } else {
             // Default Oficio and fallback for others
-            defaultTitle = `Adicione um Titulo ao seu Documento`;
+            defaultTitle = `Novo Ofício`;
             const defaultLeftBlock = INITIAL_STATE.content.leftBlockText;
             const extraInfo = defaultLeftBlock.includes('\n') ? defaultLeftBlock.split('\n').slice(1).join('\n') : '';
             leftBlockContent = `Ref: Ofício nº ${formattedNum}/${currentYear}${extraInfo ? '\n' + extraInfo : ''}`;
@@ -1028,51 +1036,50 @@ const App: React.FC = () => {
       }
     }
 
-    setAppState(prev => ({
-      ...prev,
-      content: {
+    let defaultBody = INITIAL_STATE.content.body;
+    if (currentBlock !== 'oficio') {
+      defaultBody = '';
+    }
+
+    // Consolidate state update to prevent multiple renders and UI/Branding loss
+    setAppState(prev => {
+      const newContent = {
         ...INITIAL_STATE.content,
         title: defaultTitle,
         rightBlockText: defaultRightBlock,
         leftBlockText: leftBlockContent,
-        protocol: '',
-        requesterName: '',
-        requesterRole: '',
-        requesterSector: ''
-      },
-      document: {
-        ...prev.document,
-        showSignature: INITIAL_STATE.document.showSignature
-      }
-    }));
-
-
-
-
-    // INITIALIZATION FOR LICITACAO (DO NOT SAVE TO DB YET)
-    if (activeBlock === 'licitacao') {
-      const newSnapshot = {
-        ...INITIAL_STATE,
-        content: {
-          ...INITIAL_STATE.content,
-          title: 'PROCESSO LICITATÓRIO',
-          leftBlockText: leftBlockContent,
-          rightBlockText: defaultRightBlock,
-          protocol: '', // Empty to trigger Auto-Suggestion in Settings Modal
-          currentStageIndex: 0,
-          licitacaoStages: []
-        },
-        document: {
-          ...INITIAL_STATE.document
-        }
+        body: defaultBody,
       };
 
-      setAppState(newSnapshot);
-      setEditingOrder(null); // Explicitly null to indicate it's not saved yet
-      setIsLicitacaoSettingsOpen(true); // Auto-open settings modal for new process
+      // Special handling for Licitação defaults
+      if (currentBlock === 'licitacao') {
+        newContent.protocol = ''; // Empty to trigger Auto-Suggestion
+        newContent.currentStageIndex = 0;
+        newContent.licitacaoStages = [];
+      }
+
+      return {
+        ...prev,
+        content: newContent,
+        document: {
+          ...prev.document,
+          showSignature: INITIAL_STATE.document.showSignature
+        }
+      };
+    });
+
+    if (currentBlock === 'licitacao') {
+      setEditingOrder(null);
+      setIsLicitacaoSettingsOpen(true);
     } else {
       setEditingOrder(null);
     }
+
+    // Explicitly set activeBlock to currentBlock to prevent race conditions with component effects
+    if (activeBlock !== currentBlock) {
+      setActiveBlock(currentBlock);
+    }
+
     setCurrentView('editor');
     setAdminTab('content');
     setIsAdminSidebarOpen(true);
@@ -1082,16 +1089,8 @@ const App: React.FC = () => {
   // Effect to initialize editor if accessed directly via URL
   useEffect(() => {
     if (currentView === 'editor' && !editingOrder && !appState.content.protocol && currentUser && sectors.length > 0) {
-      // Only run if we don't have a protocol set (heuristic for uninitialized)
-      // We use a small timeout or check to avoid infinite loops if handleStartEditing doesn't set protocol (it sets empty string)
-      // But handleStartEditing sets the leftBlockContent which is the visible "Number".
-      // We check if leftBlockText is default to avoid overwriting user changes?
-      // Better: Just run once when entering view.
-
-      // Creating a flag explicitly or check if title is default? 
-      // Actually, activeBlock dependency in handleStartEditing might be an issue if activeBlock isn't set yet.
       if (activeBlock) {
-        handleStartEditing();
+        handleStartEditing(activeBlock);
       }
     }
   }, [currentView, activeBlock, currentUser, sectors.length]);
@@ -1443,8 +1442,10 @@ const App: React.FC = () => {
                                 try {
                                   if (activeBlock === 'licitacao') {
                                     const year = new Date().getFullYear();
-                                    // Increment independent sector counter (sec15 = Dept Licitação)
-                                    await counterService.incrementSectorCount('sec15', year);
+                                    // Increment independent sector counter (Formerly hardcoded 'sec15')
+                                    const licSector = sectors.find(s => s.name === 'Departamento de Licitação');
+                                    const licSectorId = licSector?.id || '23c6fa21-f998-4f54-b865-b94212f630ef';
+                                    await counterService.incrementSectorCount(licSectorId, year);
                                     // We don't update globalCounter here to keep them separate
                                   } else {
                                     const nextVal = await db.incrementGlobalCounter();

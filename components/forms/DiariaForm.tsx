@@ -6,7 +6,7 @@ import {
   Plus, Trash2, Camera, Image as ImageIcon, Search, ChevronDown, Loader2, X, Check,
   UserCheck
 } from 'lucide-react';
-import { AppState, ContentData, Signature, EvidenceItem, Person, Sector, Job } from '../../types';
+import { AppState, ContentData, Signature, EvidenceItem, Person, Sector, Job, BlockType } from '../../types';
 
 interface DiariaFormProps {
   state: AppState;
@@ -17,6 +17,7 @@ interface DiariaFormProps {
   persons: Person[];
   sectors: Sector[];
   jobs: Job[];
+  activeBlock: BlockType | null;
 }
 
 interface IBGECity {
@@ -46,7 +47,8 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
   onUpdate,
   persons,
   sectors,
-  jobs
+  jobs,
+  activeBlock
 }) => {
   const [cities, setCities] = useState<string[]>([]);
   const [isCityLoading, setIsCityLoading] = useState(false);
@@ -146,7 +148,7 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
   };
 
   useEffect(() => {
-    if (content.subType) {
+    if (content.subType && activeBlock === 'diarias') {
       if (!content.paymentForecast) {
         handleUpdate('content', 'paymentForecast', calculatePaymentForecast());
       }
@@ -163,7 +165,7 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
         handleUpdate('content', 'evidenceItems', []);
       }
     }
-  }, [content.subType, handleUpdate, state.document.showSignature, content.showDiariaSignatures, content.showExtraField]);
+  }, [content.subType, activeBlock, handleUpdate, state.document.showSignature, content.showDiariaSignatures, content.showExtraField]);
 
   const formatCurrency = (value: string) => {
     const cleanValue = value.replace(/\D/g, "");
@@ -316,8 +318,8 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
               <button
                 onClick={() => handleUpdate('document', 'showLeftBlock', !state.document.showLeftBlock)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${state.document.showLeftBlock
-                    ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                    : 'bg-slate-100 text-slate-400 border border-slate-200'
+                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200'
                   }`}
               >
                 {state.document.showLeftBlock ? <><Eye className="w-3 h-3" /> Visível</> : <><EyeOff className="w-3 h-3" /> Oculto</>}
@@ -651,8 +653,8 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
               <button
                 onClick={() => handleUpdate('content', 'showExtraField', !content.showExtraField)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${content.showExtraField === true
-                    ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                    : 'bg-slate-100 text-slate-400 border border-slate-200'
+                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200'
                   }`}
               >
                 {content.showExtraField === true ? <><Eye className="w-3 h-3" /> Ativado</> : <><EyeOff className="w-3 h-3" /> Desativado</>}
@@ -744,8 +746,8 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
               <button
                 onClick={() => handleUpdate('content', 'showDiariaSignatures', !content.showDiariaSignatures)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${content.showDiariaSignatures !== false
-                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                    : 'bg-slate-100 text-slate-400 border border-slate-200'
+                  ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200'
                   }`}
               >
                 {content.showDiariaSignatures !== false ? <><Eye className="w-3 h-3" /> Assinaturas Visíveis</> : <><EyeOff className="w-3 h-3" /> Assinaturas Ocultas</>}

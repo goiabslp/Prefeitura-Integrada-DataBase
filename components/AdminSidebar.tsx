@@ -149,6 +149,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             state={state} content={content}
             allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate}
             persons={persons} sectors={sectors} jobs={jobs}
+            activeBlock={activeBlock}
           />
         );
       case 'compras':

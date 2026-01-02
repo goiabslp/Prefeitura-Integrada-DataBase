@@ -99,7 +99,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
     if (!hasPermission && !showAllProcesses) return false;
 
-    const matchesSearch = order.protocol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = (order.protocol || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.userName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.documentSnapshot?.content.requesterSector || '').toLowerCase().includes(searchTerm.toLowerCase());

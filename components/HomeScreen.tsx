@@ -4,7 +4,7 @@ import { UserRole, UIConfig, AppPermission, BlockType } from '../types';
 import { FleetShortcutCard } from './FleetShortcutCard';
 
 interface HomeScreenProps {
-    onNewOrder: () => void;
+    onNewOrder: (block?: BlockType) => void;
     onTrackOrder: () => void;
     onManagePurchaseOrders?: () => void;
     onManageLicitacaoScreening?: () => void;
@@ -199,7 +199,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             </div>
 
                             <div className="flex flex-row flex-wrap items-stretch justify-center gap-4 md:gap-6 lg:gap-8 pt-4 w-full max-w-full overflow-hidden">
-                                <button onClick={onNewOrder} className={`group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-indigo-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52' : 'w-48 md:w-64 h-48 md:h-56'} shrink-0 overflow-hidden`}>
+                                <button onClick={() => onNewOrder(activeBlock || 'oficio')} className={`group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-indigo-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52' : 'w-48 md:w-64 h-48 md:h-56'} shrink-0 overflow-hidden`}>
                                     <div className="w-8 h-8 md:w-14 md:h-14 bg-indigo-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><FilePlus className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
                                     <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">{getNewActionLabel()}</h3>
                                     <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Criar novo registro.</p>

@@ -83,13 +83,13 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
 
         {viewingIndex > 0 && (
           <div className="bg-white p-4 rounded-xl border border-slate-200">
-            <label className="block text-xs font-semibold text-slate-500 mb-2">Objeto da Licitação (Geral)</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-2">Objeto do Processo</label>
             <input
               value={content.title}
               disabled={isReadOnly}
               onChange={(e) => handleUpdate('content', 'title', e.target.value)}
               className={`w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 outline-none ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
-              placeholder="Ex: Credenciamento de Saúde nº 01/2024"
+              placeholder="PROCESSO LICITATÓRIO"
             />
           </div>
         )}

@@ -74,8 +74,13 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
     }
 
     // Now filter any stages that have no body content (Empty/Skipped stages)
-    // This allows "Skipping" a stage (it won't appear) and "Filling" it later (it will appear in correct index)
-    allStages = allStages.filter(s => s && s.body && s.body.trim().length > 0 && s.body !== '<p></p>');
+    // CRITICAL: We MUST include the stage that the user is currently VIEWING/EDITING
+    // even if it's empty, otherwise the preview will disappear entirely for new processes.
+    allStages = allStages.filter(s => {
+      const isActiveDraft = s.id === 'active-draft';
+      const hasContent = s && s.body && s.body.trim().length > 0 && s.body !== '<p></p>';
+      return isActiveDraft || hasContent;
+    });
 
     // Process stages INDEPENDENTLY to enforce page breaks
     let allPages: { html: string, isStartStage: boolean }[] = [];
