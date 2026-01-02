@@ -48,7 +48,7 @@ export const saveLicitacaoProcess = async (order: Order): Promise<void> => {
 
     const dbOrder = {
         id: order.id,
-        protocol: order.protocol,
+        protocol: order.documentSnapshot?.content.protocolId || order.protocol,
         title: order.title,
         status: order.status,
         stage: currentStageTitle,

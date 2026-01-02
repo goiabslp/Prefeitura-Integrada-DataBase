@@ -109,7 +109,64 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
   const handleDownload = (order: Order) => {
     setDownloadingId(order.id);
-    onDownloadPdf(order.documentSnapshot, order.blockType);
+    let snapshotToDownload = order.documentSnapshot;
+
+    if (order.blockType === 'licitacao' && snapshotToDownload) {
+      const content = snapshotToDownload.content;
+      const stages = content.licitacaoStages || [];
+      const currentIdx = content.currentStageIndex || 0;
+
+      // Determine 'Início' (Stage 0) data
+      let inicioData;
+
+      if (currentIdx === 0) {
+        // If currently at Stage 0, the live content is the source
+        inicioData = {
+          body: content.body,
+          signatureName: content.signatureName,
+          signatureRole: content.signatureRole,
+          signatureSector: content.signatureSector,
+          signatures: content.signatures
+        };
+      } else {
+        // If advanced, retrieve Stage 0 from history
+        const historicStage0 = stages[0];
+        inicioData = {
+          body: historicStage0?.body || '',
+          signatureName: historicStage0?.signatureName,
+          signatureRole: historicStage0?.signatureRole,
+          signatureSector: historicStage0?.signatureSector,
+          signatures: historicStage0?.signatures
+        };
+      }
+
+      // Create a filtered snapshot simulating Stage 0 only
+      snapshotToDownload = {
+        ...snapshotToDownload,
+        content: {
+          ...content,
+          currentStageIndex: 0,
+          viewingStageIndex: 0,
+          // Override live content with Início data
+          body: inicioData.body,
+          signatureName: inicioData.signatureName,
+          signatureRole: inicioData.signatureRole,
+          signatureSector: inicioData.signatureSector,
+          signatures: inicioData.signatures,
+          // Clear history to prevent LicitacaoPreview from rendering other stages
+          licitacaoStages: [
+            {
+              id: 'stage-0',
+              title: 'Início',
+              body: inicioData.body,
+              //...other props not strictly needed if we act as active draft
+            }
+          ]
+        }
+      };
+    }
+
+    onDownloadPdf(snapshotToDownload, order.blockType);
     setTimeout(() => setDownloadingId(null), 2000);
   };
 
@@ -340,7 +397,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                         <div className="absolute top-0 left-0 w-1 rounded-l-2xl h-full bg-gradient-to-b from-blue-500 to-indigo-600 opacity-80 group-hover:opacity-100 transition-opacity" />
 
                         {/* Linha 1: Info Principal */}
-                        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center">
+                        <div className="grid grid-cols-1 md:grid-cols-7 gap-4 items-center">
                           {/* ID */}
                           <div className="flex flex-col gap-1">
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
@@ -357,6 +414,16 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                             <span className="text-xs font-bold text-slate-800 line-clamp-1" title={order.title}>{order.title || 'Sem Título'}</span>
                           </div>
 
+                          {/* Forma */}
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                              <FileText className="w-3 h-3 text-slate-300" /> Forma
+                            </span>
+                            <span className="text-xs font-semibold text-slate-700 truncate" title={content?.processType}>
+                              {content?.processType || '---'}
+                            </span>
+                          </div>
+
                           {/* Numero Processo */}
                           <div className="flex flex-col gap-1">
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Processo</span>
@@ -366,29 +433,32 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                           </div>
 
                           {/* Status & Etapa */}
-                          <div className="flex flex-col">
+                          <div className="flex flex-col min-w-0">
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Status / Etapa</span>
-                            <div className="flex gap-2">
-                              <span className={`inline-flex px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide border shadow-sm ${sConf.class}`}>
+                            <div className="flex items-center gap-2 flex-nowrap">
+                              <span className={`inline-flex px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide border shadow-sm whitespace-nowrap ${sConf.class}`}>
                                 {sConf.label}
                               </span>
-                              <span className="inline-flex px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-100 shadow-sm">
+                              <span className="inline-flex px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-100 shadow-sm whitespace-nowrap">
                                 {order.stage || 'Início'}
                               </span>
                             </div>
                           </div>
 
                           {/* Ações */}
-                          <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => onEditOrder(order)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all active:scale-95" title={order.status === 'approved' || order.status === 'completed' ? "Visualizar" : "Editar"}>
-                              {order.status === 'approved' || order.status === 'completed' ? <Eye className="w-4.5 h-4.5" /> : <Edit3 className="w-4.5 h-4.5" />}
-                            </button>
-                            <button onClick={() => handleDownload(order)} disabled={downloadingId === order.id} className={`p-2 rounded-xl transition-all active:scale-95 ${downloadingId === order.id ? 'text-indigo-400 bg-indigo-50' : 'text-slate-400 hover:bg-indigo-600 hover:text-white'}`} title="Download">
-                              {downloadingId === order.id ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <FileDown className="w-4.5 h-4.5" />}
-                            </button>
-                            <button onClick={() => setConfirmModal({ isOpen: true, title: "Excluir Registro", message: `Deseja remover "${order.protocol}"?`, type: 'danger', onConfirm: () => { onDeleteOrder(order.id); setConfirmModal({ ...confirmModal, isOpen: false }); } })} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-95" title="Excluir">
-                              <Trash2 className="w-4.5 h-4.5" />
-                            </button>
+                          <div className="flex flex-col items-start justify-self-end">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Ações</span>
+                            <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => onEditOrder(order)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-95" title={order.status === 'approved' || order.status === 'completed' ? "Visualizar" : "Editar"}>
+                                {order.status === 'approved' || order.status === 'completed' ? <Eye className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+                              </button>
+                              <button onClick={() => handleDownload(order)} disabled={downloadingId === order.id} className={`p-1.5 rounded-lg transition-all active:scale-95 ${downloadingId === order.id ? 'text-indigo-400 bg-indigo-50' : 'text-slate-400 hover:bg-indigo-600 hover:text-white'}`} title="Download">
+                                {downloadingId === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                              </button>
+                              <button onClick={() => setConfirmModal({ isOpen: true, title: "Excluir Registro", message: `Deseja remover "${order.protocol}"?`, type: 'danger', onConfirm: () => { onDeleteOrder(order.id); setConfirmModal({ ...confirmModal, isOpen: false }); } })} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all active:scale-95" title="Excluir">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
                         </div>
 
