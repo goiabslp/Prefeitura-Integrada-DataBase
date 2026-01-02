@@ -34,6 +34,7 @@ interface TrackingScreenProps {
   totalCounter: number;
   onUpdatePaymentStatus?: (orderId: string, status: 'pending' | 'paid') => void;
   onUpdateOrderStatus?: (orderId: string, status: Order['status']) => Promise<void>;
+  showAllProcesses?: boolean;
 }
 
 export const TrackingScreen: React.FC<TrackingScreenProps> = ({
@@ -48,7 +49,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
   onUpdateAttachments,
   totalCounter,
   onUpdatePaymentStatus,
-  onUpdateOrderStatus
+  onUpdateOrderStatus,
+  showAllProcesses = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -95,7 +97,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
       hasPermission = isAdmin || currentUser.role === 'licitacao' || order.userId === currentUser.id;
     }
 
-    if (!hasPermission) return false;
+    if (!hasPermission && !showAllProcesses) return false;
 
     const matchesSearch = order.protocol.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -493,8 +495,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                               </button>
                             ) : (
                               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                  order.status === 'awaiting_approval' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                    'bg-indigo-50 text-indigo-700 border-indigo-100' // approved or others
+                                order.status === 'awaiting_approval' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                  'bg-indigo-50 text-indigo-700 border-indigo-100' // approved or others
                                 }`}>
                                 {order.status === 'pending' ? 'Em Andamento' :
                                   order.status === 'completed' ? 'Concluído' :
@@ -543,7 +545,9 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                           </button>
                         )}
 
-                        <button onClick={() => onEditOrder(order)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Editar"><Edit3 className="w-5 h-5" /></button>
+                        <button onClick={() => onEditOrder(order)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title={order.status === 'approved' || order.status === 'completed' ? "Visualizar" : "Editar"}>
+                          {order.status === 'approved' || order.status === 'completed' ? <Eye className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
+                        </button>
 
                         {activeBlock !== 'oficio' && (
                           <button

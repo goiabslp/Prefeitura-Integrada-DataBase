@@ -40,6 +40,7 @@ import { TwoFactorAuthScreen } from './components/TwoFactorAuthScreen';
 import { TwoFactorModal } from './components/TwoFactorModal';
 import { ProcessStepper } from './components/common/ProcessStepper';
 import { LicitacaoScreeningScreen } from './components/LicitacaoScreeningScreen';
+import { ToastNotification, ToastType } from './components/common/ToastNotification';
 
 const VIEW_TO_PATH: Record<string, string> = {
   'login': '/Login',
@@ -77,7 +78,7 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 );
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening'>('login');
+  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all'>('login');
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
   const [appState, setAppState] = useState<AppState>(INITIAL_STATE);
   const [activeBlock, setActiveBlock] = useState<BlockType | null>(null);
@@ -91,6 +92,7 @@ const App: React.FC = () => {
   // const [signatures, setSignatures] = useState<Signature[]>([]); // DEPRECATED: Signatures are now derived from Users
   const [globalCounter, setGlobalCounter] = useState(0);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [isStepperLocked, setIsStepperLocked] = useState(false);
 
   const [persons, setPersons] = useState<Person[]>([]);
 
@@ -138,6 +140,17 @@ const App: React.FC = () => {
     onConfirm: () => { },
     type: 'info'
   });
+
+  // Toast State
+  const [toast, setToast] = useState<{ message: string; type: ToastType; isVisible: boolean }>({
+    message: '',
+    type: 'info',
+    isVisible: false
+  });
+
+  const showToast = (message: string, type: ToastType = 'info') => {
+    setToast({ message, type, isVisible: true });
+  };
   const [snapshotToDownload, setSnapshotToDownload] = useState<AppState | null>(null);
   const [blockTypeToDownload, setBlockTypeToDownload] = useState<BlockType | null>(null);
   const backgroundPreviewRef = useRef<HTMLDivElement>(null);
@@ -500,28 +513,68 @@ const App: React.FC = () => {
   const handleEditOrder = (order: Order) => {
     let snapshotToUse = order.documentSnapshot;
 
-    // STRICT NAVIGATION GUARD: If Licitacao and NOT approved/completed, FORCE Stage 0 (Início)
-    if (order.blockType === 'licitacao' && order.status !== 'approved' && order.status !== 'completed') {
-      if (snapshotToUse && snapshotToUse.content) {
-        snapshotToUse = {
-          ...snapshotToUse,
-          content: {
-            ...snapshotToUse.content,
-            viewingStageIndex: 0 // Force view to Início
+    // STRICT NAVIGATION GUARD: Licitacao logic
+    if (order.blockType === 'licitacao') {
+      const isMeusProcessos = currentView === 'tracking';
+
+      if (isMeusProcessos) {
+        setIsStepperLocked(true);
+        if (snapshotToUse && snapshotToUse.content) {
+          const content = snapshotToUse.content;
+          // If already advanced beyond Stage 0, we must load Stage 0 data from history
+          let restrictedContent = { ...content, viewingStageIndex: 0 };
+
+          if ((content.currentStageIndex || 0) > 0 && content.licitacaoStages && content.licitacaoStages[0]) {
+            const stage0 = content.licitacaoStages[0];
+            restrictedContent = {
+              ...restrictedContent,
+              body: stage0.body,
+              signatureName: stage0.signatureName,
+              signatureRole: stage0.signatureRole,
+              signatureSector: stage0.signatureSector,
+              signatures: stage0.signatures || []
+            };
           }
-        };
-        // Trigger Modal explaining why
-        setTimeout(() => {
-          setConfirmModal({
-            isOpen: true,
-            title: "Edição Restrita",
-            message: "Este processo ainda aguarda aprovação. Você pode visualizar ou editar apenas a etapa 'Início'.",
-            type: 'warning',
-            singleButton: true,
-            onConfirm: () => setConfirmModal(prev => ({ ...prev, isOpen: false }))
-          });
-        }, 500);
+
+          snapshotToUse = {
+            ...snapshotToUse,
+            content: restrictedContent
+          };
+          // Show Toast instead of Modal
+          showToast("Visualização restrita à etapa Início", "warning");
+        }
+      } else {
+        setIsStepperLocked(false);
+        // Standard check for unapproved processes in other views (e.g. Triagem)
+        if (order.status !== 'approved' && order.status !== 'completed') {
+          if (snapshotToUse && snapshotToUse.content) {
+            const content = snapshotToUse.content;
+            let restrictedContent = { ...content, viewingStageIndex: 0 };
+
+            // Data Sync: Load Stage 0 if we are restricted due to approval status
+            if ((content.currentStageIndex || 0) > 0 && content.licitacaoStages && content.licitacaoStages[0]) {
+              const stage0 = content.licitacaoStages[0];
+              restrictedContent = {
+                ...restrictedContent,
+                body: stage0.body,
+                signatureName: stage0.signatureName,
+                signatureRole: stage0.signatureRole,
+                signatureSector: stage0.signatureSector,
+                signatures: stage0.signatures || []
+              };
+            }
+
+            snapshotToUse = {
+              ...snapshotToUse,
+              content: restrictedContent
+            };
+            // Show Toast for unapproved restriction too
+            showToast("Processo em aprovação: Visualização limitada à etapa Início", "info");
+          }
+        }
       }
+    } else {
+      setIsStepperLocked(false);
     }
 
     if (snapshotToUse) setAppState(snapshotToUse);
@@ -975,6 +1028,12 @@ const App: React.FC = () => {
     setCurrentView('tracking');
   };
 
+  const handleViewAllLicitacao = () => {
+    setOrders(licitacaoProcesses);
+    setActiveBlock('licitacao');
+    setCurrentView('licitacao-all');
+  };
+
   const handleManagePurchaseOrders = () => {
     setOrders(purchaseOrders);
     setCurrentView('purchase-management');
@@ -1019,9 +1078,15 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-50 font-sans flex-col">
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.isVisible}
+        onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
+      />
       {currentUser && <AppHeader currentUser={currentUser} uiConfig={appState.ui} activeBlock={activeBlock} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} onGoHome={handleGoHome} currentView={currentView} isRefreshing={isRefreshing} onRefresh={refreshData} />}
       <div className="flex-1 flex relative overflow-hidden">
-        {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onManageLicitacaoScreening={() => setCurrentView('licitacao-screening')} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} />}
+        {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onViewAllLicitacao={handleViewAllLicitacao} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onManageLicitacaoScreening={() => setCurrentView('licitacao-screening')} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} />}
         {(currentView === 'editor' || currentView === 'admin') && currentUser && (
           <div className="flex-1 flex flex-col overflow-hidden h-full relative">
             {/* GLOBAL STEPPER FOR LICITACAO */}
@@ -1036,8 +1101,14 @@ const App: React.FC = () => {
                       maxCompletedStep={(appState.content.currentStageIndex || 0) - 1}
                       onStepClick={(idx) => {
                         // Restrict stepper navigation: Only Admin or Licitacao
-                        if (currentUser.role !== 'admin' && currentUser.role !== 'licitacao') {
-                          alert("Acesso restrito. Apenas Administradores e Usuários da Licitação podem navegar pelo histórico.");
+                        // if (currentUser.role !== 'admin' && currentUser.role !== 'licitacao') {
+                        //   alert("Acesso restrito. Apenas Administradores e Usuários da Licitação podem navegar pelo histórico.");
+                        //   return;
+                        // }
+
+                        // NEW: Lock stepper if restricted (e.g. Meus Processos)
+                        if (isStepperLocked) {
+                          showToast("Acesso restrito à etapa Início", "warning");
                           return;
                         }
 
@@ -1335,7 +1406,20 @@ const App: React.FC = () => {
 
             <div className="flex-1 flex overflow-hidden h-full relative">
               {!isFinalizedView && adminTab !== 'fleet' && adminTab !== '2fa' && adminTab !== 'users' && adminTab !== 'entities' && (currentView !== 'admin' || adminTab !== null) && (
-                <AdminSidebar state={appState} onUpdate={setAppState} onPrint={() => window.print()} isOpen={isAdminSidebarOpen} onClose={() => { if (currentView === 'editor') { setIsFinalizedView(true); setIsAdminSidebarOpen(false); } else { setIsAdminSidebarOpen(false); } }} isDownloading={isDownloading} currentUser={currentUser} mode={currentView === 'admin' ? 'admin' : 'editor'} onSaveDefault={async () => { await settingsService.saveGlobalSettings(appState); await db.saveGlobalSettings(appState); }} onFinish={handleFinish} activeTab={adminTab} onTabChange={setAdminTab} availableSignatures={myAvailableSignatures} activeBlock={activeBlock} persons={persons} sectors={sectors} jobs={jobs} onBack={() => { if (currentView === 'editor') setCurrentView('home'); }} />
+                <AdminSidebar
+                  state={appState}
+                  onUpdate={setAppState}
+                  onPrint={() => window.print()}
+                  isOpen={isAdminSidebarOpen}
+                  onClose={() => { if (currentView === 'editor') { setIsFinalizedView(true); setIsAdminSidebarOpen(false); } else { setIsAdminSidebarOpen(false); } }}
+                  isDownloading={isDownloading}
+                  currentUser={currentUser}
+                  mode={currentView === 'admin' ? 'admin' : 'editor'}
+                  onSaveDefault={async () => { await settingsService.saveGlobalSettings(appState); await db.saveGlobalSettings(appState); }}
+                  onFinish={handleFinish} activeTab={adminTab} onTabChange={setAdminTab} availableSignatures={myAvailableSignatures} activeBlock={activeBlock} persons={persons} sectors={sectors} jobs={jobs}
+                  onBack={() => { if (currentView === 'editor') setCurrentView('home'); }}
+                  isReadOnly={editingOrder?.status === 'approved' || editingOrder?.status === 'completed'}
+                />
               )}
               <main className="flex-1 h-full overflow-hidden flex flex-col relative bg-slate-50">
                 {currentView === 'admin' && adminTab === null ? (
@@ -1616,6 +1700,27 @@ const App: React.FC = () => {
                 }
               }
             }}
+          />
+        )}
+        {currentView === 'licitacao-all' && currentUser && (
+          <TrackingScreen
+            onBack={handleBackToModule}
+            currentUser={currentUser}
+            activeBlock={activeBlock}
+            orders={orders}
+            showAllProcesses={true}
+            onDownloadPdf={(snapshot, forcedBlockType) => { const order = orders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order, forcedBlockType); }}
+            onClearAll={() => setOrders([])}
+            onEditOrder={handleEditOrder}
+            onDeleteOrder={async (id) => {
+              await licitacaoService.deleteLicitacaoProcess(id);
+              setLicitacaoProcesses(p => p.filter(o => o.id !== id));
+              setOrders(p => p.filter(o => o.id !== id));
+            }}
+            onUpdateAttachments={handleUpdateOrderAttachments}
+            totalCounter={globalCounter}
+            onUpdatePaymentStatus={handleUpdatePaymentStatus}
+            onUpdateOrderStatus={handleUpdateOrderStatus}
           />
         )}
         {currentView === 'licitacao-screening' && currentUser && (

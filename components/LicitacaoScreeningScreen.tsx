@@ -153,9 +153,9 @@ export const LicitacaoScreeningScreen: React.FC<LicitacaoScreeningScreenProps> =
 
                                         <div className="md:col-span-1 flex justify-center">
                                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                                    order.status === 'awaiting_approval' ? 'bg-amber-100 text-amber-700 border-amber-200 animate-pulse' :
-                                                        order.status === 'approved' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
-                                                            'bg-slate-50 text-slate-600 border-slate-100'
+                                                order.status === 'awaiting_approval' ? 'bg-amber-100 text-amber-700 border-amber-200 animate-pulse' :
+                                                    order.status === 'approved' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                                                        'bg-slate-50 text-slate-600 border-slate-100'
                                                 }`}>
                                                 {order.status === 'completed' ? 'Concluído' :
                                                     order.status === 'awaiting_approval' ? 'Aprovação' :
@@ -187,9 +187,9 @@ export const LicitacaoScreeningScreen: React.FC<LicitacaoScreeningScreenProps> =
                                                     <button
                                                         onClick={() => onEditOrder(order)}
                                                         className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                                                        title="Acessar / Editar"
+                                                        title={order.status === 'approved' || order.status === 'completed' ? "Visualizar" : "Acessar / Editar"}
                                                     >
-                                                        <Edit3 className="w-5 h-5" />
+                                                        {order.status === 'approved' || order.status === 'completed' ? <Eye className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
                                                     </button>
 
                                                     <button

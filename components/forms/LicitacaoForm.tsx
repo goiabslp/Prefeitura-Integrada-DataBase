@@ -10,6 +10,7 @@ interface LicitacaoFormProps {
   handleUpdate: (section: keyof AppState, key: string, value: any) => void;
   onUpdate: (newState: AppState) => void;
   onFinish?: () => void;
+  isReadOnly?: boolean;
 }
 
 export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
@@ -18,7 +19,8 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
   allowedSignatures,
   handleUpdate,
   onUpdate,
-  onFinish
+  onFinish,
+  isReadOnly
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -62,11 +64,11 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
             editorRef.current.innerHTML = content.body;
           }
         }
-        editorRef.current.contentEditable = "true";
+        editorRef.current.contentEditable = isReadOnly ? "false" : "true";
         lastViewingIndexRef.current = viewingIndex;
       }
     }
-  }, [content.body, viewingIndex, currentStageIndex, historicStages]);
+  }, [content.body, viewingIndex, currentStageIndex, historicStages, isReadOnly]);
 
   const isViewingHistory = viewingIndex < currentStageIndex;
 
@@ -84,8 +86,9 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
             <label className="block text-xs font-semibold text-slate-500 mb-2">Objeto da Licitação (Geral)</label>
             <input
               value={content.title}
+              disabled={isReadOnly}
               onChange={(e) => handleUpdate('content', 'title', e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 outline-none"
+              className={`w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 outline-none ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
               placeholder="Ex: Credenciamento de Saúde nº 01/2024"
             />
           </div>
@@ -125,48 +128,51 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
 
 
         {/* Signature Selection Buttons */}
-        <div className="grid grid-cols-1 gap-3">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Adicionar Assinatura:</p>
-          {allowedSignatures.map((sig) => {
-            return (
-              <button
-                key={sig.id}
-                onClick={() => {
-                  // Insert marker as a TAG
-                  const markerData = `[ASSINATURA: ${sig.name} | ${sig.role} | ${sig.sector}]`;
-                  const tagHtml = `&nbsp;<span contenteditable="false" class="signature-tag bg-blue-50 border border-blue-200 text-blue-800 px-2 py-1 rounded inline-flex items-center gap-2 text-xs font-bold select-none cursor-default" data-marker="${markerData}"><span class="pointer-events-none">🖊️ ${sig.name}</span><span class="signature-delete-btn cursor-pointer text-red-500 hover:text-red-700 font-black px-1 ml-1 hover:bg-white rounded" title="Remover">✕</span></span><br>&nbsp;`;
+        {/* Signature Selection Buttons */}
+        {!isReadOnly && (
+          <div className="grid grid-cols-1 gap-3">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Adicionar Assinatura:</p>
+            {allowedSignatures.map((sig) => {
+              return (
+                <button
+                  key={sig.id}
+                  onClick={() => {
+                    // Insert marker as a TAG
+                    const markerData = `[ASSINATURA: ${sig.name} | ${sig.role} | ${sig.sector}]`;
+                    const tagHtml = `&nbsp;<span contenteditable="false" class="signature-tag bg-blue-50 border border-blue-200 text-blue-800 px-2 py-1 rounded inline-flex items-center gap-2 text-xs font-bold select-none cursor-default" data-marker="${markerData}"><span class="pointer-events-none">🖊️ ${sig.name}</span><span class="signature-delete-btn cursor-pointer text-red-500 hover:text-red-700 font-black px-1 ml-1 hover:bg-white rounded" title="Remover">✕</span></span><br>&nbsp;`;
 
-                  // 1. Update DOM directly if ref exists
-                  let newBody = (content.body || '') + tagHtml;
-                  if (editorRef.current) {
-                    newBody = editorRef.current.innerHTML + tagHtml;
-                    editorRef.current.innerHTML = newBody;
-                  }
-
-                  // 2. Update State
-                  onUpdate({
-                    ...state,
-                    content: {
-                      ...state.content,
-                      body: newBody
+                    // 1. Update DOM directly if ref exists
+                    let newBody = (content.body || '') + tagHtml;
+                    if (editorRef.current) {
+                      newBody = editorRef.current.innerHTML + tagHtml;
+                      editorRef.current.innerHTML = newBody;
                     }
-                  });
-                }}
-                className="text-left p-4 rounded-2xl border bg-white border-slate-200 hover:border-blue-300 hover:shadow-md transition-all active:scale-[0.98]"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">{sig.name}</p>
-                    <p className="text-[10px] uppercase font-medium text-slate-500">{sig.role}</p>
+
+                    // 2. Update State
+                    onUpdate({
+                      ...state,
+                      content: {
+                        ...state.content,
+                        body: newBody
+                      }
+                    });
+                  }}
+                  className="text-left p-4 rounded-2xl border bg-white border-slate-200 hover:border-blue-300 hover:shadow-md transition-all active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">{sig.name}</p>
+                      <p className="text-[10px] uppercase font-medium text-slate-500">{sig.role}</p>
+                    </div>
+                    <div className="bg-blue-50 text-blue-600 rounded-full p-1">
+                      <span className="text-[10px] font-bold px-2">INSERIR</span>
+                    </div>
                   </div>
-                  <div className="bg-blue-50 text-blue-600 rounded-full p-1">
-                    <span className="text-[10px] font-bold px-2">INSERIR</span>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

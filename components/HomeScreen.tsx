@@ -1,5 +1,5 @@
 import React from 'react';
-import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange } from 'lucide-react';
+import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange, FileSearch } from 'lucide-react';
 import { UserRole, UIConfig, AppPermission, BlockType } from '../types';
 import { FleetShortcutCard } from './FleetShortcutCard';
 
@@ -8,6 +8,7 @@ interface HomeScreenProps {
     onTrackOrder: () => void;
     onManagePurchaseOrders?: () => void;
     onManageLicitacaoScreening?: () => void;
+    onViewAllLicitacao?: () => void;
     onVehicleScheduling?: () => void;
     onLogout: () => void;
     onOpenAdmin: (tab?: string | null) => void;
@@ -37,7 +38,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     activeBlock,
     setActiveBlock,
     stats,
-    onManageLicitacaoScreening
+    onManageLicitacaoScreening,
+    onViewAllLicitacao
 }) => {
     const canAccessOficio = permissions.includes('parent_criar_oficio');
     const canAccessCompras = permissions.includes('parent_compras');
@@ -196,7 +198,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                 <p className="text-slate-500 text-xs font-medium">Gestão Integrada Municipal</p>
                             </div>
 
-                            <div className={`grid grid-cols-1 md:grid-cols-${(activeBlock === 'compras' && canManagePurchaseOrders) || (activeBlock === 'licitacao' && userRole === 'admin') ? '3' : '2'} gap-8 pt-4`}>
+                            <div className={`grid grid-cols-1 md:grid-cols-${(activeBlock === 'licitacao' && userRole === 'admin') ? '2' : (activeBlock === 'licitacao' || (activeBlock === 'compras' && canManagePurchaseOrders)) ? '3' : '2'} gap-8 pt-4`}>
                                 <button onClick={onNewOrder} className="group p-8 bg-white border border-slate-200 rounded-[2rem] hover:border-indigo-300 transition-all flex flex-col items-center text-center h-56 justify-center">
                                     <div className="w-14 h-14 bg-indigo-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><FilePlus className="w-7 h-7 text-white" /></div>
                                     <h3 className="text-xl font-black text-slate-900 mb-1">{getNewActionLabel()}</h3>
@@ -228,6 +230,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                         <div className="w-14 h-14 bg-amber-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Inbox className="w-7 h-7 text-white" /></div>
                                         <h3 className="text-xl font-black text-slate-900 mb-1">Triagem</h3>
                                         <p className="text-slate-500 text-xs font-medium">Triagem de Processos</p>
+                                    </button>
+
+                                )}
+
+                                {activeBlock === 'licitacao' && (
+                                    <button onClick={onViewAllLicitacao} className="group p-8 bg-white border border-slate-200 rounded-[2rem] hover:border-sky-300 transition-all flex flex-col items-center text-center h-56 justify-center">
+                                        <div className="w-14 h-14 bg-sky-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><FileSearch className="w-7 h-7 text-white" /></div>
+                                        <h3 className="text-xl font-black text-slate-900 mb-1">Processos</h3>
+                                        <p className="text-slate-500 text-xs font-medium">Todos os Processos</p>
                                     </button>
                                 )}
                             </div>

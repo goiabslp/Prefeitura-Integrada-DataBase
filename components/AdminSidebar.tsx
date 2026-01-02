@@ -30,6 +30,7 @@ interface AdminSidebarProps {
   sectors: Sector[];
   jobs: Job[];
   onBack?: () => void;
+  isReadOnly?: boolean;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
@@ -50,7 +51,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   persons,
   sectors,
   jobs,
-  onBack
+  onBack,
+  isReadOnly = false
 }) => {
   const [globalSaveStatus, setGlobalSaveStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [finishStatus, setFinishStatus] = useState<'idle' | 'loading' | 'success'>('idle');
@@ -164,6 +166,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             state={state} content={content}
             allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate}
             onFinish={onFinish ? handleFinishWithAnimation : undefined}
+            isReadOnly={isReadOnly}
           />
         );
       default:
@@ -275,7 +278,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           )}
         </div>
 
-        {mode === 'admin' && activeTab && onSaveDefault && currentUser.role === 'admin' && (
+        {mode === 'admin' && activeTab && onSaveDefault && currentUser.role === 'admin' && !isReadOnly && (
           <div className="p-6 border-t border-gray-200 bg-white z-20">
             <button onClick={handleSaveDefaultWithAnimation} disabled={globalSaveStatus === 'loading' || globalSaveStatus === 'success'} className={`w-full font-black py-4 px-6 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs ${globalSaveStatus === 'success' ? 'bg-emerald-500 text-white shadow-emerald-500/30' : 'bg-slate-900 text-white hover:bg-indigo-600 active:scale-95'}`}>
               {globalSaveStatus === 'loading' ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Salvando...</span></> : globalSaveStatus === 'success' ? <><Check className="w-4 h-4 animate-bounce" /><span>Configurações Salvas!</span></> : <><Save className="w-4 h-4" /><span>Salvar Padrão Global</span></>}
@@ -283,7 +286,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </div>
         )}
 
-        {mode !== 'admin' && activeTab === 'content' && activeBlock !== 'licitacao' && (
+        {mode !== 'admin' && activeTab === 'content' && activeBlock !== 'licitacao' && !isReadOnly && (
           <div className="p-6 border-t border-gray-200 bg-white/80 backdrop-blur-xl sticky bottom-0 z-20">
             <button onClick={handleFinishWithAnimation} disabled={finishStatus === 'loading' || finishStatus === 'success'} className={`w-full font-black py-4 px-6 rounded-2xl shadow-xl transform transition-all duration-300 flex items-center justify-center gap-3 uppercase tracking-widest text-xs ${finishStatus === 'success' ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white hover:bg-indigo-600 active:scale-95'}`}>
               {finishStatus === 'loading' ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Processando...</span></> : finishStatus === 'success' ? <><Check className="w-4 h-4" /><span>Concluído!</span></> : <><Check className="w-4 h-4" /><span>Finalizar Edição</span></>}
