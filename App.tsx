@@ -1442,10 +1442,13 @@ const App: React.FC = () => {
                                 try {
                                   if (activeBlock === 'licitacao') {
                                     const year = new Date().getFullYear();
-                                    // Increment independent sector counter (Formerly hardcoded 'sec15')
-                                    const licSector = sectors.find(s => s.name === 'Departamento de Licitação');
-                                    const licSectorId = licSector?.id || '23c6fa21-f998-4f54-b865-b94212f630ef';
-                                    await counterService.incrementSectorCount(licSectorId, year);
+                                    // Increment independent sector counter (Sync with Requester Sector)
+                                    const reqSectorName = content.requesterSector || currentUser?.sector;
+                                    const reqSector = sectors.find(s => s.name === reqSectorName || s.id === reqSectorName);
+
+                                    // Use found sector ID or fallback to Licitacao default ONLY if resolution fails
+                                    const targetSectorId = reqSector?.id || '23c6fa21-f998-4f54-b865-b94212f630ef';
+                                    await counterService.incrementSectorCount(targetSectorId, year);
                                     // We don't update globalCounter here to keep them separate
                                   } else {
                                     const nextVal = await db.incrementGlobalCounter();

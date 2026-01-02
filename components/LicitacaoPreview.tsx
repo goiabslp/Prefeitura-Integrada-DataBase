@@ -130,7 +130,14 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
         if (isSignature) linesInBlock += 5;
         if (blockHTML.includes('<h3')) linesInBlock += 3;
 
-        if ((currentLinesUsed + linesInBlock) > MAX_LINES_PER_PAGE) {
+        // DYNAMIC CAPACITY: The first page of the first stage has LESS space if addressing blocks are shown
+        const isFirstPageOfFirstStage = index === 0 && currentStagePages.length === 0;
+        let effectiveMaxLines = MAX_LINES_PER_PAGE;
+        if (isFirstPageOfFirstStage && (state.document.showLeftBlock || state.document.showRightBlock)) {
+          effectiveMaxLines -= 8; // Reserved space for addressing blocks + extra margin
+        }
+
+        if ((currentLinesUsed + linesInBlock) > effectiveMaxLines) {
           // Push current page
           currentStagePages.push(currentPageContent);
           // Start new page
@@ -183,14 +190,42 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
             isGenerating={isGenerating}
             forceHidePageNumbers={forceHide}
           >
-            <div className="mb-6">
-              <div className="bg-blue-900 text-white px-4 py-2 rounded-lg font-black text-xs uppercase tracking-[0.3em] mb-4 text-center">
+            <div className="mb-6 flex flex-col gap-6">
+              <div className="bg-blue-900 text-white px-4 py-2 rounded-lg font-black text-xs uppercase tracking-[0.3em] text-center">
                 Processo Administrativo / Licitatório
               </div>
+
+              {/* ADDRESSING BLOCKS */}
+              {globalIndex === 0 && (
+                <div className="flex justify-between items-start px-1">
+                  <div
+                    className={`whitespace-pre-wrap max-w-[45%] leading-snug ${(!docConfig.showLeftBlock || !content.leftBlockText) ? 'invisible' : ''}`}
+                    style={{
+                      fontSize: `${docConfig.leftBlockStyle?.size || 10}pt`,
+                      color: docConfig.leftBlockStyle?.color || '#191822',
+                      fontWeight: 'normal'
+                    }}
+                  >
+                    {content.leftBlockText || ' '}
+                  </div>
+
+                  <div
+                    className={`whitespace-pre-wrap text-right max-w-[45%] leading-snug ${(!docConfig.showRightBlock || !content.rightBlockText) ? 'invisible' : ''}`}
+                    style={{
+                      fontSize: `${docConfig.rightBlockStyle?.size || 10}pt`,
+                      color: docConfig.rightBlockStyle?.color || '#191822',
+                      fontWeight: 'normal'
+                    }}
+                  >
+                    {content.rightBlockText || ' '}
+                  </div>
+                </div>
+              )}
+
               <h1 className="font-black leading-tight tracking-tight text-[24pt] text-blue-900 text-center uppercase">
                 {`${content.title || ''}${content.title && content.protocol ? ' ' : ''}${content.protocol || ''}`}
               </h1>
-              <div className="w-20 h-1 bg-blue-900 mx-auto mt-4" />
+              <div className="w-20 h-1 bg-blue-900 mx-auto" />
             </div>
             <div className="max-w-none w-full text-gray-800 leading-relaxed text-justify text-[10.5pt] whitespace-pre-wrap font-serif break-words" dangerouslySetInnerHTML={{ __html: pageData.html }} />
 

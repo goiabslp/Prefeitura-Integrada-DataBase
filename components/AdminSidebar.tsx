@@ -168,6 +168,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate}
             onFinish={onFinish ? handleFinishWithAnimation : undefined}
             isReadOnly={isReadOnly}
+            currentUser={currentUser}
+            sectors={sectors}
           />
         );
       default:

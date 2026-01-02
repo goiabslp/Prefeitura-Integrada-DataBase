@@ -1,7 +1,8 @@
 
 import React, { useRef, useEffect } from 'react';
-import { Gavel, FileText, PenTool, CheckCircle2 } from 'lucide-react';
-import { AppState, ContentData, DocumentConfig, Signature } from '../../types';
+import { Gavel, FileText, PenTool, CheckCircle2, Columns } from 'lucide-react';
+import { AppState, ContentData, DocumentConfig, Signature, User, Sector } from '../../types';
+import * as counterService from '../../services/counterService';
 
 interface LicitacaoFormProps {
   state: AppState;
@@ -11,6 +12,8 @@ interface LicitacaoFormProps {
   onUpdate: (newState: AppState) => void;
   onFinish?: () => void;
   isReadOnly?: boolean;
+  currentUser?: User | null;
+  sectors?: Sector[];
 }
 
 export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
@@ -20,7 +23,9 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
   handleUpdate,
   onUpdate,
   onFinish,
-  isReadOnly
+  isReadOnly,
+  currentUser,
+  sectors = []
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -70,10 +75,108 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
     }
   }, [content.body, viewingIndex, currentStageIndex, historicStages, isReadOnly]);
 
+  // AUTOMATION: Fetch Sector Counter for Left Block (Ref)
+  useEffect(() => {
+    const fetchSectorRef = async () => {
+      // Only runs in initial stage and if block is enabled
+      if (viewingIndex === 0 && state.document.showLeftBlock && sectors.length > 0) {
+        // Priority: Requester Sector (from Settings) > Current User Sector
+        const sectorName = content.requesterSector || currentUser?.sector;
+
+        if (sectorName) {
+          // Find sector ID from Name (or ID)
+          const matchedSector = sectors.find(s => s.name === sectorName || s.id === sectorName);
+
+          if (matchedSector) {
+            try {
+              const year = new Date().getFullYear();
+              const nextCount = await counterService.getNextSectorCount(matchedSector.id, year);
+
+              if (nextCount) {
+                const formattedRef = `Ofício nº ${String(nextCount).padStart(3, '0')}/${year}`;
+
+                // Update if different (Syncs with changes in Settings)
+                if (content.leftBlockText !== formattedRef) {
+                  handleUpdate('content', 'leftBlockText', formattedRef);
+                }
+              }
+            } catch (error) {
+              console.error("Failed to fetch next sector count for Licitacao", error);
+            }
+          }
+        }
+      }
+    };
+
+    fetchSectorRef();
+  }, [viewingIndex, state.document.showLeftBlock, content.requesterSector, currentUser, sectors]);
+
   const isViewingHistory = viewingIndex < currentStageIndex;
 
   return (
     <div className="space-y-8 animate-fade-in">
+      {/* ADDRESSING BLOCKS - ONLY IN INITIAL STAGE */}
+      {viewingIndex === 0 && (
+        <div className="space-y-6 animate-fade-in">
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <Columns className="w-4 h-4 text-blue-600" /> Blocos de Endereçamento
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* LEFT BLOCK (REF) */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 uppercase">Bloco Esquerdo (Ref)</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={state.document.showLeftBlock}
+                    disabled={isReadOnly}
+                    onChange={(e) => handleUpdate('document', 'showLeftBlock', e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+                </label>
+              </div>
+              {state.document.showLeftBlock && (
+                <textarea
+                  value={content.leftBlockText}
+                  disabled={true} // ALWAYS LOCKED FOR EDITING (Automation Rule)
+                  onChange={(e) => handleUpdate('content', 'leftBlockText', e.target.value)}
+                  className={`w-full bg-slate-100 border border-slate-200 rounded-lg p-2 text-xs h-20 resize-none focus:bg-white transition-all outline-none font-bold text-slate-600 select-none cursor-not-allowed`}
+                  placeholder="Carregando numeração..."
+                  title="Este número é gerado automaticamente pelo sistema."
+                />
+              )}
+            </div>
+
+            {/* RIGHT BLOCK (DESTINO) */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 uppercase">Bloco Direito (Destino)</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={state.document.showRightBlock}
+                    disabled={isReadOnly}
+                    onChange={(e) => handleUpdate('document', 'showRightBlock', e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+                </label>
+              </div>
+              {state.document.showRightBlock && (
+                <textarea
+                  value={content.rightBlockText}
+                  disabled={isReadOnly}
+                  onChange={(e) => handleUpdate('content', 'rightBlockText', e.target.value)}
+                  className={`w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs h-20 resize-none focus:bg-white transition-all outline-none placeholder:text-slate-400 ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  placeholder="Ao Excelentíssimo..."
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Stepper Moved to App.tsx Global Header */}
 
       <div className="space-y-4">

@@ -102,23 +102,23 @@ export const MOCK_SIGNATURES: Signature[] = [
 ];
 
 export const DEFAULT_SECTORS: Sector[] = [
-  { id: 'sec1', name: 'Secretaria de Administração' },
-  { id: 'sec2', name: 'Secretaria de Saúde' },
-  { id: 'sec3', name: 'Departamento de Cultura' },
-  { id: 'sec4', name: 'Departamento de Turismo' },
-  { id: 'sec5', name: 'Departamento de Assistência Social' },
-  { id: 'sec6', name: 'Departamento de Contabilidade' },
-  { id: 'sec7', name: 'Departamento de Educação' },
-  { id: 'sec8', name: 'Departamento de Transporte' },
-  { id: 'sec9', name: 'Departamento de Recursos Humanos' },
-  { id: 'sec10', name: 'Departamento de Compras' },
-  { id: 'sec11', name: 'Departamento de Tributos' },
-  { id: 'sec12', name: 'Gabinete' },
-  { id: 'sec13', name: 'Departamento De Agricultura' },
-  { id: 'sec14', name: 'Departamento De Obras' },
-  { id: 'sec15', name: 'Departamento de Licitação' },
-  { id: 'sec16', name: 'Departamento de Meio Ambiente' },
-  { id: 'sec17', name: 'Departamento de Informática' }
+  { id: '8e780517-7489-408a-b866-932135029a1a', name: 'Secretaria de Administração' },
+  { id: '0655d81b-5eab-4d4b-bf02-79469e7102e3', name: 'Secretaria de Saúde' },
+  { id: '4465aa90-b53d-49d7-832f-762925b48197', name: 'Departamento de Cultura' },
+  { id: 'f299723a-f2b7-4d69-a86d-62140bb0f828', name: 'Departamento de Turismo' },
+  { id: 'e6cbaa03-2415-4424-91d1-667793d59e44', name: 'Departamento de Assistência Social' },
+  { id: 'c155375d-639a-41f8-953b-e8549e3bf13f', name: 'Departamento de Contabilidade' },
+  { id: '5779c164-9f79-4d68-af7e-3ce8ae375a00', name: 'Departamento de Educação' },
+  { id: 'd8506e78-e565-427c-9189-9b9365c1979b', name: 'Departamento de Transporte' },
+  { id: 'ab1a6f05-0453-487e-8566-60907e5b2257', name: 'Departamento de Recursos Humanos' },
+  { id: '0bf81203-7a94-4d89-9a2f-38a6ec2726d1', name: 'Departamento de Compras' },
+  { id: '25b12850-8041-432d-863a-bb9645218a59', name: 'Departamento de Tributos' },
+  { id: 'f8347209-fa95-46aa-af74-72cc33544d64', name: 'Gabinete' },
+  { id: 'd428e210-9276-4d05-b1a7-19e917d5982e', name: 'Departamento De Agricultura' },
+  { id: 'fb719711-d0b8-472e-8356-946e537c35f0', name: 'Departamento De Obras' },
+  { id: '23c6fa21-f998-4f54-b865-b94212f630ef', name: 'Departamento de Licitação' },
+  { id: '82510255-a226-4d2b-9128-443b7be86455', name: 'Departamento de Meio Ambiente' },
+  { id: 'c52119eb-8a4e-4dfc-a63e-089c8a929bc3', name: 'Departamento de Informática' }
 ];
 
 export const DEFAULT_JOBS: Job[] = [
@@ -154,26 +154,26 @@ export const DEFAULT_JOBS: Job[] = [
 ];
 
 export const DEFAULT_PERSONS: Person[] = [
-  { id: 'p1', name: 'Gaspar De Castro Andreu', jobId: 'job6', sectorId: 'sec12' },
-  { id: 'p2', name: 'Guilherme Araujo Ferreira Dos Santos', jobId: 'job1', sectorId: 'sec1' },
-  { id: 'p3', name: 'Ailton Geraldo Dos Santos', jobId: 'job7', sectorId: 'sec12' },
-  { id: 'p4', name: 'Elio Vicente', jobId: 'job18', sectorId: 'sec12' },
-  { id: 'p5', name: 'Maria Doroteia Dias Lemos', jobId: 'job12', sectorId: 'sec12' },
-  { id: 'p6', name: 'Ernani Almeida Silva', jobId: 'job4', sectorId: 'sec8' },
-  { id: 'p7', name: 'Allan Cesar Moraes Marques', jobId: 'job6', sectorId: 'sec13' },
-  { id: 'p8', name: 'Rodrigo Ermelindo De Souza', jobId: 'job19', sectorId: 'sec14' },
-  { id: 'p9', name: 'Iaskara Soares Moraes', jobId: 'job2', sectorId: 'sec7' },
-  { id: 'p10', name: 'Ricardo Faraci', jobId: 'job11', sectorId: 'sec2' },
-  { id: 'p11', name: 'Gustavo Andreu Simoes Moraes', jobId: 'job17', sectorId: 'sec13' },
-  { id: 'p12', name: 'Apoliana Teixeira Silva', jobId: 'job20', sectorId: 'sec10' },
-  { id: 'p13', name: 'Ramon Sandalo De Castro Perdigao', jobId: 'job21', sectorId: 'sec10' },
-  { id: 'p14', name: 'Vitoria Eduarda Silva De Souza', jobId: 'job22', sectorId: 'sec15' },
-  { id: 'p15', name: 'Edimeia Aparecida Silvestre', jobId: 'job23', sectorId: 'sec15' },
-  { id: 'p16', name: 'Sheila Mara M M Rodrigues', jobId: 'job24', sectorId: 'sec2' },
-  { id: 'p17', name: 'Cleunice Lourenco Carvalho', jobId: 'job25', sectorId: 'sec2' },
-  { id: 'p18', name: 'Amanda Beatriz Ferreira', jobId: 'job26', sectorId: 'sec2' },
-  { id: 'p19', name: 'Natalia Aparecida Da Silva', jobId: 'job27', sectorId: 'sec2' },
-  { id: 'p20', name: 'Marcos Vinicios Felix Martins', jobId: 'job29', sectorId: 'sec17' }
+  { id: 'p1', name: 'Gaspar De Castro Andreu', jobId: 'job6', sectorId: 'f8347209-fa95-46aa-af74-72cc33544d64' },
+  { id: 'p2', name: 'Guilherme Araujo Ferreira Dos Santos', jobId: 'job1', sectorId: '8e780517-7489-408a-b866-932135029a1a' },
+  { id: 'p3', name: 'Ailton Geraldo Dos Santos', jobId: 'job7', sectorId: 'f8347209-fa95-46aa-af74-72cc33544d64' },
+  { id: 'p4', name: 'Elio Vicente', jobId: 'job18', sectorId: 'f8347209-fa95-46aa-af74-72cc33544d64' },
+  { id: 'p5', name: 'Maria Doroteia Dias Lemos', jobId: 'job12', sectorId: 'f8347209-fa95-46aa-af74-72cc33544d64' },
+  { id: 'p6', name: 'Ernani Almeida Silva', jobId: 'job4', sectorId: 'd8506e78-e565-427c-9189-9b9365c1979b' },
+  { id: 'p7', name: 'Allan Cesar Moraes Marques', jobId: 'job6', sectorId: 'd428e210-9276-4d05-b1a7-19e917d5982e' },
+  { id: 'p8', name: 'Rodrigo Ermelindo De Souza', jobId: 'job19', sectorId: 'fb719711-d0b8-472e-8356-946e537c35f0' },
+  { id: 'p9', name: 'Iaskara Soares Moraes', jobId: 'job2', sectorId: '5779c164-9f79-4d68-af7e-3ce8ae375a00' },
+  { id: 'p10', name: 'Ricardo Faraci', jobId: 'job11', sectorId: '0655d81b-5eab-4d4b-bf02-79469e7102e3' },
+  { id: 'p11', name: 'Gustavo Andreu Simoes Moraes', jobId: 'job17', sectorId: 'd428e210-9276-4d05-b1a7-19e917d5982e' },
+  { id: 'p12', name: 'Apoliana Teixeira Silva', jobId: 'job20', sectorId: '0bf81203-7a94-4d89-9a2f-38a6ec2726d1' },
+  { id: 'p13', name: 'Ramon Sandalo De Castro Perdigao', jobId: 'job21', sectorId: '0bf81203-7a94-4d89-9a2f-38a6ec2726d1' },
+  { id: 'p14', name: 'Vitoria Eduarda Silva De Souza', jobId: 'job22', sectorId: '23c6fa21-f998-4f54-b865-b94212f630ef' },
+  { id: 'p15', name: 'Edimeia Aparecida Silvestre', jobId: 'job23', sectorId: '23c6fa21-f998-4f54-b865-b94212f630ef' },
+  { id: 'p16', name: 'Sheila Mara M M Rodrigues', jobId: 'job24', sectorId: '0655d81b-5eab-4d4b-bf02-79469e7102e3' },
+  { id: 'p17', name: 'Cleunice Lourenco Carvalho', jobId: 'job25', sectorId: '0655d81b-5eab-4d4b-bf02-79469e7102e3' },
+  { id: 'p18', name: 'Amanda Beatriz Ferreira', jobId: 'job26', sectorId: '0655d81b-5eab-4d4b-bf02-79469e7102e3' },
+  { id: 'p19', name: 'Natalia Aparecida Da Silva', jobId: 'job27', sectorId: '0655d81b-5eab-4d4b-bf02-79469e7102e3' },
+  { id: 'p20', name: 'Marcos Vinicios Felix Martins', jobId: 'job29', sectorId: 'c52119eb-8a4e-4dfc-a63e-089c8a929bc3' }
 ];
 
 export const DEFAULT_USERS: User[] = [
