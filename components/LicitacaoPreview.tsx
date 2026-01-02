@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { AppState } from '../types';
 import { PageWrapper } from './PageWrapper';
 
@@ -70,7 +70,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
       if (stageData) {
         // Ensure title is correct
         if (!stageData.title) stageData.title = STAGES_TITLES[i] || `Etapa ${i}`;
-        allStages.push(stageData);
+        allStages.push({ ...stageData, absoluteIndex: i });
       }
     }
 
@@ -84,7 +84,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
     });
 
     // Process stages INDEPENDENTLY to enforce page breaks
-    let allPages: { html: string, isStartStage: boolean }[] = [];
+    let allPages: { html: string, isStartStage: boolean, stageIndex: number, isFirstPageOfStage: boolean }[] = [];
 
     allStages.forEach((stage, index) => {
       let stageHtml = '';
@@ -154,8 +154,13 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
 
       // append this stage's pages to the master list with metadata
       const isStartStage = index === 0;
-      currentStagePages.forEach(html => {
-        allPages.push({ html, isStartStage });
+      currentStagePages.forEach((html, pIdx) => {
+        allPages.push({
+          html,
+          isStartStage,
+          stageIndex: stage.absoluteIndex,
+          isFirstPageOfStage: pIdx === 0
+        });
       });
     });
 
@@ -164,6 +169,29 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
 
   const startStagePagesCount = pages.filter(p => p.isStartStage).length;
   const standardPagesCount = pages.length - startStagePagesCount;
+
+  // AUTO-SCROLL LOGIC
+  useEffect(() => {
+    const viewIdx = content.viewingStageIndex ?? (content.currentStageIndex || 0);
+    const timeoutId = setTimeout(() => {
+      const element = document.getElementById(`licitacao-stage-${viewIdx}`);
+      if (element) {
+        const container = element.closest('.overflow-auto');
+        if (container) {
+          const containerRect = container.getBoundingClientRect();
+          const elementRect = element.getBoundingClientRect();
+          // getBoundingClientRect is already scaled, so we just calculate the visual distance
+          const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+
+          container.scrollTo({
+            top: relativeTop - 40, // Offset to show the top of the page nicely
+            behavior: 'smooth'
+          });
+        }
+      }
+    }, 150);
+    return () => clearTimeout(timeoutId);
+  }, [content.viewingStageIndex, content.currentStageIndex]);
 
   return (
     <>
@@ -191,7 +219,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
             isGenerating={isGenerating}
             forceHidePageNumbers={forceHide}
           >
-            <div className="mb-6 flex flex-col gap-6">
+            <div id={pageData.isFirstPageOfStage ? `licitacao-stage-${pageData.stageIndex}` : undefined} className="mb-6 flex flex-col gap-6">
               <div className="bg-blue-900 text-white px-4 py-2 rounded-lg font-black text-xs uppercase tracking-[0.3em] text-center">
                 Processo Administrativo / Licitatório
               </div>
