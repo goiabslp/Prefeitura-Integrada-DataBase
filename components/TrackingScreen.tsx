@@ -428,7 +428,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                           <div className="flex flex-col gap-1">
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Processo</span>
                             <span className="font-mono text-xs font-medium text-slate-600">
-                              {order.protocol || '---'}
+                              {content?.protocol || '---'}
                             </span>
                           </div>
 
@@ -436,9 +436,19 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                           <div className="flex flex-col min-w-0">
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Status / Etapa</span>
                             <div className="flex items-center gap-2 flex-nowrap">
-                              <span className={`inline-flex px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide border shadow-sm whitespace-nowrap ${sConf.class}`}>
-                                {sConf.label}
-                              </span>
+                              {order.status === 'pending' ? (
+                                <button
+                                  onClick={() => onUpdateOrderStatus?.(order.id, 'awaiting_approval')}
+                                  className={`inline-flex px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide border shadow-sm whitespace-nowrap transition-all hover:scale-105 active:scale-95 cursor-pointer ${sConf.class}`}
+                                  title="Clique para enviar para aprovação"
+                                >
+                                  {sConf.label}
+                                </button>
+                              ) : (
+                                <span className={`inline-flex px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide border shadow-sm whitespace-nowrap ${sConf.class}`}>
+                                  {sConf.label}
+                                </span>
+                              )}
                               <span className="inline-flex px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-100 shadow-sm whitespace-nowrap">
                                 {order.stage || 'Início'}
                               </span>

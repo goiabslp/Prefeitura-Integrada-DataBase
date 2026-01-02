@@ -14,6 +14,7 @@ interface LicitacaoFormProps {
   isReadOnly?: boolean;
   currentUser?: User | null;
   sectors?: Sector[];
+  orderStatus?: string;
 }
 
 export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
@@ -25,7 +26,8 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
   onFinish,
   isReadOnly,
   currentUser,
-  sectors = []
+  sectors = [],
+  orderStatus
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -49,6 +51,12 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
   // Use lifted state for viewing index
   // fallback to currentStageIndex if undefined (though App.tsx tries to sync it)
   const viewingIndex = content.viewingStageIndex !== undefined ? content.viewingStageIndex : currentStageIndex;
+  const isViewingHistory = viewingIndex < currentStageIndex;
+
+  // Lock logic: Always Locked if Licitacao is Finished (completed)
+  // Lock logic: Início (Index 0) is Locked if Status is Approved or above
+  const isStageInicioLocked = viewingIndex === 0 && (orderStatus === 'approved' || orderStatus === 'completed');
+  const isActuallyReadOnly = isReadOnly || isStageInicioLocked;
 
   // Handle content update for Editor based on Viewing Index
   // Fix: Only update innerHTML if we are switching stages or if the editor is empty (initial load)
@@ -69,11 +77,11 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
             editorRef.current.innerHTML = content.body;
           }
         }
-        editorRef.current.contentEditable = isReadOnly ? "false" : "true";
+        editorRef.current.contentEditable = isActuallyReadOnly ? "false" : "true";
         lastViewingIndexRef.current = viewingIndex;
       }
     }
-  }, [content.body, viewingIndex, currentStageIndex, historicStages, isReadOnly]);
+  }, [content.body, viewingIndex, currentStageIndex, historicStages, isActuallyReadOnly]);
 
   // AUTOMATION: Fetch Sector Counter for Left Block (Ref)
   useEffect(() => {
@@ -111,7 +119,7 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
     fetchSectorRef();
   }, [viewingIndex, state.document.showLeftBlock, content.requesterSector, currentUser, sectors]);
 
-  const isViewingHistory = viewingIndex < currentStageIndex;
+
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -169,7 +177,7 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
                   value={content.rightBlockText}
                   disabled={isReadOnly}
                   onChange={(e) => handleUpdate('content', 'rightBlockText', e.target.value)}
-                  className={`w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs h-20 resize-none focus:bg-white transition-all outline-none placeholder:text-slate-400 ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs h-20 resize-none focus:bg-white transition-all outline-none placeholder:text-slate-400 ${isActuallyReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
                   placeholder="Ao Excelentíssimo..."
                 />
               )}
@@ -191,7 +199,7 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
               value={content.title}
               disabled={isReadOnly}
               onChange={(e) => handleUpdate('content', 'title', e.target.value)}
-              className={`w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 outline-none ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 outline-none ${isActuallyReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
               placeholder="PROCESSO LICITATÓRIO"
             />
           </div>
@@ -232,7 +240,7 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
 
         {/* Signature Selection Buttons */}
         {/* Signature Selection Buttons */}
-        {!isReadOnly && (
+        {!isActuallyReadOnly && (
           <div className="grid grid-cols-1 gap-3">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Adicionar Assinatura:</p>
             {allowedSignatures.map((sig) => {

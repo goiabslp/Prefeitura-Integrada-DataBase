@@ -613,35 +613,50 @@ const App: React.FC = () => {
       const isMeusProcessos = currentView === 'tracking';
 
       if (isMeusProcessos) {
-        setIsStepperLocked(true);
-        if (snapshotToUse && snapshotToUse.content) {
-          const content = snapshotToUse.content;
-          // If already advanced beyond Stage 0, we must load Stage 0 data from history
-          let restrictedContent = { ...content, viewingStageIndex: 0 };
+        // Only lock and restrict if it's AWAITING APPROVAL.
+        // If it's PENDING (drafting) or APPROVED (milestone reached, next stage starts), let them edit.
+        if (order.status === 'awaiting_approval') {
+          setIsStepperLocked(true);
+          if (snapshotToUse && snapshotToUse.content) {
+            const content = snapshotToUse.content;
+            // If already advanced beyond Stage 0, we must load Stage 0 data from history
+            let restrictedContent = { ...content, viewingStageIndex: 0 };
 
-          if ((content.currentStageIndex || 0) > 0 && content.licitacaoStages && content.licitacaoStages[0]) {
-            const stage0 = content.licitacaoStages[0];
-            restrictedContent = {
-              ...restrictedContent,
-              body: stage0.body,
-              signatureName: stage0.signatureName,
-              signatureRole: stage0.signatureRole,
-              signatureSector: stage0.signatureSector,
-              signatures: stage0.signatures || []
+            if ((content.currentStageIndex || 0) > 0 && content.licitacaoStages && content.licitacaoStages[0]) {
+              const stage0 = content.licitacaoStages[0];
+              restrictedContent = {
+                ...restrictedContent,
+                body: stage0.body,
+                signatureName: stage0.signatureName,
+                signatureRole: stage0.signatureRole,
+                signatureSector: stage0.signatureSector,
+                signatures: stage0.signatures || []
+              };
+            }
+
+            snapshotToUse = {
+              ...snapshotToUse,
+              content: restrictedContent
+            };
+            showToast("Visualização restrita à etapa Início (Em Aprovação)", "warning");
+          }
+        } else {
+          setIsStepperLocked(false);
+          // Auto-sync viewing index to active tip when opening
+          if (snapshotToUse?.content) {
+            snapshotToUse = {
+              ...snapshotToUse,
+              content: {
+                ...snapshotToUse.content,
+                viewingStageIndex: snapshotToUse.content.currentStageIndex || 0
+              }
             };
           }
-
-          snapshotToUse = {
-            ...snapshotToUse,
-            content: restrictedContent
-          };
-          // Show Toast instead of Modal
-          showToast("Visualização restrita à etapa Início", "warning");
         }
       } else {
         setIsStepperLocked(false);
         // Standard check for unapproved processes in other views (e.g. Triagem)
-        if (order.status !== 'approved' && order.status !== 'completed') {
+        if (order.status === 'awaiting_approval') {
           if (snapshotToUse && snapshotToUse.content) {
             const content = snapshotToUse.content;
             let restrictedContent = { ...content, viewingStageIndex: 0 };
@@ -663,7 +678,6 @@ const App: React.FC = () => {
               ...snapshotToUse,
               content: restrictedContent
             };
-            // Show Toast for unapproved restriction too
             showToast("Processo em aprovação: Visualização limitada à etapa Início", "info");
           }
         }
@@ -1228,14 +1242,14 @@ const App: React.FC = () => {
                         return;
                       }
 
-                      // STRICT NAVIGATION GUARD: Block access to future stages if not approved
-                      if (activeBlock === 'licitacao' && idx > 0) {
-                        const currentStatus = editingOrder?.status;
-                        if (currentStatus !== 'approved' && currentStatus !== 'completed') {
+                      // STRICT NAVIGATION GUARD: Block access to future stages if not reached yet
+                      if (activeBlock === 'licitacao') {
+                        const currentIdx = appState.content.currentStageIndex || 0;
+                        if (idx > currentIdx) {
                           setConfirmModal({
                             isOpen: true,
                             title: "Acesso Bloqueado",
-                            message: "O processo precisa estar aprovado para avançar para as próximas etapas.",
+                            message: "Você ainda não atingiu esta etapa do processo.",
                             type: 'error',
                             singleButton: true,
                             onConfirm: () => setConfirmModal(prev => ({ ...prev, isOpen: false }))
@@ -1561,7 +1575,8 @@ const App: React.FC = () => {
                   onSaveDefault={async () => { await settingsService.saveGlobalSettings(appState); await db.saveGlobalSettings(appState); }}
                   onFinish={handleFinish} activeTab={adminTab} onTabChange={setAdminTab} availableSignatures={myAvailableSignatures} activeBlock={activeBlock} persons={persons} sectors={sectors} jobs={jobs}
                   onBack={() => { if (currentView === 'editor') setCurrentView('home'); }}
-                  isReadOnly={editingOrder?.status === 'approved' || editingOrder?.status === 'completed'}
+                  isReadOnly={activeBlock === 'licitacao' ? editingOrder?.status === 'completed' : (editingOrder?.status === 'approved' || editingOrder?.status === 'completed')}
+                  orderStatus={editingOrder?.status}
                 />
               )}
               <main className="flex-1 h-full overflow-hidden flex flex-col relative bg-slate-50">

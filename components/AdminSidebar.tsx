@@ -31,6 +31,7 @@ interface AdminSidebarProps {
   jobs: Job[];
   onBack?: () => void;
   isReadOnly?: boolean;
+  orderStatus?: string;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
@@ -52,7 +53,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   sectors,
   jobs,
   onBack,
-  isReadOnly = false
+  isReadOnly = false,
+  orderStatus
 }) => {
   const [globalSaveStatus, setGlobalSaveStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [finishStatus, setFinishStatus] = useState<'idle' | 'loading' | 'success'>('idle');
@@ -170,6 +172,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             isReadOnly={isReadOnly}
             currentUser={currentUser}
             sectors={sectors}
+            orderStatus={orderStatus}
           />
         );
       default:

@@ -59,7 +59,8 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
           signatureName: content.signatureName,
           signatureRole: content.signatureRole,
           signatureSector: content.signatureSector,
-          signatures: content.signatures
+          signatures: content.signatures,
+          _isActiveView: true // Flag to force rendering even if empty
         };
       }
 
@@ -77,7 +78,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
     // CRITICAL: We MUST include the stage that the user is currently VIEWING/EDITING
     // even if it's empty, otherwise the preview will disappear entirely for new processes.
     allStages = allStages.filter(s => {
-      const isActiveDraft = s.id === 'active-draft';
+      const isActiveDraft = s.id === 'active-draft' || s._isActiveView;
       const hasContent = s && s.body && s.body.trim().length > 0 && s.body !== '<p></p>';
       return isActiveDraft || hasContent;
     });
