@@ -33,57 +33,49 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
 
     // 1. Get VALID history stages (ignoring empty ones) - Ensure sparse array is handled
     const historicStagesRaw = content.licitacaoStages || [];
-    // We don't filter immediately if we are viewing history, because we need to map by INDEX.
-    // If we map by index, we need the sparse array.
-    // BUT for rendering, we want to filter empty ones.
 
-    // Wait, if we use index mapping for "View History", we iterate 0..viewIdx.
-    // If we filter, indices shift.
-    // We must FILTER at the very end (when combining into allStages).
+    // User Requirement: Fixed Index Control (0..6) + Correct Order + Insertion Support
+    // We iterate through fixed indices 0 to 6.
+    // For the index currently being VIEWED/EDITED (`viewIdx`), we use the LIVE `content` state.
+    // For others, we use `historicStagesRaw`.
+    // Then we filter out empty stages.
 
-    const historicStages = historicStagesRaw;
-    const currentIdx = content.currentStageIndex || 0;
-    const viewIdx = content.viewingStageIndex ?? currentIdx;
+    const viewIdx = content.viewingStageIndex ?? (content.currentStageIndex || 0);
+    const STAGES_TITLES = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
 
     let allStages: any[] = [];
 
-    const STAGES_TITLES = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
+    // Iterate fixed range 0 to 6 (Max possible stages)
+    for (let i = 0; i <= 6; i++) {
+      let stageData: any = historicStagesRaw[i];
 
-    if (viewIdx < currentIdx) {
-      // VIEWING/EDITING HISTORY
-      // Map over history UP TO viewIdx
-      allStages = historicStages.slice(0, viewIdx + 1).map((s, i) => {
-        if (i === viewIdx) {
-          return {
-            ...s,
-            body: content.body,
-            signatureName: content.signatureName,
-            signatureRole: content.signatureRole,
-            signatureSector: content.signatureSector,
-            signatures: content.signatures
-          };
-        }
-        return s;
-      });
-    } else {
-      // VIEWING/EDITING CURRENT DRAFT
-      // Use all historic stages + current
-      const currentStage = {
-        id: 'current',
-        title: STAGES_TITLES[currentIdx] || `Etapa ${(currentIdx + 1).toString().padStart(2, '0')}`,
-        body: content.body,
-        signatureName: content.signatureName,
-        signatureRole: content.signatureRole,
-        signatureSector: content.signatureSector,
-        signatures: content.signatures
-      };
-      // Ensure we preserve order of historic stages, even if sparse
-      // We will filter out empty/null/undefined ones at the RENDERING step (below)
-      allStages = [...historicStages, currentStage];
+      // If this is the active view, override with current content
+      if (i === viewIdx) {
+        stageData = {
+          ...stageData, // Preserve ID if exists
+          id: stageData?.id || 'active-draft',
+          title: STAGES_TITLES[i],
+          body: content.body,
+          signatureName: content.signatureName,
+          signatureRole: content.signatureRole,
+          signatureSector: content.signatureSector,
+          signatures: content.signatures
+        };
+      }
+
+      // If generic filtering of future empty stages is desired (ONLY if they are truly empty in history too)
+      // The `filter` below cleans up. 
+
+      if (stageData) {
+        // Ensure title is correct
+        if (!stageData.title) stageData.title = STAGES_TITLES[i] || `Etapa ${i}`;
+        allStages.push(stageData);
+      }
     }
 
-    // NOW FILTER EMPTY STAGES
-    allStages = allStages.filter(s => s && s.body && s.body.trim() !== '');
+    // Now filter any stages that have no body content (Empty/Skipped stages)
+    // This allows "Skipping" a stage (it won't appear) and "Filling" it later (it will appear in correct index)
+    allStages = allStages.filter(s => s && s.body && s.body.trim().length > 0 && s.body !== '<p></p>');
 
     // Process stages INDEPENDENTLY to enforce page breaks
     let allPages: { html: string, isStartStage: boolean }[] = [];

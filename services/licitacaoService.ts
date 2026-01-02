@@ -33,7 +33,14 @@ export const saveLicitacaoProcess = async (order: Order): Promise<void> => {
     // Basic mapping, assuming extra fields are in documentSnapshot or we extract them
     const currentStageIndex = order.documentSnapshot?.content.currentStageIndex || 0;
     const STAGES = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
-    const currentStageTitle = STAGES[currentStageIndex] || 'Início';
+
+    // Logic: If we are at index 1 (meaning Início finished) but status is NOT approved,
+    // we should still display 'Início' in the list.
+    let currentStageTitle = STAGES[currentStageIndex] || 'Início';
+
+    if (currentStageIndex === 1 && order.status !== 'approved' && order.status !== 'completed') {
+        currentStageTitle = 'Início';
+    }
     const requesterSector = order.documentSnapshot?.content.requesterSector || '';
 
     // We might need to ensure 'licitacao_processes' has these columns.
