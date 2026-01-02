@@ -50,7 +50,10 @@ const VIEW_TO_PATH: Record<string, string> = {
   'home:compras': '/Compras',
   'home:diarias': '/Diarias',
   'home:licitacao': '/Licitacao',
+  'licitacao-new': '/Licitacao/NovoProcesso',
+  'licitacao-tracking': '/Licitacao/MeusProcessos',
   'licitacao-screening': '/Licitacao/Triagem',
+  'licitacao-all': '/Licitacao/Processos',
   'admin:dashboard': '/Admin/Dashboard',
   'admin:users': '/Admin/Usuarios',
   'admin:entities': '/Admin/Entidades',
@@ -81,7 +84,18 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all'>('login');
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
-  const [appState, setAppState] = useState<AppState>(INITIAL_STATE);
+  const [appState, setAppState] = useState<AppState>(() => {
+    // Try to load from localStorage first
+    try {
+      const cached = localStorage.getItem('cachedAppState');
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (e) {
+      console.error("Failed to load cached AppState", e);
+    }
+    return INITIAL_STATE;
+  });
   const [activeBlock, setActiveBlock] = useState<BlockType | null>(null);
   const [oficios, setOficios] = useState<Order[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<Order[]>([]);
@@ -220,8 +234,8 @@ const App: React.FC = () => {
       // Fetch Global Settings (Try Supabase first, fallback to local)
       const remoteSettings = await settingsService.getGlobalSettings();
       if (remoteSettings) {
-        setAppState(prev => ({
-          ...prev,
+        const mergedState = {
+          ...appState, // Use current state as base to preserve any local edits not yet saved? Actually better to merge remote into INITIAL or current defaults
           branding: {
             ...INITIAL_STATE.branding,
             ...remoteSettings.branding,
@@ -250,7 +264,14 @@ const App: React.FC = () => {
             ...INITIAL_STATE.ui,
             ...remoteSettings.ui
           }
-        }));
+        };
+
+        setAppState(prev => {
+          const newState = { ...prev, ...mergedState };
+          // Cache to LocalStorage
+          localStorage.setItem('cachedAppState', JSON.stringify(newState));
+          return newState;
+        });
       } else {
         const savedSettings = await db.getGlobalSettings();
         if (savedSettings) setAppState(savedSettings);
@@ -307,38 +328,68 @@ const App: React.FC = () => {
     refreshData();
   }, []);
   useEffect(() => {
-    const path = window.location.pathname;
-    const state = PATH_TO_STATE[path];
-
-    if (state) {
-      if (state.view !== currentView) setCurrentView(state.view);
-
-      if (state.view === 'admin') {
-        if (state.sub !== adminTab) setAdminTab(state.sub);
-      } else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(state.view)) {
-        // Ensure we explicitly handle null/undefined for main menu vs sub-routes
-        const newBlock = state.sub || null;
-        if (newBlock !== activeBlock) setActiveBlock(newBlock);
-      }
-      refreshData();
-    } else if (path === '/' || path === '') {
-      if (currentUser) {
-        setCurrentView('home');
-      } else {
-        setCurrentView('login');
-      }
-    }
-
     const handlePopState = () => {
       const currentPath = window.location.pathname;
       const state = PATH_TO_STATE[currentPath];
+
       if (state) {
-        setCurrentView(state.view);
-        if (state.view === 'admin') setAdminTab(state.sub);
-        else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(state.view)) setActiveBlock(state.sub || null);
+        // Special Handling for Licitacao Routes
+        if (state.view === 'licitacao-new') {
+          setCurrentView('editor');
+          setActiveBlock('licitacao');
+          setEditingOrder(null);
+          setIsLicitacaoSettingsOpen(true);
+        } else if (state.view === 'licitacao-tracking') {
+          setCurrentView('tracking');
+          setActiveBlock('licitacao');
+        } else if (state.view === 'licitacao-all') {
+          setCurrentView('licitacao-all');
+          setActiveBlock('licitacao');
+        } else if (state.view === 'licitacao-screening') {
+          setCurrentView('licitacao-screening');
+          setActiveBlock('licitacao');
+        } else {
+          // General Handling
+          setCurrentView(state.view);
+          if (state.view === 'admin') setAdminTab(state.sub);
+          else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(state.view)) setActiveBlock(state.sub || null);
+        }
         refreshData();
       }
     };
+
+    // Initial Load Logic (Same as popstate but runs once)
+    const initialPath = window.location.pathname;
+    const initialState = PATH_TO_STATE[initialPath];
+    if (initialState) {
+      if (initialState.view === 'licitacao-new') {
+        setCurrentView('editor');
+        setActiveBlock('licitacao');
+        setEditingOrder(null);
+        setIsLicitacaoSettingsOpen(true);
+      } else if (initialState.view === 'licitacao-tracking') {
+        setCurrentView('tracking');
+        setActiveBlock('licitacao');
+      } else if (initialState.view === 'licitacao-all') {
+        setCurrentView('licitacao-all');
+        setActiveBlock('licitacao');
+      } else if (initialState.view === 'licitacao-screening') {
+        setCurrentView('licitacao-screening');
+        setActiveBlock('licitacao');
+      } else {
+        if (initialState.view !== currentView) setCurrentView(initialState.view);
+        if (initialState.view === 'admin') {
+          if (initialState.sub !== adminTab) setAdminTab(initialState.sub);
+        } else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(initialState.view)) {
+          const newBlock = initialState.sub || null;
+          if (newBlock !== activeBlock) setActiveBlock(newBlock);
+        }
+      }
+      refreshData();
+    } else if (initialPath === '/' || initialPath === '') {
+      if (currentUser) setCurrentView('home');
+      else setCurrentView('login');
+    }
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -346,29 +397,60 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let stateKey = currentView as string;
-    if (currentView === 'admin' && adminTab) {
-      stateKey = `admin:${adminTab}`;
-    } else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(currentView) && activeBlock) {
-      stateKey = `${currentView}:${activeBlock}`;
-    } else if (currentView === 'admin' && !adminTab) {
-      stateKey = 'admin:dashboard';
-    } else if ((currentView === 'tracking' || currentView === 'editor') && !activeBlock) {
-      stateKey = `${currentView}:oficio`;
-    } else if (currentView === 'home' && !activeBlock) {
-      stateKey = 'home';
+
+    // Licitacao Specific Keys
+    if (activeBlock === 'licitacao') {
+      if (currentView === 'editor' && !editingOrder) stateKey = 'licitacao-new';
+      else if (currentView === 'tracking') stateKey = 'licitacao-tracking';
+      else if (currentView === 'licitacao-all') stateKey = 'licitacao-all';
+      else if (currentView === 'licitacao-screening') stateKey = 'licitacao-screening';
+      else if (currentView === 'home') stateKey = 'home:licitacao';
+    } else {
+      // Standard Keys
+      if (currentView === 'admin' && adminTab) {
+        stateKey = `admin:${adminTab}`;
+      } else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(currentView) && activeBlock) {
+        stateKey = `${currentView}:${activeBlock}`;
+      } else if (currentView === 'admin' && !adminTab) {
+        stateKey = 'admin:dashboard';
+      } else if ((currentView === 'tracking' || currentView === 'editor') && !activeBlock) {
+        stateKey = `${currentView}:oficio`;
+      } else if (currentView === 'home' && !activeBlock) {
+        stateKey = 'home';
+      }
     }
 
     const expectedPath = VIEW_TO_PATH[stateKey];
     if (expectedPath && window.location.pathname !== expectedPath) {
       window.history.pushState(null, '', expectedPath);
+      refreshData();
     }
 
-    // Auto-refresh when route parameters change
-    // We check if it's a substantive change worth refreshing for
-    refreshData();
-    // Auto-refresh when route parameters change
-    refreshData();
-  }, [currentView, activeBlock, adminTab, refreshData]);
+    // Auto-refresh handled by useCallback dependency if needed
+  }, [currentView, activeBlock, adminTab, editingOrder]);
+  // Ensure data is refreshed when switching blocks (Update lists and potentially settings)
+  useEffect(() => {
+    if (activeBlock) {
+      refreshData();
+    }
+  }, [activeBlock, refreshData]);
+
+  // Persistence: Refresh data when tab becomes visible or on focus to restore potential lost state (logos, etc)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshData();
+      }
+    };
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, [refreshData]);
+
 
   useEffect(() => {
     if (currentUser && currentView === 'login') {
@@ -853,7 +935,7 @@ const App: React.FC = () => {
           console.log("Auto-saved licitacao process");
         }).catch(err => console.error("Auto-save failed", err));
       }, 2000); // 2 seconds debounce
-
+  
       return () => clearTimeout(timer);
     }
   }, [appState, activeBlock, currentView, editingOrder]);
@@ -1791,24 +1873,18 @@ const App: React.FC = () => {
             if (editingOrder) {
               setLicitacaoProcesses(p => p.map(o => o.id === editingOrder.id ? { ...o, ...updates } : o));
             }
+            refreshData();
           }}
           onCancel={() => {
             // Close modal
             setIsLicitacaoSettingsOpen(false);
 
-            // If we are in "New Process" mode (editingOrder is null), cancel returns to list
-            // If we were editing (editingOrder exists), maybe we just close modal?
-            // But user request specifically mentions "Novo Processo" -> "Botão: Cancelar: Fecha... e Retorna ao Modulo".
-            // So we enforce return to list.
-
+            // If we are in "New Process" mode (editingOrder is null), cancel returns to Licitacao Home
             setEditingOrder(null);
-
-            // Ensure we are in Licitacao module context
             setActiveBlock('licitacao');
-
-            // Switch to Tracking view (List)
-            setCurrentView('tracking');
+            setCurrentView('home');
           }}
+
         />
         {currentView === 'purchase-management' && currentUser && (
           <PurchaseManagementScreen
