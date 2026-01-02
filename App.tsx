@@ -17,7 +17,7 @@ import * as signatureService from './services/signatureService';
 
 import * as vehicleSchedulingService from './services/vehicleSchedulingService';
 import * as licitacaoService from './services/licitacaoService';
-import { Send, CheckCircle2, X, Download, Save } from 'lucide-react';
+import { Send, CheckCircle2, X, Download, Save, FilePlus, Package, History, FileText, Settings, LogOut, ChevronRight, ChevronDown, Search, Filter, Upload, Trash2, Printer } from 'lucide-react';
 
 // Components
 import { LoginScreen } from './components/LoginScreen';
@@ -40,6 +40,7 @@ import { TwoFactorAuthScreen } from './components/TwoFactorAuthScreen';
 import { TwoFactorModal } from './components/TwoFactorModal';
 import { ProcessStepper } from './components/common/ProcessStepper';
 import { LicitacaoScreeningScreen } from './components/LicitacaoScreeningScreen';
+import { LicitacaoSettingsModal } from './components/LicitacaoSettingsModal';
 import { ToastNotification, ToastType } from './components/common/ToastNotification';
 
 const VIEW_TO_PATH: Record<string, string> = {
@@ -91,6 +92,7 @@ const App: React.FC = () => {
   const [users, setUsers] = useState<User[]>(DEFAULT_USERS);
   // const [signatures, setSignatures] = useState<Signature[]>([]); // DEPRECATED: Signatures are now derived from Users
   const [globalCounter, setGlobalCounter] = useState(0);
+  const [licitacaoNextProtocol, setLicitacaoNextProtocol] = useState(1);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isStepperLocked, setIsStepperLocked] = useState(false);
 
@@ -164,6 +166,7 @@ const App: React.FC = () => {
   const [pendingParams, setPendingParams] = useState<any>(null); // To store state/action to resume after 2FA
 
   // Routing logic
+  const [isLicitacaoSettingsOpen, setIsLicitacaoSettingsOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
 
@@ -278,6 +281,19 @@ const App: React.FC = () => {
 
       const counterValue = await db.getGlobalCounter();
       setGlobalCounter(counterValue);
+
+      setGlobalCounter(counterValue);
+
+      // Fetch Licitacao Specific Counter
+      // Use dynamic lookup for "Departamento de Licitação" or fallback to known UUID
+      const licitacaoSector = savedSectors.find(s => s.name === 'Departamento de Licitação');
+      const licitacaoSectorId = licitacaoSector?.id || '23c6fa21-f998-4f54-b865-b94212f630ef'; // Fallback to known UUID if name changes
+
+      const currentYear = new Date().getFullYear();
+      if (licitacaoSectorId) {
+        const nextLicParams = await counterService.getNextSectorCount(licitacaoSectorId, currentYear);
+        if (nextLicParams) setLicitacaoNextProtocol(nextLicParams);
+      }
 
     } catch (err) {
       console.error("Failed to load data", err);
@@ -953,18 +969,14 @@ const App: React.FC = () => {
 
     // INITIALIZATION FOR LICITACAO (DO NOT SAVE TO DB YET)
     if (activeBlock === 'licitacao') {
-      const year = new Date().getFullYear();
-      const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const protocolString = `LIC-${year}-${randomPart}`;
-
       const newSnapshot = {
         ...INITIAL_STATE,
         content: {
           ...INITIAL_STATE.content,
-          title: defaultTitle,
+          title: 'PROCESSO LICITATÓRIO',
           leftBlockText: leftBlockContent,
           rightBlockText: defaultRightBlock,
-          protocol: protocolString,
+          protocol: '', // Empty to trigger Auto-Suggestion in Settings Modal
           currentStageIndex: 0,
           licitacaoStages: []
         },
@@ -975,6 +987,7 @@ const App: React.FC = () => {
 
       setAppState(newSnapshot);
       setEditingOrder(null); // Explicitly null to indicate it's not saved yet
+      setIsLicitacaoSettingsOpen(true); // Auto-open settings modal for new process
     } else {
       setEditingOrder(null);
     }
@@ -1091,315 +1104,329 @@ const App: React.FC = () => {
           <div className="flex-1 flex flex-col overflow-hidden h-full relative">
             {/* GLOBAL STEPPER FOR LICITACAO */}
             {activeBlock === 'licitacao' && currentView === 'editor' && !isFinalizedView && (
-              <div className="w-full bg-white border-b border-slate-200 shadow-sm z-[60] shrink-0 px-8 py-2">
-                <div className="max-w-7xl mx-auto flex items-center gap-4">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Esteira</span>
-                  <div className="flex-1">
-                    <ProcessStepper
-                      steps={['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06']}
-                      currentStep={appState.content.viewingStageIndex ?? (appState.content.currentStageIndex || 0)}
-                      maxCompletedStep={(appState.content.currentStageIndex || 0) - 1}
-                      onStepClick={(idx) => {
-                        // Restrict stepper navigation: Only Admin or Licitacao
-                        // if (currentUser.role !== 'admin' && currentUser.role !== 'licitacao') {
-                        //   alert("Acesso restrito. Apenas Administradores e Usuários da Licitação podem navegar pelo histórico.");
-                        //   return;
-                        // }
+              <div className="w-full bg-white border-b border-slate-200 px-8 py-3 flex items-center justify-between shrink-0 shadow-sm z-30 relative">
+                {/* Settings Button */}
+                <button
+                  onClick={() => setIsLicitacaoSettingsOpen(true)}
+                  className="mr-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors border border-transparent hover:border-slate-200"
+                  title="Configurações do Processo"
+                >
+                  <Settings className="w-5 h-5" />
+                </button>
 
-                        // NEW: Lock stepper if restricted (e.g. Meus Processos)
-                        if (isStepperLocked) {
-                          showToast("Acesso restrito à etapa Início", "warning");
+                {/* Stepper Component */}
+                <div className="flex-1 mr-8">
+                  <ProcessStepper
+                    steps={['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06']}
+                    currentStep={appState.content.viewingStageIndex ?? (appState.content.currentStageIndex || 0)}
+                    maxCompletedStep={(appState.content.currentStageIndex || 0) - 1}
+                    onStepClick={(idx) => {
+                      // Restrict stepper navigation: Only Admin or Licitacao
+                      // if (currentUser.role !== 'admin' && currentUser.role !== 'licitacao') {
+                      //   alert("Acesso restrito. Apenas Administradores e Usuários da Licitação podem navegar pelo histórico.");
+                      //   return;
+                      // }
+
+                      // NEW: Lock stepper if restricted (e.g. Meus Processos)
+                      if (isStepperLocked) {
+                        showToast("Acesso restrito à etapa Início", "warning");
+                        return;
+                      }
+
+                      // STRICT NAVIGATION GUARD: Block access to future stages if not approved
+                      if (activeBlock === 'licitacao' && idx > 0) {
+                        const currentStatus = editingOrder?.status;
+                        if (currentStatus !== 'approved' && currentStatus !== 'completed') {
+                          setConfirmModal({
+                            isOpen: true,
+                            title: "Acesso Bloqueado",
+                            message: "O processo precisa estar aprovado para avançar para as próximas etapas.",
+                            type: 'error',
+                            singleButton: true,
+                            onConfirm: () => setConfirmModal(prev => ({ ...prev, isOpen: false }))
+                          });
                           return;
                         }
+                      }
 
-                        // STRICT NAVIGATION GUARD: Block access to future stages if not approved
-                        if (activeBlock === 'licitacao' && idx > 0) {
-                          const currentStatus = editingOrder?.status;
-                          if (currentStatus !== 'approved' && currentStatus !== 'completed') {
-                            setConfirmModal({
-                              isOpen: true,
-                              title: "Acesso Bloqueado",
-                              message: "O processo precisa estar aprovado para avançar para as próximas etapas.",
-                              type: 'error',
-                              singleButton: true,
-                              onConfirm: () => setConfirmModal(prev => ({ ...prev, isOpen: false }))
-                            });
-                            return;
-                          }
+                      setAppState(prev => {
+                        const currentIdx = prev.content.currentStageIndex || 0;
+                        const oldViewIdx = prev.content.viewingStageIndex ?? currentIdx;
+                        let newContent = { ...prev.content };
+
+                        // 1. If we were on the ACTIVE stage, save the current text as the "active draft"
+                        if (oldViewIdx === currentIdx) {
+                          newContent.licitacaoActiveDraft = {
+                            body: prev.content.body,
+                            signatureName: prev.content.signatureName,
+                            signatureRole: prev.content.signatureRole,
+                            signatureSector: prev.content.signatureSector,
+                            signatures: prev.content.signatures || []
+                          };
                         }
 
-                        setAppState(prev => {
-                          const currentIdx = prev.content.currentStageIndex || 0;
-                          const oldViewIdx = prev.content.viewingStageIndex ?? currentIdx;
-                          let newContent = { ...prev.content };
-
-                          // 1. If we were on the ACTIVE stage, save the current text as the "active draft"
-                          if (oldViewIdx === currentIdx) {
-                            newContent.licitacaoActiveDraft = {
-                              body: prev.content.body,
-                              signatureName: prev.content.signatureName,
-                              signatureRole: prev.content.signatureRole,
-                              signatureSector: prev.content.signatureSector,
-                              signatures: prev.content.signatures || []
-                            };
+                        // 2. Load content for the target stage
+                        if (idx < currentIdx) {
+                          const hist = prev.content.licitacaoStages?.[idx];
+                          if (hist) {
+                            newContent.body = hist.body || '';
+                            newContent.signatureName = hist.signatureName || '';
+                            newContent.signatureRole = hist.signatureRole || '';
+                            newContent.signatureSector = hist.signatureSector || '';
+                            newContent.signatures = hist.signatures || [];
                           }
+                        } else if (idx === currentIdx) {
+                          // Moving to current active stage - restore draft
+                          newContent.body = prev.content.licitacaoActiveDraft?.body || '';
+                          newContent.signatureName = prev.content.licitacaoActiveDraft?.signatureName || '';
+                          newContent.signatureRole = prev.content.licitacaoActiveDraft?.signatureRole || '';
+                          newContent.signatureSector = prev.content.licitacaoActiveDraft?.signatureSector || '';
+                          newContent.signatures = prev.content.licitacaoActiveDraft?.signatures || [];
+                        }
 
-                          // 2. Load content for the target stage
-                          if (idx < currentIdx) {
-                            const hist = prev.content.licitacaoStages?.[idx];
-                            if (hist) {
-                              newContent.body = hist.body || '';
-                              newContent.signatureName = hist.signatureName || '';
-                              newContent.signatureRole = hist.signatureRole || '';
-                              newContent.signatureSector = hist.signatureSector || '';
-                              newContent.signatures = hist.signatures || [];
-                            }
-                          } else if (idx === currentIdx) {
-                            // Moving to current active stage - restore draft
-                            newContent.body = prev.content.licitacaoActiveDraft?.body || '';
-                            newContent.signatureName = prev.content.licitacaoActiveDraft?.signatureName || '';
-                            newContent.signatureRole = prev.content.licitacaoActiveDraft?.signatureRole || '';
-                            newContent.signatureSector = prev.content.licitacaoActiveDraft?.signatureSector || '';
-                            newContent.signatures = prev.content.licitacaoActiveDraft?.signatures || [];
-                          }
+                        return { ...prev, content: { ...newContent, viewingStageIndex: idx } };
+                      });
+                    }}
+                  />
+                </div>
+                {/* Action Buttons for Licitacao Steps */}
+                {/* Action Buttons for Licitacao Steps */}
+                <div className="flex items-center gap-2">
+                  {/* SAVE BUTTON */}
+                  <button
+                    onClick={async () => {
+                      const { content } = appState;
+                      const currentIdx = content.currentStageIndex || 0;
+                      const viewIdx = content.viewingStageIndex ?? currentIdx;
+                      const stagesNames = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
 
-                          return { ...prev, content: { ...newContent, viewingStageIndex: idx } };
-                        });
-                      }}
-                    />
-                  </div>
-                  {/* Action Buttons for Licitacao Steps */}
-                  {/* Action Buttons for Licitacao Steps */}
-                  <div className="flex items-center gap-2">
-                    {/* SAVE BUTTON */}
-                    <button
-                      onClick={async () => {
-                        const { content } = appState;
-                        const currentIdx = content.currentStageIndex || 0;
-                        const viewIdx = content.viewingStageIndex ?? currentIdx;
-                        const stagesNames = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
+                      // Logic to Update State WITHOUT Advancing
+                      let updatedStages = [...(content.licitacaoStages || [])];
 
-                        // Logic to Update State WITHOUT Advancing
-                        let updatedStages = [...(content.licitacaoStages || [])];
+                      const currentStageData = {
+                        id: Date.now().toString(),
+                        title: stagesNames[viewIdx],
+                        body: content.body,
+                        signatureName: content.signatureName,
+                        signatureRole: content.signatureRole,
+                        signatureSector: content.signatureSector,
+                        signatures: content.signatures || []
+                      };
 
-                        const currentStageData = {
-                          id: Date.now().toString(),
-                          title: stagesNames[viewIdx],
+                      updatedStages[viewIdx] = currentStageData;
+
+                      // Also update draft if we are on the active tip
+                      let nextActiveDraft = content.licitacaoActiveDraft;
+                      if (viewIdx === currentIdx) {
+                        nextActiveDraft = {
                           body: content.body,
                           signatureName: content.signatureName,
                           signatureRole: content.signatureRole,
                           signatureSector: content.signatureSector,
                           signatures: content.signatures || []
                         };
+                      }
 
-                        updatedStages[viewIdx] = currentStageData;
-
-                        // Also update draft if we are on the active tip
-                        let nextActiveDraft = content.licitacaoActiveDraft;
-                        if (viewIdx === currentIdx) {
-                          nextActiveDraft = {
-                            body: content.body,
-                            signatureName: content.signatureName,
-                            signatureRole: content.signatureRole,
-                            signatureSector: content.signatureSector,
-                            signatures: content.signatures || []
-                          };
+                      const nextAppState = {
+                        ...appState,
+                        content: {
+                          ...content,
+                          licitacaoStages: updatedStages,
+                          licitacaoActiveDraft: nextActiveDraft
                         }
+                      };
 
-                        const nextAppState = {
-                          ...appState,
-                          content: {
-                            ...content,
-                            licitacaoStages: updatedStages,
-                            licitacaoActiveDraft: nextActiveDraft
-                          }
-                        };
-
-                        let orderToSave = editingOrder;
-                        if (!orderToSave) {
-                          // First save logic (create order if not exists) - usually happens on "Start"
-                          // But here we might be in the middle of creating? 
-                          // Actually "Novo Processo" usually starts with empty order until first save?
-                          // Only call db.increment if truly new.
-                          try {
-                            // Basic structure for new order if missing
-                            orderToSave = {
-                              id: Date.now().toString(),
-                              protocol: content.protocol,
-                              title: content.title,
-                              status: 'pending',
-                              priority: 'normal',
-                              createdAt: new Date().toISOString(), // Use ISO string
-                              updatedAt: new Date().toISOString(),
-                              userId: currentUser.id,
-                              userName: currentUser.name,
-                              type: activeBlock,
-                              blockType: activeBlock,
-                              documentSnapshot: nextAppState, // Save snapshot
-                              sector: currentUser.sector
-                            } as Order;
-                          } catch (e) { console.error(e); }
-                        } else {
-                          orderToSave = {
-                            ...orderToSave,
-                            updatedAt: new Date().toISOString(),
-                            documentSnapshot: nextAppState
-                          };
-                        }
-
+                      let orderToSave = editingOrder;
+                      if (!orderToSave) {
+                        // First save logic (create order if not exists) - usually happens on "Start"
+                        // But here we might be in the middle of creating? 
+                        // Actually "Novo Processo" usually starts with empty order until first save?
+                        // Only call db.increment if truly new.
                         try {
-                          await licitacaoService.saveLicitacaoProcess(orderToSave);
-                          setEditingOrder(orderToSave);
-                          setAppState(nextAppState);
-                          setEditingOrder(orderToSave);
-                          setAppState(nextAppState);
-                          setShowSaveSuccess(true);
-                          setTimeout(() => setShowSaveSuccess(false), 2000); // Hide after 2 seconds
-                        } catch (err) {
-                          console.error("Error saving stage", err);
-                          alert("Erro ao salvar etapa.");
-                        }
-                      }}
-                      className="flex items-center gap-2 px-6 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all active:scale-95 whitespace-nowrap min-w-fit bg-emerald-600 hover:bg-emerald-700 text-white"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      SALVAR
-                    </button>
+                          // Basic structure for new order if missing
+                          orderToSave = {
+                            id: Date.now().toString(),
+                            protocol: content.protocol,
+                            title: content.title,
+                            status: 'pending',
+                            priority: 'normal',
+                            createdAt: new Date().toISOString(), // Use ISO string
+                            updatedAt: new Date().toISOString(),
+                            userId: currentUser.id,
+                            userName: currentUser.name,
+                            type: activeBlock,
+                            blockType: activeBlock,
+                            documentSnapshot: nextAppState, // Save snapshot
+                            sector: currentUser.sector
+                          } as Order;
+                        } catch (e) { console.error(e); }
+                      } else {
+                        orderToSave = {
+                          ...orderToSave,
+                          updatedAt: new Date().toISOString(),
+                          documentSnapshot: nextAppState
+                        };
+                      }
 
-                    {/* ADVANCE / FINISH BUTTON - Only show if NOT history */}
-                    {(() => {
-                      const { content } = appState;
-                      const currentIdx = content.currentStageIndex || 0;
-                      const viewIdx = content.viewingStageIndex ?? currentIdx;
+                      try {
+                        await licitacaoService.saveLicitacaoProcess(orderToSave);
+                        setEditingOrder(orderToSave);
+                        setAppState(nextAppState);
+                        setEditingOrder(orderToSave);
+                        setAppState(nextAppState);
+                        setShowSaveSuccess(true);
+                        setTimeout(() => setShowSaveSuccess(false), 2000); // Hide after 2 seconds
+                      } catch (err) {
+                        console.error("Error saving stage", err);
+                        alert("Erro ao salvar etapa.");
+                      }
+                    }}
+                    className="flex items-center gap-2 px-6 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all active:scale-95 whitespace-nowrap min-w-fit bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    SALVAR
+                  </button>
 
-                      // HIDE BUTTON IF VIEWING HISTORY
-                      if (viewIdx < currentIdx) return null;
+                  {/* ADVANCE / FINISH BUTTON - Only show if NOT history */}
+                  {(() => {
+                    const { content } = appState;
+                    const currentIdx = content.currentStageIndex || 0;
+                    const viewIdx = content.viewingStageIndex ?? currentIdx;
 
-                      return (
-                        <button
-                          onClick={() => {
-                            // Finalize action for the LAST stage
-                            if (currentIdx >= 6) {
-                              setConfirmModal({
-                                isOpen: true,
-                                title: "Finalizar Processo",
-                                message: "Deseja concluir a última etapa e finalizar a edição do processo?",
-                                type: 'info',
-                                onConfirm: () => {
-                                  setConfirmModal(prev => ({ ...prev, isOpen: false }));
-                                  handleFinish();
-                                }
-                              });
-                              return;
-                            }
+                    // HIDE BUTTON IF VIEWING HISTORY
+                    if (viewIdx < currentIdx) return null;
 
-                            // For intermediate stages
+                    return (
+                      <button
+                        onClick={() => {
+                          // Finalize action for the LAST stage
+                          if (currentIdx >= 6) {
                             setConfirmModal({
                               isOpen: true,
-                              title: "Concluir Etapa",
-                              message: "O processo avançará para a próxima etapa. Deseja continuar?",
+                              title: "Finalizar Processo",
+                              message: "Deseja concluir a última etapa e finalizar a edição do processo?",
                               type: 'info',
-                              onConfirm: async () => {
+                              onConfirm: () => {
                                 setConfirmModal(prev => ({ ...prev, isOpen: false }));
-
-                                const stagesNames = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
-                                let nextAppState: AppState;
-
-                                // Advance Active Logic
-                                let newHistoric = [...(content.licitacaoStages || [])];
-                                const currentStageData = {
-                                  id: Date.now().toString(),
-                                  title: stagesNames[currentIdx],
-                                  body: content.body,
-                                  signatureName: content.signatureName,
-                                  signatureRole: content.signatureRole,
-                                  signatureSector: content.signatureSector,
-                                  signatures: content.signatures || []
-                                };
-                                newHistoric[currentIdx] = currentStageData;
-
-                                nextAppState = {
-                                  ...appState,
-                                  content: {
-                                    ...appState.content,
-                                    licitacaoStages: newHistoric,
-                                    currentStageIndex: currentIdx + 1,
-                                    viewingStageIndex: currentIdx + 1,
-                                    body: '',
-                                    signatureName: '',
-                                    signatureRole: '',
-                                    signatureSector: '',
-                                    signatures: [],
-                                    licitacaoActiveDraft: undefined
-                                  }
-                                };
-
-                                // Perform Save
-                                let orderToSave = editingOrder;
-                                if (!orderToSave) {
-                                  try {
-                                    const nextVal = await db.incrementGlobalCounter();
-                                    setGlobalCounter(nextVal);
-                                    orderToSave = {
-                                      id: Date.now().toString(),
-                                      protocol: content.protocol,
-                                      title: content.title,
-                                      status: 'pending',
-                                      priority: 'normal',
-                                      createdAt: new Date().toISOString(),
-                                      updatedAt: new Date().toISOString(),
-                                      userId: currentUser.id,
-                                      userName: currentUser.name,
-                                      type: activeBlock,
-                                      blockType: activeBlock,
-                                      documentSnapshot: nextAppState,
-                                      sector: currentUser.sector
-                                    } as Order;
-                                  } catch (e) { console.error(e); }
-                                } else {
-                                  orderToSave = {
-                                    ...orderToSave,
-                                    updatedAt: new Date().toISOString(),
-                                    documentSnapshot: nextAppState
-                                  };
-                                }
-
-                                try {
-                                  await licitacaoService.saveLicitacaoProcess(orderToSave!);
-                                  setEditingOrder(orderToSave!);
-                                  setAppState(nextAppState);
-
-                                  // Modal for First Stage Completion
-                                  if (currentIdx === 0) {
-                                    setConfirmModal({
-                                      isOpen: true,
-                                      title: "Etapa Início Concluída",
-                                      message: "O conteúdo foi salvo. Para prosseguir, acesse 'Meus Processos' e clique em 'Enviar' para encaminhar o processo para a Triagem.",
-                                      type: 'info',
-                                      singleButton: true,
-                                      onConfirm: () => {
-                                        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-                                        setActiveBlock('licitacao');
-                                        setCurrentView('tracking');
-                                      }
-                                    });
-                                  }
-                                } catch (err) {
-                                  console.error("Failed to save", err);
-                                  alert("Erro ao avançar etapa.");
-                                }
+                                handleFinish();
                               }
                             });
-                          }}
-                          className={`flex items-center gap-2 px-6 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all active:scale-95 whitespace-nowrap min-w-fit ${currentIdx === 6 ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
-                            }`}
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Concluir</span>
-                        </button>
-                      );
-                    })()}
-                  </div>
+                            return;
+                          }
+
+                          // For intermediate stages
+                          setConfirmModal({
+                            isOpen: true,
+                            title: "Concluir Etapa",
+                            message: "O processo avançará para a próxima etapa. Deseja continuar?",
+                            type: 'info',
+                            onConfirm: async () => {
+                              setConfirmModal(prev => ({ ...prev, isOpen: false }));
+
+                              const stagesNames = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
+                              let nextAppState: AppState;
+
+                              // Advance Active Logic
+                              let newHistoric = [...(content.licitacaoStages || [])];
+                              const currentStageData = {
+                                id: Date.now().toString(),
+                                title: stagesNames[currentIdx],
+                                body: content.body,
+                                signatureName: content.signatureName,
+                                signatureRole: content.signatureRole,
+                                signatureSector: content.signatureSector,
+                                signatures: content.signatures || []
+                              };
+                              newHistoric[currentIdx] = currentStageData;
+
+                              nextAppState = {
+                                ...appState,
+                                content: {
+                                  ...appState.content,
+                                  licitacaoStages: newHistoric,
+                                  currentStageIndex: currentIdx + 1,
+                                  viewingStageIndex: currentIdx + 1,
+                                  body: '',
+                                  signatureName: '',
+                                  signatureRole: '',
+                                  signatureSector: '',
+                                  signatures: [],
+                                  licitacaoActiveDraft: undefined
+                                }
+                              };
+
+                              // Perform Save
+                              let orderToSave = editingOrder;
+                              if (!orderToSave) {
+                                try {
+                                  if (activeBlock === 'licitacao') {
+                                    const year = new Date().getFullYear();
+                                    // Increment independent sector counter (sec15 = Dept Licitação)
+                                    await counterService.incrementSectorCount('sec15', year);
+                                    // We don't update globalCounter here to keep them separate
+                                  } else {
+                                    const nextVal = await db.incrementGlobalCounter();
+                                    setGlobalCounter(nextVal);
+                                  }
+                                  orderToSave = {
+                                    id: Date.now().toString(),
+                                    protocol: content.protocol,
+                                    title: content.title,
+                                    status: 'pending',
+                                    priority: 'normal',
+                                    createdAt: new Date().toISOString(),
+                                    updatedAt: new Date().toISOString(),
+                                    userId: currentUser.id,
+                                    userName: currentUser.name,
+                                    type: activeBlock,
+                                    blockType: activeBlock,
+                                    documentSnapshot: nextAppState,
+                                    sector: currentUser.sector
+                                  } as Order;
+                                } catch (e) { console.error(e); }
+                              } else {
+                                orderToSave = {
+                                  ...orderToSave,
+                                  updatedAt: new Date().toISOString(),
+                                  documentSnapshot: nextAppState
+                                };
+                              }
+
+                              try {
+                                await licitacaoService.saveLicitacaoProcess(orderToSave!);
+                                setEditingOrder(orderToSave!);
+                                setAppState(nextAppState);
+
+                                // Modal for First Stage Completion
+                                if (currentIdx === 0) {
+                                  setConfirmModal({
+                                    isOpen: true,
+                                    title: "Etapa Início Concluída",
+                                    message: "O conteúdo foi salvo. Para prosseguir, acesse 'Meus Processos' e clique em 'Enviar' para encaminhar o processo para a Triagem.",
+                                    type: 'info',
+                                    singleButton: true,
+                                    onConfirm: () => {
+                                      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                                      setActiveBlock('licitacao');
+                                      setCurrentView('tracking');
+                                    }
+                                  });
+                                }
+                              } catch (err) {
+                                console.error("Failed to save", err);
+                                alert("Erro ao avançar etapa.");
+                              }
+                            }
+                          });
+                        }}
+                        className={`flex items-center gap-2 px-6 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all active:scale-95 whitespace-nowrap min-w-fit ${currentIdx === 6 ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
+                          }`}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Concluir</span>
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -1744,6 +1771,45 @@ const App: React.FC = () => {
             }}
           />
         )}
+        <LicitacaoSettingsModal
+          isOpen={isLicitacaoSettingsOpen}
+          onClose={() => setIsLicitacaoSettingsOpen(false)}
+          state={appState}
+          nextProtocolNumber={licitacaoNextProtocol}
+          currentUser={currentUser}
+          persons={persons}
+          sectors={sectors}
+          onUpdate={(updates) => {
+            setAppState(prev => ({
+              ...prev,
+              content: {
+                ...prev.content,
+                ...updates
+              }
+            }));
+            // Also update editingOrder if exists to keep sync
+            if (editingOrder) {
+              setLicitacaoProcesses(p => p.map(o => o.id === editingOrder.id ? { ...o, ...updates } : o));
+            }
+          }}
+          onCancel={() => {
+            // Close modal
+            setIsLicitacaoSettingsOpen(false);
+
+            // If we are in "New Process" mode (editingOrder is null), cancel returns to list
+            // If we were editing (editingOrder exists), maybe we just close modal?
+            // But user request specifically mentions "Novo Processo" -> "Botão: Cancelar: Fecha... e Retorna ao Modulo".
+            // So we enforce return to list.
+
+            setEditingOrder(null);
+
+            // Ensure we are in Licitacao module context
+            setActiveBlock('licitacao');
+
+            // Switch to Tracking view (List)
+            setCurrentView('tracking');
+          }}
+        />
         {currentView === 'purchase-management' && currentUser && (
           <PurchaseManagementScreen
             onBack={handleBackToModule}

@@ -76,6 +76,8 @@ export interface ContentData {
   showDiariaSignatures?: boolean;
   showExtraField?: boolean;
   extraFieldText?: string;
+  processType?: string;
+  completionForecast?: string;
   evidenceItems?: EvidenceItem[];
   purchaseItems?: PurchaseItem[];
   priority?: 'Normal' | 'Média' | 'Alta' | 'Urgência';

@@ -183,7 +183,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
                 Processo Administrativo / Licitatório
               </div>
               <h1 className="font-black leading-tight tracking-tight text-[24pt] text-blue-900 text-center uppercase">
-                {content.title}
+                {`${content.title || ''}${content.title && content.protocol ? ' ' : ''}${content.protocol || ''}`}
               </h1>
               <div className="w-20 h-1 bg-blue-900 mx-auto mt-4" />
             </div>
