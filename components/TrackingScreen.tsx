@@ -242,68 +242,55 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
         <div className="flex-1 overflow-auto custom-scrollbar">
           {filteredOrders.length > 0 ? (
-            <div className="min-w-full">
-              <div className="border-b border-slate-100 bg-slate-50/50 hidden md:grid md:grid-cols-12 gap-4 px-8 py-4 sticky top-0 z-10">
-                {isCompras && (
-                  <div className="md:col-span-1 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap">
-                    <Calendar className="w-3 h-3" /> Pedido
-                  </div>
-                )}
-                {isCompras && (
-                  <div className="md:col-span-1 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap">
-                    Prioridade
-                  </div>
-                )}
-                <div className={`${isCompras ? 'md:col-span-1' : isLicitacao ? 'md:col-span-1' : 'md:col-span-2'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras || isLicitacao ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
-                  <HashIcon className="w-3 h-3" /> {isCompras ? 'ID' : 'Protocolo'}
-                </div>
-                {activeBlock === 'oficio' && (
-                  <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
-                    <FileText className="w-3 h-3" /> Ofício
-                  </div>
-                )}
-                {isLicitacao && (
-                  <div className="md:col-span-3 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
-                    <FileText className="w-3 h-3" /> Objeto
-                  </div>
-                )}
-                <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-4' : isLicitacao ? 'md:col-span-2 text-center' : 'md:col-span-6'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras || isLicitacao ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
-                  {isDiarias ? <><FileText className="w-3 h-3" /> Solicitante + Destino</> : isCompras ? <><Network className="w-3 h-3" /> Setor / Solicitante</> : isLicitacao ? <><Network className="w-3 h-3" /> Setor</> : <><FileText className="w-3 h-3" /> Solicitante</>}
-                </div>
-                {isLicitacao && (
-                  <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap">
-                    <CheckCircle2 className="w-3 h-3" /> Etapa
-                  </div>
-                )}
-                {isDiarias && (
-                  <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
-                    <CalendarCheck className="w-3 h-3" /> Saída
-                  </div>
-                )}
-                {isCompras && (
-                  <>
+            <div className={`min-w-full ${isLicitacao ? 'px-8 py-4 space-y-4' : ''}`}>
+              {!isLicitacao && (
+                <div className="border-b border-slate-100 bg-slate-50/50 hidden md:grid md:grid-cols-12 gap-4 px-8 py-4 sticky top-0 z-10">
+                  {isCompras && (
                     <div className="md:col-span-1 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap">
-                      <Clock className="w-3 h-3" /> Previsão
+                      <Calendar className="w-3 h-3" /> Pedido
                     </div>
-                    <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap">
-                      <RotateCcw className="w-3 h-3" /> Status
+                  )}
+                  {isCompras && (
+                    <div className="md:col-span-1 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap">
+                      Prioridade
                     </div>
-                  </>
-                )}
-                {!isCompras && !isLicitacao && (
-                  <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
-                    {isDiarias ? <><RotateCcw className="w-3 h-3" /> Pagamento</> : <><Calendar className="w-3 h-3" /> Criação</>}
+                  )}
+                  <div className={`${isCompras ? 'md:col-span-1' : 'md:col-span-2'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
+                    <HashIcon className="w-3 h-3" /> {isCompras ? 'ID' : 'Protocolo'}
                   </div>
-                )}
-                {isLicitacao && (
-                  <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap">
-                    <RotateCcw className="w-3 h-3" /> Status
+                  {activeBlock === 'oficio' && (
+                    <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
+                      <FileText className="w-3 h-3" /> Ofício
+                    </div>
+                  )}
+                  <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-4' : 'md:col-span-6'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
+                    {isDiarias ? <><FileText className="w-3 h-3" /> Solicitante + Destino</> : isCompras ? <><Network className="w-3 h-3" /> Setor / Solicitante</> : <><FileText className="w-3 h-3" /> Solicitante</>}
                   </div>
-                )}
-                <div className={`${isCompras ? 'md:col-span-3' : isLicitacao ? 'md:col-span-2' : 'md:col-span-2'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center whitespace-nowrap`}>Ações</div>
-              </div>
+                  {isDiarias && (
+                    <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
+                      <CalendarCheck className="w-3 h-3" /> Saída
+                    </div>
+                  )}
+                  {isCompras && (
+                    <>
+                      <div className="md:col-span-1 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap">
+                        <Clock className="w-3 h-3" /> Previsão
+                      </div>
+                      <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap">
+                        <RotateCcw className="w-3 h-3" /> Status
+                      </div>
+                    </>
+                  )}
+                  {!isCompras && (
+                    <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
+                      {isDiarias ? <><RotateCcw className="w-3 h-3" /> Pagamento</> : <><Calendar className="w-3 h-3" /> Criação</>}
+                    </div>
+                  )}
+                  <div className={`${isCompras ? 'md:col-span-3' : 'md:col-span-2'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center whitespace-nowrap`}>Ações</div>
+                </div>
+              )}
 
-              <div className="divide-y divide-slate-100">
+              <div className={`${isLicitacao ? 'space-y-4' : 'divide-y divide-slate-100'}`}>
                 {filteredOrders.map((order) => {
                   const content = order.documentSnapshot?.content;
                   const isPaid = order.paymentStatus === 'paid';
@@ -313,6 +300,151 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
                   const priority = content?.priority || 'Normal';
                   const pStyle = priorityStyles[priority as keyof typeof priorityStyles] || priorityStyles['Normal'];
+
+                  if (isLicitacao) {
+                    const statusConfig = {
+                      pending: { label: 'Em Andamento', class: 'bg-slate-100 text-slate-600 border-slate-200' },
+                      completed: { label: 'Concluído', class: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+                      awaiting_approval: { label: 'Em Aprovação', class: 'bg-amber-50 text-amber-700 border-amber-100' },
+                      approved: { label: 'Aprovado', class: 'bg-indigo-50 text-indigo-700 border-indigo-100' }
+                    };
+                    const sConf = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.pending;
+                    const orderDate = new Date(order.createdAt).toLocaleString('pt-BR');
+
+                    let forecastDisplay = '---';
+                    if (content?.completionForecast) {
+                      const match = content.completionForecast.match(/(\d+)/);
+                      if (match) {
+                        const totalDays = parseInt(match[1], 10);
+                        const createdAt = new Date(order.createdAt);
+                        const now = new Date();
+                        const diffTime = Math.abs(now.getTime() - createdAt.getTime());
+                        const daysPassed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                        const remaining = totalDays - daysPassed;
+
+                        if (remaining < 0) {
+                          forecastDisplay = `Atrasado (${Math.abs(remaining)}d)`;
+                        } else {
+                          const remainingPadded = remaining.toString().padStart(2, '0');
+                          forecastDisplay = `${remainingPadded} Dias`;
+                        }
+                      } else {
+                        forecastDisplay = content.completionForecast;
+                      }
+                    }
+                    const oficioMatch = content?.leftBlockText?.match(/Ofício nº\s*([^\n]+)/i);
+                    const oficioNumber = oficioMatch ? oficioMatch[1] : '---';
+
+                    return (
+                      <div key={order.id} className="bg-white rounded-2xl border border-slate-200/60 p-5 flex flex-col gap-5 shadow-sm hover:shadow-xl hover:border-blue-200/50 hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-1 rounded-l-2xl h-full bg-gradient-to-b from-blue-500 to-indigo-600 opacity-80 group-hover:opacity-100 transition-opacity" />
+
+                        {/* Linha 1: Info Principal */}
+                        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center">
+                          {/* ID */}
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                              <HashIcon className="w-3 h-3 text-slate-300" /> ID
+                            </span>
+                            <span className="font-mono text-xs font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 w-fit group-hover:bg-blue-50/50 group-hover:border-blue-100 group-hover:text-blue-700 transition-colors">
+                              {content?.protocolId || '---'}
+                            </span>
+                          </div>
+
+                          {/* Objeto */}
+                          <div className="flex flex-col gap-1 md:col-span-2">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Objeto</span>
+                            <span className="text-xs font-bold text-slate-800 line-clamp-1" title={order.title}>{order.title || 'Sem Título'}</span>
+                          </div>
+
+                          {/* Numero Processo */}
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Processo</span>
+                            <span className="font-mono text-xs font-medium text-slate-600">
+                              {order.protocol || '---'}
+                            </span>
+                          </div>
+
+                          {/* Status & Etapa */}
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Status / Etapa</span>
+                            <div className="flex gap-2">
+                              <span className={`inline-flex px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide border shadow-sm ${sConf.class}`}>
+                                {sConf.label}
+                              </span>
+                              <span className="inline-flex px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-100 shadow-sm">
+                                {order.stage || 'Início'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Ações */}
+                          <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => onEditOrder(order)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all active:scale-95" title={order.status === 'approved' || order.status === 'completed' ? "Visualizar" : "Editar"}>
+                              {order.status === 'approved' || order.status === 'completed' ? <Eye className="w-4.5 h-4.5" /> : <Edit3 className="w-4.5 h-4.5" />}
+                            </button>
+                            <button onClick={() => handleDownload(order)} disabled={downloadingId === order.id} className={`p-2 rounded-xl transition-all active:scale-95 ${downloadingId === order.id ? 'text-indigo-400 bg-indigo-50' : 'text-slate-400 hover:bg-indigo-600 hover:text-white'}`} title="Download">
+                              {downloadingId === order.id ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <FileDown className="w-4.5 h-4.5" />}
+                            </button>
+                            <button onClick={() => setConfirmModal({ isOpen: true, title: "Excluir Registro", message: `Deseja remover "${order.protocol}"?`, type: 'danger', onConfirm: () => { onDeleteOrder(order.id); setConfirmModal({ ...confirmModal, isOpen: false }); } })} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-95" title="Excluir">
+                              <Trash2 className="w-4.5 h-4.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Divisor */}
+                        <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent w-full" />
+
+                        {/* Linha 2: Detalhes */}
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                              <Calendar className="w-3 h-3 text-slate-300" /> Data do Pedido
+                            </span>
+                            <span className="text-xs font-medium text-slate-600">
+                              {orderDate}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                              <Clock className="w-3 h-3 text-slate-300" /> Previsão de Conclusão
+                            </span>
+                            <span className={`text-xs font-bold ${forecastDisplay.includes('Atrasado') ? 'text-rose-500' : 'text-emerald-600'}`}>
+                              {forecastDisplay}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                              <User className="w-3 h-3 text-slate-300" /> Solicitante
+                            </span>
+                            <span className="text-xs font-semibold text-slate-700" title={content?.requesterName}>
+                              {content?.requesterName || '---'}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                              <Network className="w-3 h-3 text-slate-300" /> Setor Solicitante
+                            </span>
+                            <span className="text-xs font-medium text-slate-600 truncate" title={content?.requesterSector}>
+                              {content?.requesterSector || '---'}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                              <FileText className="w-3 h-3 text-slate-300" /> Ofício do Solicitante
+                            </span>
+                            <span className="text-xs font-medium text-slate-600 truncate">
+                              {oficioNumber !== '---' ? `Nº ${oficioNumber}` : '---'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
 
                   return (
                     <div key={order.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 px-8 py-5 hover:bg-slate-50/80 transition-colors items-center">
@@ -347,7 +479,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                         </div>
                       )}
 
-                      <div className={`${isCompras ? 'md:col-span-1' : isLicitacao ? 'md:col-span-1' : 'md:col-span-2'} flex justify-center`}>
+                      <div className={`${isCompras ? 'md:col-span-1' : 'md:col-span-2'} flex justify-center`}>
                         <span className="font-mono text-[10px] font-bold text-indigo-600 bg-indigo-50/50 px-2 py-1 rounded border border-indigo-100/50">
                           {order.protocol}
                         </span>
@@ -359,15 +491,9 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                         </div>
                       )}
 
-                      {isLicitacao && (
-                        <div className="md:col-span-3 text-xs font-bold text-slate-700 truncate" title={order.title}>
-                          {order.title || 'Sem Título'}
-                        </div>
-                      )}
-
-                      <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-4' : isLicitacao ? 'md:col-span-2 text-center' : 'md:col-span-6'}`}>
+                      <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-4' : 'md:col-span-6'}`}>
                         <h3 className="text-sm font-bold text-slate-800 leading-tight">
-                          {isDiarias ? (content?.requesterName || '---') : isCompras ? (content?.requesterSector || 'Sem Setor') : isLicitacao ? (order.requestingSector || content?.requesterSector || '---') : order.userName}
+                          {isDiarias ? (content?.requesterName || '---') : isCompras ? (content?.requesterSector || 'Sem Setor') : order.userName}
                         </h3>
                         {isDiarias ? (
                           <p className="text-[10px] text-slate-400 font-medium">
@@ -467,49 +593,16 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                             </div>
                           )}
                         </div>
-                      ) : isLicitacao ? (
-                        <>
-                          <div className="md:col-span-2 flex justify-center">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[9px] font-black uppercase tracking-widest">
-                              {order.stage || 'Início'}
-                            </span>
-                          </div>
-                          <div className="md:col-span-2 flex justify-center">
-                            {order.status === 'pending' ? (
-                              <button
-                                onClick={() => setConfirmModal({
-                                  isOpen: true,
-                                  title: "Enviar Solicitação",
-                                  message: "Deseja enviar este processo para análise da Triagem? O status mudará para 'Em Aprovação'.",
-                                  type: 'warning',
-                                  onConfirm: async () => {
-                                    if (onUpdateOrderStatus) {
-                                      await onUpdateOrderStatus(order.id, 'awaiting_approval');
-                                    }
-                                    setConfirmModal({ ...confirmModal, isOpen: false });
-                                  }
-                                })}
-                                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-amber-500 hover:bg-amber-600 text-white shadow-sm shadow-amber-500/20 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95"
-                              >
-                                Enviar <ArrowRight className="w-3 h-3" />
-                              </button>
-                            ) : (
-                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                order.status === 'awaiting_approval' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                  'bg-indigo-50 text-indigo-700 border-indigo-100' // approved or others
-                                }`}>
-                                {order.status === 'pending' ? 'Em Andamento' :
-                                  order.status === 'completed' ? 'Concluído' :
-                                    order.status === 'awaiting_approval' ? 'Em Aprovação' :
-                                      order.status === 'approved' ? 'Aprovado' :
-                                        order.status}
-                              </span>
-                            )}
-                          </div>
-                        </>
                       ) : null}
 
-                      <div className={`${isCompras ? 'md:col-span-3' : isLicitacao ? 'md:col-span-2' : 'md:col-span-2'} flex items-center justify-center gap-1`}>
+                      {!isCompras && !isDiarias && !isLicitacao && (
+                        <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(order.createdAt).toLocaleDateString('pt-BR')}
+                        </div>
+                      )}
+
+                      <div className={`${isCompras ? 'md:col-span-3' : 'md:col-span-2'} flex items-center justify-center gap-1`}>
                         {isCompras && (
                           <button
                             onClick={() => setAttachmentManagerOrder(order)}

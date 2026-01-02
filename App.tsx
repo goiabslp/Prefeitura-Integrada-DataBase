@@ -106,7 +106,7 @@ const App: React.FC = () => {
   const [users, setUsers] = useState<User[]>(DEFAULT_USERS);
   // const [signatures, setSignatures] = useState<Signature[]>([]); // DEPRECATED: Signatures are now derived from Users
   const [globalCounter, setGlobalCounter] = useState(0);
-  const [licitacaoNextProtocol, setLicitacaoNextProtocol] = useState(1);
+  const [licitacaoNextProtocol, setLicitacaoNextProtocol] = useState<number | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isStepperLocked, setIsStepperLocked] = useState(false);
 
@@ -433,6 +433,20 @@ const App: React.FC = () => {
 
     // Auto-refresh handled by useCallback dependency if needed
   }, [currentView, activeBlock, adminTab, editingOrder]);
+
+  // Fetch Licitacao Global Protocol Counter
+  useEffect(() => {
+    const fetchLicitacaoCount = async () => {
+      if (activeBlock === 'licitacao') {
+        const year = new Date().getFullYear();
+        const count = await counterService.getLicitacaoProtocolCount(year);
+        if (count) {
+          setLicitacaoNextProtocol(count);
+        }
+      }
+    };
+    fetchLicitacaoCount();
+  }, [activeBlock, isRefreshing]); // Refresh when block active or data refreshes
 
 
   useEffect(() => {
@@ -1340,6 +1354,18 @@ const App: React.FC = () => {
                             documentSnapshot: nextAppState, // Save snapshot
                             sector: currentUser.sector
                           } as Order;
+
+                          // IMMEDIATE INCREMENT FOR LICITACAO (Per User Request)
+                          const year = new Date().getFullYear();
+                          // 1. Increment Global Protocol
+                          await counterService.incrementLicitacaoProtocolCount(year);
+
+                          // 2. Increment Sector Reference Counter
+                          const reqSectorName = content.requesterSector || currentUser?.sector;
+                          const reqSector = sectors.find(s => s.name === reqSectorName || s.id === reqSectorName);
+                          const targetSectorId = reqSector?.id || '23c6fa21-f998-4f54-b865-b94212f630ef';
+                          await counterService.incrementSectorCount(targetSectorId, year);
+
                         } catch (e) { console.error(e); }
                       } else {
                         orderToSave = {
@@ -1449,6 +1475,10 @@ const App: React.FC = () => {
                                     // Use found sector ID or fallback to Licitacao default ONLY if resolution fails
                                     const targetSectorId = reqSector?.id || '23c6fa21-f998-4f54-b865-b94212f630ef';
                                     await counterService.incrementSectorCount(targetSectorId, year);
+
+                                    // Increment Global Licitacao Protocol Counter (Process Number)
+                                    await counterService.incrementLicitacaoProtocolCount(year);
+
                                     // We don't update globalCounter here to keep them separate
                                   } else {
                                     const nextVal = await db.incrementGlobalCounter();

@@ -53,6 +53,7 @@ export const LicitacaoSettingsModal: React.FC<LicitacaoSettingsModalProps> = ({
     const [formData, setFormData] = useState({
         title: '',
         protocol: '',
+        protocolId: '',
         processType: '',
         completionForecast: '',
         requesterName: '',
@@ -96,14 +97,21 @@ export const LicitacaoSettingsModal: React.FC<LicitacaoSettingsModalProps> = ({
                 suggestRequesterSector = currentUser.sector;
             }
 
-            setFormData({
+            // Auto-generate Protocol ID (unique random) if empty
+            let suggestProtocolId = state.content.protocolId || '';
+            if (!suggestProtocolId) {
+                suggestProtocolId = `LIC-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+            }
+
+            setFormData(prev => ({
                 title: state.content.title || '',
-                protocol: suggestProtocol,
+                protocol: prev.protocol || suggestProtocol, // Preserve existing or user input if any, else use suggestion
+                protocolId: prev.protocolId || suggestProtocolId,
                 processType: state.content.processType || '',
                 completionForecast: state.content.completionForecast || '',
-                requesterName: suggestRequesterName,
-                requesterSector: suggestRequesterSector
-            });
+                requesterName: prev.requesterName || suggestRequesterName,
+                requesterSector: prev.requesterSector || suggestRequesterSector
+            }));
         }
     }, [isOpen, state.content, nextProtocolNumber, currentUser]);
 
@@ -111,6 +119,7 @@ export const LicitacaoSettingsModal: React.FC<LicitacaoSettingsModalProps> = ({
         onUpdate({
             title: formData.title,
             protocol: formData.protocol,
+            protocolId: formData.protocolId,
             processType: formData.processType,
             completionForecast: formData.completionForecast,
             requesterName: formData.requesterName,
@@ -173,8 +182,22 @@ export const LicitacaoSettingsModal: React.FC<LicitacaoSettingsModalProps> = ({
                             />
                         </div>
 
+                        {/* Protocolo ID */}
+                        <div className="space-y-2 md:col-span-4">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                <Hash className="w-3.5 h-3.5" />
+                                Protocolo ID
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.protocolId}
+                                readOnly
+                                className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-500 outline-none cursor-not-allowed transition-all placeholder:text-slate-400 font-mono tracking-wider"
+                            />
+                        </div>
+
                         {/* Tipo */}
-                        <div className="space-y-2 md:col-span-8">
+                        <div className="space-y-2 md:col-span-4">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                                 <Tag className="w-3.5 h-3.5" />
                                 Tipo de Processo

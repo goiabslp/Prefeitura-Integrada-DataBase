@@ -1,6 +1,8 @@
 
 import { supabase } from './supabaseClient';
 
+export const LICITACAO_GLOBAL_ID = '11111111-1111-1111-1111-111111111111';
+
 export const getNextSectorCount = async (sectorId: string, year: number): Promise<number | null> => {
     // 1. Try RPC first
     try {
@@ -117,4 +119,12 @@ export const incrementSectorCount = async (sectorId: string, year: number): Prom
         console.error('Exception in manual incrementSectorCount:', e);
         return null;
     }
+};
+
+export const getLicitacaoProtocolCount = async (year: number): Promise<number | null> => {
+    return getNextSectorCount(LICITACAO_GLOBAL_ID, year);
+};
+
+export const incrementLicitacaoProtocolCount = async (year: number): Promise<number | null> => {
+    return incrementSectorCount(LICITACAO_GLOBAL_ID, year);
 };

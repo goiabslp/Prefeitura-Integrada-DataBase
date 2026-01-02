@@ -69,15 +69,16 @@ export const PageWrapper: React.FC<PageWrapperProps> = ({
         </div>
 
         <div className="absolute top-0 right-0 text-right flex flex-col items-end">
-          <span className="text-[10px] font-bold uppercase text-gray-500 mb-0.5">{content.signatureSector || 'Prefeitura Municipal'}</span>
+          <span className="text-[10px] font-bold uppercase text-gray-500 mb-0.5">{content.requesterSector || content.signatureSector || 'Prefeitura Municipal'}</span>
           <h2 className="text-sm font-bold tracking-widest uppercase mb-0.5" style={{ color: branding.secondaryColor }}>{docConfig.city}</h2>
           <p className="text-[10px] text-gray-400 font-mono mb-1">{new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
 
           {/* Protocolo no Header (Todas as páginas) */}
-          {content.protocol && (
+          {/* Protocolo no Header (Todas as páginas) */}
+          {(content.protocol || content.protocolId) && (
             <div className="bg-white px-3 py-1 rounded-lg border border-slate-300 shadow-sm mt-1">
               <span className="text-[7px] font-black text-slate-500 uppercase mr-2 tracking-widest">Protocolo:</span>
-              <span className="text-[10px] font-mono font-bold text-slate-900 tracking-wider">{content.protocol}</span>
+              <span className="text-[10px] font-mono font-bold text-slate-900 tracking-wider">{content.protocolId || content.protocol}</span>
             </div>
           )}
         </div>
@@ -98,10 +99,10 @@ export const PageWrapper: React.FC<PageWrapperProps> = ({
         </div>
         <div className="flex flex-col items-end gap-1.5 min-w-[140px]">
           {/* Protocolo no Footer (Todas as páginas) */}
-          {content.protocol && (
+          {(content.protocol || content.protocolId) && (
             <div className="flex items-center gap-2 px-2 py-0.5 bg-slate-50 rounded border border-slate-200">
               <span className="text-[7px] font-black text-slate-400 uppercase tracking-tight">ID:</span>
-              <span className="text-[8px] font-mono font-bold text-slate-600">{content.protocol}</span>
+              <span className="text-[8px] font-mono font-bold text-slate-600">{content.protocolId || content.protocol}</span>
             </div>
           )}
           {docConfig.showPageNumbers && !props.forceHidePageNumbers && (

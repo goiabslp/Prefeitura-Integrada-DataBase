@@ -67,6 +67,7 @@ export interface ContentData {
   title: string;
   body: string;
   protocol?: string;
+  protocolId?: string;
   signatureName: string;
   signatureRole: string;
   signatureSector: string;
