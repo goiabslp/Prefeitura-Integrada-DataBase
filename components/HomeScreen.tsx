@@ -48,6 +48,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     const canManagePurchaseOrders = permissions.includes('parent_compras_pedidos');
     const canAccessScheduling = permissions.includes('parent_agendamento_veiculo');
     const canAccessFleet = permissions.includes('parent_frotas');
+    const canAccessLicitacaoTriagem = permissions.includes('parent_licitacao_triagem');
+    const canAccessLicitacaoProcessos = permissions.includes('parent_licitacao_processos');
 
     const hasAnyPermission = canAccessOficio || canAccessCompras || canAccessLicitacao || canAccessDiarias || canAccessScheduling || canAccessFleet;
 
@@ -223,7 +225,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                     </button>
                                 )}
 
-                                {activeBlock === 'licitacao' && userRole === 'admin' && (
+                                {activeBlock === 'licitacao' && canAccessLicitacaoTriagem && (
                                     <button onClick={onManageLicitacaoScreening} className="group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-amber-300 transition-all flex flex-col items-center text-center justify-center w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52 shrink-0 overflow-hidden">
                                         <div className="w-8 h-8 md:w-14 md:h-14 bg-amber-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><Inbox className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
                                         <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">Triagem</h3>
@@ -232,7 +234,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
                                 )}
 
-                                {activeBlock === 'licitacao' && (
+                                {activeBlock === 'licitacao' && canAccessLicitacaoProcessos && (
                                     <button onClick={onViewAllLicitacao} className="group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-sky-300 transition-all flex flex-col items-center text-center justify-center w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52 shrink-0 overflow-hidden">
                                         <div className="w-8 h-8 md:w-14 md:h-14 bg-sky-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><FileSearch className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
                                         <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">Processos</h3>
