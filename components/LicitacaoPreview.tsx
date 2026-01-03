@@ -123,22 +123,99 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
 
       let signatureHtmlToInsert = '';
       // Special Handling for Stage 0 (Início) - Single Signature "Oficio Style"
-      if (stage.stageIndex === 0 && docConfig.showSignature && stage.signatureName) {
-        let combinedBlock = `<div class="mt-0 mb-0">${getSignatureHtml(stage.signatureName, stage.signatureRole, stage.signatureSector)}</div>`;
+      if (stage.stageIndex === 0) {
+        // INJECT ITEMS IF PRESENT (Before Signature)
+        if (content.purchaseItems && content.purchaseItems.length > 0) {
+          // FORCE START ON NEW PAGE by injecting a marker
+          stageHtml += '<div class="split-helper"></div><div id="PAGE_BREAK_MARKER"></div>';
 
-        if (content.digitalSignature?.enabled) {
-          combinedBlock += `
-              <div class="mt-1 text-center" style="margin-top: 4px;">
-                <div class="text-[7pt] text-slate-500 uppercase tracking-widest leading-tight" style="font-size: 7pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; line-height: 1.25;">
-                  <p class="font-bold text-emerald-600" style="margin:0; font-weight: 700; color: #059669;">Documento Finalizado e Consolidado</p>
-                  <p style="margin:0;">Hash Validador: <span class="font-mono text-slate-900" style="font-family: monospace; color: #0f172a;">${content.digitalSignature.id}</span></p>
-                </div>
-              </div>
-            `;
+          // Pagination Logic for Items
+          const ITEMS_PER_PAGE = 9; // Limit requested by user
+          const items = [...content.purchaseItems];
+          const totalItems = items.length;
+
+          for (let i = 0; i < totalItems; i += ITEMS_PER_PAGE) {
+            const chunk = items.slice(i, i + ITEMS_PER_PAGE);
+            const isLastChunk = i + ITEMS_PER_PAGE >= totalItems;
+
+            // If not the first chunk (which already has a break before it), add a break
+            if (i > 0) {
+              stageHtml += '<div class="split-helper"></div><div id="PAGE_BREAK_MARKER"></div>';
+            }
+
+            // HEADER OF TABLE SECTION
+            stageHtml += `
+               <div class="mt-8 mb-0 overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                 <div class="bg-blue-900 px-5 py-3 flex items-center justify-between">
+                   <div class="flex items-center gap-2">
+                      <span class="text-white font-black uppercase text-xs tracking-[0.2em]">Itens da Requisição ${i > 0 ? '(Continuação)' : ''}</span>
+                   </div>
+                   <span class="bg-white/10 text-white px-2 py-0.5 rounded text-[9pt] font-mono font-bold">${i + 1} - ${Math.min(i + ITEMS_PER_PAGE, totalItems)} de ${totalItems}</span>
+                 </div>
+                 
+                 <table class="w-full text-left border-collapse">
+                   <thead>
+                     <tr class="bg-slate-50 border-b border-slate-200">
+                       <th class="py-3 px-4 font-black text-slate-500 uppercase text-[8pt] w-14 text-center tracking-wider">Ref.</th>
+                       <th class="py-3 px-4 font-black text-slate-600 uppercase text-[8pt] tracking-wider border-l border-slate-100">Descrição Detalhada do Item</th>
+                       <th class="py-3 px-4 font-black text-slate-500 uppercase text-[8pt] w-28 text-center tracking-wider border-l border-slate-100">Unidade</th>
+                       <th class="py-3 px-4 font-black text-slate-500 uppercase text-[8pt] w-24 text-center tracking-wider border-l border-slate-100">Qtd.</th>
+                     </tr>
+                   </thead>
+                   <tbody class="text-[10pt]">
+             `;
+
+            chunk.forEach((item, idx) => {
+              const absoluteIdx = i + idx;
+              const isEven = idx % 2 === 0;
+              const rowClass = isEven ? 'bg-white' : 'bg-slate-50/50';
+
+              stageHtml += `
+                 <tr class="${rowClass} border-b border-slate-100 last:border-0">
+                   <td class="py-3 px-4 font-bold text-slate-400 text-center text-[9pt]">${(absoluteIdx + 1).toString().padStart(2, '0')}</td>
+                   <td class="py-3 px-4 font-medium text-slate-800 border-l border-slate-100 leading-snug">${item.name}</td>
+                   <td class="py-3 px-4 text-slate-500 text-center text-[9pt] font-semibold border-l border-slate-100 uppercase">${item.unit}</td>
+                   <td class="py-3 px-4 font-bold text-slate-900 text-center bg-emerald-50/30 border-l border-slate-100">${item.quantity}</td>
+                 </tr>
+               `;
+            });
+
+            stageHtml += `
+                   </tbody>
+                 </table>
+               </div>
+               <div class="h-8"></div>
+             `;
+          }
         }
-        // Store the HTML to insert later, and append an ATOMIC placeholder that won't get fragmented by split()
-        signatureHtmlToInsert = `<div class="signature-wrapper mt-0 break-inside-avoid">${combinedBlock}</div>`;
-        stageHtml += '<div id="sig-placeholder"></div>';
+
+        // Check if we need to force a new page for the signature (if items pushed it too far)
+        if (content.purchaseItems && content.purchaseItems.length > 0) {
+          const ITEMS_PER_PAGE = 9;
+          const totalItems = content.purchaseItems.length;
+          const lastChunkSize = (totalItems % ITEMS_PER_PAGE) || ITEMS_PER_PAGE;
+          if (lastChunkSize > 4) {
+            stageHtml += '<div class="split-helper"></div><div id="PAGE_BREAK_MARKER"></div>';
+          }
+        }
+
+        if (docConfig.showSignature && stage.signatureName) {
+          let combinedBlock = `<div class="mt-0 mb-0">${getSignatureHtml(stage.signatureName, stage.signatureRole, stage.signatureSector)}</div>`;
+
+          if (content.digitalSignature?.enabled) {
+            combinedBlock += `
+                <div class="mt-1 text-center" style="margin-top: 4px;">
+                  <div class="text-[7pt] text-slate-500 uppercase tracking-widest leading-tight" style="font-size: 7pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; line-height: 1.25;">
+                    <p class="font-bold text-emerald-600" style="margin:0; font-weight: 700; color: #059669;">Documento Finalizado e Consolidado</p>
+                    <p style="margin:0;">Hash Validador: <span class="font-mono text-slate-900" style="font-family: monospace; color: #0f172a;">${content.digitalSignature.id}</span></p>
+                  </div>
+                </div>
+              `;
+          }
+          // Store the HTML to insert later, and append an ATOMIC placeholder that won't get fragmented by split()
+          signatureHtmlToInsert = `<div class="signature-wrapper mt-0 break-inside-avoid">${combinedBlock}</div>`;
+          stageHtml += '<div id="sig-placeholder"></div>';
+        }
       }
 
       // Split THIS stage into its own pages
@@ -152,6 +229,16 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
 
       blocks.forEach((originalBlockHTML) => {
         if (!originalBlockHTML?.trim()) return;
+
+        // Force Page Break Detection
+        if (originalBlockHTML.includes('id="PAGE_BREAK_MARKER"')) {
+          if (currentPageContent) {
+            currentStagePages.push(currentPageContent);
+            currentPageContent = '';
+            currentLinesUsed = 0;
+          }
+          return; // Skip rendering the marker itself
+        }
 
         // Swap placeholder with real signature content
         let blockHTML = originalBlockHTML;
@@ -206,7 +293,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
     });
 
     return allPages;
-  }, [content.body, content.licitacaoStages, content.signatureName, content.signatureRole, content.signatureSector, content.signatures, content.currentStageIndex, content.viewingStageIndex]);
+  }, [content.body, content.licitacaoStages, content.signatureName, content.signatureRole, content.signatureSector, content.signatures, content.currentStageIndex, content.viewingStageIndex, content.purchaseItems, content.digitalSignature, docConfig.showSignature]);
 
   const startStagePagesCount = pages.filter(p => p.isStartStage).length;
   const standardPagesCount = pages.length - startStagePagesCount;

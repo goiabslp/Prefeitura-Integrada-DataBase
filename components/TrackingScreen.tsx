@@ -255,7 +255,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                     <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
                                         <FileText className="w-6 h-6 text-white" />
                                     </div>
-                                    {activeBlock === 'oficio' ? 'Histórico de Ofícios' : `Histórico: ${activeBlock?.toUpperCase()}`}
+                                    {activeBlock === 'oficio' ? 'Histórico de Ofícios' : (activeBlock === 'licitacao' && !showAllProcesses) ? 'Meus Processos' : (activeBlock === 'licitacao' && showAllProcesses) ? 'Processos' : `Histórico: ${activeBlock?.toUpperCase()}`}
                                 </h2>
                                 <p className="text-slate-500 text-sm mt-1 font-medium">
                                     {isAdmin ? 'Gerenciamento global de registros.' : isCompras ? 'Pedidos de compra autorizados para seu setor.' : 'Seus documentos gerados neste módulo.'}
