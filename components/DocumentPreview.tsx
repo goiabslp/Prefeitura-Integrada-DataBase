@@ -14,14 +14,14 @@ interface DocumentPreviewProps {
   customId?: string;
 }
 
-export const DocumentPreview = forwardRef<HTMLDivElement, DocumentPreviewProps>(({ 
-  state, 
-  isGenerating = false, 
+export const DocumentPreview = forwardRef<HTMLDivElement, DocumentPreviewProps>(({
+  state,
+  isGenerating = false,
   mode = 'editor',
   blockType,
   customId = "preview-scaler"
 }, ref) => {
-  
+
   // Decide qual componente de visualização renderizar
   const renderPreviewContent = () => {
     const effectiveBlock = blockType || (state.content.subType ? 'diarias' : 'oficio');
@@ -43,7 +43,7 @@ export const DocumentPreview = forwardRef<HTMLDivElement, DocumentPreviewProps>(
     <div className={`flex justify-center items-start overflow-auto w-full h-full ${isGenerating ? 'bg-white p-0 m-0' : 'bg-slate-200/40 backdrop-blur-sm pt-8 pb-20 px-4'}`}>
       <div id={customId} ref={ref} className={`origin-top transition-transform duration-300 ${isGenerating ? 'scale-100 transform-none' : 'scale-[0.45] md:scale-[0.55] lg:scale-[0.6] xl:scale-[0.7] 2xl:scale-[0.8]'}`}>
         <div id={`${customId}-container`} className={isGenerating ? 'block w-[210mm] mx-auto p-0 bg-white' : 'flex flex-col items-center'}>
-           {renderPreviewContent()}
+          {renderPreviewContent()}
         </div>
       </div>
     </div>

@@ -7,6 +7,12 @@ interface LicitacaoPreviewProps {
   isGenerating: boolean;
 }
 
+const hasRealContent = (html: string) => {
+  if (!html) return false;
+  const stripped = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+  return stripped.length > 0;
+};
+
 export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGenerating }) => {
   const { branding, document: docConfig, content } = state;
 
@@ -60,7 +66,13 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
           signatureRole: content.signatureRole,
           signatureSector: content.signatureSector,
           signatures: content.signatures,
-          _isActiveView: true // Flag to force rendering even if empty
+          _isActiveView: true, // Flag to force rendering even if empty
+          stageIndex: i
+        };
+      } else if (stageData) {
+        stageData = {
+          ...stageData,
+          stageIndex: i
         };
       }
 
@@ -70,7 +82,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
       if (stageData) {
         // Ensure title is correct
         if (!stageData.title) stageData.title = STAGES_TITLES[i] || `Etapa ${i}`;
-        allStages.push({ ...stageData, absoluteIndex: i });
+        allStages.push(stageData);
       }
     }
 
@@ -78,17 +90,19 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
     // CRITICAL: We MUST include the stage that the user is currently VIEWING/EDITING
     // even if it's empty, otherwise the preview will disappear entirely for new processes.
     allStages = allStages.filter(s => {
-      const isActiveDraft = s.id === 'active-draft' || s._isActiveView;
-      const hasContent = s && s.body && s.body.trim().length > 0 && s.body !== '<p></p>';
-      return isActiveDraft || hasContent;
+      const isActiveDraft = s._isActiveView;
+      const hasContent = hasRealContent(s.body);
+      const hasSignatures = (s.signatures && s.signatures.length > 0) || s.signatureName;
+
+      return isActiveDraft || hasContent || hasSignatures;
     });
 
     // Process stages INDEPENDENTLY to enforce page breaks
     let allPages: { html: string, isStartStage: boolean, stageIndex: number, isFirstPageOfStage: boolean }[] = [];
 
-    allStages.forEach((stage, index) => {
+    allStages.forEach((stage) => {
       let stageHtml = '';
-      const stageInternalTitle = stage.title || (['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'][index] || `Etapa ${(index + 1).toString().padStart(2, '0')}`);
+      const stageInternalTitle = stage.title;
 
       // Header for the stage
       stageHtml += `<h3 class="text-blue-900 font-bold uppercase text-sm mb-6 pb-2 border-b border-blue-100">${stageInternalTitle}</h3>`;
@@ -132,7 +146,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
         if (blockHTML.includes('<h3')) linesInBlock += 3;
 
         // DYNAMIC CAPACITY: The first page of the first stage has LESS space if addressing blocks are shown
-        const isFirstPageOfFirstStage = index === 0 && currentStagePages.length === 0;
+        const isFirstPageOfFirstStage = stage.stageIndex === 0 && currentStagePages.length === 0;
         let effectiveMaxLines = MAX_LINES_PER_PAGE;
         if (isFirstPageOfFirstStage && (state.document.showLeftBlock || state.document.showRightBlock)) {
           effectiveMaxLines -= 8; // Reserved space for addressing blocks + extra margin
@@ -153,12 +167,12 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
       if (currentPageContent) currentStagePages.push(currentPageContent);
 
       // append this stage's pages to the master list with metadata
-      const isStartStage = index === 0;
+      const isStartStage = stage.stageIndex === 0;
       currentStagePages.forEach((html, pIdx) => {
         allPages.push({
           html,
           isStartStage,
-          stageIndex: stage.absoluteIndex,
+          stageIndex: stage.stageIndex,
           isFirstPageOfStage: pIdx === 0
         });
       });
@@ -173,23 +187,13 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
   // AUTO-SCROLL LOGIC
   useEffect(() => {
     const viewIdx = content.viewingStageIndex ?? (content.currentStageIndex || 0);
+    // Use a small timeout to ensure DOM is updated
     const timeoutId = setTimeout(() => {
       const element = document.getElementById(`licitacao-stage-${viewIdx}`);
       if (element) {
-        const container = element.closest('.overflow-auto');
-        if (container) {
-          const containerRect = container.getBoundingClientRect();
-          const elementRect = element.getBoundingClientRect();
-          // getBoundingClientRect is already scaled, so we just calculate the visual distance
-          const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
-
-          container.scrollTo({
-            top: relativeTop - 40, // Offset to show the top of the page nicely
-            behavior: 'smooth'
-          });
-        }
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    }, 150);
+    }, 100);
     return () => clearTimeout(timeoutId);
   }, [content.viewingStageIndex, content.currentStageIndex]);
 
