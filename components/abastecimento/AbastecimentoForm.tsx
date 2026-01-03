@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Fuel, Calendar, User, Truck, DollarSign, Gauge, ArrowLeft, Save } from 'lucide-react';
+import { Fuel, Calendar, User, Truck, DollarSign, Gauge, ArrowLeft, Save, X } from 'lucide-react';
 
 interface AbastecimentoFormProps {
     onBack: () => void;
@@ -8,18 +8,53 @@ interface AbastecimentoFormProps {
 
 export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, onSave }) => {
     const [formData, setFormData] = useState({
-        date: new Date().toISOString().split('T')[0],
+        date: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
         vehicle: '',
         driver: '',
         fuelType: 'Gasolina',
         liters: '',
-        cost: '',
         odometer: ''
     });
 
+    const formatLiters = (value: string) => {
+        const digits = value.replace(/\D/g, '');
+        const number = Number(digits) / 100;
+        return number.toFixed(2);
+    };
+
+    const formatOdometer = (value: string) => {
+        const digits = value.replace(/\D/g, '');
+        const number = Number(digits) / 10;
+
+        // Split into integer and decimal parts
+        const parts = number.toFixed(1).split('.');
+
+        // Add thousands separator to integer part
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+        // Join with dot as requested (25.553.3)
+        return parts.join('.');
+    };
+
+    const handleLitersChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({ ...formData, liters: formatLiters(e.target.value) });
+    };
+
+    const handleOdometerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({ ...formData, odometer: formatOdometer(e.target.value) });
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave(formData);
+
+        // Sanitize data for saving
+        const dataToSave = {
+            ...formData,
+            liters: Number(formData.liters.replace(/\D/g, '')) / 100,
+            odometer: Number(formData.odometer.replace(/\D/g, '')) / 10
+        };
+
+        onSave(dataToSave);
     };
 
     const inputClass = "w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-900 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none transition-all";
@@ -41,10 +76,10 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                 <form onSubmit={handleSubmit} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-5 md:p-8 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                         <div>
-                            <label className={labelClass}>Data</label>
+                            <label className={labelClass}>Data e Hora</label>
                             <div className="relative">
                                 <input
-                                    type="date"
+                                    type="datetime-local"
                                     value={formData.date}
                                     onChange={e => setFormData({ ...formData, date: e.target.value })}
                                     className={inputClass}
@@ -106,10 +141,10 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                             <label className={labelClass}>Litros</label>
                             <div className="relative">
                                 <input
-                                    type="number"
-                                    step="0.01"
+                                    type="text"
+                                    inputMode="numeric"
                                     value={formData.liters}
-                                    onChange={e => setFormData({ ...formData, liters: e.target.value })}
+                                    onChange={handleLitersChange}
                                     className={inputClass}
                                     placeholder="0.00"
                                     required
@@ -119,30 +154,15 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                         </div>
 
                         <div>
-                            <label className={labelClass}>Valor Total</label>
-                            <div className="relative">
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    value={formData.cost}
-                                    onChange={e => setFormData({ ...formData, cost: e.target.value })}
-                                    className={inputClass}
-                                    placeholder="0.00"
-                                    required
-                                />
-                                <DollarSign className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                            </div>
-                        </div>
-
-                        <div className="md:col-span-2">
                             <label className={labelClass}>Odômetro (Km)</label>
                             <div className="relative">
                                 <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
                                     value={formData.odometer}
-                                    onChange={e => setFormData({ ...formData, odometer: e.target.value })}
+                                    onChange={handleOdometerChange}
                                     className={inputClass}
-                                    placeholder="Quilometragem atual"
+                                    placeholder="0.0"
                                     required
                                 />
                                 <Gauge className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -150,10 +170,18 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                         </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row justify-end pt-6 border-t border-slate-100 gap-4 md:gap-0">
+                    <div className="flex flex-col-reverse md:flex-row md:items-center justify-between pt-6 border-t border-slate-100 gap-4">
+                        <button
+                            type="button"
+                            onClick={onBack}
+                            className="flex items-center justify-center gap-2 px-6 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-all active:scale-95 w-full md:w-72"
+                        >
+                            <X className="w-5 h-5" />
+                            Cancelar
+                        </button>
                         <button
                             type="submit"
-                            className="flex items-center justify-center gap-2 px-8 py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-lg shadow-cyan-600/20 transition-all active:scale-95 w-full md:w-auto"
+                            className="flex items-center justify-center gap-2 px-8 py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-lg shadow-cyan-600/20 transition-all active:scale-95 w-full md:w-72"
                         >
                             <Save className="w-5 h-5" />
                             Registrar Abastecimento
