@@ -1,5 +1,5 @@
 import React from 'react';
-import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange, FileSearch } from 'lucide-react';
+import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange, FileSearch, Droplet, Fuel, BarChart3, TrendingUp } from 'lucide-react';
 import { UserRole, UIConfig, AppPermission, BlockType } from '../types';
 import { FleetShortcutCard } from './FleetShortcutCard';
 
@@ -39,7 +39,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     setActiveBlock,
     stats,
     onManageLicitacaoScreening,
-    onViewAllLicitacao
+    onViewAllLicitacao,
+    onAbastecimento // New Prop
 }) => {
     const canAccessOficio = permissions.includes('parent_criar_oficio');
     const canAccessCompras = permissions.includes('parent_compras');
@@ -50,8 +51,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     const canAccessFleet = permissions.includes('parent_frotas');
     const canAccessLicitacaoTriagem = permissions.includes('parent_licitacao_triagem');
     const canAccessLicitacaoProcessos = permissions.includes('parent_licitacao_processos');
+    const canAccessAbastecimento = permissions.includes('parent_abastecimento'); // New Permission Logic
 
-    const hasAnyPermission = canAccessOficio || canAccessCompras || canAccessLicitacao || canAccessDiarias || canAccessScheduling || canAccessFleet;
+    const hasAnyPermission = canAccessOficio || canAccessCompras || canAccessLicitacao || canAccessDiarias || canAccessScheduling || canAccessFleet || canAccessAbastecimento;
 
     const visibleModulesCount = [
         canAccessOficio,
@@ -59,7 +61,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         canAccessLicitacao,
         canAccessDiarias,
         canAccessScheduling,
-        canAccessFleet
+        canAccessFleet,
+        canAccessAbastecimento
     ].filter(Boolean).length;
 
     const getContainerClass = () => {
@@ -90,6 +93,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             case 'licitacao': return "Módulo de Licitação";
             case 'diarias': return "Diárias e Custeio";
             case 'agendamento': return "Agendamento de Veículos";
+            case 'abastecimento': return "Gestão de Abastecimento"; // New Block Name
             default: return "";
         }
     };
@@ -181,7 +185,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                 </button>
                             )}
 
-                            {canAccessFleet && <FleetShortcutCard onClick={() => onOpenAdmin('fleet')} className={getCardClass('cyan')} />}
+                            {canAccessAbastecimento && (
+                                <button onClick={() => setActiveBlock('abastecimento')} className={getCardClass('cyan')}>
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
+                                    <div className="relative z-10 flex flex-col items-center w-full">
+                                        <div className="w-10 h-10 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-2 md:mb-3 transition-all duration-500 bg-gradient-to-br from-cyan-500 to-cyan-600"><Droplet className="w-5 h-5 md:w-8 md:h-8 text-white" /></div>
+                                        <h2 className="text-[10px] md:text-xl lg:text-2xl font-black text-slate-900 mb-0.5 md:mb-1 tracking-tight leading-tight px-1">Abastecimento</h2>
+                                        <p className="text-slate-500 text-[10px] md:text-xs font-medium opacity-0 md:opacity-100 h-0 md:h-auto overflow-hidden px-1">Controle de combustível.</p>
+                                    </div>
+                                    <div className="mt-4 flex items-center gap-2 text-cyan-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
+                                </button>
+                            )}
+
+                            {canAccessFleet && <FleetShortcutCard onClick={() => onOpenAdmin('fleet')} className={getCardClass('slate')} />}
                         </div>
                     </div>
                 )}
@@ -199,23 +215,27 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             </div>
 
                             <div className="flex flex-row flex-wrap items-stretch justify-center gap-4 md:gap-6 lg:gap-8 pt-4 w-full max-w-full overflow-hidden">
-                                <button onClick={() => onNewOrder(activeBlock || 'oficio')} className={`group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-indigo-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52' : 'w-48 md:w-64 h-48 md:h-56'} shrink-0 overflow-hidden`}>
-                                    <div className="w-8 h-8 md:w-14 md:h-14 bg-indigo-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><FilePlus className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
-                                    <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">{getNewActionLabel()}</h3>
-                                    <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Criar novo registro.</p>
-                                </button>
+                                {activeBlock !== 'abastecimento' && (
+                                    <>
+                                        <button onClick={() => onNewOrder(activeBlock || 'oficio')} className={`group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-indigo-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52' : 'w-48 md:w-64 h-48 md:h-56'} shrink-0 overflow-hidden`}>
+                                            <div className="w-8 h-8 md:w-14 md:h-14 bg-indigo-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><FilePlus className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
+                                            <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">{getNewActionLabel()}</h3>
+                                            <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Criar novo registro.</p>
+                                        </button>
 
-                                <button onClick={onTrackOrder} className={`group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-purple-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52' : 'w-48 md:w-64 h-48 md:h-56'} shrink-0 overflow-hidden`}>
-                                    <div className="w-8 h-8 md:w-14 md:h-14 bg-purple-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><History className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
-                                    <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">{
-                                        activeBlock === 'oficio' ? 'Histórico de Ofícios' :
-                                            activeBlock === 'compras' ? 'Histórico de Compras' :
-                                                activeBlock === 'diarias' ? 'Histórico de Solicitações' :
-                                                    activeBlock === 'licitacao' ? 'Meus Processos' :
-                                                        'Histórico'
-                                    }</h3>
-                                    <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Consulte registros de {activeBlock?.toUpperCase()}.</p>
-                                </button>
+                                        <button onClick={onTrackOrder} className={`group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-purple-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52' : 'w-48 md:w-64 h-48 md:h-56'} shrink-0 overflow-hidden`}>
+                                            <div className="w-8 h-8 md:w-14 md:h-14 bg-purple-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><History className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
+                                            <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">{
+                                                activeBlock === 'oficio' ? 'Histórico de Ofícios' :
+                                                    activeBlock === 'compras' ? 'Histórico de Compras' :
+                                                        activeBlock === 'diarias' ? 'Histórico de Solicitações' :
+                                                            activeBlock === 'licitacao' ? 'Meus Processos' :
+                                                                'Histórico'
+                                            }</h3>
+                                            <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Consulte registros de {activeBlock?.toUpperCase()}.</p>
+                                        </button>
+                                    </>
+                                )}
 
                                 {activeBlock === 'compras' && canManagePurchaseOrders && (
                                     <button onClick={onManagePurchaseOrders} className={`group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-emerald-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52' : 'w-48 md:w-64 h-48 md:h-56'} shrink-0 overflow-hidden`}>
@@ -240,6 +260,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                         <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">Processos</h3>
                                         <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Todos os Processos</p>
                                     </button>
+                                )}
+
+                                {activeBlock === 'abastecimento' && (
+                                    <>
+                                        <button onClick={() => onAbastecimento?.('new')} className="group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-cyan-300 transition-all flex flex-col items-center text-center justify-center w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52 shrink-0 overflow-hidden">
+                                            <div className="w-8 h-8 md:w-14 md:h-14 bg-cyan-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><Fuel className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
+                                            <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">Novo Abastecimento</h3>
+                                            <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Registrar entrada.</p>
+                                        </button>
+
+                                        <button onClick={() => onAbastecimento?.('management')} className="group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-blue-300 transition-all flex flex-col items-center text-center justify-center w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52 shrink-0 overflow-hidden">
+                                            <div className="w-8 h-8 md:w-14 md:h-14 bg-blue-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><History className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
+                                            <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 leading-tight px-1">Gestão de<br />Abastecimento</h3>
+                                            <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Consultar histórico.</p>
+                                        </button>
+
+                                        <button onClick={() => onAbastecimento?.('dashboard')} className="group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-emerald-300 transition-all flex flex-col items-center text-center justify-center w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52 shrink-0 overflow-hidden">
+                                            <div className="w-8 h-8 md:w-14 md:h-14 bg-emerald-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><BarChart3 className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
+                                            <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">Dashboard</h3>
+                                            <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Indicadores e gráficos.</p>
+                                        </button>
+                                    </>
                                 )}
                             </div>
                         </div>

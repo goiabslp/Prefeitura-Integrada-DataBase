@@ -297,6 +297,7 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
     { id: 'parent_diarias', label: 'Módulo: Diárias e Custeio' },
     { id: 'parent_agendamento_veiculo', label: 'Agendamento de Veículos' },
     { id: 'parent_frotas', label: 'Gestão de Frotas' },
+    { id: 'parent_abastecimento', label: 'Gestão de Abastecimento' }, // New Item
     { id: 'parent_admin', label: 'Administrativo' },
     { id: 'parent_licitacao_triagem', label: 'Licitação: Triagem' },
     { id: 'parent_licitacao_processos', label: 'Licitação: Processos' },

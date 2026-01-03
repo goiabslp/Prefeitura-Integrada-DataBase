@@ -42,6 +42,9 @@ import { ProcessStepper } from './components/common/ProcessStepper';
 import { LicitacaoScreeningScreen } from './components/LicitacaoScreeningScreen';
 import { LicitacaoSettingsModal } from './components/LicitacaoSettingsModal';
 import { ToastNotification, ToastType } from './components/common/ToastNotification';
+import { AbastecimentoForm } from './components/abastecimento/AbastecimentoForm';
+import { AbastecimentoList } from './components/abastecimento/AbastecimentoList';
+import { AbastecimentoDashboard } from './components/abastecimento/AbastecimentoDashboard';
 
 const VIEW_TO_PATH: Record<string, string> = {
   'login': '/Login',
@@ -50,6 +53,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   'home:compras': '/Compras',
   'home:diarias': '/Diarias',
   'home:licitacao': '/Licitacao',
+  'home:abastecimento': '/Abastecimento',
   'licitacao-new': '/Licitacao/NovoProcesso',
   'licitacao-tracking': '/Licitacao/MeusProcessos',
   'licitacao-screening': '/Licitacao/Triagem',
@@ -71,7 +75,10 @@ const VIEW_TO_PATH: Record<string, string> = {
   'vehicle-scheduling': '/AgendamentoVeiculos',
   'vehicle-scheduling:vs_calendar': '/AgendamentoVeiculos/Agendar',
   'vehicle-scheduling:vs_history': '/AgendamentoVeiculos/Historico',
-  'vehicle-scheduling:vs_approvals': '/AgendamentoVeiculos/Aprovacoes'
+  'vehicle-scheduling:vs_approvals': '/AgendamentoVeiculos/Aprovacoes',
+  'abastecimento:new': '/Abastecimento/Novo',
+  'abastecimento:management': '/Abastecimento/Gestao',
+  'abastecimento:dashboard': '/Abastecimento/Dashboard'
 };
 
 const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
@@ -82,7 +89,7 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 );
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all'>('login');
+  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento'>('login');
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
   const [appState, setAppState] = useState<AppState>(() => {
     // Try to load from localStorage first
@@ -367,7 +374,10 @@ const App: React.FC = () => {
     };
 
     // Initial Load Logic (Same as popstate but runs once)
-    const initialPath = window.location.pathname;
+    // Strip trailing slash for consistent lookup (e.g. /Abastecimento/ -> /Abastecimento)
+    const rawPath = window.location.pathname;
+    const initialPath = (rawPath.length > 1 && rawPath.endsWith('/')) ? rawPath.slice(0, -1) : rawPath;
+
     const initialState = PATH_TO_STATE[initialPath];
     if (initialState) {
       if (initialState.view === 'licitacao-new') {
@@ -1250,7 +1260,14 @@ const App: React.FC = () => {
       />
       {currentUser && <AppHeader currentUser={currentUser} uiConfig={appState.ui} activeBlock={activeBlock} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} onGoHome={handleGoHome} currentView={currentView} isRefreshing={isRefreshing} onRefresh={refreshData} />}
       <div className="flex-1 flex relative overflow-hidden">
-        {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onViewAllLicitacao={handleViewAllLicitacao} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onManageLicitacaoScreening={() => setCurrentView('licitacao-screening')} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} />}
+        {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onViewAllLicitacao={handleViewAllLicitacao} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onManageLicitacaoScreening={() => setCurrentView('licitacao-screening')} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} onAbastecimento={(sub) => {
+          setAppState(prev => ({ ...prev, view: sub }));
+          setCurrentView('abastecimento');
+          const path = `abastecimento:${sub}`;
+          if (VIEW_TO_PATH[path]) {
+            window.history.pushState({}, '', VIEW_TO_PATH[path]);
+          }
+        }} />}
         {(currentView === 'editor' || currentView === 'admin') && currentUser && (
           <div className="flex-1 flex flex-col overflow-hidden h-full relative">
             {/* GLOBAL STEPPER FOR LICITACAO */}
@@ -1983,6 +2000,51 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
+        {/* Abastecimento Module */}
+        {currentView === 'abastecimento' && appState.view === 'new' && (
+          <AbastecimentoForm
+            onBack={() => {
+              setCurrentView('home');
+              setActiveBlock('abastecimento');
+              window.history.pushState({}, '', '/PaginaInicial');
+            }}
+            onSave={(data) => {
+              console.log('Abastecimento salvo:', data);
+              showToast('Abastecimento registrado com sucesso!', 'success');
+              setCurrentView('home');
+              setActiveBlock('abastecimento');
+            }}
+          />
+        )}
+
+        {currentView === 'abastecimento' && appState.view === 'management' && (
+          <AbastecimentoList
+            onBack={() => {
+              setCurrentView('home');
+              setActiveBlock('abastecimento');
+              window.history.pushState({}, '', '/PaginaInicial');
+            }}
+          />
+        )}
+
+        {currentView === 'abastecimento' && appState.view === 'dashboard' && (
+          <AbastecimentoDashboard
+            onBack={() => {
+              setCurrentView('home');
+              setActiveBlock('abastecimento');
+              window.history.pushState({}, '', '/PaginaInicial');
+            }}
+            onAbastecimento={(sub) => {
+              setAppState(prev => ({ ...prev, view: sub }));
+              setCurrentView('abastecimento');
+              const path = `abastecimento:${sub}`;
+              if (VIEW_TO_PATH[path]) {
+                window.history.pushState({}, '', VIEW_TO_PATH[path]);
+              }
+            }}
+          />
+        )}
+
         {currentView === 'tracking' && currentUser && (
           <TrackingScreen
             onBack={handleBackToModule}
