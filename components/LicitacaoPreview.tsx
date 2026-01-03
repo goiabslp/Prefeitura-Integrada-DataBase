@@ -121,6 +121,12 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
         return getSignatureHtml(name, role, sector);
       });
 
+      // Special Handling for Stage 0 (Início) - Single Signature "Oficio Style"
+      // If it's Stage 0, we append the signature at the bottom if configured and pending
+      if (stage.stageIndex === 0 && docConfig.showSignature && stage.signatureName) {
+        stageHtml += `<div class="mt-8 mb-4">${getSignatureHtml(stage.signatureName, stage.signatureRole, stage.signatureSector)}</div>`;
+      }
+
       // Split THIS stage into its own pages
       // Fix: Use lookbehind for <br> so it is preserved in the previous block instead of consumed
       const blocks = stageHtml.split(/(?<=<\/p>)|(?<=<\/div>)|(?<=<br\s*\/?>)/g).filter(b => b.trim());

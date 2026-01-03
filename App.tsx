@@ -179,6 +179,7 @@ const App: React.FC = () => {
   const [twoFASecret2, setTwoFASecret2] = useState<string | null>(null);
   const [twoFASignatureName, setTwoFASignatureName] = useState('');
   const [pendingParams, setPendingParams] = useState<any>(null); // To store state/action to resume after 2FA
+  const [pending2FAAction, setPending2FAAction] = useState<((metadata: any) => Promise<void>) | null>(null); // Generic callback for 2FA success
 
   // Routing logic
   const [isLicitacaoSettingsOpen, setIsLicitacaoSettingsOpen] = useState(false);
@@ -1571,99 +1572,118 @@ const App: React.FC = () => {
                               onConfirm: async () => {
                                 setConfirmModal(prev => ({ ...prev, isOpen: false }));
 
-                                // Advance Logic
-                                const stagesNames = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
-                                const currentStageData = {
-                                  id: Date.now().toString(),
-                                  title: stagesNames[currentIdx],
-                                  body: content.body,
-                                  signatureName: content.signatureName,
-                                  signatureRole: content.signatureRole,
-                                  signatureSector: content.signatureSector,
-                                  signatures: content.signatures || []
-                                };
+                                const executeAdvance = async (metadata?: any) => {
+                                  // Advance Logic
+                                  const stagesNames = ['Início', 'Etapa 01', 'Etapa 02', 'Etapa 03', 'Etapa 04', 'Etapa 05', 'Etapa 06'];
+                                  const currentStageData = {
+                                    id: Date.now().toString(),
+                                    title: stagesNames[currentIdx],
+                                    body: content.body,
+                                    signatureName: content.signatureName,
+                                    signatureRole: content.signatureRole,
+                                    signatureSector: content.signatureSector,
+                                    signatures: content.signatures || []
+                                  };
 
-                                let newHistoric = [...(content.licitacaoStages || [])];
-                                newHistoric[currentIdx] = currentStageData;
+                                  let newHistoric = [...(content.licitacaoStages || [])];
+                                  newHistoric[currentIdx] = currentStageData;
 
-                                const nextAppState = {
-                                  ...appState,
-                                  content: {
-                                    ...appState.content,
-                                    licitacaoStages: newHistoric,
-                                    currentStageIndex: currentIdx + 1,
-                                    viewingStageIndex: currentIdx + 1,
-                                    body: '',
-                                    signatureName: '',
-                                    signatureRole: '',
-                                    signatureSector: '',
-                                    signatures: [],
-                                    licitacaoActiveDraft: undefined
-                                  }
-                                };
-
-                                // Save & Advance
-                                let orderToSave = editingOrder;
-                                if (!orderToSave) {
-                                  // ... creation logic likely duplicate of Save but okay
-                                  try {
-                                    const year = new Date().getFullYear();
-                                    orderToSave = {
-                                      id: Date.now().toString(),
-                                      protocol: content.protocol,
-                                      title: content.title,
-                                      status: 'pending',
-                                      priority: 'normal',
-                                      createdAt: new Date().toISOString(),
-                                      updatedAt: new Date().toISOString(),
-                                      userId: currentUser.id,
-                                      userName: currentUser.name,
-                                      type: activeBlock,
-                                      blockType: activeBlock,
-                                      documentSnapshot: nextAppState,
-                                      sector: currentUser.sector
-                                    } as Order;
-
-                                    if (activeBlock === 'licitacao') {
-                                      await counterService.incrementLicitacaoProtocolCount(year);
-                                      // Increment independent sector counter (Sync with Requester Sector)
-                                      const reqSectorName = content.requesterSector || currentUser?.sector;
-                                      const reqSector = sectors.find(s => s.name === reqSectorName || s.id === reqSectorName);
-                                      // Use found sector ID or fallback to Licitacao default ONLY if resolution fails
-                                      const targetSectorId = reqSector?.id || '23c6fa21-f998-4f54-b865-b94212f630ef';
-                                      await counterService.incrementSectorCount(targetSectorId, year);
-                                    } else {
-                                      const nextVal = await db.incrementGlobalCounter();
-                                      setGlobalCounter(nextVal);
+                                  const nextAppState = {
+                                    ...appState,
+                                    content: {
+                                      ...appState.content,
+                                      licitacaoStages: newHistoric,
+                                      currentStageIndex: currentIdx + 1,
+                                      viewingStageIndex: currentIdx + 1,
+                                      body: '',
+                                      signatureName: '',
+                                      signatureRole: '',
+                                      signatureSector: '',
+                                      signatures: [],
+                                      licitacaoActiveDraft: undefined,
+                                      // Update digitalSignature if metadata provided (e.g. from 2FA) AND it's Stage 0
+                                      ...(metadata && currentIdx === 0 ? { digitalSignature: metadata } : {})
                                     }
-                                  } catch (e) { console.error(e) }
-                                } else {
-                                  orderToSave = { ...orderToSave, updatedAt: new Date().toISOString(), documentSnapshot: nextAppState };
-                                }
+                                  };
 
-                                if (activeBlock === 'licitacao' && orderToSave?.status === 'approved') {
-                                  orderToSave.status = 'in_progress';
-                                }
+                                  // Save & Advance
+                                  let orderToSave = editingOrder;
+                                  if (!orderToSave) {
+                                    try {
+                                      const year = new Date().getFullYear();
+                                      orderToSave = {
+                                        id: Date.now().toString(),
+                                        protocol: content.protocol,
+                                        title: content.title,
+                                        status: 'pending',
+                                        priority: 'normal',
+                                        createdAt: new Date().toISOString(),
+                                        updatedAt: new Date().toISOString(),
+                                        userId: currentUser.id,
+                                        userName: currentUser.name,
+                                        type: activeBlock,
+                                        blockType: activeBlock,
+                                        documentSnapshot: nextAppState,
+                                        sector: currentUser.sector
+                                      } as Order;
 
-                                try {
-                                  await licitacaoService.saveLicitacaoProcess(orderToSave!);
-                                  setEditingOrder(orderToSave!);
-                                  setAppState(nextAppState);
-
-                                  if (currentIdx === 0) {
-                                    setConfirmModal({
-                                      isOpen: true,
-                                      title: "Etapa Início Concluída",
-                                      message: "O conteúdo foi salvo. Para prosseguir, acesse 'Meus Processos' e clique em 'Enviar' para encaminhar o processo para a Triagem.",
-                                      type: 'info',
-                                      singleButton: true,
-                                      onConfirm: () => { setConfirmModal(prev => ({ ...prev, isOpen: false })); setActiveBlock('licitacao'); setCurrentView('tracking'); }
-                                    });
+                                      if (activeBlock === 'licitacao') {
+                                        await counterService.incrementLicitacaoProtocolCount(year);
+                                        const reqSectorName = content.requesterSector || currentUser?.sector;
+                                        const reqSector = sectors.find(s => s.name === reqSectorName || s.id === reqSectorName);
+                                        const targetSectorId = reqSector?.id || '23c6fa21-f998-4f54-b865-b94212f630ef';
+                                        await counterService.incrementSectorCount(targetSectorId, year);
+                                      } else {
+                                        const nextVal = await db.incrementGlobalCounter();
+                                        setGlobalCounter(nextVal);
+                                      }
+                                    } catch (e) { console.error(e) }
+                                  } else {
+                                    orderToSave = { ...orderToSave, updatedAt: new Date().toISOString(), documentSnapshot: nextAppState };
                                   }
-                                } catch (err) {
-                                  console.error("Failed to save", err);
-                                  alert("Erro ao avançar etapa.");
+
+                                  if (activeBlock === 'licitacao' && orderToSave?.status === 'approved') {
+                                    orderToSave.status = 'in_progress';
+                                  }
+
+                                  try {
+                                    await licitacaoService.saveLicitacaoProcess(orderToSave!);
+                                    setEditingOrder(orderToSave!);
+                                    setAppState(nextAppState);
+
+                                    if (currentIdx === 0) {
+                                      setConfirmModal({
+                                        isOpen: true,
+                                        title: "Etapa Início Concluída",
+                                        message: "O conteúdo foi salvo. Para prosseguir, acesse 'Meus Processos' e clique em 'Enviar' para encaminhar o processo para a Triagem.",
+                                        type: 'info',
+                                        singleButton: true,
+                                        onConfirm: () => { setConfirmModal(prev => ({ ...prev, isOpen: false })); setActiveBlock('licitacao'); setCurrentView('tracking'); }
+                                      });
+                                    }
+                                  } catch (err) {
+                                    console.error("Failed to save", err);
+                                    alert("Erro ao avançar etapa.");
+                                  }
+                                };
+
+                                // 2FA Check for Stage 0 (Início)
+                                if (currentIdx === 0 && content.useDigitalSignature) {
+                                  const signerName = content.signatureName;
+                                  const signerRole = content.signatureRole;
+                                  const signerUser = users.find(u => u.name === signerName && (u.jobTitle === signerRole || u.role === 'admin'));
+
+                                  if (signerUser && (signerUser.twoFactorEnabled || signerUser.twoFactorEnabled2)) {
+                                    setTwoFASecret(signerUser.twoFactorEnabled ? (signerUser.twoFactorSecret || '') : '');
+                                    setTwoFASecret2(signerUser.twoFactorEnabled2 ? (signerUser.twoFactorSecret2 || null) : null);
+                                    setTwoFASignatureName(signerUser.name);
+                                    setPending2FAAction(() => executeAdvance);
+                                    setIs2FAModalOpen(true);
+                                    return;
+                                  }
                                 }
+
+                                await executeAdvance();
                               }
                             });
                           }}
@@ -2277,7 +2297,12 @@ const App: React.FC = () => {
                 id: signatureId || 'ERR-GEN-ID'
               };
 
-              handleFinish(true, metadata); // Proceed skipping 2FA check with metadata
+              if (pending2FAAction) {
+                await pending2FAAction(metadata);
+                setPending2FAAction(null);
+              } else {
+                handleFinish(true, metadata); // Proceed skipping 2FA check with metadata
+              }
             }}
             secret={twoFASecret}
             secret2={twoFASecret2}
