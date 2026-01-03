@@ -32,7 +32,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
 
   const pages = useMemo(() => {
     const TOTAL_LINES_CAPACITY = 62; // Maximize usage (Request: 62 lines)
-    const SECURITY_MARGIN_LINES = 0; // Remove safety margin
+    const SECURITY_MARGIN_LINES = 2; // Safety margin to prevent footer overlap
     const HEADER_ESTIMATED_LINES = 3; // Minimal header space
     const MAX_LINES_PER_PAGE = TOTAL_LINES_CAPACITY - SECURITY_MARGIN_LINES - HEADER_ESTIMATED_LINES;
     const CHARS_PER_LINE = 80;
@@ -105,10 +105,58 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
       const stageInternalTitle = stage.title;
 
       // Header for the stage
-      stageHtml += `<h3 class="text-blue-900 font-bold uppercase text-sm mb-6 pb-2 border-b border-blue-100">${stageInternalTitle}</h3>`;
+      // Display Priority Badge ONLY if we are in the Initial Stage (0) AND this is the Initial Stage content
+      if (stage.stageIndex === 0 && content.priority && content.currentStageIndex === 0) {
+        const priorityConfigs: Record<string, { style: string, icon: string, label: string }> = {
+          'Normal': {
+            style: 'bg-slate-100 text-slate-600 border-slate-200',
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+            label: 'Normal'
+          },
+          'Média': {
+            style: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+            label: 'Média'
+          },
+          'Alta': {
+            style: 'bg-amber-50 text-amber-700 border-amber-200',
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+            label: 'Alta'
+          },
+          'Urgência': {
+            style: 'bg-rose-50 text-rose-700 border-rose-200',
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>',
+            label: 'Urgência'
+          },
+        };
+
+        const config = priorityConfigs[content.priority] || priorityConfigs['Normal'];
+
+        stageHtml += `
+          <div class="flex items-center justify-between mb-6 pb-2 border-b border-blue-100">
+             <h3 class="text-blue-900 font-bold uppercase text-sm m-0 transform translate-y-0.5">${stageInternalTitle}</h3>
+             <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[7pt] font-black uppercase tracking-widest border shrink-0 ${config.style} shadow-sm">
+                ${config.icon}
+                <span>${config.label}</span>
+             </div>
+          </div>
+        `;
+      } else {
+        stageHtml += `<h3 class="text-blue-900 font-bold uppercase text-sm mb-6 pb-2 border-b border-blue-100">${stageInternalTitle}</h3>`;
+      }
 
       // Body
       stageHtml += stage.body || '<p class="text-slate-400 italic py-4">[Conteúdo da etapa em elaboração]</p>';
+
+      // Inject Priority Justification (Only for High/Urgent in Stage 0 AND if currently in Stage 0)
+      if (stage.stageIndex === 0 && (content.priority === 'Alta' || content.priority === 'Urgência') && content.priorityJustification && content.currentStageIndex === 0) {
+        stageHtml += `
+           <div class="mt-2 mb-2 bg-rose-50/30 p-2 rounded-lg border-l-2 border-rose-200">
+             <span class="block text-[10pt] font-black text-rose-800 uppercase tracking-widest mb-0.5">Nota de Prioridade (${content.priority}):</span>
+             <span class="block text-[10pt] text-slate-900 leading-snug italic">${content.priorityJustification}</span>
+           </div>
+          `;
+      }
 
       // Process Inline Signatures (Markers)
       // Regex detects: <span ... data-marker="[ASSINATURA: Name | Role | Sector]" ...>...</span>
@@ -258,6 +306,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
         // Adjust estimation for special blocks
         if (isSignature) linesInBlock += 5;
         if (blockHTML.includes('<h3')) linesInBlock += 3;
+        if (blockHTML.includes('Nota de Prioridade')) linesInBlock += 10; // Aggressive spacing cost to force page break
 
         // DYNAMIC CAPACITY: The first page of the first stage has LESS space if addressing blocks are shown
         const isFirstPageOfFirstStage = stage.stageIndex === 0 && currentStagePages.length === 0;
@@ -293,7 +342,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
     });
 
     return allPages;
-  }, [content.body, content.licitacaoStages, content.signatureName, content.signatureRole, content.signatureSector, content.signatures, content.currentStageIndex, content.viewingStageIndex, content.purchaseItems, content.digitalSignature, docConfig.showSignature]);
+  }, [content.body, content.licitacaoStages, content.signatureName, content.signatureRole, content.signatureSector, content.signatures, content.currentStageIndex, content.viewingStageIndex, content.purchaseItems, content.digitalSignature, docConfig.showSignature, content.priority, content.priorityJustification]);
 
   const startStagePagesCount = pages.filter(p => p.isStartStage).length;
   const standardPagesCount = pages.length - startStagePagesCount;
