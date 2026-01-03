@@ -26,20 +26,20 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     const labelClass = "block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1";
 
     return (
-        <div className="flex-1 h-full bg-slate-50 p-6 overflow-auto custom-scrollbar">
+        <div className="flex-1 h-full bg-slate-50 p-4 md:p-6 overflow-auto custom-scrollbar">
             <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
-                <div className="flex items-center gap-4 mb-8">
+                <div className="flex items-center gap-4 mb-6 md:mb-8">
                     <button onClick={onBack} className="p-2 -ml-2 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-all">
                         <ArrowLeft className="w-6 h-6" />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Novo Abastecimento</h1>
-                        <p className="text-slate-500 font-medium">Registrar entrada de combustível</p>
+                        <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Novo Abastecimento</h1>
+                        <p className="text-sm md:text-base text-slate-500 font-medium">Registrar entrada de combustível</p>
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 md:p-8 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <form onSubmit={handleSubmit} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-5 md:p-8 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                         <div>
                             <label className={labelClass}>Data</label>
                             <div className="relative">
@@ -150,10 +150,10 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                         </div>
                     </div>
 
-                    <div className="flex justify-end pt-6 border-t border-slate-100">
+                    <div className="flex flex-col md:flex-row justify-end pt-6 border-t border-slate-100 gap-4 md:gap-0">
                         <button
                             type="submit"
-                            className="flex items-center gap-2 px-8 py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-lg shadow-cyan-600/20 transition-all active:scale-95"
+                            className="flex items-center justify-center gap-2 px-8 py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-lg shadow-cyan-600/20 transition-all active:scale-95 w-full md:w-auto"
                         >
                             <Save className="w-5 h-5" />
                             Registrar Abastecimento
