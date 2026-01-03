@@ -76,9 +76,9 @@ const VIEW_TO_PATH: Record<string, string> = {
   'vehicle-scheduling:vs_calendar': '/AgendamentoVeiculos/Agendar',
   'vehicle-scheduling:vs_history': '/AgendamentoVeiculos/Historico',
   'vehicle-scheduling:vs_approvals': '/AgendamentoVeiculos/Aprovacoes',
-  'abastecimento:new': '/Abastecimento/Novo',
-  'abastecimento:management': '/Abastecimento/Gestao',
-  'abastecimento:dashboard': '/Abastecimento/Dashboard'
+  'abastecimento:new': '/Abastecimento/NovoAbastecimento',
+  'abastecimento:management': '/Abastecimento/GestãoAbastecimento',
+  'abastecimento:dashboard': '/Abastecimento/DashboardAbastecimento'
 };
 
 const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
