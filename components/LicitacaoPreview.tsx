@@ -228,11 +228,11 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
                 Processo Administrativo / Licitatório
               </div>
 
-              {/* ADDRESSING BLOCKS */}
-              {globalIndex === 0 && (
+              {/* ADDRESSING BLOCKS - Only on First Page of Stage 0 (Início) */}
+              {pageData.stageIndex === 0 && pageData.isFirstPageOfStage && (
                 <div className="flex justify-between items-start px-1">
                   <div
-                    className={`whitespace-pre-wrap max-w-[45%] leading-snug ${(!docConfig.showLeftBlock || !content.leftBlockText) ? 'invisible' : ''}`}
+                    className={`whitespace-pre-wrap max-w-[45%] leading-snug ${(!content.leftBlockText) ? 'invisible' : ''}`}
                     style={{
                       fontSize: `${docConfig.leftBlockStyle?.size || 10}pt`,
                       color: docConfig.leftBlockStyle?.color || '#191822',
@@ -243,7 +243,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
                   </div>
 
                   <div
-                    className={`whitespace-pre-wrap text-right max-w-[45%] leading-snug ${(!docConfig.showRightBlock || !content.rightBlockText) ? 'invisible' : ''}`}
+                    className={`whitespace-pre-wrap text-right max-w-[45%] leading-snug ${(!content.rightBlockText) ? 'invisible' : ''}`}
                     style={{
                       fontSize: `${docConfig.rightBlockStyle?.size || 10}pt`,
                       color: docConfig.rightBlockStyle?.color || '#191822',

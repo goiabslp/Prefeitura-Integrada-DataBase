@@ -83,7 +83,8 @@ export const LicitacaoScreeningScreen: React.FC<LicitacaoScreeningScreenProps> =
                             {[
                                 { id: 'all', label: 'Todos' },
                                 { id: 'pending', label: 'Em Andamento' },
-                                { id: 'completed', label: 'Concluídos' }
+                                { id: 'completed', label: 'Concluídos' },
+                                { id: 'finishing', label: 'Finalizando' }
                             ].map(filter => (
                                 <button
                                     key={filter.id}
@@ -155,12 +156,16 @@ export const LicitacaoScreeningScreen: React.FC<LicitacaoScreeningScreenProps> =
                                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                                                 order.status === 'awaiting_approval' ? 'bg-amber-100 text-amber-700 border-amber-200 animate-pulse' :
                                                     order.status === 'approved' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
-                                                        'bg-slate-50 text-slate-600 border-slate-100'
+                                                        order.status === 'in_progress' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                                            order.status === 'finishing' ? 'bg-purple-50 text-purple-700 border-purple-100 animate-pulse' :
+                                                                'bg-slate-50 text-slate-600 border-slate-100'
                                                 }`}>
                                                 {order.status === 'completed' ? 'Concluído' :
                                                     order.status === 'awaiting_approval' ? 'Aprovação' :
                                                         order.status === 'approved' ? 'Aprovado' :
-                                                            order.status === 'pending' ? 'Ativo' : order.status}
+                                                            order.status === 'in_progress' ? 'Em Andamento' :
+                                                                order.status === 'finishing' ? 'Finalizando' :
+                                                                    order.status === 'pending' ? 'Ativo' : order.status}
                                             </span>
                                         </div>
 
@@ -180,6 +185,23 @@ export const LicitacaoScreeningScreen: React.FC<LicitacaoScreeningScreenProps> =
                                                         title="Rejeitar"
                                                     >
                                                         <PackageX className="w-5 h-5" />
+                                                    </button>
+                                                </>
+                                            ) : order.status === 'finishing' ? (
+                                                <>
+                                                    <button
+                                                        onClick={() => onUpdateOrderStatus(order.id, 'completed')}
+                                                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors shadow-sm shadow-purple-500/20"
+                                                        title="Concluir Processo"
+                                                    >
+                                                        Concluir
+                                                    </button>
+                                                    <button
+                                                        onClick={() => onEditOrder(order)}
+                                                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                                        title="Visualizar"
+                                                    >
+                                                        <Eye className="w-5 h-5" />
                                                     </button>
                                                 </>
                                             ) : (

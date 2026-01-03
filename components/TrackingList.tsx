@@ -744,8 +744,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                         </button>
                                                     )}
 
-                                                    <button onClick={() => onEditOrder(order)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title={order.status === 'approved' || order.status === 'completed' ? "Visualizar" : "Editar"}>
-                                                        {order.status === 'approved' || order.status === 'completed' ? <Eye className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
+                                                    <button onClick={() => onEditOrder(order)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title={order.status === 'approved' || order.status === 'completed' || order.status === 'awaiting_approval' ? "Visualizar" : "Editar"}>
+                                                        {order.status === 'approved' || order.status === 'completed' || order.status === 'awaiting_approval' ? <Eye className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
                                                     </button>
 
                                                     {activeBlock !== 'oficio' && (

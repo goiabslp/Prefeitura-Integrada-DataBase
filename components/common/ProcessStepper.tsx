@@ -6,47 +6,74 @@ interface ProcessStepperProps {
     currentStep: number;
     onStepClick: (index: number) => void;
     maxCompletedStep?: number;
+    filledSteps?: boolean[]; // NEW: To allow graying out completed but empty steps
 }
 
 export const ProcessStepper: React.FC<ProcessStepperProps> = ({
     steps,
     currentStep,
     onStepClick,
-    maxCompletedStep = -1
+    maxCompletedStep = -1,
+    filledSteps
 }) => {
     return (
         <div className="w-full overflow-x-auto pb-4 pt-2">
             <div className="flex items-center min-w-max px-2">
                 {steps.map((step, index) => {
                     const isCompleted = index <= maxCompletedStep;
-                    const isCurrent = index === currentStep;
-                    const isClickable = index <= (maxCompletedStep + 1); // Allow clicking up to the next available step or any previous
+                    const isFilled = filledSteps ? !!filledSteps[index] : true; // Default to true if not provided (legacy behavior)
+                    const isViewing = index === currentStep;
+                    const isInProgress = index === maxCompletedStep + 1;
+                    const isClickable = index <= (maxCompletedStep + 1);
+
+                    // Color Logic
+                    // Priority: Viewing (Blue) > Completed & Filled (Green) > In Progress (Orange) > Default (Gray)
+                    // "Concluidas sem preenchimento" -> Default (Gray)
+
+                    let bgClass = 'bg-white';
+                    let borderClass = 'border-slate-200';
+                    let textClass = 'text-slate-400';
+                    let shadowClass = '';
+                    let circleBg = 'bg-slate-100';
+                    let circleText = 'text-slate-500';
+
+                    if (isViewing) {
+                        bgClass = 'bg-blue-600';
+                        borderClass = 'border-blue-600';
+                        textClass = 'text-white';
+                        shadowClass = 'shadow-lg shadow-blue-500/30';
+                        circleBg = 'bg-white';
+                        circleText = 'text-blue-600';
+                    } else if (isCompleted && isFilled) {
+                        bgClass = 'bg-emerald-100';
+                        borderClass = 'border-emerald-200';
+                        textClass = 'text-emerald-700';
+                        circleBg = 'bg-emerald-200';
+                        circleText = 'text-emerald-700';
+                    } else if (isInProgress) {
+                        bgClass = 'bg-orange-50';
+                        borderClass = 'border-orange-200';
+                        textClass = 'text-orange-700';
+                        circleBg = 'bg-orange-100';
+                        circleText = 'text-orange-600';
+                    } else if (isCompleted && !isFilled) {
+                        // Explicitly "Completed but Empty" -> Remain Gray (Default)
+                        // logic already falls through to defaults, but commented for clarity
+                    }
 
                     return (
                         <React.Fragment key={index}>
                             {/* Step Item */}
                             <div
-                                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all border ${isCurrent
-                                    ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/30'
-                                    : isCompleted
-                                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 cursor-pointer hover:bg-emerald-100'
-                                        : 'bg-white border-slate-200 text-slate-400'
-                                    } ${isClickable && !isCurrent && !isCompleted ? 'cursor-pointer hover:border-blue-300 hover:text-blue-600' : ''}`}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all border ${bgClass} ${borderClass} ${textClass} ${shadowClass} ${isClickable && !isViewing ? 'cursor-pointer hover:opacity-80' : ''}`}
                                 onClick={() => {
-                                    // Allow navigation if it's a previous step or the immediate next (though usually next is handled by button)
-                                    // For now, let's allow clicking any previous step or the current tracked "max" step
-                                    if (index <= (maxCompletedStep + 1)) {
+                                    if (isClickable) {
                                         onStepClick(index);
                                     }
                                 }}
                             >
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${isCurrent
-                                    ? 'bg-white text-blue-600'
-                                    : isCompleted
-                                        ? 'bg-emerald-200 text-emerald-700'
-                                        : 'bg-slate-100 text-slate-500'
-                                    }`}>
-                                    {isCompleted ? <Check className="w-3 h-3" /> : (index + 1).toString().padStart(2, '0')}
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${circleBg} ${circleText}`}>
+                                    {isCompleted && !isViewing && !isInProgress ? <Check className="w-3 h-3" /> : (index + 1).toString().padStart(2, '0')}
                                 </div>
                                 <span className="text-xs font-bold uppercase tracking-wider whitespace-nowrap">
                                     {step}

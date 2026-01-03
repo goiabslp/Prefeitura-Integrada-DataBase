@@ -10,7 +10,8 @@ interface LicitacaoSettingsModalProps {
     persons: { id: string; name: string; sectorId?: string; jobId?: string; }[];
     sectors: { id: string; name: string; }[];
     onUpdate: (updates: Partial<AppState['content']>) => void;
-    onCancel?: () => void; // Added onCancel prop
+    onCancel?: () => void;
+    orderStatus?: string;
 }
 
 const useSmartPosition = (isOpen: boolean, ref: React.RefObject<HTMLDivElement>) => {
@@ -43,9 +44,13 @@ export const LicitacaoSettingsModal: React.FC<LicitacaoSettingsModalProps> = ({
     persons = [],
     sectors = [],
     onUpdate,
-    onCancel
+    onCancel,
+    orderStatus
 }) => {
     const isLicitationUser = currentUser?.type === 'licitacao' || currentUser?.role === 'licitacao';
+    // Solicitante is locked if process is NOT pending (i.e. sent for approval or further)
+    const canEditRequester = orderStatus ? orderStatus === 'pending' : true;
+
     // Solicitante is always unlocked (as per request "Apenas a opção: 'Solicitante' desbloqueada" implies others are locked by default unless user is special)
     // "Somente usuarios do tipo: "Licitação" poderão editar os dados dos outros campos"
     const canEditOtherFields = isLicitationUser;
@@ -175,9 +180,8 @@ export const LicitacaoSettingsModal: React.FC<LicitacaoSettingsModalProps> = ({
                             <input
                                 type="text"
                                 value={formData.protocol}
-                                onChange={e => setFormData(prev => ({ ...prev, protocol: e.target.value }))}
-                                readOnly={!canEditOtherFields}
-                                className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all placeholder:text-slate-300 ${!canEditOtherFields ? 'opacity-60 cursor-not-allowed bg-slate-100' : ''}`}
+                                readOnly
+                                className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-500 outline-none cursor-not-allowed transition-all placeholder:text-slate-400"
                                 placeholder="000/2024"
                             />
                         </div>
@@ -247,8 +251,8 @@ export const LicitacaoSettingsModal: React.FC<LicitacaoSettingsModalProps> = ({
                             <div className="relative" ref={requesterRef}>
                                 <button
                                     type="button"
-                                    onClick={() => setOpenRequester(!openRequester)}
-                                    className={`w-full bg-slate-50 border rounded-xl px-4 py-3 text-sm font-semibold text-left flex items-center justify-between transition-all ${openRequester ? 'border-blue-400 ring-4 ring-blue-100' : 'border-slate-200 hover:border-slate-300'}`}
+                                    onClick={() => canEditRequester && setOpenRequester(!openRequester)}
+                                    className={`w-full bg-slate-50 border rounded-xl px-4 py-3 text-sm font-semibold text-left flex items-center justify-between transition-all ${openRequester ? 'border-blue-400 ring-4 ring-blue-100' : 'border-slate-200 hover:border-slate-300'} ${!canEditRequester ? 'opacity-60 cursor-not-allowed bg-slate-100' : ''}`}
                                 >
                                     <span className={formData.requesterName ? 'text-slate-800' : 'text-slate-400'}>
                                         {formData.requesterName || 'Selecione o solicitante...'}
