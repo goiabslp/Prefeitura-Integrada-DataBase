@@ -31,9 +31,9 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
   };
 
   const pages = useMemo(() => {
-    const TOTAL_LINES_CAPACITY = 44;
-    const SECURITY_MARGIN_LINES = 1;
-    const HEADER_ESTIMATED_LINES = 6; // Header takes significant space now
+    const TOTAL_LINES_CAPACITY = 62; // Maximize usage (Request: 62 lines)
+    const SECURITY_MARGIN_LINES = 0; // Remove safety margin
+    const HEADER_ESTIMATED_LINES = 3; // Minimal header space
     const MAX_LINES_PER_PAGE = TOTAL_LINES_CAPACITY - SECURITY_MARGIN_LINES - HEADER_ESTIMATED_LINES;
     const CHARS_PER_LINE = 80;
 
@@ -121,10 +121,24 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
         return getSignatureHtml(name, role, sector);
       });
 
+      let signatureHtmlToInsert = '';
       // Special Handling for Stage 0 (Início) - Single Signature "Oficio Style"
-      // If it's Stage 0, we append the signature at the bottom if configured and pending
       if (stage.stageIndex === 0 && docConfig.showSignature && stage.signatureName) {
-        stageHtml += `<div class="mt-8 mb-4">${getSignatureHtml(stage.signatureName, stage.signatureRole, stage.signatureSector)}</div>`;
+        let combinedBlock = `<div class="mt-0 mb-0">${getSignatureHtml(stage.signatureName, stage.signatureRole, stage.signatureSector)}</div>`;
+
+        if (content.digitalSignature?.enabled) {
+          combinedBlock += `
+              <div class="mt-1 text-center" style="margin-top: 4px;">
+                <div class="text-[7pt] text-slate-500 uppercase tracking-widest leading-tight" style="font-size: 7pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; line-height: 1.25;">
+                  <p class="font-bold text-emerald-600" style="margin:0; font-weight: 700; color: #059669;">Documento Finalizado e Consolidado</p>
+                  <p style="margin:0;">Hash Validador: <span class="font-mono text-slate-900" style="font-family: monospace; color: #0f172a;">${content.digitalSignature.id}</span></p>
+                </div>
+              </div>
+            `;
+        }
+        // Store the HTML to insert later, and append an ATOMIC placeholder that won't get fragmented by split()
+        signatureHtmlToInsert = `<div class="signature-wrapper mt-0 break-inside-avoid">${combinedBlock}</div>`;
+        stageHtml += '<div id="sig-placeholder"></div>';
       }
 
       // Split THIS stage into its own pages
@@ -136,8 +150,15 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
       let currentPageContent = '';
       let currentLinesUsed = 0;
 
-      blocks.forEach((blockHTML) => {
-        if (!blockHTML?.trim()) return;
+      blocks.forEach((originalBlockHTML) => {
+        if (!originalBlockHTML?.trim()) return;
+
+        // Swap placeholder with real signature content
+        let blockHTML = originalBlockHTML;
+        if (blockHTML.includes('id="sig-placeholder"')) {
+          blockHTML = signatureHtmlToInsert;
+        }
+
         const plainText = blockHTML.replace(/<[^>]+>/g, '') || ' ';
         const isSignature = blockHTML.includes('signature-block');
 
@@ -229,14 +250,14 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
             isGenerating={isGenerating}
             forceHidePageNumbers={forceHide}
           >
-            <div id={pageData.isFirstPageOfStage ? `licitacao-stage-${pageData.stageIndex}` : undefined} className="mb-6 flex flex-col gap-6">
+            <div id={pageData.isFirstPageOfStage ? `licitacao-stage-${pageData.stageIndex}` : undefined} className="mb-2 flex flex-col gap-2">
               <div className="bg-blue-900 text-white px-4 py-2 rounded-lg font-black text-xs uppercase tracking-[0.3em] text-center">
                 Processo Administrativo / Licitatório
               </div>
 
               {/* ADDRESSING BLOCKS - Only on First Page of Stage 0 (Início) */}
               {pageData.stageIndex === 0 && pageData.isFirstPageOfStage && (
-                <div className="flex justify-between items-start px-1">
+                <div className="flex justify-between items-start px-1 my-3">
                   <div
                     className={`whitespace-pre-wrap max-w-[45%] leading-snug ${(!content.leftBlockText) ? 'invisible' : ''}`}
                     style={{
@@ -268,15 +289,7 @@ export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGen
             </div>
             <div className="max-w-none w-full text-gray-800 leading-relaxed text-justify text-[10.5pt] whitespace-pre-wrap font-serif break-words" dangerouslySetInnerHTML={{ __html: pageData.html }} />
 
-            {/* Global Digital Signature Footer (if enabled) - Only on last page */}
-            {globalIndex === pages.length - 1 && content.digitalSignature?.enabled && (
-              <div className="mt-auto pt-10 flex justify-center">
-                <div className="text-[7pt] text-slate-500 uppercase tracking-widest leading-tight text-center">
-                  <p className="font-bold text-emerald-600">Documento Finalizado e Consolidado</p>
-                  <p>Hash Validador: <span className="font-mono text-slate-900">{content.digitalSignature.id}</span></p>
-                </div>
-              </div>
-            )}
+            {/* Global Digital Signature Footer REMOVED - Integrated into Stage 0 Block */}
           </PageWrapper>
         );
       })}
