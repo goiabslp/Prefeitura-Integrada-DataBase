@@ -131,9 +131,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                 <button onClick={() => setActiveBlock('oficio')} className={getCardClass('indigo')}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center">
-                                        <div className="w-10 h-10 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-2 md:mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-600 to-indigo-700"><FileText className="w-5 h-5 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className="text-lg md:text-2xl font-black text-slate-900 mb-0.5 md:mb-1 tracking-tight whitespace-nowrap">Ofícios</h2>
-                                        <p className="text-slate-500 text-[10px] md:text-xs font-medium opacity-0 md:opacity-100 h-0 md:h-auto overflow-hidden">Geração e histórico.</p>
+                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-600 to-indigo-700"><FileText className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
+                                        <h2 className="text-3xl md:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight whitespace-nowrap">Ofícios</h2>
+                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden">Geração e histórico.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-indigo-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
                                 </button>
@@ -143,9 +143,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                 <button onClick={() => setActiveBlock('compras')} className={getCardClass('emerald')}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center">
-                                        <div className="w-10 h-10 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-2 md:mb-3 transition-all duration-500 bg-gradient-to-br from-emerald-600 to-emerald-700"><ShoppingCart className="w-5 h-5 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className="text-lg md:text-2xl font-black text-slate-900 mb-0.5 md:mb-1 tracking-tight whitespace-nowrap">Compras</h2>
-                                        <p className="text-slate-500 text-[10px] md:text-xs font-medium opacity-0 md:opacity-100 h-0 md:h-auto overflow-hidden">Pedidos e requisições.</p>
+                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-emerald-600 to-emerald-700"><ShoppingCart className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
+                                        <h2 className="text-3xl md:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight whitespace-nowrap">Compras</h2>
+                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden">Pedidos e requisições.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-emerald-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
                                 </button>
@@ -155,9 +155,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                 <button onClick={() => setActiveBlock('licitacao')} className={getCardClass('blue')}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center">
-                                        <div className="w-10 h-10 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-2 md:mb-3 transition-all duration-500 bg-gradient-to-br from-blue-600 to-blue-700"><Gavel className="w-5 h-5 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className="text-lg md:text-2xl font-black text-slate-900 mb-0.5 md:mb-1 tracking-tight whitespace-nowrap">Licitação</h2>
-                                        <p className="text-slate-500 text-[10px] md:text-xs font-medium opacity-0 md:opacity-100 h-0 md:h-auto overflow-hidden">Processos e termos.</p>
+                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-blue-600 to-blue-700"><Gavel className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
+                                        <h2 className="text-3xl md:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight whitespace-nowrap">Licitação</h2>
+                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden">Processos e termos.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-blue-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
                                 </button>
@@ -167,9 +167,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                 <button onClick={() => setActiveBlock('diarias')} className={getCardClass('amber')}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center">
-                                        <div className="w-10 h-10 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-2 md:mb-3 transition-all duration-500 bg-gradient-to-br from-amber-600 to-amber-700"><Wallet className="w-5 h-5 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className="text-lg md:text-2xl font-black text-slate-900 mb-0.5 md:mb-1 tracking-tight whitespace-nowrap">Diárias</h2>
-                                        <p className="text-slate-500 text-[10px] md:text-xs font-medium opacity-0 md:opacity-100 h-0 md:h-auto overflow-hidden">Gestão de despesas.</p>
+                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-amber-600 to-amber-700"><Wallet className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
+                                        <h2 className="text-3xl md:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight whitespace-nowrap">Diárias</h2>
+                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden">Gestão de despesas.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-amber-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
                                 </button>
@@ -179,9 +179,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                 <button onClick={() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }} className={getCardClass('indigo')}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center w-full">
-                                        <div className="w-10 h-10 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-2 md:mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-50 to-violet-600"><CalendarRange className="w-5 h-5 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className="text-[10px] md:text-xl lg:text-2xl font-black text-slate-900 mb-0.5 md:mb-1 tracking-tight leading-tight px-1">Agendamento de veiculos</h2>
-                                        <p className="text-slate-500 text-[10px] md:text-xs font-medium opacity-0 md:opacity-100 h-0 md:h-auto overflow-hidden px-1">Controle de frotas.</p>
+                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-50 to-violet-600"><CalendarRange className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
+                                        <h2 className="text-3xl md:text-xl lg:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight leading-tight px-1">Agendamento</h2>
+                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden px-1">Controle de frotas.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-indigo-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
                                 </button>
@@ -191,9 +191,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                 <button onClick={() => setActiveBlock('abastecimento')} className={getCardClass('cyan')}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center w-full">
-                                        <div className="w-10 h-10 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-2 md:mb-3 transition-all duration-500 bg-gradient-to-br from-cyan-500 to-cyan-600"><Droplet className="w-5 h-5 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className="text-[10px] md:text-xl lg:text-2xl font-black text-slate-900 mb-0.5 md:mb-1 tracking-tight leading-tight px-1">Abastecimento</h2>
-                                        <p className="text-slate-500 text-[10px] md:text-xs font-medium opacity-0 md:opacity-100 h-0 md:h-auto overflow-hidden px-1">Controle de combustível.</p>
+                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-cyan-500 to-cyan-600"><Droplet className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
+                                        <h2 className="text-3xl md:text-xl lg:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight leading-tight px-1">Abastecimento</h2>
+                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden px-1">Controle de combustível.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-cyan-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
                                 </button>
