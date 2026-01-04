@@ -88,8 +88,11 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
 
         const combinedDate = new Date(`${date}T${time}`);
 
+        const protocolId = `ABA-${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`;
+
         const newRecord: AbastecimentoRecord = {
-            id: crypto.randomUUID(), // Or let DB handle it, but keeping for ID consistency before reload
+            id: crypto.randomUUID(),
+            protocol: protocolId,
             fiscal: authUser?.name || authUser?.username || 'Sistema',
             date: combinedDate.toISOString(),
             vehicle,

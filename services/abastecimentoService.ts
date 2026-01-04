@@ -9,6 +9,7 @@ export interface FuelConfig {
 
 export interface AbastecimentoRecord {
     id: string;
+    protocol?: string;
     fiscal: string;
     date: string;
     vehicle: string; // "Model - Brand" or just string? The DB stores string.
@@ -90,9 +91,10 @@ export const AbastecimentoService = {
                 .order('date', { ascending: false });
 
             if (error) throw error;
-            
+
             return data.map((item: any) => ({
                 id: item.id,
+                protocol: item.protocol,
                 fiscal: item.fiscal,
                 date: item.date,
                 vehicle: item.vehicle,
@@ -117,6 +119,7 @@ export const AbastecimentoService = {
         try {
             const dbRecord = {
                 id: record.id,
+                protocol: record.protocol,
                 date: record.date,
                 vehicle: record.vehicle,
                 driver: record.driver,
