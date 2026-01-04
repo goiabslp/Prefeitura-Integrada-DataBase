@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Filter, Fuel, Trash2, Calendar, User, Truck, ShieldCheck } from 'lucide-react';
 import { AbastecimentoService, AbastecimentoRecord } from '../../services/abastecimentoService';
 import { supabase } from '../../services/supabaseClient';
+import { GestureItem } from '../common/GestureItem';
 
 interface AbastecimentoListProps {
     onBack: () => void;
@@ -149,60 +150,67 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack }) 
                         {filteredSupplies.map((item) => {
                             const fuelColor = getFuelColor(item.fuelType);
                             return (
-                                <div key={item.id} className="group bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm hover:shadow-xl hover:shadow-cyan-500/5 hover:border-cyan-200 transition-all duration-300 relative overflow-hidden">
-                                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-transparent via-slate-200 to-transparent group-hover:via-cyan-400 transition-all" />
+                                <GestureItem
+                                    key={item.id}
+                                    onSwipeLeft={() => handleDelete(item.id)}
+                                    // onLongPress={() => alert('Long Press triggered!')} // Optional feedback for now
+                                    className="rounded-2xl shadow-sm mb-3"
+                                >
+                                    <div className="group bg-white rounded-2xl border border-slate-200/60 p-5 hover:shadow-xl hover:shadow-cyan-500/5 hover:border-cyan-200 transition-all duration-300 relative overflow-hidden">
+                                        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-transparent via-slate-200 to-transparent group-hover:via-cyan-400 transition-all" />
 
-                                    <div className="flex flex-col md:flex-row md:items-center gap-6 pl-2">
-                                        <div className="flex-1 space-y-4 min-w-0">
-                                            {/* Row 1 */}
-                                            <div className="grid grid-cols-2 lg:flex lg:items-start gap-4 w-full">
-                                                <DataItem
-                                                    label="Protocolo"
-                                                    value={item.protocol || item.id}
-                                                    colorClass="text-slate-500 font-mono text-[10px] bg-slate-100 px-2 py-1 rounded-md border border-slate-200"
-                                                    flex="col-span-2 lg:w-[15%]"
-                                                    truncateValue={false}
-                                                />
-                                                <DataItem label="Data / Hora" value={new Date(item.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} icon={Calendar} flex="col-span-1 lg:w-[15%]" />
-                                                <DataItem
-                                                    label="Combustível"
-                                                    value={item.fuelType.split(' - ')[0]}
-                                                    icon={Fuel}
-                                                    colorClass={fuelColor}
-                                                    flex="col-span-1 lg:w-[15%] lg:order-last"
-                                                    isBadge={true}
-                                                />
-                                                <DataItem label="Veículo" value={item.vehicle} icon={Truck} colorClass="text-slate-900 uppercase tracking-tight" flex="col-span-2 lg:w-[30%]" />
-                                                <DataItem label="Motorista" value={item.driver} icon={User} colorClass="text-slate-600 uppercase tracking-tight" flex="col-span-2 lg:w-[25%]" />
+                                        <div className="flex flex-col md:flex-row md:items-center gap-6 pl-2">
+                                            <div className="flex-1 space-y-4 min-w-0">
+                                                {/* Row 1 */}
+                                                <div className="grid grid-cols-2 lg:flex lg:items-start gap-4 w-full">
+                                                    <DataItem
+                                                        label="Protocolo"
+                                                        value={item.protocol || item.id}
+                                                        colorClass="text-slate-500 font-mono text-[10px] bg-slate-100 px-2 py-1 rounded-md border border-slate-200"
+                                                        flex="col-span-2 lg:w-[15%]"
+                                                        truncateValue={false}
+                                                    />
+                                                    <DataItem label="Data / Hora" value={new Date(item.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} icon={Calendar} flex="col-span-1 lg:w-[15%]" />
+                                                    <DataItem
+                                                        label="Combustível"
+                                                        value={item.fuelType.split(' - ')[0]}
+                                                        icon={Fuel}
+                                                        colorClass={fuelColor}
+                                                        flex="col-span-1 lg:w-[15%] lg:order-last"
+                                                        isBadge={true}
+                                                    />
+                                                    <DataItem label="Veículo" value={item.vehicle} icon={Truck} colorClass="text-slate-900 uppercase tracking-tight" flex="col-span-2 lg:w-[30%]" />
+                                                    <DataItem label="Motorista" value={item.driver} icon={User} colorClass="text-slate-600 uppercase tracking-tight" flex="col-span-2 lg:w-[25%]" />
+                                                </div>
+
+                                                {/* Row 2 */}
+                                                <div className="grid grid-cols-2 lg:flex lg:items-start gap-4 pt-4 border-t border-slate-100 w-full">
+                                                    <DataItem label="Fiscal" value={item.fiscal || 'Sistema'} icon={ShieldCheck} colorClass="text-slate-700 font-medium" flex="col-span-2 lg:w-[25%]" truncateValue={false} />
+                                                    <DataItem label="Quantidade" value={`${item.liters.toFixed(2)} L`} flex="col-span-1 lg:w-[10%]" colorClass="text-slate-600" />
+                                                    <DataItem label="KM" value={`${item.odometer.toLocaleString()} Km`} flex="col-span-1 lg:w-[10%]" colorClass="text-slate-600" />
+                                                    <DataItem label="Setor" value={vehicleSectorMap[item.vehicle] || '-'} icon={ShieldCheck} colorClass="text-slate-500 uppercase text-[11px]" flex="col-span-2 lg:w-[30%]" truncateValue={false} />
+                                                    <DataItem
+                                                        label="Custo"
+                                                        value={`R$ ${item.cost.toFixed(2)}`}
+                                                        colorClass="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100"
+                                                        flex="col-span-2 lg:w-[25%]"
+                                                    />
+                                                </div>
                                             </div>
 
-                                            {/* Row 2 */}
-                                            <div className="grid grid-cols-2 lg:flex lg:items-start gap-4 pt-4 border-t border-slate-100 w-full">
-                                                <DataItem label="Fiscal" value={item.fiscal || 'Sistema'} icon={ShieldCheck} colorClass="text-slate-700 font-medium" flex="col-span-2 lg:w-[25%]" truncateValue={false} />
-                                                <DataItem label="Quantidade" value={`${item.liters.toFixed(2)} L`} flex="col-span-1 lg:w-[10%]" colorClass="text-slate-600" />
-                                                <DataItem label="KM" value={`${item.odometer.toLocaleString()} Km`} flex="col-span-1 lg:w-[10%]" colorClass="text-slate-600" />
-                                                <DataItem label="Setor" value={vehicleSectorMap[item.vehicle] || '-'} icon={ShieldCheck} colorClass="text-slate-500 uppercase text-[11px]" flex="col-span-2 lg:w-[30%]" truncateValue={false} />
-                                                <DataItem
-                                                    label="Custo"
-                                                    value={`R$ ${item.cost.toFixed(2)}`}
-                                                    colorClass="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100"
-                                                    flex="col-span-2 lg:w-[25%]"
-                                                />
-                                            </div>
+                                            {/* Action */}
+                                            <button
+                                                onClick={() => handleDelete(item.id)}
+                                                className="hidden md:block p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0"
+                                                title="Excluir Registro"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+
+
                                         </div>
-
-                                        {/* Action */}
-                                        <button
-                                            onClick={() => handleDelete(item.id)}
-                                            className="hidden md:block p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0"
-                                            title="Excluir Registro"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-
-
                                     </div>
-                                </div>
+                                </GestureItem>
                             );
                         })}
                     </div>
