@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Filter, Fuel, Trash2, Calendar, User, Truck, ShieldCheck } from 'lucide-react';
 import { AbastecimentoService, AbastecimentoRecord } from '../../services/abastecimentoService';
+import { supabase } from '../../services/supabaseClient';
 
 interface AbastecimentoListProps {
     onBack: () => void;
@@ -25,6 +26,21 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack }) 
 
     useEffect(() => {
         loadSupplies();
+
+        const channel = supabase
+            .channel('abastecimentos-list-changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'abastecimentos' },
+                () => {
+                    loadSupplies();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     const handleDelete = async (id: string) => {

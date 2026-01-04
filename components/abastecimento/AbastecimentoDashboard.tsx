@@ -1,12 +1,21 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft, TrendingUp, Droplet, DollarSign, Truck, Settings, LayoutDashboard, Building2, MapPin, CreditCard, Fuel, Save, Plus, Calendar, ChevronDown, History, BarChart3, Search, ChevronRight } from 'lucide-react';
-import { AbastecimentoService } from '../../services/abastecimentoService';
+import { AbastecimentoService, AbastecimentoRecord } from '../../services/abastecimentoService';
+import { supabase } from '../../services/supabaseClient';
 
 interface AbastecimentoDashboardProps {
     onBack: () => void;
 }
 
 type TabType = 'overview' | 'vehicle' | 'config';
+
+interface VehicleStat {
+    name: string;
+    totalCost: number;
+    totalLiters: number;
+    count: number;
+    lastRef: string;
+}
 
 const ConfigPanel: React.FC = () => {
     const [fuelConfig, setFuelConfig] = useState({ diesel: 0, gasolina: 0, etanol: 0, arla: 0 });
@@ -25,6 +34,28 @@ const ConfigPanel: React.FC = () => {
             setGasStations(stations);
         };
         loadData();
+
+        const channel = supabase
+            .channel('config-panel-changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'abastecimento_config' },
+                () => {
+                    AbastecimentoService.getFuelConfig().then(setFuelConfig);
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'abastecimento_gas_stations' },
+                () => {
+                    AbastecimentoService.getGasStations().then(setGasStations);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     const handleSaveConfig = async () => {
@@ -258,7 +289,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [vehicleSearchTerm, setVehicleSearchTerm] = useState('');
     const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
-    const [allRecords, setAllRecords] = useState<{ id: string, date: string, cost: number, liters: number, vehicle: string, odometer: number, fuelType: string, driver: string }[]>([]);
+    const [allRecords, setAllRecords] = useState<AbastecimentoRecord[]>([]);
 
     useEffect(() => {
         const loadRecords = async () => {
@@ -266,6 +297,21 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             setAllRecords(data);
         };
         loadRecords();
+
+        const channel = supabase
+            .channel('dashboard-records-changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'abastecimentos' },
+                () => {
+                    loadRecords();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     const months = [
@@ -297,15 +343,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         const litersDiff = prevLiters === 0 ? 0 : ((totalLiters - prevLiters) / prevLiters) * 100;
 
         // Group by vehicle
-        interface VehicleStat {
-            name: string;
-            totalCost: number;
-            totalLiters: number;
-            count: number;
-            lastRef: string;
-        }
-
-        const vehicleGroups = filtered.reduce<Record<string, VehicleStat>>((acc, r) => {
+        // Group by vehicle
+        const vehicleGroups = filtered.reduce((acc, r) => {
             if (!acc[r.vehicle]) {
                 acc[r.vehicle] = {
                     name: r.vehicle,
@@ -322,9 +361,9 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 acc[r.vehicle].lastRef = r.date;
             }
             return acc;
-        }, {});
+        }, {} as Record<string, VehicleStat>);
 
-        const vehicleStats = Object.values(vehicleGroups).sort((a, b) => b.totalCost - a.totalCost);
+        const vehicleStats = Object.values(vehicleGroups).sort((a: VehicleStat, b: VehicleStat) => b.totalCost - a.totalCost);
         const activeVehicles = vehicleStats.length;
 
         const avgKmL = filtered.length > 0 ? 9.2 : 0; // Simple placeholder
@@ -357,8 +396,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     <h3 className="text-3xl font-black text-slate-900 tracking-tight">
                         R$ {stats.totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </h3>
-                    <div className={`mt-auto pt-4 flex items-center gap-2 text-xs font-bold ${stats.costDiff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        <TrendingUp className={`w-3 h-3 ${stats.costDiff < 0 ? 'rotate-180' : ''}`} />
+                    <div className={`mt - auto pt - 4 flex items - center gap - 2 text - xs font - bold ${stats.costDiff >= 0 ? 'text-emerald-600' : 'text-rose-600'} `}>
+                        <TrendingUp className={`w - 3 h - 3 ${stats.costDiff < 0 ? 'rotate-180' : ''} `} />
                         {stats.costDiff === 0 ? 'Sem dados anteriores' : `${stats.costDiff > 0 ? '+' : ''}${stats.costDiff.toFixed(1)}% vs mês anterior`}
                     </div>
                 </div>
@@ -373,8 +412,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     <h3 className="text-3xl font-black text-slate-900 tracking-tight">
                         {stats.totalLiters.toLocaleString('pt-BR', { minimumFractionDigits: 1 })} L
                     </h3>
-                    <div className={`mt-auto pt-4 flex items-center gap-2 text-xs font-bold ${stats.litersDiff <= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                        <TrendingUp className={`w-3 h-3 ${stats.litersDiff > 0 ? '' : 'rotate-180'}`} />
+                    <div className={`mt - auto pt - 4 flex items - center gap - 2 text - xs font - bold ${stats.litersDiff <= 0 ? 'text-blue-600' : 'text-amber-600'} `}>
+                        <TrendingUp className={`w - 3 h - 3 ${stats.litersDiff > 0 ? '' : 'rotate-180'} `} />
                         {stats.litersDiff === 0 ? 'Consumo estável' : `${stats.litersDiff > 0 ? '+' : ''}${stats.litersDiff.toFixed(1)}% vs mês anterior`}
                     </div>
                 </div>
@@ -549,7 +588,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Custo Médio</span>
                         </div>
                         <p className="text-2xl font-black text-slate-900">
-                            {avgCostPerKm > 0 ? `R$ ${avgCostPerKm.toFixed(2)}` : '--'} <span className="text-sm text-slate-400 font-bold">/km</span>
+                            {avgCostPerKm > 0 ? `R$ ${avgCostPerKm.toFixed(2)} ` : '--'} <span className="text-sm text-slate-400 font-bold">/km</span>
                         </p>
                     </div>
                 </div>
@@ -567,7 +606,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                     <div className="relative w-full bg-slate-100 rounded-t-lg overflow-hidden flex items-end h-40">
                                         <div
                                             className="w-full bg-cyan-400 group-hover:bg-cyan-500 transition-all duration-500 ease-out"
-                                            style={{ height: `${Math.min((rec.liters / 100) * 100, 100)}%` }}
+                                            style={{ height: `${Math.min((rec.liters / 100) * 100, 100)}% ` }}
                                         ></div>
                                         <div className="absolute inset-0 flex items-end justify-center pb-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <span className="text-[10px] font-bold text-white drop-shadow-md">{rec.liters.toFixed(0)}L</span>
@@ -807,30 +846,30 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         <div className="flex p-1 bg-slate-200/50 border border-slate-200/60 rounded-2xl overflow-x-auto custom-scrollbar">
                             <button
                                 onClick={() => setActiveTab('overview')}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'overview'
+                                className={`flex items - center gap - 2 px - 4 py - 2 rounded - xl text - xs font - bold transition - all duration - 300 ${activeTab === 'overview'
                                     ? 'bg-white text-cyan-600 shadow-sm ring-1 ring-black/5'
                                     : 'text-slate-500 hover:text-slate-700'
-                                    }`}
+                                    } `}
                             >
                                 <LayoutDashboard className="w-3.5 h-3.5" />
                                 Visão Geral
                             </button>
                             <button
                                 onClick={() => setActiveTab('vehicle')}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'vehicle'
+                                className={`flex items - center gap - 2 px - 4 py - 2 rounded - xl text - xs font - bold transition - all duration - 300 ${activeTab === 'vehicle'
                                     ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5'
                                     : 'text-slate-500 hover:text-slate-700'
-                                    }`}
+                                    } `}
                             >
                                 <Truck className="w-3.5 h-3.5" />
                                 Veículos
                             </button>
                             <button
                                 onClick={() => setActiveTab('config')}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'config'
+                                className={`flex items - center gap - 2 px - 4 py - 2 rounded - xl text - xs font - bold transition - all duration - 300 ${activeTab === 'config'
                                     ? 'bg-white text-slate-900 shadow-sm ring-1 ring-black/5'
                                     : 'text-slate-500 hover:text-slate-700'
-                                    }`}
+                                    } `}
                             >
                                 <Settings className="w-3.5 h-3.5" />
                                 Ajustes
