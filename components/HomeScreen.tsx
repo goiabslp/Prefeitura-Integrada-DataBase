@@ -216,72 +216,72 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                 <p className="text-slate-500 text-xs font-medium">Gestão Integrada Municipal</p>
                             </div>
 
-                            <div className="flex flex-row flex-wrap items-stretch justify-center gap-4 md:gap-6 lg:gap-8 pt-4 w-full max-w-full overflow-hidden">
+                            <div className="flex flex-col md:flex-row flex-nowrap md:flex-wrap items-center justify-start md:justify-center gap-4 md:gap-6 lg:gap-8 pt-4 w-full max-w-full overflow-y-auto md:overflow-visible h-[calc(100vh-200px)] md:h-auto pb-24 md:pb-0">
                                 {activeBlock !== 'abastecimento' && (
                                     <>
-                                        <button onClick={() => onNewOrder(activeBlock || 'oficio')} className={`group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-indigo-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52' : 'w-48 md:w-64 h-48 md:h-56'} shrink-0 overflow-hidden`}>
-                                            <div className="w-8 h-8 md:w-14 md:h-14 bg-indigo-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><FilePlus className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
-                                            <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">{getNewActionLabel()}</h3>
-                                            <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Criar novo registro.</p>
+                                        <button onClick={() => onNewOrder(activeBlock || 'oficio')} className={`group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-indigo-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-full md:w-52 h-64 md:h-52' : 'w-full md:w-64 h-64 md:h-56'} shrink-0 overflow-hidden`}>
+                                            <div className="w-20 h-20 md:w-14 md:h-14 bg-indigo-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><FilePlus className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
+                                            <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">{getNewActionLabel()}</h3>
+                                            <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Criar novo registro.</p>
                                         </button>
 
-                                        <button onClick={onTrackOrder} className={`group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-purple-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52' : 'w-48 md:w-64 h-48 md:h-56'} shrink-0 overflow-hidden`}>
-                                            <div className="w-8 h-8 md:w-14 md:h-14 bg-purple-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><History className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
-                                            <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">{
+                                        <button onClick={onTrackOrder} className={`group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-purple-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-full md:w-52 h-64 md:h-52' : 'w-full md:w-64 h-64 md:h-56'} shrink-0 overflow-hidden`}>
+                                            <div className="w-20 h-20 md:w-14 md:h-14 bg-purple-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><History className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
+                                            <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">{
                                                 activeBlock === 'oficio' ? 'Histórico de Ofícios' :
                                                     activeBlock === 'compras' ? 'Histórico de Compras' :
                                                         activeBlock === 'diarias' ? 'Histórico de Solicitações' :
                                                             activeBlock === 'licitacao' ? 'Meus Processos' :
                                                                 'Histórico'
                                             }</h3>
-                                            <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Consulte registros de {activeBlock?.toUpperCase()}.</p>
+                                            <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Consulte registros de {activeBlock?.toUpperCase()}.</p>
                                         </button>
                                     </>
                                 )}
 
                                 {activeBlock === 'compras' && canManagePurchaseOrders && (
-                                    <button onClick={onManagePurchaseOrders} className={`group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-emerald-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52' : 'w-48 md:w-64 h-48 md:h-56'} shrink-0 overflow-hidden`}>
-                                        <div className="w-8 h-8 md:w-14 md:h-14 bg-emerald-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><Inbox className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
-                                        <h3 className="text-[10px] sm:text-xs md:text-lg lg:text-xl font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">Pedidos</h3>
-                                        <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Gestão Administrativa (Admin)</p>
+                                    <button onClick={onManagePurchaseOrders} className={`group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-emerald-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-full md:w-52 h-64 md:h-52' : 'w-full md:w-64 h-64 md:h-56'} shrink-0 overflow-hidden`}>
+                                        <div className="w-20 h-20 md:w-14 md:h-14 bg-emerald-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><Inbox className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
+                                        <h3 className="text-3xl sm:text-xs md:text-lg lg:text-xl font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">Pedidos</h3>
+                                        <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Gestão Administrativa (Admin)</p>
                                     </button>
                                 )}
 
                                 {activeBlock === 'licitacao' && canAccessLicitacaoTriagem && (
-                                    <button onClick={onManageLicitacaoScreening} className="group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-amber-300 transition-all flex flex-col items-center text-center justify-center w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52 shrink-0 overflow-hidden">
-                                        <div className="w-8 h-8 md:w-14 md:h-14 bg-amber-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><Inbox className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
-                                        <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">Triagem</h3>
-                                        <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Triagem de Processos</p>
+                                    <button onClick={onManageLicitacaoScreening} className="group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-amber-300 transition-all flex flex-col items-center text-center justify-center w-full md:w-52 h-64 md:h-52 shrink-0 overflow-hidden">
+                                        <div className="w-20 h-20 md:w-14 md:h-14 bg-amber-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><Inbox className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
+                                        <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">Triagem</h3>
+                                        <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Triagem de Processos</p>
                                     </button>
 
                                 )}
 
                                 {activeBlock === 'licitacao' && canAccessLicitacaoProcessos && (
-                                    <button onClick={onViewAllLicitacao} className="group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-sky-300 transition-all flex flex-col items-center text-center justify-center w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52 shrink-0 overflow-hidden">
-                                        <div className="w-8 h-8 md:w-14 md:h-14 bg-sky-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><FileSearch className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
-                                        <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">Processos</h3>
-                                        <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Todos os Processos</p>
+                                    <button onClick={onViewAllLicitacao} className="group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-sky-300 transition-all flex flex-col items-center text-center justify-center w-full md:w-52 h-64 md:h-52 shrink-0 overflow-hidden">
+                                        <div className="w-20 h-20 md:w-14 md:h-14 bg-sky-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><FileSearch className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
+                                        <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">Processos</h3>
+                                        <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Todos os Processos</p>
                                     </button>
                                 )}
 
                                 {activeBlock === 'abastecimento' && (
                                     <>
-                                        <button onClick={() => onAbastecimento?.('new')} className="group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-cyan-300 transition-all flex flex-col items-center text-center justify-center w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52 shrink-0 overflow-hidden">
-                                            <div className="w-8 h-8 md:w-14 md:h-14 bg-cyan-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><Fuel className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
-                                            <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">Novo Abastecimento</h3>
-                                            <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Registrar entrada.</p>
+                                        <button onClick={() => onAbastecimento?.('new')} className="group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-cyan-300 transition-all flex flex-col items-center text-center justify-center w-full md:w-52 h-64 md:h-52 shrink-0 overflow-hidden">
+                                            <div className="w-20 h-20 md:w-14 md:h-14 bg-cyan-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><Fuel className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
+                                            <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">Novo Abastecimento</h3>
+                                            <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Registrar entrada.</p>
                                         </button>
 
-                                        <button onClick={() => onAbastecimento?.('management')} className="group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-blue-300 transition-all flex flex-col items-center text-center justify-center w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52 shrink-0 overflow-hidden">
-                                            <div className="w-8 h-8 md:w-14 md:h-14 bg-blue-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><History className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
-                                            <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 leading-tight px-1">Gestão de<br />Abastecimento</h3>
-                                            <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Consultar histórico.</p>
+                                        <button onClick={() => onAbastecimento?.('management')} className="group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-blue-300 transition-all flex flex-col items-center text-center justify-center w-full md:w-52 h-64 md:h-52 shrink-0 overflow-hidden">
+                                            <div className="w-20 h-20 md:w-14 md:h-14 bg-blue-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><History className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
+                                            <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 leading-tight px-1">Gestão de<br />Abastecimento</h3>
+                                            <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Consultar histórico.</p>
                                         </button>
 
-                                        <button onClick={() => onAbastecimento?.('dashboard')} className="group p-4 md:p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-emerald-300 transition-all flex flex-col items-center text-center justify-center w-36 sm:w-44 md:w-52 lg:w-56 h-36 md:h-48 lg:h-52 shrink-0 overflow-hidden">
-                                            <div className="w-8 h-8 md:w-14 md:h-14 bg-emerald-600 rounded-xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform"><BarChart3 className="w-4 h-4 md:w-7 md:h-7 text-white" /></div>
-                                            <h3 className="text-[10px] sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-0.5 md:mb-1 whitespace-nowrap px-1">Dashboard</h3>
-                                            <p className="text-slate-500 text-[8px] sm:text-[10px] md:text-xs font-medium px-1">Indicadores e gráficos.</p>
+                                        <button onClick={() => onAbastecimento?.('dashboard')} className="group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-emerald-300 transition-all flex flex-col items-center text-center justify-center w-full md:w-52 h-64 md:h-52 shrink-0 overflow-hidden">
+                                            <div className="w-20 h-20 md:w-14 md:h-14 bg-emerald-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><BarChart3 className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
+                                            <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">Dashboard</h3>
+                                            <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Indicadores e gráficos.</p>
                                         </button>
                                     </>
                                 )}
