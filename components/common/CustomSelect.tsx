@@ -48,7 +48,10 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 
     useEffect(() => {
         if (isOpen && searchInputRef.current) {
-            searchInputRef.current.focus();
+            // Only auto-focus on larger screens (desktop) to avoid keyboard popup on mobile
+            if (window.innerWidth >= 768) {
+                searchInputRef.current.focus();
+            }
         }
         if (!isOpen) {
             setSearchTerm(''); // Reset search on close
