@@ -46,6 +46,7 @@ import { ToastNotification, ToastType } from './components/common/ToastNotificat
 import { AbastecimentoForm } from './components/abastecimento/AbastecimentoForm';
 import { AbastecimentoList } from './components/abastecimento/AbastecimentoList';
 import { AbastecimentoDashboard } from './components/abastecimento/AbastecimentoDashboard';
+import { ForcePasswordChangeModal } from './components/ForcePasswordChangeModal';
 
 const VIEW_TO_PATH: Record<string, string> = {
   'login': '/Login',
@@ -1250,6 +1251,20 @@ const App: React.FC = () => {
   };
 
   if (currentView === 'login') return <LoginScreen onLogin={handleLogin} uiConfig={appState.ui} />;
+
+  if (currentUser && currentUser.tempPassword) {
+    return (
+      <ForcePasswordChangeModal
+        currentUser={currentUser}
+        onSuccess={async () => {
+          await refreshUser();
+          // Optional: Show success toast
+          setToast({ isVisible: true, message: "Senha alterada com sucesso!", type: 'success' });
+        }}
+        onLogout={handleLogout}
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-50 font-sans flex-col">

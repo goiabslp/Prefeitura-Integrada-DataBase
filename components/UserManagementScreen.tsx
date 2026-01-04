@@ -5,8 +5,27 @@ import { User, UserRole, Signature, AppPermission, Job, Sector, Person } from '.
 import {
   Plus, Search, Edit2, Trash2, ShieldCheck, Users, Save, X, Key,
   PenTool, LayoutGrid, User as UserIcon, CheckCircle2, Gavel, ShoppingCart, Briefcase, Network,
-  Eye, EyeOff, RotateCcw, AlertTriangle, Clock, Lock, Copy, Check, Info, Trash, ToggleRight, ArrowLeft
+  Eye, EyeOff, RotateCcw, AlertTriangle, Clock, Lock, Copy, Check, Info, Trash, ToggleRight, ArrowLeft, RefreshCw
 } from 'lucide-react';
+
+const generateStrongPassword = () => {
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const num = "23456789";
+  const special = "!@#$%&*";
+  const all = lower + upper + num + special;
+
+  let pass = "";
+  pass += lower.charAt(Math.floor(Math.random() * lower.length));
+  pass += upper.charAt(Math.floor(Math.random() * upper.length));
+  pass += num.charAt(Math.floor(Math.random() * num.length));
+  pass += special.charAt(Math.floor(Math.random() * special.length));
+
+  for (let i = 4; i < 8; i++) {
+    pass += all.charAt(Math.floor(Math.random() * all.length));
+  }
+  return pass.split('').sort(() => 0.5 - Math.random()).join('');
+};
 
 interface UserManagementScreenProps {
   users: User[];
@@ -134,7 +153,7 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
       setFormData({
         name: '',
         username: '',
-        password: '',
+        password: generateStrongPassword(), // Auto-generate for new user
         tempPassword: '',
         tempPasswordExpiresAt: undefined,
         role: 'collaborator',
@@ -250,9 +269,13 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
       return;
     }
 
-    if (formData.password && formData.password.length < 6) {
-      showToast("A senha deve ter no mínimo 6 caracteres.", 'error');
-      return;
+    if (formData.password) {
+      const p = formData.password;
+      const isStrong = p.length >= 8 && /[A-Z]/.test(p) && /[a-z]/.test(p) && /[0-9]/.test(p) && /[^A-Za-z0-9]/.test(p);
+      if (!isStrong) {
+        showToast("A senha fraca! Verifique os requisitos.", 'error');
+        return;
+      }
     }
 
     // Check for duplicate username
@@ -591,22 +614,53 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                   <div>
                     <label className={labelClass}>Segurança de Acesso</label>
                     {isEditingSelf || !editingUser ? (
-                      <div className="relative">
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          value={formData.password}
-                          onChange={e => setFormData({ ...formData, password: e.target.value })}
-                          className={inputClass}
-                          placeholder="Digite a senha"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors"
-                        >
-                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </button>
-                      </div>
+                      <>
+                        <div className="relative">
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            value={formData.password}
+                            onChange={e => setFormData({ ...formData, password: e.target.value })}
+                            className={`${inputClass} pr-24`}
+                            placeholder="Digite a senha"
+                          />
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newPass = generateStrongPassword();
+                                setFormData(prev => ({ ...prev, password: newPass }));
+                              }}
+                              className="text-slate-400 hover:text-cyan-600 transition-colors"
+                              title="Gerar nova senha forte"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="text-slate-400 hover:text-indigo-600 transition-colors"
+                            >
+                              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Password Strength Checklist */}
+                        <div className="grid grid-cols-2 gap-2 mt-3 pl-1">
+                          {[
+                            { valid: (formData.password?.length || 0) >= 8, label: "Mínimo 8 caracteres" },
+                            { valid: /[A-Z]/.test(formData.password || ''), label: "Letra Maiúscula" },
+                            { valid: /[a-z]/.test(formData.password || ''), label: "Letra Minúscula" },
+                            { valid: /[0-9]/.test(formData.password || ''), label: "Número" },
+                            { valid: /[^A-Za-z0-9]/.test(formData.password || ''), label: "Caractere Especial" }
+                          ].map((req, idx) => (
+                            <div key={idx} className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${req.valid ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              {req.valid ? <CheckCircle2 className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border-2 border-slate-300" />}
+                              {req.label}
+                            </div>
+                          ))}
+                        </div>
+                      </>
                     ) : (
                       <div className="space-y-3">
                         <div className="bg-slate-100 rounded-xl p-3 border border-slate-200 flex items-center gap-3 text-slate-400 italic text-xs">

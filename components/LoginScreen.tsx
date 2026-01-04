@@ -147,7 +147,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, uiConfig }) =
                 <input
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => setUsername(e.target.value.toUpperCase())}
                   className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-slate-600 focus:bg-white/[0.08] focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all duration-300"
                   placeholder="Seu usuário de acesso"
                 />
