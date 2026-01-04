@@ -17,6 +17,7 @@ import * as signatureService from './services/signatureService';
 
 import * as vehicleSchedulingService from './services/vehicleSchedulingService';
 import * as licitacaoService from './services/licitacaoService';
+import { AbastecimentoService } from './services/abastecimentoService';
 import { Send, CheckCircle2, X, Download, Save, FilePlus, Package, History, FileText, Settings, LogOut, ChevronRight, ChevronDown, Search, Filter, Upload, Trash2, Printer, Edit, ArrowLeft } from 'lucide-react';
 
 // Components
@@ -2010,10 +2011,13 @@ const App: React.FC = () => {
             }}
             onSave={(data) => {
               console.log('Abastecimento salvo:', data);
+              AbastecimentoService.saveAbastecimento(data);
               showToast('Abastecimento registrado com sucesso!', 'success');
               setCurrentView('home');
               setActiveBlock('abastecimento');
             }}
+            vehicles={vehicles}
+            persons={persons}
           />
         )}
 
