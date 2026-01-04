@@ -66,7 +66,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     ].filter(Boolean).length;
 
     const getContainerClass = () => {
-        return 'flex flex-row flex-wrap items-center justify-center gap-3 md:gap-4 lg:gap-6 w-full max-w-full px-4 overflow-hidden';
+        return 'flex flex-col md:flex-row flex-wrap items-center justify-center gap-3 md:gap-4 lg:gap-6 w-full max-w-full px-4 overflow-y-auto md:overflow-visible pb-20 md:pb-0';
     };
 
     const getCardClass = (color: string) => {
@@ -74,12 +74,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         const hoverShadow = `hover:border-${color}-400`;
 
         // More aggressive dynamic sizing to ensure single-row display
-        let sizeClass = "w-32 md:w-48 lg:w-56 h-44 md:h-64 lg:h-72 p-4 md:p-6";
+        let sizeClass = "w-full md:w-48 lg:w-56 h-24 md:h-64 lg:h-72 p-4 md:p-6 flex-row md:flex-col justify-start md:justify-center gap-4 md:gap-0";
 
-        if (visibleModulesCount === 1) sizeClass = "w-64 md:w-80 h-80 md:h-[400px] p-10 scale-110";
-        else if (visibleModulesCount === 2) sizeClass = "w-48 md:w-64 lg:w-72 h-64 md:h-80 lg:h-96 p-8";
-        else if (visibleModulesCount === 3) sizeClass = "w-40 md:w-56 lg:w-64 h-56 md:h-72 lg:h-80 p-6";
-        else if (visibleModulesCount >= 6) sizeClass = "w-28 md:w-40 lg:w-44 h-40 md:h-56 lg:h-60 p-2 md:p-4";
+        if (visibleModulesCount === 1) sizeClass = "w-full md:w-64 md:w-80 h-32 md:h-[400px] p-6 md:p-10 scale-100 md:scale-110";
+        else if (visibleModulesCount === 2) sizeClass = "w-full md:w-48 md:w-64 lg:w-72 h-28 md:h-80 lg:h-96 p-4 md:p-8";
+        else if (visibleModulesCount === 3) sizeClass = "w-full md:w-40 md:w-56 lg:w-64 h-24 md:h-72 lg:h-80 p-4 md:p-6";
+        else if (visibleModulesCount >= 6) sizeClass = "w-full md:w-28 md:w-40 lg:w-44 h-20 md:h-56 lg:h-60 p-3 md:p-4";
 
         return `${base} ${hoverShadow} ${sizeClass}`;
     };
