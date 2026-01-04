@@ -185,6 +185,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                             <div className="relative group">
                                 <input
                                     type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     placeholder="000.000"
                                     value={invoiceNumber}
                                     onChange={(e) => setInvoiceNumber(e.target.value)}
@@ -225,6 +227,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 <div className="relative group">
                                     <input
                                         type="number"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                         required
                                         placeholder="000000"
                                         value={odometer}
@@ -254,6 +258,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 <div className="relative group">
                                     <input
                                         type="number"
+                                        inputMode="decimal"
                                         step="0.1"
                                         required
                                         placeholder="00.0"
