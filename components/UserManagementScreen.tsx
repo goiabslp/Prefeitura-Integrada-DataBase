@@ -501,7 +501,19 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                             value={formData.name}
                             onChange={(e) => {
                               const newVal = e.target.value;
-                              setFormData(prev => ({ ...prev, name: newVal }));
+
+                              // Helper to generate acronym
+                              const generateAcronym = (name: string) => {
+                                const parts = name.trim().toUpperCase().split(/\s+/).filter(p => p.length > 0);
+                                if (parts.length === 0) return '';
+                                if (parts.length >= 3) return parts[0][0] + parts[1][0] + parts[2][0];
+                                if (parts.length === 2) return parts[0][0] + parts[1][0] + parts[0][0];
+                                return parts[0].substring(0, 3);
+                              };
+
+                              const newUsername = generateAcronym(newVal);
+
+                              setFormData(prev => ({ ...prev, name: newVal, username: newUsername }));
 
                               // Auto-fill if exact match found
                               const match = persons.find(p => p.name.toLowerCase() === newVal.toLowerCase());
@@ -538,9 +550,19 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                                 onClick={() => {
                                   const foundSector = p.sectorId ? sectors.find(s => s.id === p.sectorId)?.name : undefined;
                                   const foundJob = p.jobId ? jobs.find(j => j.id === p.jobId)?.name : undefined;
+                                  const generateAcronym = (name: string) => {
+                                    const parts = name.trim().toUpperCase().split(/\s+/).filter(p => p.length > 0);
+                                    if (parts.length === 0) return '';
+                                    if (parts.length >= 3) return parts[0][0] + parts[1][0] + parts[2][0];
+                                    if (parts.length === 2) return parts[0][0] + parts[1][0] + parts[0][0];
+                                    return parts[0].substring(0, 3);
+                                  };
+                                  const newUsername = generateAcronym(p.name);
+
                                   setFormData(prev => ({
                                     ...prev,
                                     name: p.name,
+                                    username: newUsername,
                                     sector: foundSector || prev.sector,
                                     jobTitle: foundJob || prev.jobTitle
                                   }));
@@ -571,7 +593,8 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                   </div>
                   <div>
                     <label className={labelClass}>Usuário de Acesso</label>
-                    <input value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} className={inputClass} disabled={!isAdmin} placeholder="ex: nome.sobrenome" />
+
+                    <input value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value.toUpperCase() })} className={inputClass} disabled={(!editingUser || !isAdmin)} placeholder="ex: AAA" />
                   </div>
 
                   <div>
@@ -725,8 +748,8 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                           value={formData.jobTitle}
                           onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
                           className={`${inputClass} pr-10 cursor-pointer`}
-                          placeholder="Selecione ou digite um cargo"
-                          disabled={!isAdmin}
+                          placeholder={!editingUser ? "Preenchimento Automático" : "Selecione ou digite um cargo"}
+                          disabled={(!editingUser || !isAdmin)}
                         />
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
                           <Briefcase className="w-4 h-4" />
@@ -776,8 +799,8 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                           value={formData.sector}
                           onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
                           className={`${inputClass} pr-10 cursor-pointer`}
-                          placeholder="Selecione ou digite um setor"
-                          disabled={!isAdmin}
+                          placeholder={!editingUser ? "Preenchimento Automático" : "Selecione ou digite um setor"}
+                          disabled={(!editingUser || !isAdmin)}
                         />
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
                           <Network className="w-4 h-4" />
