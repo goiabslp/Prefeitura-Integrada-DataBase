@@ -1805,7 +1805,9 @@ const App: React.FC = () => {
                         ...u,
                         jobTitle: u.jobTitle,
                         allowedSignatureIds: u.allowedSignatureIds,
-                        twoFactorEnabled: false
+                        twoFactorEnabled: false,
+                        tempPassword: u.password,
+                        tempPasswordExpiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours validity
                       };
 
                       const { data: newId, error } = await supabase.rpc('create_user_admin', {
@@ -1816,7 +1818,11 @@ const App: React.FC = () => {
 
                       if (error) {
                         console.error("Error creating user:", error);
-                        alert("Erro ao criar usuário: " + error.message);
+                        if (error.code === '23505' || error.message?.includes('duplicate')) {
+                          alert("Este nome de usuário ou e-mail já existe no sistema. Se o usuário foi excluído recentemente, entre em contato com o suporte ou tente um nome diferente.");
+                        } else {
+                          alert("Erro ao criar usuário: " + error.message);
+                        }
                       } else {
                         // Refresh users
                         const { data: refreshed } = await supabase.from('profiles').select('*');
