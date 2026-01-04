@@ -66,21 +66,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     ].filter(Boolean).length;
 
     const getContainerClass = () => {
-        return 'flex flex-col md:flex-row flex-wrap items-center justify-center gap-6 md:gap-4 lg:gap-6 w-full max-w-full px-6 overflow-y-auto md:overflow-visible pb-32 md:pb-0 pt-4 md:pt-0';
+        return 'flex flex-col md:flex-row flex-nowrap md:flex-wrap items-center justify-start md:justify-center gap-4 md:gap-4 lg:gap-6 w-full max-w-full px-4 overflow-y-auto md:overflow-visible h-full md:h-auto pb-24 md:pb-0 pt-4 md:pt-0';
     };
 
     const getCardClass = (color: string) => {
-        const base = "group relative rounded-[2.5rem] border transition-all duration-500 text-center flex flex-col items-center justify-center overflow-hidden bg-white border-slate-200 hover:scale-[1.05] shrink-0 shadow-sm";
+        const base = "group relative rounded-[2.5rem] border transition-all duration-500 text-center flex flex-col items-center justify-center overflow-hidden bg-white border-slate-200 hover:scale-[1.05] shrink-0";
         const hoverShadow = `hover:border-${color}-400`;
 
-        // Mobile: w-full, h-auto (min-h), larger padding to show full content without clipping
-        // Desktop: fixed dimensions as before
-        let sizeClass = "w-full md:w-48 lg:w-56 min-h-[140px] md:min-h-0 h-auto md:h-64 lg:h-72 p-6 md:p-6 flex-row md:flex-col justify-start md:justify-center gap-6 md:gap-0";
+        // More aggressive dynamic sizing to ensure single-row display
+        // Mobile: Fixed size (w-72 h-64) stacked vertically
+        // Desktop: Dynamic based on count
+        let sizeClass = "w-72 h-64 md:w-48 lg:w-56 md:h-64 lg:h-72 p-6 flex-col justify-center gap-0";
 
-        if (visibleModulesCount === 1) sizeClass = "w-full md:w-64 md:w-80 min-h-[160px] md:min-h-0 h-auto md:h-[400px] p-8 md:p-10 scale-100 md:scale-110";
-        else if (visibleModulesCount === 2) sizeClass = "w-full md:w-48 md:w-64 lg:w-72 min-h-[150px] md:min-h-0 h-auto md:h-80 lg:h-96 p-6 md:p-8";
-        else if (visibleModulesCount === 3) sizeClass = "w-full md:w-40 md:w-56 lg:w-64 min-h-[140px] md:min-h-0 h-auto md:h-72 lg:h-80 p-6 md:p-6";
-        else if (visibleModulesCount >= 6) sizeClass = "w-full md:w-28 md:w-40 lg:w-44 min-h-[110px] md:min-h-0 h-auto md:h-56 lg:h-60 p-4 md:p-4";
+        if (visibleModulesCount === 1) sizeClass = "w-72 h-80 md:w-64 md:w-80 md:h-[400px] p-6 md:p-10 scale-100 md:scale-110";
+        else if (visibleModulesCount === 2) sizeClass = "w-72 h-72 md:w-48 md:w-64 lg:w-72 md:h-80 lg:h-96 p-6 md:p-8";
+        else if (visibleModulesCount === 3) sizeClass = "w-72 h-64 md:w-40 md:w-56 lg:w-64 md:h-72 lg:h-80 p-6";
+        else if (visibleModulesCount >= 6) sizeClass = "w-72 h-60 md:w-28 md:w-40 lg:w-44 md:h-56 lg:h-60 p-4 md:p-4";
 
         return `${base} ${hoverShadow} ${sizeClass}`;
     };
