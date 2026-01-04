@@ -9,15 +9,28 @@ interface AbastecimentoListProps {
 export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack }) => {
     const [supplies, setSupplies] = useState<AbastecimentoRecord[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+
+    const loadSupplies = async () => {
+        setIsLoading(true);
+        try {
+            const data = await AbastecimentoService.getAbastecimentos();
+            setSupplies(data);
+        } catch (error) {
+            console.error("Error loading supplies", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     useEffect(() => {
-        setSupplies(AbastecimentoService.getAbastecimentos());
+        loadSupplies();
     }, []);
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (window.confirm('Tem certeza que deseja excluir este registro?')) {
-            AbastecimentoService.deleteAbastecimento(id);
-            setSupplies(AbastecimentoService.getAbastecimentos());
+            await AbastecimentoService.deleteAbastecimento(id);
+            loadSupplies();
         }
     };
 

@@ -16,12 +16,11 @@ interface AbastecimentoFormProps {
 export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, onSave, vehicles, persons }) => {
     const { user: authUser } = useAuth();
 
-    // Helper to get fuel types and prices
-    const fuelTypes = AbastecimentoService.getFuelTypes();
-    const fuelPrices: { [key: string]: number } = fuelTypes.reduce((acc, type) => {
-        acc[type.key] = type.price;
-        return acc;
-    }, {} as { [key: string]: number });
+    // State for Async Data
+    const [fuelTypes, setFuelTypes] = useState<{ key: string; label: string; price: number }[]>([]);
+    const [fuelPrices, setFuelPrices] = useState<{ [key: string]: number }>({});
+    const [gasStations, setGasStations] = useState<{ id: string, name: string, city: string }[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const [date, setDate] = useState(() => {
         const d = new Date();
@@ -33,20 +32,39 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     const [driver, setDriver] = useState('');
     const [liters, setLiters] = useState('');
     const [odometer, setOdometer] = useState('');
-    const [fuelType, setFuelType] = useState(fuelTypes[0]?.key || ''); // Default to first fuel type
+    const [fuelType, setFuelType] = useState('');
     const [station, setStation] = useState('');
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [cost, setCost] = useState(0);
 
-    const [gasStations, setGasStations] = useState<{ id: string, name: string, city: string }[]>([]);
-
+    // Initial Data Fetch
     useEffect(() => {
-        // Load Gas Stations
-        const stations = AbastecimentoService.getGasStations();
-        setGasStations(stations);
-        if (stations.length > 0) {
-            setStation(stations[0].name); // Set default station if available
-        }
+        const loadData = async () => {
+            setIsLoading(true);
+            try {
+                const [types, stations] = await Promise.all([
+                    AbastecimentoService.getFuelTypes(),
+                    AbastecimentoService.getGasStations()
+                ]);
+
+                setFuelTypes(types);
+                const prices = types.reduce((acc: any, type: any) => {
+                    acc[type.key] = type.price;
+                    return acc;
+                }, {});
+                setFuelPrices(prices);
+                setGasStations(stations);
+
+                if (types.length > 0) setFuelType(types[0].key);
+                if (stations.length > 0) setStation(stations[0].name);
+
+            } catch (error) {
+                console.error("Error loading form data", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadData();
     }, []);
 
     useEffect(() => {
@@ -55,33 +73,35 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                 setCost(0);
                 return;
             }
-            const price = fuelPrices[fuelType as keyof typeof fuelPrices] || 0;
+            const price = fuelPrices[fuelType] || 0;
             const total = parseFloat(liters) * price;
             setCost(total);
         };
         calculateCost();
     }, [liters, fuelType, fuelPrices]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         const combinedDate = new Date(`${date}T${time}`);
 
         const newRecord: AbastecimentoRecord = {
-            id: crypto.randomUUID(),
+            id: crypto.randomUUID(), // Or let DB handle it, but keeping for ID consistency before reload
             fiscal: authUser?.name || authUser?.username || 'Sistema',
             date: combinedDate.toISOString(),
             vehicle,
             driver,
-            fuelType: `${fuelType} - R$ ${fuelPrices[fuelType as keyof typeof fuelPrices].toFixed(2)}`,
+            fuelType: `${fuelType} - R$ ${fuelPrices[fuelType]?.toFixed(2)}`,
             liters: Number(liters),
             odometer: Number(odometer),
             cost: Number(cost.toFixed(2)),
             station,
-            invoiceNumber
+            invoiceNumber,
+            userId: authUser?.id,
+            userName: authUser?.name
         };
 
-        AbastecimentoService.saveAbastecimento(newRecord);
+        await AbastecimentoService.saveAbastecimento(newRecord);
         onSave(newRecord); // Pass the new record to onSave
     };
 
@@ -116,6 +136,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
         label: s.name,
         subtext: s.city
     }));
+
+    if (isLoading) return <div className="flex-1 p-6 text-center text-slate-500">Carregando formulário...</div>;
 
     return (
         <div className="flex-1 h-full bg-slate-50 p-4 md:p-6 overflow-auto custom-scrollbar">

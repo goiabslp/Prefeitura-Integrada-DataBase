@@ -1,3 +1,5 @@
+import { supabase } from './supabaseClient';
+
 export interface FuelConfig {
     diesel: number;
     gasolina: number;
@@ -9,7 +11,7 @@ export interface AbastecimentoRecord {
     id: string;
     fiscal: string;
     date: string;
-    vehicle: string;
+    vehicle: string; // "Model - Brand" or just string? The DB stores string.
     driver: string;
     fuelType: string;
     liters: number;
@@ -17,19 +19,10 @@ export interface AbastecimentoRecord {
     cost: number;
     station?: string;
     invoiceNumber?: string;
+    userId?: string;
+    userName?: string;
+    created_at?: string;
 }
-
-const STORAGE_KEY = 'abastecimento_fuel_config';
-const RECORDS_KEY = 'abastecimento_records';
-
-const DEFAULT_CONFIG: FuelConfig = {
-    diesel: 0,
-    gasolina: 0,
-    etanol: 0,
-    arla: 0
-};
-
-const GAS_STATIONS_KEY = 'abastecimento_gas_stations';
 
 export interface GasStation {
     id: string;
@@ -38,27 +31,49 @@ export interface GasStation {
     city: string;
 }
 
+const DEFAULT_CONFIG: FuelConfig = {
+    diesel: 0,
+    gasolina: 0,
+    etanol: 0,
+    arla: 0
+};
+
 export const AbastecimentoService = {
-    getFuelConfig: (): FuelConfig => {
+    getFuelConfig: async (): Promise<FuelConfig> => {
         try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            return stored ? JSON.parse(stored) : DEFAULT_CONFIG;
+            const { data, error } = await supabase
+                .from('abastecimento_config')
+                .select('value')
+                .eq('key', 'fuel_prices')
+                .single();
+
+            if (error) {
+                // If not found, return default
+                if (error.code === 'PGRST116') return DEFAULT_CONFIG;
+                console.error('Error loading fuel config:', error);
+                return DEFAULT_CONFIG;
+            }
+            return data?.value || DEFAULT_CONFIG;
         } catch (error) {
             console.error('Error loading fuel config:', error);
             return DEFAULT_CONFIG;
         }
     },
 
-    saveFuelConfig: (config: FuelConfig): void => {
+    saveFuelConfig: async (config: FuelConfig): Promise<void> => {
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+            const { error } = await supabase
+                .from('abastecimento_config')
+                .upsert({ key: 'fuel_prices', value: config }, { onConflict: 'key' });
+
+            if (error) throw error;
         } catch (error) {
             console.error('Error saving fuel config:', error);
         }
     },
 
-    getFuelTypes: (): { key: keyof FuelConfig; label: string; price: number }[] => {
-        const config = AbastecimentoService.getFuelConfig();
+    getFuelTypes: async (): Promise<{ key: keyof FuelConfig; label: string; price: number }[]> => {
+        const config = await AbastecimentoService.getFuelConfig();
         return [
             { key: 'diesel', label: 'Diesel', price: config.diesel },
             { key: 'gasolina', label: 'Gasolina', price: config.gasolina },
@@ -67,68 +82,116 @@ export const AbastecimentoService = {
         ];
     },
 
-    getAbastecimentos: (): AbastecimentoRecord[] => {
+    getAbastecimentos: async (): Promise<AbastecimentoRecord[]> => {
         try {
-            const stored = localStorage.getItem(RECORDS_KEY);
-            return stored ? JSON.parse(stored) : [];
+            const { data, error } = await supabase
+                .from('abastecimentos')
+                .select('*')
+                .order('date', { ascending: false });
+
+            if (error) throw error;
+            
+            return data.map((item: any) => ({
+                id: item.id,
+                fiscal: item.fiscal,
+                date: item.date,
+                vehicle: item.vehicle,
+                driver: item.driver,
+                fuelType: item.fuel_type,
+                liters: item.liters,
+                odometer: item.odometer,
+                cost: item.cost,
+                station: item.station,
+                invoiceNumber: item.invoice_number,
+                userId: item.user_id,
+                userName: item.user_name,
+                created_at: item.created_at
+            }));
         } catch (error) {
             console.error('Error loading records:', error);
             return [];
         }
     },
 
-    saveAbastecimento: (record: AbastecimentoRecord): void => {
+    saveAbastecimento: async (record: AbastecimentoRecord): Promise<void> => {
         try {
-            const current = AbastecimentoService.getAbastecimentos();
-            const updated = [record, ...current];
-            localStorage.setItem(RECORDS_KEY, JSON.stringify(updated));
+            const dbRecord = {
+                id: record.id,
+                date: record.date,
+                vehicle: record.vehicle,
+                driver: record.driver,
+                fuel_type: record.fuelType, // Map camelCase to snake_case
+                liters: record.liters,
+                odometer: record.odometer,
+                cost: record.cost,
+                station: record.station,
+                invoice_number: record.invoiceNumber,
+                fiscal: record.fiscal,
+                user_id: record.userId,
+                user_name: record.userName
+            };
+
+            const { error } = await supabase
+                .from('abastecimentos')
+                .upsert(dbRecord);
+
+            if (error) throw error;
         } catch (error) {
             console.error('Error saving record:', error);
         }
     },
 
-    deleteAbastecimento: (id: string): void => {
+    deleteAbastecimento: async (id: string): Promise<void> => {
         try {
-            const current = AbastecimentoService.getAbastecimentos();
-            const updated = current.filter(r => r.id !== id);
-            localStorage.setItem(RECORDS_KEY, JSON.stringify(updated));
+            const { error } = await supabase
+                .from('abastecimentos')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
         } catch (error) {
             console.error('Error deleting record:', error);
         }
     },
 
     // Gas Station Methods
-    getGasStations: (): GasStation[] => {
+    getGasStations: async (): Promise<GasStation[]> => {
         try {
-            const stored = localStorage.getItem(GAS_STATIONS_KEY);
-            return stored ? JSON.parse(stored) : [];
+            const { data, error } = await supabase
+                .from('abastecimento_gas_stations')
+                .select('*')
+                .order('name', { ascending: true });
+
+            if (error) throw error;
+            return data || [];
         } catch (error) {
             console.error('Error loading gas stations:', error);
             return [];
         }
     },
 
-    saveGasStation: (station: GasStation): void => {
+    saveGasStation: async (station: GasStation): Promise<void> => {
         try {
-            const current = AbastecimentoService.getGasStations();
-            const exists = current.find(s => s.id === station.id);
-            const updated = exists
-                ? current.map(s => s.id === station.id ? station : s)
-                : [...current, station];
-            localStorage.setItem(GAS_STATIONS_KEY, JSON.stringify(updated));
+            const { error } = await supabase
+                .from('abastecimento_gas_stations')
+                .upsert(station);
+
+            if (error) throw error;
         } catch (error) {
             console.error('Error saving gas station:', error);
         }
     },
 
-    deleteGasStation: (id: string): void => {
+    deleteGasStation: async (id: string): Promise<void> => {
         try {
-            const current = AbastecimentoService.getGasStations();
-            const updated = current.filter(s => s.id !== id);
-            localStorage.setItem(GAS_STATIONS_KEY, JSON.stringify(updated));
+            const { error } = await supabase
+                .from('abastecimento_gas_stations')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
         } catch (error) {
             console.error('Error deleting gas station:', error);
         }
     }
-
 };

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft, TrendingUp, Droplet, DollarSign, Truck, Settings, LayoutDashboard, Building2, MapPin, CreditCard, Fuel, Save, Plus, Calendar, ChevronDown, History, BarChart3, Search, ChevronRight } from 'lucide-react';
 import { AbastecimentoService } from '../../services/abastecimentoService';
 
@@ -9,18 +9,30 @@ interface AbastecimentoDashboardProps {
 type TabType = 'overview' | 'vehicle' | 'config';
 
 const ConfigPanel: React.FC = () => {
-    const [fuelConfig, setFuelConfig] = useState(AbastecimentoService.getFuelConfig());
-    const [gasStations, setGasStations] = useState(AbastecimentoService.getGasStations());
+    const [fuelConfig, setFuelConfig] = useState({ diesel: 0, gasolina: 0, etanol: 0, arla: 0 });
+    const [gasStations, setGasStations] = useState<{ id: string, name: string, cnpj: string, city: string }[]>([]);
     const [newStation, setNewStation] = useState({ name: '', cnpj: '', city: '' });
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
 
-    const handleSaveConfig = () => {
-        AbastecimentoService.saveFuelConfig(fuelConfig);
+    useEffect(() => {
+        const loadData = async () => {
+            const [config, stations] = await Promise.all([
+                AbastecimentoService.getFuelConfig(),
+                AbastecimentoService.getGasStations()
+            ]);
+            setFuelConfig(config);
+            setGasStations(stations);
+        };
+        loadData();
+    }, []);
+
+    const handleSaveConfig = async () => {
+        await AbastecimentoService.saveFuelConfig(fuelConfig);
         showSuccessToast('Valores salvos com sucesso!');
     };
 
-    const handleAddStation = () => {
+    const handleAddStation = async () => {
         if (!newStation.name) return;
 
         const station = {
@@ -28,15 +40,19 @@ const ConfigPanel: React.FC = () => {
             ...newStation
         };
 
-        AbastecimentoService.saveGasStation(station);
-        setGasStations(AbastecimentoService.getGasStations());
+        await AbastecimentoService.saveGasStation(station);
+        const updatedStations = await AbastecimentoService.getGasStations();
+        setGasStations(updatedStations);
         setNewStation({ name: '', cnpj: '', city: '' });
         showSuccessToast('Posto adicionado com sucesso!');
     };
 
-    const handleDeleteStation = (id: string) => {
-        AbastecimentoService.deleteGasStation(id);
-        setGasStations(AbastecimentoService.getGasStations());
+    const handleDeleteStation = async (id: string) => {
+        if (window.confirm('Excluir este posto?')) {
+            await AbastecimentoService.deleteGasStation(id);
+            const updatedStations = await AbastecimentoService.getGasStations();
+            setGasStations(updatedStations);
+        }
     };
 
     const showSuccessToast = (msg: string) => {
@@ -242,6 +258,15 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [vehicleSearchTerm, setVehicleSearchTerm] = useState('');
     const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
+    const [allRecords, setAllRecords] = useState<{ id: string, date: string, cost: number, liters: number, vehicle: string, odometer: number, fuelType: string, driver: string }[]>([]);
+
+    useEffect(() => {
+        const loadRecords = async () => {
+            const data = await AbastecimentoService.getAbastecimentos();
+            setAllRecords(data);
+        };
+        loadRecords();
+    }, []);
 
     const months = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -249,8 +274,6 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     ];
 
     const stats = useMemo(() => {
-        const allRecords = AbastecimentoService.getAbastecimentos();
-
         // Current filtered records
         const filtered = allRecords.filter(r => {
             const date = new Date(r.date);
@@ -274,7 +297,15 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         const litersDiff = prevLiters === 0 ? 0 : ((totalLiters - prevLiters) / prevLiters) * 100;
 
         // Group by vehicle
-        const vehicleGroups = filtered.reduce((acc, r) => {
+        interface VehicleStat {
+            name: string;
+            totalCost: number;
+            totalLiters: number;
+            count: number;
+            lastRef: string;
+        }
+
+        const vehicleGroups = filtered.reduce<Record<string, VehicleStat>>((acc, r) => {
             if (!acc[r.vehicle]) {
                 acc[r.vehicle] = {
                     name: r.vehicle,
@@ -291,7 +322,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 acc[r.vehicle].lastRef = r.date;
             }
             return acc;
-        }, {} as Record<string, { name: string; totalCost: number; totalLiters: number; count: number; lastRef: string }>);
+        }, {});
 
         const vehicleStats = Object.values(vehicleGroups).sort((a, b) => b.totalCost - a.totalCost);
         const activeVehicles = vehicleStats.length;
@@ -310,7 +341,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             vehicleStats,
             records: filtered
         };
-    }, [selectedMonth, selectedYear]);
+    }, [selectedMonth, selectedYear, allRecords]);
 
     const renderOverview = () => (
         <div className="space-y-8 animate-fade-in">
@@ -390,7 +421,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         if (!selectedVehicle) return null;
 
         // 1. Get ALL records for this vehicle and standardise data types
-        const fullHistory = AbastecimentoService.getAbastecimentos()
+        const fullHistory = allRecords
             .filter(r => r.vehicle === selectedVehicle)
             .map(r => ({
                 ...r,
