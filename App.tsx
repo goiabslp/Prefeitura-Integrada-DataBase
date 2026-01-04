@@ -1259,7 +1259,9 @@ const App: React.FC = () => {
         isVisible={toast.isVisible}
         onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
       />
-      {currentUser && <AppHeader currentUser={currentUser} uiConfig={appState.ui} activeBlock={activeBlock} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} onGoHome={handleGoHome} currentView={currentView} isRefreshing={isRefreshing} onRefresh={refreshData} />}
+      <div className="hidden md:block">
+        {currentUser && <AppHeader currentUser={currentUser} uiConfig={appState.ui} activeBlock={activeBlock} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} onGoHome={handleGoHome} currentView={currentView} isRefreshing={isRefreshing} onRefresh={refreshData} />}
+      </div>
       <div className="flex-1 flex relative overflow-hidden">
         {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onViewAllLicitacao={handleViewAllLicitacao} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onManageLicitacaoScreening={() => setCurrentView('licitacao-screening')} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} onAbastecimento={(sub) => {
           setAppState(prev => ({ ...prev, view: sub }));
