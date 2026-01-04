@@ -278,7 +278,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                             <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Consultar histórico.</p>
                                         </button>
 
-                                        <button onClick={() => onAbastecimento?.('dashboard')} className="group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-emerald-300 transition-all flex flex-col items-center text-center justify-center w-full md:w-52 h-64 md:h-52 shrink-0 overflow-hidden">
+                                        <button onClick={() => onAbastecimento?.('dashboard')} className="group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-emerald-300 transition-all hidden md:flex flex-col items-center text-center justify-center w-full md:w-52 h-64 md:h-52 shrink-0 overflow-hidden">
                                             <div className="w-20 h-20 md:w-14 md:h-14 bg-emerald-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><BarChart3 className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
                                             <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">Dashboard</h3>
                                             <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Indicadores e gráficos.</p>
