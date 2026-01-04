@@ -23,7 +23,11 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
         return acc;
     }, {} as { [key: string]: number });
 
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(() => {
+        const d = new Date();
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        return d.toISOString().split('T')[0];
+    });
     const [time, setTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }));
     const [vehicle, setVehicle] = useState('');
     const [driver, setDriver] = useState('');
