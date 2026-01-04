@@ -132,8 +132,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
 
                 <form onSubmit={handleSubmit} className="p-6">
                     <div className="grid grid-cols-12 gap-x-4 gap-y-5">
-                        {/* Row 1: Data, Hora, Nota (Compact) */}
-                        <div className="col-span-6 md:col-span-3">
+                        {/* Row 1: Data, Hora, Nota (Compact) - Mobile: Date/Time hidden */}
+                        <div className="hidden md:block md:col-span-3">
                             <CustomDateTimeInput
                                 label="Data"
                                 value={date}
@@ -142,7 +142,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 required
                             />
                         </div>
-                        <div className="col-span-6 md:col-span-3">
+                        <div className="hidden md:block md:col-span-3">
                             <CustomDateTimeInput
                                 label="Hora"
                                 value={time}
