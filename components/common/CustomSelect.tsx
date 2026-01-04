@@ -30,6 +30,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [dropPosition, setDropPosition] = useState<'down' | 'up'>('down');
     const containerRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -47,14 +48,27 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
     }, []);
 
     useEffect(() => {
-        if (isOpen && searchInputRef.current) {
+        if (isOpen && containerRef.current) {
+            // Auto-position logic
+            const rect = containerRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceNeeded = 300; // Approx max height + padding
+
+            if (spaceBelow < spaceNeeded && rect.top > spaceNeeded) {
+                setDropPosition('up');
+            } else {
+                setDropPosition('down');
+            }
+
             // Only auto-focus on larger screens (desktop) to avoid keyboard popup on mobile
-            if (window.innerWidth >= 768) {
+            if (window.innerWidth >= 768 && searchInputRef.current) {
                 searchInputRef.current.focus();
             }
         }
         if (!isOpen) {
             setSearchTerm(''); // Reset search on close
+            // Optional: reset position after close, though not strictly necessary as it re-calcs on open
+            // setDropPosition('down'); 
         }
     }, [isOpen]);
 
@@ -87,7 +101,10 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 
                 {/* Dropdown Menu */}
                 {isOpen && (
-                    <div className="absolute z-50 left-0 right-0 mt-2 bg-white rounded-xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className={`absolute z-50 left-0 right-0 bg-white rounded-xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in duration-200 ${dropPosition === 'up'
+                        ? 'bottom-full mb-2 slide-in-from-bottom-2'
+                        : 'mt-2 slide-in-from-top-2'
+                        }`}>
                         {/* Search Input */}
                         <div className="p-2 border-b border-slate-50 bg-slate-50/50">
                             <div className="relative">
