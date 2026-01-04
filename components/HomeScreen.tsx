@@ -1,5 +1,5 @@
 import React from 'react';
-import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange, FileSearch, Droplet, Fuel, BarChart3, TrendingUp } from 'lucide-react';
+import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange, FileSearch, Droplet, Fuel, BarChart3, TrendingUp, LogOut } from 'lucide-react';
 import { UserRole, UIConfig, AppPermission, BlockType } from '../types';
 import { FleetShortcutCard } from './FleetShortcutCard';
 
@@ -40,7 +40,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     stats,
     onManageLicitacaoScreening,
     onViewAllLicitacao,
-    onAbastecimento // New Prop
+    onAbastecimento,
+    onLogout
 }) => {
     const canAccessOficio = permissions.includes('parent_criar_oficio');
     const canAccessCompras = permissions.includes('parent_compras');
@@ -128,7 +129,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
                         <div className={getContainerClass()}>
                             {canAccessOficio && (
-                                <button onClick={() => setActiveBlock('oficio')} className={`${getCardClass('indigo')} hidden md:flex`}>
+                                <button onClick={() => setActiveBlock('oficio')} className={getCardClass('indigo')}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-600 to-indigo-700"><FileText className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
@@ -140,7 +141,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             )}
 
                             {canAccessCompras && (
-                                <button onClick={() => setActiveBlock('compras')} className={`${getCardClass('emerald')} hidden md:flex`}>
+                                <button onClick={() => setActiveBlock('compras')} className={getCardClass('emerald')}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-emerald-600 to-emerald-700"><ShoppingCart className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
@@ -152,7 +153,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             )}
 
                             {canAccessLicitacao && (
-                                <button onClick={() => setActiveBlock('licitacao')} className={`${getCardClass('blue')} hidden md:flex`}>
+                                <button onClick={() => setActiveBlock('licitacao')} className={getCardClass('blue')}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-blue-600 to-blue-700"><Gavel className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
@@ -164,7 +165,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             )}
 
                             {canAccessDiarias && (
-                                <button onClick={() => setActiveBlock('diarias')} className={`${getCardClass('amber')} hidden md:flex`}>
+                                <button onClick={() => setActiveBlock('diarias')} className={getCardClass('amber')}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-amber-600 to-amber-700"><Wallet className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
@@ -176,7 +177,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             )}
 
                             {canAccessScheduling && (
-                                <button onClick={() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }} className={`${getCardClass('indigo')} hidden md:flex`}>
+                                <button onClick={() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }} className={getCardClass('indigo')}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center w-full">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-50 to-violet-600"><CalendarRange className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
@@ -200,6 +201,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             )}
 
                             {canAccessFleet && <FleetShortcutCard onClick={() => onOpenAdmin('fleet')} className={getCardClass('slate')} />}
+
+                            {/* Mobile Logout Button */}
+                            <button
+                                onClick={onLogout}
+                                className="w-72 h-14 rounded-[2rem] border border-rose-200 bg-white text-rose-500 font-bold uppercase tracking-widest text-xs flex md:hidden items-center justify-center gap-2 hover:bg-rose-50 hover:border-rose-300 transition-all shrink-0 mt-4 shadow-sm"
+                            >
+                                <LogOut className="w-4 h-4" /> Sair do Sistema
+                            </button>
                         </div>
                     </div>
                 )}
