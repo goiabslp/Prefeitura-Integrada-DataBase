@@ -56,7 +56,10 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                 setGasStations(stations);
 
                 if (types.length > 0) setFuelType(types[0].key);
-                if (stations.length > 0) setStation(stations[0].name);
+
+                // Prioritize "Posto Xavier & Xavier Ltda" or fallback to first station
+                const defaultStation = stations.find(s => s.name === "Posto Xavier & Xavier Ltda") || stations[0];
+                if (defaultStation) setStation(defaultStation.name);
 
             } catch (error) {
                 console.error("Error loading form data", error);
@@ -266,7 +269,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                         </div>
 
                         {/* Row 4: Posto e Total */}
-                        <div className="col-span-12 md:col-span-8">
+                        <div className="hidden md:block md:col-span-8">
                             <div className="space-y-1">
                                 <CustomSelect
                                     label="Posto de Abastecimento"
