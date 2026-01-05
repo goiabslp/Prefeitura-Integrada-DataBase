@@ -420,10 +420,10 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
 
                         if (nextRecord) {
                             const distanceToNext = Number(nextRecord.odometer) - Number(record.odometer);
-                            const liters = Number(record.liters);
+                            const nextLiters = Number(nextRecord.liters);
 
-                            if (distanceToNext > 0 && liters > 0) {
-                                const efficiency = distanceToNext / liters;
+                            if (distanceToNext > 0 && nextLiters > 0) {
+                                const efficiency = distanceToNext / nextLiters;
                                 totalEfficiencySum += efficiency;
                                 efficiencyCount++;
                             }
@@ -870,9 +870,9 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 if (nextRecord) {
                     const distanceToNext = nextRecord.odometer - record.odometer;
 
-                    if (distanceToNext > 0 && record.liters > 0) {
-                        efficiency = distanceToNext / record.liters;
-                        costPerKm = record.cost / distanceToNext;
+                    if (distanceToNext > 0 && nextRecord.liters > 0) {
+                        efficiency = distanceToNext / nextRecord.liters;
+                        costPerKm = nextRecord.cost / distanceToNext;
                     }
                 }
             }
