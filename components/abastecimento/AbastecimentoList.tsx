@@ -23,7 +23,16 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack }) 
                 supabase.from('sectors').select('*')
             ]);
 
-            setSupplies(data);
+            setSupplies(data.sort((a, b) => {
+                const dateA = new Date(a.date).getTime();
+                const dateB = new Date(b.date).getTime();
+                if (dateB !== dateA) return dateB - dateA;
+
+                // Tie-breaker: created_at (seconds precision)
+                const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                return createdB - createdA;
+            }));
 
             if (vehiclesRes.data && sectorsRes.data) {
                 const sectorLookup = sectorsRes.data.reduce((acc: any, s: any) => {

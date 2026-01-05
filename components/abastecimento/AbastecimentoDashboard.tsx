@@ -1,7 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft, TrendingUp, Droplet, DollarSign, Truck, Settings, LayoutDashboard, Building2, MapPin, CreditCard, Fuel, Save, Plus, Calendar, ChevronDown, History, BarChart3, Search, ChevronRight } from 'lucide-react';
 import { AbastecimentoService, AbastecimentoRecord } from '../../services/abastecimentoService';
+import { getVehicles, getSectors } from '../../services/entityService';
+import { Vehicle, Sector } from '../../types';
 import { supabase } from '../../services/supabaseClient';
+import {
+    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+    BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area
+} from 'recharts';
 
 interface AbastecimentoDashboardProps {
     onBack: () => void;
@@ -290,11 +296,19 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const [vehicleSearchTerm, setVehicleSearchTerm] = useState('');
     const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
     const [allRecords, setAllRecords] = useState<AbastecimentoRecord[]>([]);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [sectors, setSectors] = useState<Sector[]>([]);
 
     useEffect(() => {
         const loadRecords = async () => {
-            const data = await AbastecimentoService.getAbastecimentos();
+            const [data, vehicleData, sectorData] = await Promise.all([
+                AbastecimentoService.getAbastecimentos(),
+                getVehicles(),
+                getSectors()
+            ]);
             setAllRecords(data);
+            setVehicles(vehicleData);
+            setSectors(sectorData);
         };
         loadRecords();
 
@@ -363,10 +377,170 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             return acc;
         }, {} as Record<string, VehicleStat>);
 
-        const vehicleStats = Object.values(vehicleGroups).sort((a: VehicleStat, b: VehicleStat) => b.totalCost - a.totalCost);
+        const vehicleStats = Object.values(vehicleGroups).sort((a: VehicleStat, b: VehicleStat) => b.totalCost - a.totalCost) as VehicleStat[];
         const activeVehicles = vehicleStats.length;
 
-        const avgKmL = filtered.length > 0 ? 9.2 : 0; // Simple placeholder
+        // Calculate Global Average KM/L (Efficiency)
+        // We need to calculate efficiency for each fill-up interval across all vehicles
+        let totalEfficiencySum = 0;
+        let efficiencyCount = 0;
+
+        // Group ALL records (not just filtered) by vehicle to calculate full history context
+        // We need history to calculate efficiency for the CURRENT month records
+        const allByVehicle: Record<string, AbastecimentoRecord[]> = {};
+        allRecords.forEach(r => {
+            if (!allByVehicle[r.vehicle]) allByVehicle[r.vehicle] = [];
+            allByVehicle[r.vehicle].push(r);
+        });
+
+        // For each vehicle, calculate efficiencies
+        Object.values(allByVehicle).forEach(vehicleRecords => {
+            // Sort by date
+            const sorted = vehicleRecords.map(r => ({ ...r, dateObj: new Date(r.date) }))
+                .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+
+            sorted.forEach((record, index) => {
+                // Check if this record belongs to the CURRENT selected month/year
+                const rDate = record.dateObj;
+                const isCurrentPeriod = rDate.getMonth() === selectedMonth && rDate.getFullYear() === selectedYear;
+
+                if (isCurrentPeriod) {
+                    // Check exclusion for Arla
+                    const isArla = record.fuelType.toLowerCase().includes('arla');
+
+                    if (!isArla) {
+                        // Look ahead for the next NON-Arla record
+                        let nextRecord = null;
+                        for (let i = index + 1; i < sorted.length; i++) {
+                            if (!sorted[i].fuelType.toLowerCase().includes('arla')) {
+                                nextRecord = sorted[i];
+                                break;
+                            }
+                        }
+
+                        if (nextRecord) {
+                            const distanceToNext = Number(nextRecord.odometer) - Number(record.odometer);
+                            const liters = Number(record.liters);
+
+                            if (distanceToNext > 0 && liters > 0) {
+                                const efficiency = distanceToNext / liters;
+                                totalEfficiencySum += efficiency;
+                                efficiencyCount++;
+                            }
+                        }
+                    }
+                }
+            });
+        });
+
+        const avgKmL = efficiencyCount > 0 ? (totalEfficiencySum / efficiencyCount) : 0;
+
+        // --- NEW AGGREGATIONS FOR CHARTS ---
+
+        // 1. Spending by Sector
+        const sectorSpending: Record<string, number> = {};
+        filtered.forEach(r => {
+            // Find vehicle to get sector
+            const v = vehicles.find(veh => `${veh.model} - ${veh.brand}` === r.vehicle);
+            if (v) {
+                const s = sectors.find(sec => sec.id === v.sectorId);
+                const sectorName = s?.name || 'Não Identificado';
+                sectorSpending[sectorName] = (sectorSpending[sectorName] || 0) + r.cost;
+            } else {
+                sectorSpending['Desconhecido'] = (sectorSpending['Desconhecido'] || 0) + r.cost;
+            }
+        });
+        const sectorChartData = Object.entries(sectorSpending)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 5); // Top 5
+
+        // 2. Fuel Type Distribution
+        const fuelDist: Record<string, number> = {};
+        filtered.forEach(r => {
+            // Clean fuel name "DIESEL S10 - DIESEL" -> "DIESEL"
+            const type = r.fuelType.split(' - ')[0];
+            fuelDist[type] = (fuelDist[type] || 0) + r.liters;
+        });
+        const fuelChartData = Object.entries(fuelDist).map(([name, value]) => ({ name, value }));
+        const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+        // 3. Monthly Evolution (Last 6 Months)
+        // We need to look at 'allRecords' for this, not just filtered
+        const last6MonthsMatches = allRecords.filter(r => {
+            const d = new Date(r.date);
+            const now = new Date();
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(now.getMonth() - 6);
+            return d >= sixMonthsAgo && d <= now;
+        });
+
+        const evolutionMap: Record<string, { month: string, cost: number, liters: number }> = {};
+        last6MonthsMatches.forEach(r => {
+            const d = new Date(r.date);
+            const key = `${d.getFullYear()}-${d.getMonth()}`; // sortable key
+            const label = months[d.getMonth()].substring(0, 3);
+
+            if (!evolutionMap[key]) {
+                evolutionMap[key] = { month: label, cost: 0, liters: 0 };
+            }
+            evolutionMap[key].cost += r.cost;
+            evolutionMap[key].liters += r.liters;
+        });
+        // Sort by time
+        const evolutionChartData = Object.keys(evolutionMap).sort().map(k => evolutionMap[k]);
+
+        // 4. Vehicle Rankings
+        // Most Expensive (Total Cost)
+        const topConsumptionVehicles = [...vehicleStats]
+            .sort((a, b) => b.totalCost - a.totalCost)
+            .slice(0, 5);
+
+        // Best Efficiency (calculated earlier per vehicle in detail, but here we can approximate or reuse logic)
+        // Since we calculated 'efficiency' per tank in detail, we don't have it easily available in 'vehicleStats' 
+        // without re-running the logic. Let's stick to consumption (R$/km) if possible or just total cost.
+        // Let's add 'totalKm' to vehicleStats to compute R$/km
+
+        // 5. Alerts
+        // e.g. Vehicles with efficiency < 3km/L (if we had it) or just High Cost outliers
+        const avgCost = totalCost / (activeVehicles || 1);
+        const costAlerts = vehicleStats.filter(v => v.totalCost > avgCost * 1.5); // 50% above average
+
+        // Total KM (for filtered period)
+        // We need to sum the distance of intervals in this period.
+        // Re-use logic from Global Avg Calc?
+        let totalKmPeriod = 0;
+        // Logic: iterate filtered sessions? No, because distance is relative.
+        // We can approximate with: sum of (next_odometer - current_odometer) for records in this month.
+        // Let's reuse the Global Avg loop variables if possible, or re-run.
+        // For simplicity, let's create a 'totalDistance' accumulator in the GLOBAL loop we added step 162.
+        // (Wait, I can just modify that loop to export totalDistanceSum)
+        // Re-writing that loop slightly to capture 'totalDistanceSum'
+        let totalDistanceSum = 0;
+        Object.values(allByVehicle).forEach(vehicleRecords => {
+            const sorted = vehicleRecords.map(r => ({ ...r, dateObj: new Date(r.date) })).sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+            sorted.forEach((record, index) => {
+                const rDate = record.dateObj;
+                if (rDate.getMonth() === selectedMonth && rDate.getFullYear() === selectedYear) {
+                    const isArla = record.fuelType.toLowerCase().includes('arla');
+                    if (!isArla) {
+                        // Look ahead logic again
+                        let nextRecord = null;
+                        for (let i = index + 1; i < sorted.length; i++) {
+                            if (!sorted[i].fuelType.toLowerCase().includes('arla')) {
+                                nextRecord = sorted[i];
+                                break;
+                            }
+                        }
+                        if (nextRecord) {
+                            const dist = Number(nextRecord.odometer) - Number(record.odometer);
+                            if (dist > 0) totalDistanceSum += dist;
+                        }
+                    }
+                }
+            });
+        });
+
 
         return {
             totalCost,
@@ -375,84 +549,276 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             litersDiff,
             activeVehicles,
             avgKmL,
-            allVehiclesCount: 22,
+            totalKmPeriod: totalDistanceSum,
+            allVehiclesCount: vehicles.length,
             filteredCount: filtered.length,
             vehicleStats,
-            records: filtered
+            records: filtered,
+            // New Data
+            sectorChartData,
+            fuelChartData,
+            evolutionChartData,
+            topConsumptionVehicles,
+            costAlerts,
+            COLORS
         };
-    }, [selectedMonth, selectedYear, allRecords]);
+    }, [selectedMonth, selectedYear, allRecords, vehicles, sectors]);
 
     const renderOverview = () => (
-        <div className="space-y-8 animate-fade-in">
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
-                            <DollarSign className="w-6 h-6" />
-                        </div>
-                        <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Gasto Total (Mês)</span>
+        <div className="space-y-6 animate-fade-in pb-10">
+            {/* 1. Top KPI Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Custo Total */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <DollarSign className="w-24 h-24 text-emerald-600" />
                     </div>
-                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">
-                        R$ {stats.totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </h3>
-                    <div className={`mt-auto pt-4 flex items-center gap-2 text-xs font-bold ${stats.costDiff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        <TrendingUp className={`w-3 h-3 ${stats.costDiff < 0 ? 'rotate-180' : ''}`} />
-                        {stats.costDiff === 0 ? 'Sem dados anteriores' : `${stats.costDiff > 0 ? '+' : ''}${stats.costDiff.toFixed(1)}% vs mês anterior`}
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
+                            <DollarSign className="w-5 h-5" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Custo Total</span>
+                    </div>
+                    <div className="relative z-10">
+                        <h3 className="text-3xl font-black text-emerald-900 tracking-tight">
+                            R$ {stats.totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </h3>
+                        <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${stats.costDiff > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                            {stats.costDiff > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
+                            <span>{Math.abs(stats.costDiff).toFixed(1)}% vs anterior</span>
+                        </div>
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-3 bg-blue-100 text-blue-600 rounded-xl">
-                            <Droplet className="w-6 h-6" />
-                        </div>
-                        <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Litros Consumidos</span>
+                {/* Litros */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <Droplet className="w-24 h-24 text-cyan-600" />
                     </div>
-                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">
-                        {stats.totalLiters.toLocaleString('pt-BR', { minimumFractionDigits: 1 })} L
-                    </h3>
-                    <div className={`mt-auto pt-4 flex items-center gap-2 text-xs font-bold ${stats.litersDiff <= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                        <TrendingUp className={`w-3 h-3 ${stats.litersDiff > 0 ? '' : 'rotate-180'}`} />
-                        {stats.litersDiff === 0 ? 'Consumo estável' : `${stats.litersDiff > 0 ? '+' : ''}${stats.litersDiff.toFixed(1)}% vs mês anterior`}
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-cyan-50 rounded-xl text-cyan-600">
+                            <Droplet className="w-5 h-5" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Volume Total</span>
+                    </div>
+                    <div className="relative z-10">
+                        <h3 className="text-3xl font-black text-cyan-900 tracking-tight">
+                            {stats.totalLiters.toLocaleString('pt-BR', { minimumFractionDigits: 0 })} L
+                        </h3>
+                        <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${stats.litersDiff > 0 ? 'text-cyan-500' : 'text-slate-400'}`}>
+                            <span>{stats.filteredCount} abastecimentos</span>
+                        </div>
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-3 bg-amber-100 text-amber-600 rounded-xl">
-                            <Truck className="w-6 h-6" />
-                        </div>
-                        <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Veículos Ativos</span>
+                {/* Avg KM/L */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <BarChart3 className="w-24 h-24 text-violet-600" />
                     </div>
-                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">{stats.activeVehicles}</h3>
-                    <div className="mt-auto pt-4 flex items-center gap-2 text-xs font-bold text-slate-400">
-                        Frota total: {stats.allVehiclesCount}
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-violet-50 rounded-xl text-violet-600">
+                            <BarChart3 className="w-5 h-5" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Média Geral</span>
+                    </div>
+                    <div className="relative z-10">
+                        <h3 className="text-3xl font-black text-violet-900 tracking-tight">
+                            {stats.avgKmL.toFixed(1)} <span className="text-lg text-slate-400 font-bold">Km/L</span>
+                        </h3>
+                        <p className="text-xs font-medium text-slate-400 mt-1">Eficiência da frota (S/ Arla)</p>
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
-                            <TrendingUp className="w-6 h-6" />
-                        </div>
-                        <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Média Km/L (Geral)</span>
+                {/* Total KM */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <MapPin className="w-24 h-24 text-amber-600" />
                     </div>
-                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">{stats.avgKmL} km/L</h3>
-                    <div className="mt-auto pt-4 flex items-center gap-2 text-xs font-bold text-emerald-600">
-                        {stats.filteredCount > 0 ? 'Eficiência calculada' : 'Aguardando dados'}
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
+                            <MapPin className="w-5 h-5" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Rodagem Total</span>
+                    </div>
+                    <div className="relative z-10">
+                        <h3 className="text-3xl font-black text-amber-900 tracking-tight">
+                            {stats.totalKmPeriod.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">Km</span>
+                        </h3>
+                        <p className="text-xs font-medium text-slate-400 mt-1">Estimado no período</p>
                     </div>
                 </div>
             </div>
 
+            {/* 2. Charts Row: Evolution & Fuel Dist */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Evolution Chart */}
+                <div className="lg:col-span-2 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <div className="mb-6">
+                        <h3 className="text-lg font-black text-slate-800">Evolução de Gastos</h3>
+                        <p className="text-sm text-slate-400 font-medium">Histórico dos últimos 6 meses</p>
+                    </div>
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={stats.evolutionChartData}>
+                                <defs>
+                                    <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
+                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis
+                                    dataKey="month"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#94a3b8', fontSize: 12 }}
+                                    dy={10}
+                                />
+                                <YAxis
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#94a3b8', fontSize: 12 }}
+                                    tickFormatter={(value) => `R$${value / 1000}k`}
+                                />
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    formatter={(value: number) => [`R$ ${value.toLocaleString()}`, 'Gasto']}
+                                />
+                                <Area
+                                    type="monotone"
+                                    dataKey="cost"
+                                    stroke="#10b981"
+                                    strokeWidth={3}
+                                    fillOpacity={1}
+                                    fill="url(#colorCost)"
+                                />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Fuel Distribution */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <div className="mb-6">
+                        <h3 className="text-lg font-black text-slate-800">Por Combustível</h3>
+                        <p className="text-sm text-slate-400 font-medium">Distribuição de volume (L)</p>
+                    </div>
+                    <div className="h-[300px] w-full flex flex-col items-center justify-center">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={stats.fuelChartData}
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {stats.fuelChartData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={stats.COLORS[index % stats.COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    formatter={(value: number) => [`${value.toFixed(0)} L`, 'Volume']}
+                                />
+                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. Charts Row: Sector & Ranking */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm h-80 flex items-center justify-center">
-                    <p className="text-slate-400 font-medium italic">Gráfico de Consumo Diário ({months[selectedMonth]}/{selectedYear})</p>
+                {/* Spending by Sector */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <div className="mb-6">
+                        <h3 className="text-lg font-black text-slate-800">Gastos por Secretaria</h3>
+                        <p className="text-sm text-slate-400 font-medium">Top 5 setores com maior consumo</p>
+                    </div>
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart layout="vertical" data={stats.sectorChartData} margin={{ left: 40 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                                <XAxis type="number" hide />
+                                <YAxis
+                                    dataKey="name"
+                                    type="category"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    width={100}
+                                    tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                                />
+                                <Tooltip
+                                    cursor={{ fill: '#f8fafc' }}
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    formatter={(value: number) => [`R$ ${value.toLocaleString()}`, 'Gasto']}
+                                />
+                                <Bar dataKey="value" fill="#0ea5e9" radius={[0, 4, 4, 0]} barSize={20} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
-                <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm h-80 flex items-center justify-center">
-                    <p className="text-slate-400 font-medium italic">Gráfico de Gastos por Tipo de Combustível ({months[selectedMonth]}/{selectedYear})</p>
+
+                {/* Vehicle Ranking */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <div className="mb-6 flex justify-between items-center">
+                        <div>
+                            <h3 className="text-lg font-black text-slate-800">Ranking de Veículos</h3>
+                            <p className="text-sm text-slate-400 font-medium">Maiores consumidores do mês</p>
+                        </div>
+                        <div className="p-2 bg-red-50 text-red-500 rounded-xl">
+                            <Fuel className="w-5 h-5" />
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                        {stats.topConsumptionVehicles.map((v, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 flex items-center justify-center bg-white text-slate-700 font-black rounded-lg text-xs shadow-sm border border-slate-100">
+                                        {idx + 1}
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-900 uppercase truncate max-w-[120px]">{v.name}</p>
+                                        <p className="text-[10px] text-slate-400 font-semibold">{v.count} abastecimentos</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-sm font-black text-slate-700">R$ {v.totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                                    <p className="text-[10px] text-slate-400 font-medium">{v.totalLiters.toFixed(0)} Litros</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
+
+            {/* 4. Alerts Section (if any) */}
+            {stats.costAlerts.length > 0 && (
+                <div className="bg-rose-50 p-6 rounded-[2rem] border border-rose-100">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-white text-rose-500 rounded-xl shadow-sm">
+                            <TrendingUp className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-black text-rose-700">Alertas de Consumo</h3>
+                            <p className="text-sm text-rose-400 font-medium">Veículos com gasto 50% acima da média</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {stats.costAlerts.slice(0, 6).map((v, idx) => (
+                            <div key={idx} className="bg-white p-3 rounded-2xl shadow-sm border border-rose-100 flex justify-between items-center">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-800 uppercase">{v.name}</p>
+                                    <p className="text-[10px] text-rose-500 font-bold">R$ {v.totalCost.toLocaleString()}</p>
+                                </div>
+                                <span className="text-[10px] font-bold bg-rose-100 text-rose-600 px-2 py-1 rounded-lg">Alto Gasto</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 
@@ -485,15 +851,29 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 distance = record.odometer - prevRecord.odometer;
             }
 
+            // check if fuel is Arla
+            const isArla = record.fuelType.toLowerCase().includes('arla');
+
             // 2. Calculate efficiency of THIS TANK (looking forward to next fill-up)
             // "Consumption must be shown on the previous fueling" -> The fueling that filled the tank.
-            if (index < fullHistory.length - 1) {
-                const nextRecord = fullHistory[index + 1];
-                const distanceToNext = nextRecord.odometer - record.odometer;
+            // SKIP if Arla
+            if (!isArla) {
+                // Find next non-Arla record
+                let nextRecord = null;
+                for (let i = index + 1; i < fullHistory.length; i++) {
+                    if (!fullHistory[i].fuelType.toLowerCase().includes('arla')) {
+                        nextRecord = fullHistory[i];
+                        break;
+                    }
+                }
 
-                if (distanceToNext > 0 && record.liters > 0) {
-                    efficiency = distanceToNext / record.liters;
-                    costPerKm = record.cost / distanceToNext;
+                if (nextRecord) {
+                    const distanceToNext = nextRecord.odometer - record.odometer;
+
+                    if (distanceToNext > 0 && record.liters > 0) {
+                        efficiency = distanceToNext / record.liters;
+                        costPerKm = record.cost / distanceToNext;
+                    }
                 }
             }
 
@@ -546,7 +926,14 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         </div>
                         <div>
                             <h2 className="text-xl font-black text-slate-900 uppercase">{selectedVehicle}</h2>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Detalhes do Veículo • {months[selectedMonth]}/{selectedYear}</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                {(() => {
+                                    const veh = vehicles.find(v => `${v.model} - ${v.brand}` === selectedVehicle);
+                                    if (!veh) return 'Placa não encontrada';
+                                    const sec = sectors.find(s => s.id === veh.sectorId);
+                                    return `${veh.plate} • ${sec?.name || 'Setor não informado'}`;
+                                })()} • {months[selectedMonth]}/{selectedYear}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -756,7 +1143,21 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                         </div>
                                         <div>
                                             <h3 className="text-lg font-black text-slate-900 leading-tight uppercase truncate max-w-[150px]">{v.name}</h3>
-                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Placa/Identificação</p>
+                                            <div className="flex flex-col">
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                    {(() => {
+                                                        const veh = vehicles.find(veh => `${veh.model} - ${veh.brand}` === v.name);
+                                                        return veh?.plate || 'Placa não encontrada';
+                                                    })()}
+                                                </p>
+                                                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">
+                                                    {(() => {
+                                                        const veh = vehicles.find(veh => `${veh.model} - ${veh.brand}` === v.name);
+                                                        const sec = sectors.find(s => s.id === veh?.sectorId);
+                                                        return sec?.name || 'Setor não informado';
+                                                    })()}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-bold text-slate-500 uppercase">
