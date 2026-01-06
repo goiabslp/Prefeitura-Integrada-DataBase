@@ -768,7 +768,16 @@ const App: React.FC = () => {
     setCurrentView('editor');
     setAdminTab('content');
     setIsAdminSidebarOpen(true);
-    setIsFinalizedView(false);
+    setAdminTab('content');
+    setIsAdminSidebarOpen(true);
+
+    // View-Only Mode for Sent Purchase Orders
+    if (order.blockType === 'compras' && order.status !== 'pending') {
+      setIsFinalizedView(true);
+    } else {
+      setIsFinalizedView(false);
+    }
+
     setIsReopeningStage(false); // Reset reopening state
   };
 
@@ -2022,7 +2031,13 @@ const App: React.FC = () => {
                 {isFinalizedView && (
                   <FinalizedActionBar
                     onDownload={handleDownloadPdf}
-                    onBack={handleGoHome}
+                    onBack={() => {
+                      if (activeBlock === 'compras' && editingOrder?.status !== 'pending') {
+                        handleTrackOrder();
+                      } else {
+                        handleGoHome();
+                      }
+                    }}
                     onEdit={() => { setIsFinalizedView(false); setIsAdminSidebarOpen(true); }}
                     onSend={handleSendOrder}
                     showSendButton={activeBlock === 'compras'}
@@ -2042,6 +2057,7 @@ const App: React.FC = () => {
                     }}
                     isDigitalSignatureVisible={!!appState.content.digitalSignature?.enabled}
                     hasDigitalSignature={!!appState.content.digitalSignature}
+                    viewOnly={activeBlock === 'compras' && editingOrder?.status !== 'pending'}
                   />
                 )}
               </main>
