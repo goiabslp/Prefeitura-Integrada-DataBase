@@ -974,7 +974,7 @@ const App: React.FC = () => {
   // --- PERSISTENCE LOGIC START ---
   // Save draft to localStorage whenever content changes in editor mode
   useEffect(() => {
-    if (currentView === 'editor' && !editingOrder && activeBlock) {
+    if (currentView === 'editor' && !editingOrder && activeBlock && !isFinalizedView) {
       const draftKey = `draft_${activeBlock}`;
       const draftData = {
         content: appState.content,
@@ -983,7 +983,7 @@ const App: React.FC = () => {
       // Debounce saving if needed, but for now simple write is okay for text
       localStorage.setItem(draftKey, JSON.stringify(draftData));
     }
-  }, [appState.content, currentView, editingOrder, activeBlock]);
+  }, [appState.content, currentView, editingOrder, activeBlock, isFinalizedView]);
 
   // AUTO-SAVE FOR LICITACAO (DISABLED BY REQUEST)
   /*
