@@ -582,6 +582,9 @@ const App: React.FC = () => {
       // Update local generic state for view consistency if needed
       setOrders(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
     } else {
+      let protocolString = '';
+      let uniqueProtocolId = ''; // Secondary unique tracking ID
+
       const nextVal = await db.incrementGlobalCounter();
       setGlobalCounter(nextVal);
       const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -598,11 +601,13 @@ const App: React.FC = () => {
         }
       }
 
-      let protocolString = '';
       if (activeBlock === 'diarias') {
         const diariaCount = await counterService.incrementDiariasProtocolCount(year);
         const formattedNum = (diariaCount || 1).toString().padStart(3, '0');
         protocolString = `DIA-${formattedNum}/${year}`;
+
+        // Generate Unique Tracking ID for Diarias (Global Counter + Random)
+        uniqueProtocolId = `GID-${nextVal}-${year}-${randomPart}`;
       } else {
         const prefix = activeBlock === 'oficio' ? 'OFC' : activeBlock === 'compras' ? 'COM' : 'LIC';
         protocolString = `${prefix}-${year}-${randomPart}`;
@@ -610,6 +615,10 @@ const App: React.FC = () => {
 
       const finalSnapshot = JSON.parse(JSON.stringify(appState));
       finalSnapshot.content.protocol = protocolString;
+
+      if (uniqueProtocolId) {
+        finalSnapshot.content.protocolId = uniqueProtocolId;
+      }
 
       // For Diarias, also update the leftBlockText with the finalized number to ensure it matches the generated protocol
       if (activeBlock === 'diarias') {
