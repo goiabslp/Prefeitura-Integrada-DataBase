@@ -1,8 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ArrowLeft, TrendingUp, Droplet, DollarSign, Truck, Settings, LayoutDashboard, Building2, MapPin, CreditCard, Fuel, Save, Plus, Calendar, ChevronDown, History, BarChart3, Search, ChevronRight } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Droplet, DollarSign, Truck, Settings, LayoutDashboard, Building2, MapPin, CreditCard, Fuel, Save, Plus, Calendar, ChevronDown, History, BarChart3, Search, ChevronRight, FileText, Filter, FileSpreadsheet, Download, CalendarDays, Factory, Car } from 'lucide-react';
+import { ModernSelect } from '../common/ModernSelect';
+import { ModernDateInput } from '../common/ModernDateInput';
 import { AbastecimentoService, AbastecimentoRecord } from '../../services/abastecimentoService';
 import { getVehicles, getSectors } from '../../services/entityService';
-import { Vehicle, Sector } from '../../types';
+import { AbastecimentoReportPDF } from './AbastecimentoReportPDF';
+import { AppState, Vehicle, Sector } from '../../types';
 import { supabase } from '../../services/supabaseClient';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -11,9 +14,11 @@ import {
 
 interface AbastecimentoDashboardProps {
     onBack: () => void;
+    state: AppState;
+    onAbastecimento: (view: 'new' | 'management') => void;
 }
 
-type TabType = 'overview' | 'vehicle' | 'config';
+type TabType = 'overview' | 'vehicle' | 'reports' | 'config';
 
 interface VehicleStat {
     name: string;
@@ -289,7 +294,7 @@ const ConfigPanel: React.FC = () => {
     );
 };
 
-export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ onBack }) => {
+export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ onBack, state, onAbastecimento }) => {
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -298,17 +303,30 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const [allRecords, setAllRecords] = useState<AbastecimentoRecord[]>([]);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [sectors, setSectors] = useState<Sector[]>([]);
+    const [gasStations, setGasStations] = useState<{ id: string, name: string }[]>([]);
+    const [showPrintPreview, setShowPrintPreview] = useState(false);
+    const [appliedFilters, setAppliedFilters] = useState({
+        startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
+        station: 'all',
+        sector: 'all',
+        vehicle: 'all',
+        fuelType: 'all'
+    });
+    const [pendingFilters, setPendingFilters] = useState({ ...appliedFilters });
 
     useEffect(() => {
         const loadRecords = async () => {
-            const [data, vehicleData, sectorData] = await Promise.all([
+            const [data, vehicleData, sectorData, stationData] = await Promise.all([
                 AbastecimentoService.getAbastecimentos(),
                 getVehicles(),
-                getSectors()
+                getSectors(),
+                AbastecimentoService.getGasStations()
             ]);
             setAllRecords(data);
             setVehicles(vehicleData);
             setSectors(sectorData);
+            setGasStations(stationData);
         };
         loadRecords();
 
@@ -564,6 +582,345 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         };
     }, [selectedMonth, selectedYear, allRecords, vehicles, sectors]);
 
+    const reportData = useMemo(() => {
+        // Pre-process all records to include derived sector/plate once
+        const processedRecords = allRecords.map(r => {
+            const veh = vehicles.find(v => `${v.model} - ${v.brand}` === r.vehicle);
+            const s = sectors.find(sec => sec.id === veh?.sectorId);
+            return {
+                ...r,
+                derivedSector: s?.name || 'Não Identificado',
+                derivedPlate: veh?.plate || 'S/P'
+            };
+        });
+
+        const filtered = processedRecords.filter(r => {
+            const rDate = new Date(r.date);
+
+            // Helper to parse "YYYY-MM-DD" as local date
+            const parseLocalDate = (dateStr: string) => {
+                const [y, m, d] = dateStr.split('-').map(Number);
+                return new Date(y, m - 1, d);
+            };
+
+            const start = appliedFilters.startDate ? parseLocalDate(appliedFilters.startDate) : null;
+            const end = appliedFilters.endDate ? parseLocalDate(appliedFilters.endDate) : null;
+
+            if (start) {
+                start.setHours(0, 0, 0, 0);
+                if (rDate < start) return false;
+            }
+            if (end) {
+                end.setHours(23, 59, 59, 999);
+                if (rDate > end) return false;
+            }
+
+            if (appliedFilters.station !== 'all' && r.station !== appliedFilters.station) return false;
+            if (appliedFilters.sector !== 'all' && !r.derivedSector.toLowerCase().includes(appliedFilters.sector.toLowerCase())) return false;
+            if (appliedFilters.vehicle !== 'all' && r.vehicle !== appliedFilters.vehicle) return false;
+            if (appliedFilters.fuelType !== 'all') {
+                const fuel = r.fuelType?.toLowerCase() || '';
+                if (appliedFilters.fuelType === 'diesel' && !fuel.includes('diesel')) return false;
+                if (appliedFilters.fuelType === 'gasolina' && !fuel.includes('gasolina')) return false;
+                if (appliedFilters.fuelType === 'etanol' && !fuel.includes('etanol')) return false;
+                if (appliedFilters.fuelType === 'arla' && !fuel.includes('arla')) return false;
+            }
+
+            return true;
+        });
+
+        const totalLitersByFuel: Record<string, number> = {};
+        const totalValueBySector: Record<string, number> = {};
+        const totalValueByFuel: Record<string, number> = {};
+        let grandTotalLiters = 0;
+        let grandTotalValue = 0;
+
+        filtered.forEach(r => {
+            // Fuel aggregation
+            const fuel = r.fuelType.split(' - ')[0];
+            totalLitersByFuel[fuel] = (totalLitersByFuel[fuel] || 0) + r.liters;
+            totalValueByFuel[fuel] = (totalValueByFuel[fuel] || 0) + r.cost;
+            grandTotalLiters += r.liters;
+            grandTotalValue += r.cost;
+
+            // Sector aggregation
+            const sectorName = r.derivedSector;
+            totalValueBySector[sectorName] = (totalValueBySector[sectorName] || 0) + r.cost;
+        });
+
+        return {
+            records: filtered,
+            totalLitersByFuel,
+            totalValueBySector,
+            totalValueByFuel,
+            grandTotalLiters,
+            grandTotalValue
+        };
+    }, [allRecords, appliedFilters, vehicles, sectors]);
+
+    const renderReportsView = () => (
+        <div className="space-y-6 animate-fade-in pb-20">
+            {/* Filters Section */}
+            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 md:p-8">
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
+                    <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
+                        <Filter className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-slate-900 uppercase">Filtros do Relatório</h2>
+                        <p className="text-slate-500 text-sm font-medium">Refine os dados para geração do relatório</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {/* Date inputs */}
+                    <div>
+                        <ModernDateInput
+                            label="Período Inicial"
+                            value={pendingFilters.startDate}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, startDate: val })}
+                        />
+                    </div>
+                    <div>
+                        <ModernDateInput
+                            label="Período Final"
+                            value={pendingFilters.endDate}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, endDate: val })}
+                        />
+                    </div>
+                    {/* Select dropdowns */}
+                    <div>
+                        <ModernSelect
+                            label="Posto"
+                            value={pendingFilters.station}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, station: val })}
+                            options={[
+                                { value: 'all', label: 'Todos os Postos' },
+                                ...gasStations.map(s => ({ value: s.name, label: s.name }))
+                            ]}
+                            icon={Building2}
+                            placeholder="Todos os Postos"
+                        />
+                    </div>
+                    <div>
+                        <ModernSelect
+                            label="Setor"
+                            value={pendingFilters.sector}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, sector: val })}
+                            options={[
+                                { value: 'all', label: 'Todos os Setores' },
+                                ...sectors.map(s => ({ value: s.name, label: s.name }))
+                            ]}
+                            icon={Factory}
+                            placeholder="Todos os Setores"
+                            searchable
+                        />
+                    </div>
+                    <div>
+                        <ModernSelect
+                            label="Veículo (Placa)"
+                            value={pendingFilters.vehicle}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, vehicle: val })}
+                            options={[
+                                { value: 'all', label: 'Todos os Veículos' },
+                                ...vehicles.map(v => ({ value: v.plate || v.id, label: `${v.plate} - ${v.model}` }))
+                            ]}
+                            icon={Car}
+                            placeholder="Selecione o Veículo"
+                            searchable
+                        />
+                    </div>
+                    <div>
+                        <ModernSelect
+                            label="Combustível"
+                            value={pendingFilters.fuelType}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, fuelType: val })}
+                            options={[
+                                { value: 'all', label: 'Todos' },
+                                { value: 'diesel', label: 'Diesel' },
+                                { value: 'gasolina', label: 'Gasolina' },
+                                { value: 'etanol', label: 'Etanol' },
+                                { value: 'arla', label: 'Arla' }
+                            ]}
+                            icon={Fuel}
+                            placeholder="Todos"
+                        />
+                    </div>
+
+                    <div className="md:col-span-3 lg:col-span-2 flex items-end">
+                        <button
+                            onClick={() => setAppliedFilters({ ...pendingFilters })}
+                            className="w-full md:w-auto px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95 flex items-center justify-center gap-2 h-[46px]"
+                        >
+                            <Filter className="w-4 h-4" />
+                            Aplicar Filtros
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Summary Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Liters and Value Totals */}
+                <div className="bg-slate-900 text-white rounded-[2rem] border border-slate-800 p-8 shadow-xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-6 opacity-10">
+                        <FileSpreadsheet className="w-32 h-32" />
+                    </div>
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                        <div>
+                            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400 mb-6">Resumo Geral</h3>
+                            <div className="space-y-6">
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Volume Total</p>
+                                    <p className="text-4xl font-black tracking-tighter">{reportData.grandTotalLiters.toFixed(1)} <span className="text-xl text-slate-500">L</span></p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valor Total</p>
+                                    <p className="text-4xl font-black tracking-tighter text-emerald-400">R$ {reportData.grandTotalValue.toFixed(2)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="pt-8 border-t border-white/5 mt-8 flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">{reportData.records.length} registros encontrados</span>
+                            <button
+                                onClick={() => setShowPrintPreview(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                            >
+                                <Download className="w-3.5 h-3.5" /> Exportar PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Totals by Fuel */}
+                <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Por Combustível</h3>
+                    <div className="space-y-4">
+                        {Object.entries(reportData.totalLitersByFuel).map(([fuel, liters]) => (
+                            <div key={fuel} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div>
+                                    <p className="text-xs font-black text-slate-900 uppercase">{fuel}</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">R$ {(reportData.totalValueByFuel[fuel] as number).toFixed(2)}</p>
+                                </div>
+                                <p className="font-black text-slate-700">{(liters as number).toFixed(1)} L</p>
+                            </div>
+                        ))}
+                        {Object.keys(reportData.totalLitersByFuel).length === 0 && (
+                            <div className="text-center py-12">
+                                <Fuel className="w-12 h-12 text-slate-100 mx-auto mb-3" />
+                                <p className="text-xs font-bold text-slate-300 uppercase">Nenhum dado</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Totals by Sector */}
+                <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6 text-center">Valor por Setor</h3>
+                    <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                        {Object.entries(reportData.totalValueBySector)
+                            .sort((a, b) => (b[1] as number) - (a[1] as number))
+                            .map(([sector, value]) => {
+                                const val = value as number;
+                                return (
+                                    <div key={sector} className="flex flex-col gap-1 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <p className="text-[10px] font-black text-slate-900 uppercase truncate" title={sector}>{sector}</p>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden mr-4">
+                                                <div
+                                                    className="h-full bg-indigo-500 rounded-full"
+                                                    style={{ width: `${reportData.grandTotalValue > 0 ? (val / reportData.grandTotalValue) * 100 : 0}%` }}
+                                                />
+                                            </div>
+                                            <p className="text-xs font-black text-slate-700 whitespace-nowrap">R$ {val.toFixed(2)}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        {Object.keys(reportData.totalValueBySector).length === 0 && (
+                            <div className="text-center py-12">
+                                <Building2 className="w-12 h-12 text-slate-100 mx-auto mb-3" />
+                                <p className="text-xs font-bold text-slate-300 uppercase">Nenhum dado</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Records Table */}
+            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                        <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Detalhamento dos Abastecimentos</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Listagem individual conforme filtros</p>
+                    </div>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-50">
+                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Data</th>
+                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Nº Nota</th>
+                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Veículo</th>
+                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Setor</th>
+                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Combustível</th>
+                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 whitespace-nowrap">Custo (R$)</th>
+                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Litros</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {reportData.records.map((r, idx) => (
+                                <tr key={r.id} className="hover:bg-slate-50/50 transition-colors group">
+                                    <td className="p-4">
+                                        <p className="text-xs font-black text-slate-700">{new Date(r.date).toLocaleDateString('pt-BR')}</p>
+                                    </td>
+                                    <td className="p-4">
+                                        <p className="text-[10px] font-mono font-bold text-slate-500 uppercase truncate max-w-[100px]">
+                                            {r.invoiceNumber || '-'}
+                                        </p>
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex flex-col">
+                                            <p className="text-xs font-black text-slate-900 uppercase">{r.vehicle}</p>
+                                            <p className="text-[10px] font-bold text-slate-400">
+                                                {(r as any).derivedPlate}
+                                            </p>
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <p className="text-[10px] font-bold text-slate-500 uppercase truncate max-w-[150px]">
+                                            {(r as any).derivedSector}
+                                        </p>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest ${r.fuelType.toLowerCase().includes('diesel') ? 'bg-amber-100 text-amber-700' :
+                                            r.fuelType.toLowerCase().includes('gasolina') ? 'bg-emerald-100 text-emerald-700' :
+                                                r.fuelType.toLowerCase().includes('etanol') ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                                            }`}>
+                                            {r.fuelType.split(' - ')[0]}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 font-black text-slate-900 whitespace-nowrap">R$ {r.cost.toFixed(2)}</td>
+                                    <td className="p-4 font-bold text-slate-700">{r.liters.toFixed(1)}</td>
+                                </tr>
+                            ))}
+                            {reportData.records.length === 0 && (
+                                <tr>
+                                    <td colSpan={6} className="p-12 text-center">
+                                        <div className="flex flex-col items-center">
+                                            <Search className="w-12 h-12 text-slate-200 mb-3" />
+                                            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Nenhum registro encontrado para estes filtros</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+
     const renderOverview = () => (
         <div className="space-y-6 animate-fade-in pb-10">
             {/* 1. Top KPI Row */}
@@ -581,7 +938,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     </div>
                     <div className="relative z-10">
                         <h3 className="text-3xl font-black text-emerald-900 tracking-tight">
-                            R$ {stats.totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {stats.totalCost.toFixed(2)}
                         </h3>
                         <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${stats.costDiff > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
                             {stats.costDiff > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
@@ -603,7 +960,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     </div>
                     <div className="relative z-10">
                         <h3 className="text-3xl font-black text-cyan-900 tracking-tight">
-                            {stats.totalLiters.toLocaleString('pt-BR', { minimumFractionDigits: 0 })} L
+                            {stats.totalLiters.toFixed(0)} L
                         </h3>
                         <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${stats.litersDiff > 0 ? 'text-cyan-500' : 'text-slate-400'}`}>
                             <span>{stats.filteredCount} abastecimentos</span>
@@ -643,7 +1000,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     </div>
                     <div className="relative z-10">
                         <h3 className="text-3xl font-black text-amber-900 tracking-tight">
-                            {stats.totalKmPeriod.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">Km</span>
+                            {stats.totalKmPeriod.toFixed(0)} <span className="text-lg text-slate-400 font-bold">Km</span>
                         </h3>
                         <p className="text-xs font-medium text-slate-400 mt-1">Estimado no período</p>
                     </div>
@@ -753,7 +1110,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 <Tooltip
                                     cursor={{ fill: '#f8fafc' }}
                                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                    formatter={(value: number) => [`R$ ${value.toLocaleString()}`, 'Gasto']}
+                                    formatter={(value: number) => [`R$ ${value.toFixed(2)}`, 'Gasto']}
                                 />
                                 <Bar dataKey="value" fill="#0ea5e9" radius={[0, 4, 4, 0]} barSize={20} />
                             </BarChart>
@@ -785,7 +1142,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-sm font-black text-slate-700">R$ {v.totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                                    <p className="text-sm font-black text-slate-700">R$ {v.totalCost.toFixed(0)}</p>
                                     <p className="text-[10px] text-slate-400 font-medium">{v.totalLiters.toFixed(0)} Litros</p>
                                 </div>
                             </div>
@@ -811,7 +1168,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             <div key={idx} className="bg-white p-3 rounded-2xl shadow-sm border border-rose-100 flex justify-between items-center">
                                 <div>
                                     <p className="text-xs font-bold text-slate-800 uppercase">{v.name}</p>
-                                    <p className="text-[10px] text-rose-500 font-bold">R$ {v.totalCost.toLocaleString()}</p>
+                                    <p className="text-[10px] text-rose-500 font-bold">R$ {v.totalCost.toFixed(2)}</p>
                                 </div>
                                 <span className="text-[10px] font-bold bg-rose-100 text-rose-600 px-2 py-1 rounded-lg">Alto Gasto</span>
                             </div>
@@ -945,7 +1302,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             <DollarSign className="w-4 h-4 text-emerald-500" />
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Custo Total</span>
                         </div>
-                        <p className="text-2xl font-black text-slate-900">R$ {totalVehicleCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-2xl font-black text-slate-900">R$ {totalVehicleCost.toFixed(2)}</p>
                     </div>
                     <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
@@ -1056,7 +1413,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-slate-700">{r.odometer.toLocaleString()} km</span>
+                                                <span className="font-bold text-slate-700">{r.odometer.toFixed(0)} km</span>
                                                 {r.distance > 0 && <span className="text-[10px] text-cyan-600 font-bold mt-1">(+{r.distance} km)</span>}
                                             </div>
                                         </td>
@@ -1171,7 +1528,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                             <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
                                             <span className="text-[10px] font-bold text-slate-400 uppercase">Investido</span>
                                         </div>
-                                        <p className="text-xl font-black text-slate-900">R$ {v.totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                        <p className="text-xl font-black text-slate-900">R$ {v.totalCost.toFixed(2)}</p>
                                     </div>
                                     <div className="bg-slate-50 rounded-2xl p-4 transition-colors group-hover:bg-white border border-transparent group-hover:border-slate-100">
                                         <div className="flex items-center gap-2 mb-1">
@@ -1215,31 +1572,22 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
 
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
                         {/* Month/Year Selector */}
-                        <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1.5 shadow-sm">
-                            <div className="relative group">
-                                <select
+                        <div className="flex items-center gap-3">
+                            <div className="w-40">
+                                <ModernSelect
                                     value={selectedMonth}
-                                    onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                                    className="appearance-none bg-transparent pl-4 pr-10 py-2 text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
-                                >
-                                    {months.map((m, idx) => (
-                                        <option key={m} value={idx}>{m}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-hover:text-cyan-600 pointer-events-none transition-colors" />
+                                    onChange={(val) => setSelectedMonth(Number(val))}
+                                    options={months.map((m, idx) => ({ value: idx, label: m }))}
+                                    icon={CalendarDays}
+                                />
                             </div>
-                            <div className="w-px h-6 bg-slate-100 mx-1"></div>
-                            <div className="relative group">
-                                <select
+                            <div className="w-36">
+                                <ModernSelect
                                     value={selectedYear}
-                                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                                    className="appearance-none bg-transparent pl-4 pr-10 py-2 text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
-                                >
-                                    {[2024, 2025, 2026].map(y => (
-                                        <option key={y} value={y}>{y}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-hover:text-cyan-600 pointer-events-none transition-colors" />
+                                    onChange={(val) => setSelectedYear(Number(val))}
+                                    options={[2024, 2025, 2026].map(y => ({ value: y, label: String(y) }))}
+                                    icon={Calendar}
+                                />
                             </div>
                         </div>
 
@@ -1266,6 +1614,16 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 Veículos
                             </button>
                             <button
+                                onClick={() => setActiveTab('reports')}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'reports'
+                                    ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5'
+                                    : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                            >
+                                <FileText className="w-3.5 h-3.5" />
+                                Relatórios
+                            </button>
+                            <button
                                 onClick={() => setActiveTab('config')}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'config'
                                     ? 'bg-white text-slate-900 shadow-sm ring-1 ring-black/5'
@@ -1282,9 +1640,19 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 <div className="min-h-[500px]">
                     {activeTab === 'overview' && renderOverview()}
                     {activeTab === 'vehicle' && renderVehicleView()}
+                    {activeTab === 'reports' && renderReportsView()}
                     {activeTab === 'config' && <ConfigPanel />}
                 </div>
             </div>
+
+            {showPrintPreview && (
+                <AbastecimentoReportPDF
+                    data={reportData}
+                    filters={appliedFilters}
+                    state={state}
+                    onClose={() => setShowPrintPreview(false)}
+                />
+            )}
         </div>
     );
 };

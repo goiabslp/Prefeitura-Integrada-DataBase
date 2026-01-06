@@ -2036,36 +2036,49 @@ const App: React.FC = () => {
                   );
                 })()}
                 {isFinalizedView && (
-                  <FinalizedActionBar
-                    onDownload={handleDownloadPdf}
-                    onBack={() => {
-                      if (activeBlock === 'compras' && editingOrder?.status !== 'pending') {
-                        handleTrackOrder();
-                      } else {
-                        handleGoHome();
-                      }
-                    }}
-                    onEdit={() => { setIsFinalizedView(false); setIsAdminSidebarOpen(true); }}
-                    onSend={handleSendOrder}
-                    showSendButton={activeBlock === 'compras'}
-                    isDownloading={isDownloading}
-                    documentTitle={appState.content.title}
-                    onToggleDigitalSignature={() => {
-                      setAppState(prev => ({
-                        ...prev,
-                        content: {
-                          ...prev.content,
-                          digitalSignature: {
-                            ...prev.content.digitalSignature!,
-                            enabled: !prev.content.digitalSignature?.enabled
-                          }
+                  <>
+                    {/* Botão para Abrir Formulário (Seta no Lado do Formulário) */}
+                    <button
+                      onClick={() => {
+                        setIsFinalizedView(false);
+                        setIsAdminSidebarOpen(true);
+                      }}
+                      className="fixed left-0 top-[20%] z-[110] bg-white border border-slate-200 border-l-0 rounded-r-2xl shadow-[10px_0_30px_rgba(0,0,0,0.05)] p-4 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 transition-all active:scale-95 group animate-fade-in"
+                      title="Abrir Formulário"
+                    >
+                      <ChevronRight className="w-7 h-7 group-hover:translate-x-1 transition-transform" />
+                    </button>
+
+                    <FinalizedActionBar
+                      onDownload={handleDownloadPdf}
+                      onBack={() => {
+                        if (activeBlock === 'compras' && editingOrder?.status !== 'pending') {
+                          handleTrackOrder();
+                        } else {
+                          handleGoHome();
                         }
-                      }));
-                    }}
-                    isDigitalSignatureVisible={!!appState.content.digitalSignature?.enabled}
-                    hasDigitalSignature={!!appState.content.digitalSignature}
-                    viewOnly={activeBlock === 'compras' && editingOrder?.status !== 'pending'}
-                  />
+                      }}
+                      onEdit={() => { setIsFinalizedView(false); setIsAdminSidebarOpen(true); }}
+                      onSend={handleSendOrder}
+                      isDownloading={isDownloading}
+                      documentTitle={appState.content.title}
+                      onToggleDigitalSignature={() => {
+                        setAppState(prev => ({
+                          ...prev,
+                          content: {
+                            ...prev.content,
+                            digitalSignature: {
+                              ...prev.content.digitalSignature!,
+                              enabled: !prev.content.digitalSignature?.enabled
+                            }
+                          }
+                        }));
+                      }}
+                      isDigitalSignatureVisible={!!appState.content.digitalSignature?.enabled}
+                      hasDigitalSignature={!!appState.content.digitalSignature}
+                      viewOnly={activeBlock === 'compras' && editingOrder?.status !== 'pending'}
+                    />
+                  </>
                 )}
               </main>
             </div>
@@ -2103,6 +2116,7 @@ const App: React.FC = () => {
 
         {currentView === 'abastecimento' && appState.view === 'dashboard' && (
           <AbastecimentoDashboard
+            state={appState}
             onBack={() => {
               setCurrentView('home');
               setActiveBlock('abastecimento');

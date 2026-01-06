@@ -119,29 +119,37 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     const labelClass = "block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1";
 
     // Prepare Options
-    const vehicleOptions: Option[] = vehicles.map(v => ({
-        value: `${v.model} - ${v.brand}`, // Keeping original value format logic
-        label: `${v.model} - ${v.brand}`,
-        subtext: v.plate
-    }));
+    const vehicleOptions: Option[] = vehicles
+        .map(v => ({
+            value: `${v.model} - ${v.brand}`, // Keeping original value format logic
+            label: `${v.model} - ${v.brand}`,
+            subtext: v.plate
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
 
-    const driverOptions: Option[] = persons.map(p => ({
-        value: p.name,
-        label: p.name,
-        subtext: p.role // Assuming role exists on Person, otherwise undefined
-    }));
+    const driverOptions: Option[] = persons
+        .map(p => ({
+            value: p.name,
+            label: p.name,
+            subtext: p.role // Assuming role exists on Person, otherwise undefined
+        }))
+        .sort((a, b) => a.label.trim().toLowerCase().localeCompare(b.label.trim().toLowerCase()));
 
-    const fuelOptions: Option[] = fuelTypes.map(t => ({
-        value: t.key,
-        label: t.label,
-        subtext: `R$ ${t.price.toFixed(2)}/L`
-    }));
+    const fuelOptions: Option[] = fuelTypes
+        .map(t => ({
+            value: t.key,
+            label: t.label,
+            subtext: `R$ ${t.price.toFixed(2)}/L`
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
 
-    const stationOptions: Option[] = gasStations.map(s => ({
-        value: s.name,
-        label: s.name,
-        subtext: s.city
-    }));
+    const stationOptions: Option[] = gasStations
+        .map(s => ({
+            value: s.name,
+            label: s.name,
+            subtext: s.city
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
 
     if (isLoading) return <div className="flex-1 p-6 text-center text-slate-500">Carregando formulário...</div>;
 
