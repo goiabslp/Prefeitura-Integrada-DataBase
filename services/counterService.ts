@@ -128,3 +128,13 @@ export const getLicitacaoProtocolCount = async (year: number): Promise<number | 
 export const incrementLicitacaoProtocolCount = async (year: number): Promise<number | null> => {
     return incrementSectorCount(LICITACAO_GLOBAL_ID, year);
 };
+
+export const DIARIAS_GLOBAL_ID = '22222222-2222-2222-2222-222222222222';
+
+export const getDiariasProtocolCount = async (year: number): Promise<number | null> => {
+    return getNextSectorCount(DIARIAS_GLOBAL_ID, year);
+};
+
+export const incrementDiariasProtocolCount = async (year: number): Promise<number | null> => {
+    return incrementSectorCount(DIARIAS_GLOBAL_ID, year);
+};

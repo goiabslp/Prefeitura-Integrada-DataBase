@@ -588,18 +588,33 @@ const App: React.FC = () => {
       const year = new Date().getFullYear();
 
       // AUTO-INCREMENT SECTOR COUNTER (Unified for ALL blocks)
-      if (currentUser?.sector) {
+      // AUTO-INCREMENT SECTOR COUNTER (Unified for ALL blocks)
+      // For Diarias, we use a global counter, so skip the sector counter increment
+      if (currentUser?.sector && activeBlock !== 'diarias') {
         const userSector = sectors.find(s => s.name === currentUser.sector);
         if (userSector) {
-          // Increment the server counter regardless of block type
+          // Increment the server counter regardless of block type (except Diarias)
           await counterService.incrementSectorCount(userSector.id, year);
         }
       }
 
-      const prefix = activeBlock === 'oficio' ? 'OFC' : activeBlock === 'compras' ? 'COM' : activeBlock === 'diarias' ? 'DIA' : 'LIC';
-      const protocolString = `${prefix}-${year}-${randomPart}`;
+      let protocolString = '';
+      if (activeBlock === 'diarias') {
+        const diariaCount = await counterService.incrementDiariasProtocolCount(year);
+        const formattedNum = (diariaCount || 1).toString().padStart(3, '0');
+        protocolString = `DIA-${formattedNum}/${year}`;
+      } else {
+        const prefix = activeBlock === 'oficio' ? 'OFC' : activeBlock === 'compras' ? 'COM' : 'LIC';
+        protocolString = `${prefix}-${year}-${randomPart}`;
+      }
+
       const finalSnapshot = JSON.parse(JSON.stringify(appState));
       finalSnapshot.content.protocol = protocolString;
+
+      // For Diarias, also update the leftBlockText with the finalized number to ensure it matches the generated protocol
+      if (activeBlock === 'diarias') {
+        finalSnapshot.content.leftBlockText = `Solicitação Nº: ${protocolString}`;
+      }
 
       // Add digital signature if present
       if (digitalSignatureData) {

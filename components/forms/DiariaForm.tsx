@@ -7,6 +7,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import { AppState, ContentData, Signature, EvidenceItem, Person, Sector, Job, BlockType } from '../../types';
+import { getDiariasProtocolCount } from '../../services/counterService';
 
 interface DiariaFormProps {
   state: AppState;
@@ -181,16 +182,22 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
     handleUpdate('content', 'requestedValue', formatted);
   };
 
-  const handleDiariaSubTypeChange = (type: 'diaria' | 'custeio') => {
+  const handleDiariaSubTypeChange = async (type: 'diaria' | 'custeio') => {
     const newTitle = type === 'diaria' ? 'Requisição de Diária' : 'Requisição de Custeio';
     const currentYear = new Date().getFullYear();
+
+    // Fetch next number (peek)
+    const count = await getDiariasProtocolCount(currentYear);
+    const formattedNum = (count || 1).toString().padStart(3, '0');
+    const protocolText = `Solicitação Nº: DIA-${formattedNum}/${currentYear}`;
+
     onUpdate({
       ...state,
       content: {
         ...state.content,
         subType: type,
         title: newTitle,
-        leftBlockText: `Protocolo nº ${type.toUpperCase()}-001/${currentYear}`,
+        leftBlockText: protocolText,
         paymentForecast: calculatePaymentForecast(),
         showDiariaSignatures: true,
         showExtraField: true,
