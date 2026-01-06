@@ -344,7 +344,7 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
               <div key={item.id} className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-200 shadow-sm animate-fade-in group hover:border-emerald-300 hover:shadow-md transition-all">
                 <div className="grid grid-cols-12 gap-4 sm:gap-5 items-end">
                   {/* Descrição do Item */}
-                  <div className="col-span-12 lg:col-span-5">
+                  <div className="col-span-12">
                     <label className={labelClass}>Descrição do Item {index + 1}</label>
                     <div className="relative">
                       <input
@@ -358,50 +358,50 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
                   </div>
 
                   {/* Quantidade Dinâmica */}
-                  <div className="col-span-7 sm:col-span-6 lg:col-span-3">
+                  <div className="col-span-5 sm:col-span-4">
                     <label className={labelClass}>Quantidade</label>
-                    <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 min-w-[120px]">
+                    <div className="flex items-center bg-slate-50 rounded-xl border border-slate-200 h-[46px]">
                       <button
                         type="button"
                         onClick={() => adjustQuantity(item.id, -1)}
-                        className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-white text-slate-500 hover:text-emerald-600 hover:shadow-sm transition-all active:scale-90"
+                        className="w-10 h-full flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-l-xl transition-colors active:bg-emerald-100"
                       >
-                        <Minus className="w-3.5 h-3.5" />
+                        <Minus className="w-4 h-4" />
                       </button>
                       <input
                         type="number"
                         min="1"
                         value={item.quantity}
                         onChange={(e) => handleUpdateItem(item.id, 'quantity', Number(e.target.value))}
-                        className="flex-1 min-w-0 bg-transparent border-none text-center text-sm font-bold text-slate-900 outline-none px-1"
+                        className="flex-1 min-w-0 bg-transparent border-none text-center text-base font-bold text-slate-900 outline-none h-full"
                       />
                       <button
                         type="button"
                         onClick={() => adjustQuantity(item.id, 1)}
-                        className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-white text-slate-500 hover:text-emerald-600 hover:shadow-sm transition-all active:scale-90"
+                        className="w-10 h-full flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-r-xl transition-colors active:bg-emerald-100"
                       >
-                        <Plus className="w-3.5 h-3.5" />
+                        <Plus className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
 
                   {/* Unidade de Medida Dinâmica */}
-                  <div className="col-span-5 sm:col-span-5 lg:col-span-3 relative">
+                  <div className="col-span-5 sm:col-span-6 md:col-span-7 relative">
                     <label className={labelClass}>Unidade</label>
                     <div className="relative">
                       <button
                         onClick={() => setOpenDropdownId(openDropdownId === item.id ? null : item.id)}
-                        className={`${inputClass} py-3 pl-10 sm:pl-11 text-left flex items-center justify-between group/btn relative hover:bg-slate-100/50`}
+                        className={`${inputClass} py-0 h-[46px] pl-10 sm:pl-11 text-left flex items-center justify-between group/btn relative hover:bg-slate-100/50`}
                       >
-                        <div className="flex items-center gap-2 overflow-hidden">
+                        <div className="flex items-center gap-2 overflow-hidden w-full">
                           <CurrentUnitIcon className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-4.5 sm:h-4.5 text-emerald-500" />
-                          <span className="truncate text-[11px] sm:text-sm">{item.unit}</span>
+                          <span className="truncate text-sm font-medium text-slate-700 w-full">{item.unit}</span>
                         </div>
-                        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform flex-shrink-0 ${openDropdownId === item.id ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform flex-shrink-0 ${openDropdownId === item.id ? 'rotate-180' : ''}`} />
                       </button>
 
                       {openDropdownId === item.id && (
-                        <div className="absolute z-[100] right-0 sm:left-0 sm:right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-slide-up py-1.5 ring-4 ring-slate-900/5 min-w-[160px]">
+                        <div className="absolute z-[100] top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-slide-up py-1.5 ring-4 ring-slate-900/5 min-w-[160px]">
                           {UNIT_OPTIONS.map((opt) => {
                             const Icon = opt.icon;
                             const isSelected = item.unit === opt.value;
@@ -431,14 +431,13 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
                   </div>
 
                   {/* Excluir Item */}
-                  <div className="col-span-12 sm:col-span-1 lg:col-span-1 flex justify-end pb-1">
+                  <div className="col-span-2 sm:col-span-2 md:col-span-1 flex justify-end items-end h-[46px]">
                     <button
                       onClick={() => handleRemoveItem(item.id)}
-                      className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all active:scale-90 border border-transparent hover:border-red-100 flex items-center gap-2 sm:block"
+                      className="w-[46px] h-[46px] rounded-xl border border-red-100 text-red-400 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all flex items-center justify-center active:scale-95 shadow-sm"
                       title="Remover Item"
                     >
-                      <Trash2 className="w-5.5 h-5.5" />
-                      <span className="sm:hidden text-xs font-bold uppercase tracking-widest">Remover</span>
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
                 </div>

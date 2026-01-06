@@ -7,7 +7,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import { AppState, ContentData, Signature, EvidenceItem, Person, Sector, Job, BlockType } from '../../types';
-import { getDiariasProtocolCount } from '../../services/counterService';
+import { getDiariasProtocolCount, incrementDiariasProtocolCount } from '../../services/counterService';
 
 interface DiariaFormProps {
   state: AppState;
@@ -189,10 +189,14 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
     const newTitle = type === 'diaria' ? 'Requisição de Diária' : 'Requisição de Custeio';
     const currentYear = new Date().getFullYear();
 
-    // Fetch next number (peek)
-    const count = await getDiariasProtocolCount(currentYear);
-    const formattedNum = (count || 1).toString().padStart(3, '0');
-    const protocolText = `Solicitação Nº: DIA-${formattedNum}/${currentYear}`;
+    // Check if we already have a generated protocol for this year to avoid burning numbers on type switch
+    let protocolText = content.leftBlockText;
+
+    if (!protocolText || !protocolText.includes(`/${currentYear}`)) {
+      const count = await incrementDiariasProtocolCount(currentYear);
+      const formattedNum = (count || 1).toString().padStart(3, '0');
+      protocolText = `Solicitação Nº: DIA-${formattedNum}/${currentYear}`;
+    }
 
     onUpdate({
       ...state,
