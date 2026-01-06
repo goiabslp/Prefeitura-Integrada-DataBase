@@ -189,14 +189,16 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
     const newTitle = type === 'diaria' ? 'Requisição de Diária' : 'Requisição de Custeio';
     const currentYear = new Date().getFullYear();
 
-    // Check if we already have a generated protocol for this year to avoid burning numbers on type switch
-    let protocolText = content.leftBlockText;
+    let protocolString = content.protocol;
 
-    if (!protocolText || !protocolText.includes(`/${currentYear}`)) {
+    // Increment only if not already assigned
+    if (!protocolString) {
       const count = await incrementDiariasProtocolCount(currentYear);
       const formattedNum = (count || 1).toString().padStart(3, '0');
-      protocolText = `Solicitação Nº: DIA-${formattedNum}/${currentYear}`;
+      protocolString = `DIA-${formattedNum}/${currentYear}`;
     }
+
+    const protocolText = `Solicitação Nº: ${protocolString}`;
 
     onUpdate({
       ...state,
@@ -204,6 +206,7 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
         ...state.content,
         subType: type,
         title: newTitle,
+        protocol: protocolString, // Persist the assigned protocol
         leftBlockText: protocolText,
         paymentForecast: calculatePaymentForecast(),
         showDiariaSignatures: true,

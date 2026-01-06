@@ -602,9 +602,15 @@ const App: React.FC = () => {
       }
 
       if (activeBlock === 'diarias') {
-        const diariaCount = await counterService.incrementDiariasProtocolCount(year);
-        const formattedNum = (diariaCount || 1).toString().padStart(3, '0');
-        protocolString = `DIA-${formattedNum}/${year}`;
+        if (appState.content.protocol) {
+          protocolString = appState.content.protocol;
+          // Also check if we need to sync global counter (nextVal) for GID
+          // uniqueProtocolId = `GID-${nextVal}-${year}-${randomPart}`;
+        } else {
+          const diariaCount = await counterService.incrementDiariasProtocolCount(year);
+          const formattedNum = (diariaCount || 1).toString().padStart(3, '0');
+          protocolString = `DIA-${formattedNum}/${year}`;
+        }
 
         // Generate Unique Tracking ID for Diarias (Global Counter + Random)
         uniqueProtocolId = `GID-${nextVal}-${year}-${randomPart}`;
@@ -1134,8 +1140,9 @@ const App: React.FC = () => {
             defaultTitle = 'Novo Pedido';
             leftBlockContent = `Ref: Requisição nº ${formattedNum}/${currentYear}`;
           } else if (currentBlock === 'diarias') {
-            defaultTitle = `Solicitação de Diária nº ${formattedNum}/${currentYear}`;
-            leftBlockContent = `Ref: Solicitação nº ${formattedNum}/${currentYear}`;
+            // Diarias handle their own numbering via global protocol count on subtype selection
+            defaultTitle = 'Requisição de Diária';
+            leftBlockContent = INITIAL_STATE.content.leftBlockText;
           } else if (currentBlock === 'licitacao') {
             // Assuming Licitacao also follows this pattern or has a specific title format using the number
             defaultTitle = `PROCESSO LICITATÓRIO`;
