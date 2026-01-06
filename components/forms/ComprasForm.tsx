@@ -128,6 +128,12 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
     }
   };
 
+  // Force blocks to be visible in preview for Compras, even if UI is hidden
+  useEffect(() => {
+    if (!docConfig.showLeftBlock) handleUpdate('document', 'showLeftBlock', true);
+    if (!docConfig.showRightBlock) handleUpdate('document', 'showRightBlock', true);
+  }, [docConfig.showLeftBlock, docConfig.showRightBlock, handleUpdate]);
+
   const inputClass = "bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-800 outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all w-full";
   const labelClass = "block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5";
 
@@ -135,62 +141,15 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
-      {/* Endereçamento */}
+      {/* Endereçamento - HIDDEN FROM UI BUT ACTIVE IN PREVIEW */}
+      {/* 
       <div className="space-y-6">
         <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
           <Columns className="w-4 h-4 text-emerald-600" /> Blocos de Endereçamento
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bloco Esquerdo (Ref)</span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" checked={docConfig.showLeftBlock} onChange={(e) => handleUpdate('document', 'showLeftBlock', e.target.checked)} className="sr-only peer" />
-                <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
-              </label>
-            </div>
-            {docConfig.showLeftBlock && (
-              <div className="flex flex-col gap-2">
-                <input
-                  type="text"
-                  value={content.leftBlockText?.split('\n')[0] || ''}
-                  disabled
-                  className="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-500 cursor-not-allowed select-none opacity-70"
-                  title="O número da requisição não pode ser alterado aqui."
-                />
-                <textarea
-                  value={content.leftBlockText?.split('\n').slice(1).join('\n') || ''}
-                  onChange={(e) => {
-                    const firstLine = content.leftBlockText?.split('\n')[0] || '';
-                    const newText = e.target.value;
-                    handleUpdate('content', 'leftBlockText', firstLine + (newText ? '\n' + newText : ''));
-                  }}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs h-20 resize-none focus:bg-white transition-all outline-none text-slate-700 font-medium placeholder:text-slate-400"
-                  placeholder="Informações adicionais..."
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bloco Direito (Destino)</span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" checked={docConfig.showRightBlock} onChange={(e) => handleUpdate('document', 'showRightBlock', e.target.checked)} className="sr-only peer" />
-                <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
-              </label>
-            </div>
-            {docConfig.showRightBlock && (
-              <textarea
-                value={content.rightBlockText}
-                onChange={(e) => handleUpdate('content', 'rightBlockText', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs h-24 resize-none focus:bg-white transition-all outline-none text-slate-700 font-medium"
-                placeholder={"Ao Departamento de Compras da\nPrefeitura de São José do Goiabal-MG"}
-              />
-            )}
-          </div>
-        </div>
-      </div>
+        ... removed UI ...
+      </div> 
+      */}
 
       {/* Dados do Solicitante (Dinamizado e Ordenado) */}
       <div className="space-y-4 border-t border-slate-200 pt-6">
