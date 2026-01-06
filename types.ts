@@ -270,4 +270,12 @@ export interface VehicleSchedule {
   createdAt: string;
   vehicleLocation?: string;
   authorizedByName?: string;
+  passengers?: CrewMember[];
+}
+
+export interface CrewMember {
+  name: string;
+  departureLocation: string;
+  appointmentTime: string;
+  appointmentLocation: string;
 }

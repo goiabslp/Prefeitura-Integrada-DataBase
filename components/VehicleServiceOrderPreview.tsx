@@ -140,46 +140,46 @@ export const VehicleServiceOrderPreview: React.FC<VehicleServiceOrderPreviewProp
                     <div className={`${isGenerating ? 'bg-white p-0' : 'bg-slate-200/50 p-8 rounded-[2rem] shadow-2xl'} overflow-hidden w-full flex justify-center`}>
                         <div id="os-preview-content" className={`${isGenerating ? 'scale-100 transform-none' : 'scale-[0.6] sm:scale-[0.7] md:scale-[0.8] lg:scale-[0.9]'} origin-top transition-all duration-300 bg-white`}>
                             <PageWrapper state={previewState} pageIndex={0} totalPages={1} isGenerating={isGenerating}>
-                                <div className="flex flex-col gap-6 mt-4">
+                                <div className="flex flex-col gap-3 mt-2">
 
-                                    {/* Status and Creation Section */}
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div className="border-2 border-slate-100 rounded-xl p-4 bg-slate-50 flex items-center gap-4">
-                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-${STATUS_MAP[schedule.status].color}-100 text-${STATUS_MAP[schedule.status].color}-600 shrink-0`}>
-                                                {React.createElement(STATUS_MAP[schedule.status].icon, { className: "w-5 h-5" })}
+                                    {/* Status and Creation Section - Compact Grid */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="border border-slate-100 rounded-lg p-2.5 bg-slate-50 flex items-center gap-3">
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-${STATUS_MAP[schedule.status].color}-100 text-${STATUS_MAP[schedule.status].color}-600 shrink-0`}>
+                                                {React.createElement(STATUS_MAP[schedule.status].icon, { className: "w-4 h-4" })}
                                             </div>
                                             <div>
-                                                <p className="text-[7pt] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Status do Documento</p>
-                                                <p className={`text-[11pt] font-black uppercase tracking-tight text-${STATUS_MAP[schedule.status].color}-700`}>
+                                                <p className="text-[6pt] font-black uppercase text-slate-400 tracking-widest leading-none mb-0.5">Status</p>
+                                                <p className={`text-[9pt] font-black uppercase tracking-tight text-${STATUS_MAP[schedule.status].color}-700`}>
                                                     {STATUS_MAP[schedule.status].label}
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col justify-center">
-                                            <p className="text-[8pt] font-black uppercase text-slate-400 tracking-widest mb-1 flex items-center gap-1">
-                                                <Clock className="w-3 h-3" /> Registrado no Sistema em:
+                                        <div className="border border-slate-200 rounded-lg p-2.5 bg-white flex flex-col justify-center">
+                                            <p className="text-[7pt] font-black uppercase text-slate-400 tracking-widest mb-0.5 flex items-center gap-1">
+                                                <Clock className="w-2.5 h-2.5" /> Registrado em:
                                             </p>
-                                            <p className="text-[10pt] font-bold text-slate-700">
+                                            <p className="text-[9pt] font-bold text-slate-700">
                                                 {new Date(schedule.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                             </p>
                                         </div>
                                     </div>
 
-                                    {/* Summary Cards */}
-                                    <div className="grid grid-cols-2 gap-6">
+                                    {/* Summary Cards - Compact */}
+                                    <div className="grid grid-cols-2 gap-3">
                                         {/* Vehicle Card */}
-                                        <div className="p-4 border border-slate-200 rounded-xl bg-slate-50 relative overflow-hidden">
-                                            <div className="absolute right-0 top-0 p-4 opacity-5">
-                                                <Car className="w-24 h-24" />
+                                        <div className="p-3 border border-slate-200 rounded-lg bg-slate-50 relative overflow-hidden">
+                                            <div className="absolute right-0 top-0 p-2 opacity-5">
+                                                <Car className="w-16 h-16" />
                                             </div>
                                             <div className="relative z-10">
-                                                <h3 className="text-[10pt] font-black uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-2">
-                                                    <Car className="w-4 h-4" /> Dados do Veículo
+                                                <h3 className="text-[8pt] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
+                                                    <Car className="w-3 h-3" /> Veículo
                                                 </h3>
-                                                <div className="space-y-1">
-                                                    <p className="text-[14pt] font-black text-slate-800">{vehicle.model}</p>
-                                                    <div className="flex gap-4 text-[10pt]">
-                                                        <span className="font-mono bg-slate-200 px-2 py-0.5 rounded text-slate-600">{vehicle.plate}</span>
+                                                <div className="space-y-0.5">
+                                                    <p className="text-[11pt] font-black text-slate-800">{vehicle.model}</p>
+                                                    <div className="flex gap-2 text-[8pt]">
+                                                        <span className="font-mono bg-slate-200 px-1.5 py-px rounded text-slate-600">{vehicle.plate}</span>
                                                         <span className="text-slate-500">{vehicle.type.toUpperCase()}</span>
                                                     </div>
                                                 </div>
@@ -187,87 +187,117 @@ export const VehicleServiceOrderPreview: React.FC<VehicleServiceOrderPreviewProp
                                         </div>
 
                                         {/* Driver Card */}
-                                        <div className="p-4 border border-slate-200 rounded-xl bg-slate-50 relative overflow-hidden">
-                                            <div className="absolute right-0 top-0 p-4 opacity-5">
-                                                <User className="w-24 h-24" />
+                                        <div className="p-3 border border-slate-200 rounded-lg bg-slate-50 relative overflow-hidden">
+                                            <div className="absolute right-0 top-0 p-2 opacity-5">
+                                                <User className="w-16 h-16" />
                                             </div>
                                             <div className="relative z-10">
-                                                <h3 className="text-[10pt] font-black uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-2">
-                                                    <User className="w-4 h-4" /> Condutor Responsável
+                                                <h3 className="text-[8pt] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
+                                                    <User className="w-3 h-3" /> Condutor
                                                 </h3>
-                                                <div className="space-y-1">
-                                                    <p className="text-[12pt] font-bold text-slate-800">{driver.name}</p>
-                                                    <p className="text-[10pt] text-slate-500">{driver.jobId ? 'Motorista Oficial' : 'Condutor Autorizado'}</p>
+                                                <div className="space-y-0.5">
+                                                    <p className="text-[10pt] font-bold text-slate-800">{driver.name}</p>
+                                                    <p className="text-[8pt] text-slate-500">{driver.jobId ? 'Motorista Oficial' : 'Condutor Autorizado'}</p>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Requester Info */}
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col justify-center">
-                                            <p className="text-[8pt] font-black uppercase text-slate-400 tracking-widest mb-1 flex items-center gap-1">
-                                                <Building2 className="w-3 h-3" /> Setor Solicitante
+                                    {/* Requester Info - Compact */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="border border-slate-200 rounded-lg p-2.5 bg-white flex flex-col justify-center">
+                                            <p className="text-[7pt] font-black uppercase text-slate-400 tracking-widest mb-0.5 flex items-center gap-1">
+                                                <Building2 className="w-2.5 h-2.5" /> Solicitante (Setor)
                                             </p>
-                                            <p className="text-[10pt] font-bold text-slate-700">{sector?.name || '---'}</p>
+                                            <p className="text-[9pt] font-bold text-slate-700 truncate">{sector?.name || '---'}</p>
                                         </div>
-                                        <div className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col justify-center">
-                                            <p className="text-[8pt] font-black uppercase text-slate-400 tracking-widest mb-1 flex items-center gap-1">
-                                                <User className="w-3 h-3" /> Solicitado Por
+                                        <div className="border border-slate-200 rounded-lg p-2.5 bg-white flex flex-col justify-center">
+                                            <p className="text-[7pt] font-black uppercase text-slate-400 tracking-widest mb-0.5 flex items-center gap-1">
+                                                <User className="w-2.5 h-2.5" /> Solicitado Por
                                             </p>
-                                            <p className="text-[10pt] font-bold text-slate-700">{requester?.name || '---'}</p>
+                                            <p className="text-[9pt] font-bold text-slate-700 truncate">{requester?.name || '---'}</p>
                                         </div>
                                     </div>
 
-
-
-                                    {/* Trip Details Section */}
-                                    <div className="border border-slate-200 rounded-xl overflow-hidden">
-                                        <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
-                                            <h3 className="text-[10pt] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                                                <MapPin className="w-4 h-4" /> Detalhes da Viagem
+                                    {/* Trip Details Section - Compact */}
+                                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                                        <div className="bg-slate-100 px-3 py-1.5 border-b border-slate-200">
+                                            <h3 className="text-[8pt] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                                                <MapPin className="w-3 h-3" /> Viagem
                                             </h3>
                                         </div>
-                                        <div className="p-6 grid grid-cols-2 gap-y-6 gap-x-8 bg-white">
-
-                                            <div className="space-y-2">
-                                                <p className="text-[9pt] font-bold uppercase text-slate-400 tracking-wide flex items-center gap-1">
-                                                    <Calendar className="w-3.5 h-3.5" /> Data/Hora Saída
+                                        <div className="p-3 grid grid-cols-2 gap-y-3 gap-x-4 bg-white">
+                                            <div className="space-y-1">
+                                                <p className="text-[7pt] font-bold uppercase text-slate-400 tracking-wide flex items-center gap-1">
+                                                    <Calendar className="w-3 h-3" /> Saída
                                                 </p>
-                                                <p className="text-[12pt] font-medium text-slate-800">
-                                                    {formatDate(schedule.departureDateTime)} <span className="text-slate-300 mx-2">|</span> {formatTime(schedule.departureDateTime)}
-                                                </p>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <p className="text-[9pt] font-bold uppercase text-slate-400 tracking-wide flex items-center gap-1">
-                                                    <Calendar className="w-3.5 h-3.5" /> Previsão Retorno
-                                                </p>
-                                                <p className="text-[12pt] font-medium text-slate-800">
-                                                    {schedule.returnDateTime ? formatDate(schedule.returnDateTime) : '---'} <span className="text-slate-300 mx-2">|</span> {schedule.returnDateTime ? formatTime(schedule.returnDateTime) : '---'}
+                                                <p className="text-[9pt] font-medium text-slate-800">
+                                                    {formatDate(schedule.departureDateTime)} <span className="text-slate-300 mx-1">|</span> {formatTime(schedule.departureDateTime)}
                                                 </p>
                                             </div>
 
-                                            <div className="col-span-2 space-y-2 pt-2 border-t border-dashed border-slate-100">
-                                                <p className="text-[9pt] font-bold uppercase text-slate-400 tracking-wide flex items-center gap-1">
-                                                    <MapPin className="w-3.5 h-3.5" /> Destino
+                                            <div className="space-y-1">
+                                                <p className="text-[7pt] font-bold uppercase text-slate-400 tracking-wide flex items-center gap-1">
+                                                    <Calendar className="w-3 h-3" /> Retorno
                                                 </p>
-                                                <p className="text-[12pt] font-bold text-slate-800 uppercase">
+                                                <p className="text-[9pt] font-medium text-slate-800">
+                                                    {schedule.returnDateTime ? formatDate(schedule.returnDateTime) : '---'} <span className="text-slate-300 mx-1">|</span> {schedule.returnDateTime ? formatTime(schedule.returnDateTime) : '---'}
+                                                </p>
+                                            </div>
+
+                                            <div className="col-span-2 space-y-1 pt-2 border-t border-dashed border-slate-100">
+                                                <p className="text-[7pt] font-bold uppercase text-slate-400 tracking-wide flex items-center gap-1">
+                                                    <MapPin className="w-3 h-3" /> Destino
+                                                </p>
+                                                <p className="text-[10pt] font-bold text-slate-800 uppercase leading-snug">
                                                     {schedule.destination}
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Objective Section */}
-                                    <div className="border border-slate-200 rounded-xl overflow-hidden">
-                                        <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
-                                            <h3 className="text-[10pt] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                                                <Target className="w-4 h-4" /> Objetivo da Viagem
+                                    {/* Crew / Passengers Section - Compact */}
+                                    {schedule.passengers && schedule.passengers.length > 0 && (
+                                        <div className="border border-slate-200 rounded-lg overflow-hidden">
+                                            <div className="bg-slate-100 px-3 py-1.5 border-b border-slate-200">
+                                                <h3 className="text-[8pt] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                                                    <User className="w-3 h-3" /> Tripulação
+                                                </h3>
+                                            </div>
+                                            <div className="bg-white">
+                                                <table className="w-full text-left border-collapse">
+                                                    <thead>
+                                                        <tr className="bg-slate-50 border-b border-slate-200 text-[6pt] font-black uppercase tracking-widest text-slate-400">
+                                                            <th className="p-2 pl-3 w-1/4">Nome</th>
+                                                            <th className="p-2 w-1/4">Partida</th>
+                                                            <th className="p-2 w-1/6">Horário</th>
+                                                            <th className="p-2 w-1/4">Local</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100">
+                                                        {schedule.passengers.map((p, idx) => (
+                                                            <tr key={idx} className="text-[7pt] font-medium text-slate-700">
+                                                                <td className="p-2 pl-3 font-bold uppercase text-slate-800 truncate">{p.name}</td>
+                                                                <td className="p-2 uppercase truncate">{p.departureLocation}</td>
+                                                                <td className="p-2 font-mono">{p.appointmentTime}</td>
+                                                                <td className="p-2 uppercase truncate">{p.appointmentLocation}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Objective Section - Compact */}
+                                    <div className="border border-slate-200 rounded-lg overflow-hidden flex-1">
+                                        <div className="bg-slate-100 px-3 py-1.5 border-b border-slate-200">
+                                            <h3 className="text-[8pt] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                                                <Target className="w-3 h-3" /> Objetivo
                                             </h3>
                                         </div>
-                                        <div className="p-6 bg-white">
-                                            <p className="text-[11pt] leading-relaxed text-justify text-slate-700">
+                                        <div className="p-3 bg-white h-full">
+                                            <p className="text-[9pt] leading-relaxed text-justify text-slate-700 line-clamp-[10]">
                                                 {schedule.purpose}
                                             </p>
                                         </div>

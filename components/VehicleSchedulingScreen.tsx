@@ -10,7 +10,7 @@ import {
   ArrowDown, TrendingUp, CalendarDays, Lock, Eye, FileText, Network,
   UserCheck, ShieldCheck, XCircle, ChevronRight as ChevronRightIcon,
   PackageCheck, Sparkles, Truck, CheckCircle, Activity, Flame,
-  Building2, ArrowRightLeft, UserCircle, Landmark
+  Building2, ArrowRightLeft, UserCircle, Landmark, Users, Briefcase
 } from 'lucide-react';
 import { DateTimePickerModal } from './DateTimePickerModal';
 import { VehicleScheduleHistory } from './VehicleScheduleHistory';
@@ -167,8 +167,31 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
   const [formData, setFormData] = useState<Partial<VehicleSchedule>>({
     vehicleId: '', driverId: '', serviceSectorId: '', requesterPersonId: '',
     departureDateTime: '', returnDateTime: '', destination: '', purpose: '', status: 'pendente',
-    vehicleLocation: ''
+    vehicleLocation: '',
+    passengers: []
   });
+  const [newPassenger, setNewPassenger] = useState<{ name: string, departureLocation: string, appointmentTime: string, appointmentLocation: string }>({
+    name: '', departureLocation: '', appointmentTime: '', appointmentLocation: ''
+  });
+
+  const handleAddPassenger = () => {
+    if (!newPassenger.name || !newPassenger.departureLocation || !newPassenger.appointmentTime || !newPassenger.appointmentLocation) {
+      showToast("Preencha todos os campos da tripulação.", "warning");
+      return;
+    }
+    setFormData(prev => ({
+      ...prev,
+      passengers: [...(prev.passengers || []), newPassenger]
+    }));
+    setNewPassenger({ name: '', departureLocation: '', appointmentTime: '', appointmentLocation: '' });
+  };
+
+  const handleRemovePassenger = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      passengers: (prev.passengers || []).filter((_, i) => i !== index)
+    }));
+  };
 
   const showToast = (message: string, type: 'error' | 'success' | 'warning' = 'error') => {
     setToast({ show: true, message, type });
@@ -278,8 +301,10 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
         departureDateTime: getLocalISOString(departure),
         returnDateTime: getLocalISOString(returnDate),
         destination: '', purpose: '', status: 'pendente',
-        vehicleLocation: ''
+        vehicleLocation: '',
+        passengers: []
       });
+      setNewPassenger({ name: '', departureLocation: '', appointmentTime: '', appointmentLocation: '' });
     }
     setIsModalOpen(true);
   };
@@ -572,7 +597,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                           else available.push(v);
                         });
                         if (available.length === 0 && occupied.length === 0) return (<div className="text-center py-10"><Info className="w-8 h-8 text-slate-300 mx-auto mb-2" /><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nenhum veículo leve operacional</p></div>);
-                        return (<>{available.length > 0 && (<div className="space-y-3"><div className="flex items-center gap-2 mb-2 ml-1"><div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div><span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Disponíveis</span></div>{available.map(v => { const vSector = sectors.find(s => s.id === v.sectorId)?.name || 'Sem Setor'; return (<button key={v.id} onClick={() => handleOpenModal(undefined, new Date(new Date(selectedDay!).setHours(new Date().getHours() + 1, 0, 0, 0)), v.id)} className="w-full bg-blue-50/50 p-4 rounded-2xl border border-blue-100 hover:border-blue-400 hover:shadow-md transition-all flex items-center justify-between group text-left shadow-sm"><div className="flex items-center gap-4 min-w-0"><div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-all shrink-0 shadow-sm"><Car className="w-5 h-5" /></div><div className="min-w-0"><span className="text-xs font-black text-blue-900 uppercase block truncate leading-tight">{v.brand} {v.model}</span><div className="flex items-center gap-2 mt-0.5"><span className="text-[8px] font-mono font-bold text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-100 tracking-wider uppercase">{v.plate}</span><span className="text-[9px] text-blue-400 font-bold uppercase truncate max-w-[100px]">{vSector}</span></div></div></div><div className="p-2 text-blue-200 group-hover:text-blue-600 transition-colors"><Plus className="w-4 h-4" /></div></button>); })} </div>)}{occupied.length > 0 && (<div className="space-y-3 pt-4"><div className="flex items-center gap-2 mb-2 ml-1"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span className="text-[9px] font-black text-orange-600 uppercase tracking-widest">Ocupados no Período</span></div>{occupied.map(({ vehicle, schedule }) => { const vSector = sectors.find(s => s.id === vehicle.sectorId)?.name || 'Sem Setor'; return (<div key={vehicle.id} className="w-full bg-orange-50/50 p-4 rounded-2xl border border-orange-200 flex items-center justify-between group shadow-sm"><div className="flex items-center gap-4 min-w-0"><div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-orange-400 shrink-0 shadow-sm"><Navigation className="w-5 h-5" /></div><div className="min-w-0"><div className="flex items-center gap-2"><span className="text-xs font-black text-orange-900 uppercase truncate leading-tight">{vehicle.brand} {vehicle.model}</span></div><div className="flex items-center gap-2 mt-0.5"><span className="text-[8px] font-mono font-bold text-orange-600 bg-white px-1.5 py-0.5 rounded border border-orange-100 tracking-wider uppercase">{vehicle.plate}</span><span className="text-[9px] text-orange-400 font-bold uppercase truncate flex items-center gap-1 max-w-[100px]"><MapPin className="w-2 h-2 shrink-0" /> {schedule.destination}</span></div><div className="text-[8px] font-black text-orange-300 uppercase mt-1">Lotação: {vSector}</div></div></div><div className="shrink-0 ml-2"><div className="w-6 h-6 bg-white border border-orange-100 rounded-lg flex items-center justify-center text-orange-200 shadow-sm"><Lock className="w-3 h-3" /></div></div></div>); })} </div>)}</>);
+                        return (<>{available.length > 0 && (<div className="space-y-3"><div className="flex items-center gap-2 mb-2 ml-1"><div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div><span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Disponíveis</span></div>{available.map(v => { const vSector = sectors.find(s => s.id === v.sectorId)?.name || 'Sem Setor'; return (<button key={v.id} onClick={() => handleOpenModal(undefined, new Date(new Date(selectedDay!).setHours(new Date().getHours() + 1, 0, 0, 0)), v.id)} className="w-full bg-blue-50/50 p-4 rounded-2xl border border-blue-100 hover:border-blue-400 hover:shadow-md transition-all flex items-center justify-between group text-left shadow-sm"><div className="flex items-center gap-4 min-w-0"><div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-all shrink-0 shadow-sm"><Car className="w-5 h-5" /></div><div className="min-w-0"><span className="text-xs font-black text-blue-900 uppercase block truncate leading-tight">{v.brand} {v.model}</span><div className="flex items-center gap-2 mt-0.5"><span className="text-[8px] font-mono font-bold text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-100 tracking-wider uppercase">{v.plate}</span><span className="text-[9px] text-blue-400 font-bold uppercase">{vSector}</span></div></div></div><div className="p-2 text-blue-200 group-hover:text-blue-600 transition-colors"><Plus className="w-4 h-4" /></div></button>); })} </div>)}{occupied.length > 0 && (<div className="space-y-3 pt-4"><div className="flex items-center gap-2 mb-2 ml-1"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span className="text-[9px] font-black text-orange-600 uppercase tracking-widest">Ocupados no Período</span></div>{occupied.map(({ vehicle, schedule }) => { const vSector = sectors.find(s => s.id === vehicle.sectorId)?.name || 'Sem Setor'; return (<div key={vehicle.id} className="w-full bg-orange-50/50 p-4 rounded-2xl border border-orange-200 flex items-center justify-between group shadow-sm"><div className="flex items-center gap-4 min-w-0"><div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-orange-400 shrink-0 shadow-sm"><Navigation className="w-5 h-5" /></div><div className="min-w-0"><div className="flex items-center gap-2"><span className="text-xs font-black text-orange-900 uppercase truncate leading-tight">{vehicle.brand} {vehicle.model}</span></div><div className="flex items-center gap-2 mt-0.5"><span className="text-[8px] font-mono font-bold text-orange-600 bg-white px-1.5 py-0.5 rounded border border-orange-100 tracking-wider uppercase">{vehicle.plate}</span><span className="text-[9px] text-orange-400 font-bold uppercase truncate flex items-center gap-1 max-w-[100px]"><MapPin className="w-2 h-2 shrink-0" /> {schedule.destination}</span></div><div className="text-[8px] font-black text-orange-300 uppercase mt-1">Lotação: {vSector}</div></div></div><div className="shrink-0 ml-2"><div className="w-6 h-6 bg-white border border-orange-100 rounded-lg flex items-center justify-center text-orange-200 shadow-sm"><Lock className="w-3 h-3" /></div></div></div>); })} </div>)}</>);
                       })()}
                     </div>
                   ) : (
@@ -719,15 +744,10 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                           showToast("Não é possível alterar a data/hora de um agendamento já confirmado.", "warning");
                           return;
                         }
-                        if (!formData.vehicleId) {
-                          showToast("Selecione um veículo antes de definir a data.", "warning");
-                          return;
-                        }
                         setActiveDateField('departure');
                       }}
-                      disabled={!formData.vehicleId && editingSchedule?.status !== 'confirmado'}
-                      className={`${inputClass} h-[52px] flex items-center justify-between transition-all text-left ${(!formData.vehicleId || editingSchedule?.status === 'confirmado') ? 'bg-slate-50 cursor-not-allowed border-slate-200' : 'hover:bg-white'}`}
-                      title={!formData.vehicleId ? "Selecione um veículo primeiro" : ""}
+                      disabled={editingSchedule?.status === 'confirmado'}
+                      className={`${inputClass} h-[52px] flex items-center justify-between transition-all text-left ${editingSchedule?.status === 'confirmado' ? 'bg-slate-50 cursor-not-allowed border-slate-200' : 'hover:bg-white'}`}
                     >
                       <span className={formData.departureDateTime ? 'text-slate-900 font-bold' : 'text-slate-400'}>
                         {formatDateDisplay(formData.departureDateTime)}
@@ -744,15 +764,10 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                           showToast("Não é possível alterar a data/hora de um agendamento já confirmado.", "warning");
                           return;
                         }
-                        if (!formData.vehicleId) {
-                          showToast("Selecione um veículo antes de definir a data.", "warning");
-                          return;
-                        }
                         setActiveDateField('return');
                       }}
-                      disabled={!formData.vehicleId && editingSchedule?.status !== 'confirmado'}
-                      className={`${inputClass} h-[52px] flex items-center justify-between transition-all text-left ${(!formData.vehicleId || editingSchedule?.status === 'confirmado') ? 'bg-slate-50 cursor-not-allowed border-slate-200' : 'hover:bg-white'}`}
-                      title={!formData.vehicleId ? "Selecione um veículo primeiro" : ""}
+                      disabled={editingSchedule?.status === 'confirmado'}
+                      className={`${inputClass} h-[52px] flex items-center justify-between transition-all text-left ${editingSchedule?.status === 'confirmado' ? 'bg-slate-50 cursor-not-allowed border-slate-200' : 'hover:bg-white'}`}
                     >
                       <span className={formData.returnDateTime ? 'text-slate-900 font-bold' : 'text-slate-400'}>
                         {formatDateDisplay(formData.returnDateTime)}
@@ -762,6 +777,65 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                   </div>
                 </div>
                 <div className="md:col-span-2"><label className={labelClass}><Info className="w-3 h-3 inline mr-2" /> Objetivo da Viagem</label><textarea value={formData.purpose} onChange={e => setFormData({ ...formData, purpose: e.target.value })} readOnly={editingSchedule?.status === 'confirmado'} className={`${inputClass} min-h-[100px] resize-none pt-4 ${editingSchedule?.status === 'confirmado' ? 'bg-slate-50 cursor-not-allowed border-slate-200' : ''}`} placeholder="Descreva brevemente o motivo da saída..." /></div>
+
+                <div className="md:col-span-2 pt-4 border-t border-slate-100">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 flex items-center gap-2"><Users className="w-4 h-4" /> Informações da Tripulação / Passageiros</label>
+
+                  {editingSchedule?.status !== 'confirmado' && (
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <div className="md:col-span-3">
+                        <input value={newPassenger.name} onChange={e => setNewPassenger({ ...newPassenger, name: e.target.value })} placeholder="Nome" className="w-full bg-white px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 focus:border-indigo-500 outline-none" />
+                      </div>
+                      <div className="md:col-span-3">
+                        <input value={newPassenger.departureLocation} onChange={e => setNewPassenger({ ...newPassenger, departureLocation: e.target.value })} placeholder="Local de Partida" className="w-full bg-white px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 focus:border-indigo-500 outline-none" />
+                      </div>
+                      <div className="md:col-span-2">
+                        <input value={newPassenger.appointmentTime} onChange={e => setNewPassenger({ ...newPassenger, appointmentTime: e.target.value })} type="time" className="w-full bg-white px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 focus:border-indigo-500 outline-none" />
+                      </div>
+                      <div className="md:col-span-3">
+                        <input value={newPassenger.appointmentLocation} onChange={e => setNewPassenger({ ...newPassenger, appointmentLocation: e.target.value })} placeholder="Local do Compromisso" className="w-full bg-white px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 focus:border-indigo-500 outline-none" />
+                      </div>
+                      <div className="md:col-span-1 flex justify-end">
+                        <button onClick={handleAddPassenger} className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20"><Plus className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.passengers && formData.passengers.length > 0 ? (
+                    <div className="overflow-hidden rounded-2xl border border-slate-200">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                            <th className="p-3 pl-4">Nome</th>
+                            <th className="p-3">Local de Partida</th>
+                            <th className="p-3">Horário do Compromisso</th>
+                            <th className="p-3">Local do Compromisso</th>
+                            {editingSchedule?.status !== 'confirmado' && <th className="p-3 w-10"></th>}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {formData.passengers.map((p, idx) => (
+                            <tr key={idx} className="text-xs font-bold text-slate-600 bg-white hover:bg-slate-50/50">
+                              <td className="p-3 pl-4">{p.name}</td>
+                              <td className="p-3">{p.departureLocation}</td>
+                              <td className="p-3 font-mono">{p.appointmentTime}</td>
+                              <td className="p-3">{p.appointmentLocation}</td>
+                              {editingSchedule?.status !== 'confirmado' && (
+                                <td className="p-3 text-right pr-4">
+                                  <button onClick={() => handleRemovePassenger(idx)} className="text-rose-400 hover:text-rose-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-2xl">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nenhum passageiro adicionado</p>
+                    </div>
+                  )}
+                </div>
                 {editingSchedule && (
                   <div className="md:col-span-2 flex justify-end">
                     <button onClick={() => { if (confirm("Remover agendamento?")) { onDeleteSchedule(editingSchedule.id); setIsModalOpen(false); } }} className="py-3.5 px-6 bg-rose-50 text-rose-600 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-rose-600 hover:text-white transition-all active:scale-95 border border-rose-100 h-[52px] shrink-0"><Trash2 className="w-4 h-4" /> Excluir Registro</button>
@@ -813,7 +887,49 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
               <div className="flex items-center gap-4"><div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><FileText className="w-6 h-6" /></div><div><h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Detalhes da Viagem</h3><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Informações completas do agendamento</p></div></div>
               <button onClick={() => setIsViewModalOpen(false)} className="p-3 hover:bg-white rounded-xl text-slate-400"><X className="w-6 h-6" /></button>
             </div>
-            <div className="p-8 space-y-8"><div className="grid grid-cols-2 gap-6"><div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Veículo</p><p className="text-base font-bold text-slate-900 uppercase">{(vehicles.find(v => v.id === viewingSchedule.vehicleId))?.brand} {(vehicles.find(v => v.id === viewingSchedule.vehicleId))?.model} ({(vehicles.find(v => v.id === viewingSchedule.vehicleId))?.plate})</p></div><div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Motorista</p><p className="text-base font-bold text-slate-900">{(persons.find(p => p.id === viewingSchedule.driverId))?.name}</p></div><div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Setor</p><p className="text-base font-bold text-slate-900 uppercase">{(sectors.find(s => s.id === viewingSchedule.serviceSectorId))?.name || '---'}</p></div><div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Solicitante</p><p className="text-base font-bold text-slate-900">{(persons.find(p => p.id === viewingSchedule.requesterPersonId))?.name || '---'}</p></div><div className="col-span-2 space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Localização de Retirada/Encontro</p><p className="text-base font-bold text-indigo-700 uppercase flex items-center gap-2"><MapPin className="w-4 h-4" />{viewingSchedule.vehicleLocation || 'Não especificada'}</p></div><div className="col-span-2 space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Destino</p><p className="text-base font-bold text-indigo-600 uppercase">{viewingSchedule.destination}</p></div><div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saída</p><p className="text-sm font-bold text-slate-700">{new Date(viewingSchedule.departureDateTime).toLocaleString('pt-BR')}</p></div><div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Retorno</p><p className="text-sm font-bold text-slate-700">{new Date(viewingSchedule.returnDateTime).toLocaleString('pt-BR')}</p></div><div className="col-span-2 space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Objetivo</p><p className="text-sm font-medium text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100 italic">"{viewingSchedule.purpose}"</p></div><div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</p><div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border mt-1 font-black text-[10px] uppercase tracking-widest bg-${STATUS_MAP[viewingSchedule.status].color}-50 text-${STATUS_MAP[viewingSchedule.status].color}-700 border-${STATUS_MAP[viewingSchedule.status].color}-200`}>{React.createElement(STATUS_MAP[viewingSchedule.status].icon, { className: "w-3 h-3" })}{STATUS_MAP[viewingSchedule.status].label}</div></div></div></div>
+            <div className="p-8 space-y-8">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Veículo</p><p className="text-base font-bold text-slate-900 uppercase">{(vehicles.find(v => v.id === viewingSchedule.vehicleId))?.brand} {(vehicles.find(v => v.id === viewingSchedule.vehicleId))?.model} ({(vehicles.find(v => v.id === viewingSchedule.vehicleId))?.plate})</p></div>
+                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Motorista</p><p className="text-base font-bold text-slate-900">{(persons.find(p => p.id === viewingSchedule.driverId))?.name}</p></div>
+                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Setor</p><p className="text-base font-bold text-slate-900 uppercase">{(sectors.find(s => s.id === viewingSchedule.serviceSectorId))?.name || '---'}</p></div>
+                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Solicitante</p><p className="text-base font-bold text-slate-900">{(persons.find(p => p.id === viewingSchedule.requesterPersonId))?.name || '---'}</p></div>
+                <div className="col-span-2 space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Localização de Retirada/Encontro</p><p className="text-base font-bold text-indigo-700 uppercase flex items-center gap-2"><MapPin className="w-4 h-4" />{viewingSchedule.vehicleLocation || 'Não especificada'}</p></div>
+                <div className="col-span-2 space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Destino</p><p className="text-base font-bold text-indigo-600 uppercase">{viewingSchedule.destination}</p></div>
+                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saída</p><p className="text-sm font-bold text-slate-700">{new Date(viewingSchedule.departureDateTime).toLocaleString('pt-BR')}</p></div>
+                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Retorno</p><p className="text-sm font-bold text-slate-700">{new Date(viewingSchedule.returnDateTime).toLocaleString('pt-BR')}</p></div>
+                <div className="col-span-2 space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Objetivo</p><p className="text-sm font-medium text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100 italic">"{viewingSchedule.purpose}"</p></div>
+
+                {viewingSchedule.passengers && viewingSchedule.passengers.length > 0 && (
+                  <div className="col-span-2 space-y-2 mt-2">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Users className="w-3 h-3" /> Tripulação / Passageiros</p>
+                    <div className="overflow-hidden rounded-xl border border-slate-200">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-100 text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            <th className="p-3 pl-4">Nome</th>
+                            <th className="p-3">Local de Partida</th>
+                            <th className="p-3">Horário do Compromisso</th>
+                            <th className="p-3">Local do Compromisso</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {viewingSchedule.passengers.map((p, idx) => (
+                            <tr key={idx} className="text-xs font-bold text-slate-600 bg-white">
+                              <td className="p-3 pl-4">{p.name}</td>
+                              <td className="p-3">{p.departureLocation}</td>
+                              <td className="p-3 font-mono">{p.appointmentTime}</td>
+                              <td className="p-3">{p.appointmentLocation}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</p><div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border mt-1 font-black text-[10px] uppercase tracking-widest bg-${STATUS_MAP[viewingSchedule.status].color}-50 text-${STATUS_MAP[viewingSchedule.status].color}-700 border-${STATUS_MAP[viewingSchedule.status].color}-200`}>{React.createElement(STATUS_MAP[viewingSchedule.status].icon, { className: "w-3 h-3" })}{STATUS_MAP[viewingSchedule.status].label}</div></div>
+              </div>
+            </div>
             <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-center"><button onClick={() => setIsViewModalOpen(false)} className="px-12 py-3 bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-xl shadow-lg hover:bg-indigo-600 transition-all">Fechar Detalhes</button></div>
           </div>
         </div>,

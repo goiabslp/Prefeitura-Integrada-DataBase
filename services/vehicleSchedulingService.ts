@@ -27,7 +27,8 @@ export const getSchedules = async (): Promise<VehicleSchedule[]> => {
         vehicleLocation: s.vehicle_location,
         status: s.status as ScheduleStatus,
         createdAt: s.created_at,
-        authorizedByName: s.authorized_by_name
+        authorizedByName: s.authorized_by_name,
+        passengers: s.passengers
     }));
 };
 
@@ -74,7 +75,8 @@ export const createSchedule = async (schedule: Omit<VehicleSchedule, 'id' | 'cre
         return_date_time: schedule.returnDateTime,
         vehicle_location: schedule.vehicleLocation,
         status: schedule.status,
-        authorized_by_name: schedule.authorizedByName
+        authorized_by_name: schedule.authorizedByName,
+        passengers: schedule.passengers
     };
 
     const { data, error } = await supabase
@@ -103,7 +105,9 @@ export const createSchedule = async (schedule: Omit<VehicleSchedule, 'id' | 'cre
         vehicleLocation: data.vehicle_location,
         status: data.status,
         createdAt: data.created_at,
-        authorizedByName: data.authorized_by_name
+
+        authorizedByName: data.authorized_by_name,
+        passengers: data.passengers
     };
 };
 
@@ -120,7 +124,8 @@ export const updateSchedule = async (schedule: VehicleSchedule): Promise<Vehicle
         return_date_time: schedule.returnDateTime,
         vehicle_location: schedule.vehicleLocation,
         status: schedule.status,
-        authorized_by_name: schedule.authorizedByName
+        authorized_by_name: schedule.authorizedByName,
+        passengers: schedule.passengers
     };
 
     const { data, error } = await supabase
@@ -150,7 +155,9 @@ export const updateSchedule = async (schedule: VehicleSchedule): Promise<Vehicle
         vehicleLocation: data.vehicle_location,
         status: data.status,
         createdAt: data.created_at,
-        authorizedByName: data.authorized_by_name
+
+        authorizedByName: data.authorized_by_name,
+        passengers: data.passengers
     };
 };
 
