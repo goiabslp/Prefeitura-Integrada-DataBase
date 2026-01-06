@@ -165,6 +165,9 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
       if (content.evidenceItems === undefined) {
         handleUpdate('content', 'evidenceItems', []);
       }
+      if (!state.document.showLeftBlock) {
+        handleUpdate('document', 'showLeftBlock', true);
+      }
     }
   }, [content.subType, activeBlock, handleUpdate, state.document.showSignature, content.showDiariaSignatures, content.showExtraField]);
 
@@ -316,34 +319,7 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
 
       {content.subType ? (
         <>
-          {/* Bloco de Endereçamento */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                <Columns className="w-4 h-4 text-indigo-600" /> Endereçamento
-              </h3>
-              <button
-                onClick={() => handleUpdate('document', 'showLeftBlock', !state.document.showLeftBlock)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${state.document.showLeftBlock
-                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                  : 'bg-slate-100 text-slate-400 border border-slate-200'
-                  }`}
-              >
-                {state.document.showLeftBlock ? <><Eye className="w-3 h-3" /> Visível</> : <><EyeOff className="w-3 h-3" /> Oculto</>}
-              </button>
-            </div>
-            {state.document.showLeftBlock && (
-              <div className={inputGroupClass}>
-                <label className={labelClass}><HashIcon className="w-3 h-3" /> Texto do Protocolo / Ofício</label>
-                <textarea
-                  value={content.leftBlockText || ''}
-                  onChange={(e) => handleUpdate('content', 'leftBlockText', e.target.value)}
-                  className={`${inputClass} min-h-[80px] font-mono text-xs`}
-                  placeholder="Ex: Protocolo nº DIARIAS-001/2024..."
-                />
-              </div>
-            )}
-          </div>
+
 
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
