@@ -826,7 +826,10 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
         onClose={() => setActiveSelectionField(null)}
         title="Selecionar Veículo"
         subtitle="Escolha um veículo disponível para a viagem"
-        options={vehicles.filter(v => v.status === 'operacional')}
+        options={vehicles.filter(v =>
+          v.status === 'operacional' &&
+          isVehicleAvailable(v.id, formData.departureDateTime!, formData.returnDateTime!, editingSchedule?.id)
+        )}
         getInternalId={(v) => v.id}
         searchPlaceholder="Buscar por modelo, placa ou marca..."
         filterFunction={(v, query) => {
