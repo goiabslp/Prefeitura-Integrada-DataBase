@@ -11,16 +11,15 @@ interface AbastecimentoFormProps {
     onSave: (data: any) => void;
     vehicles: Vehicle[];
     persons: Person[];
+    gasStations: { id: string, name: string, city: string }[];
+    fuelTypes: { key: string; label: string; price: number }[];
 }
 
-export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, onSave, vehicles, persons }) => {
+export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, onSave, vehicles, persons, gasStations, fuelTypes }) => {
     const { user: authUser } = useAuth();
 
-    // State for Async Data
-    const [fuelTypes, setFuelTypes] = useState<{ key: string; label: string; price: number }[]>([]);
+    // Derived prices from props
     const [fuelPrices, setFuelPrices] = useState<{ [key: string]: number }>({});
-    const [gasStations, setGasStations] = useState<{ id: string, name: string, city: string }[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
 
     const [date, setDate] = useState(() => {
         const d = new Date();
@@ -37,38 +36,24 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [cost, setCost] = useState(0);
 
-    // Initial Data Fetch
+    // Initialize state from props
     useEffect(() => {
-        const loadData = async () => {
-            setIsLoading(true);
-            try {
-                const [types, stations] = await Promise.all([
-                    AbastecimentoService.getFuelTypes(),
-                    AbastecimentoService.getGasStations()
-                ]);
+        const prices = fuelTypes.reduce((acc: any, type: any) => {
+            acc[type.key] = type.price;
+            return acc;
+        }, {});
+        setFuelPrices(prices);
 
-                setFuelTypes(types);
-                const prices = types.reduce((acc: any, type: any) => {
-                    acc[type.key] = type.price;
-                    return acc;
-                }, {});
-                setFuelPrices(prices);
-                setGasStations(stations);
+        if (fuelTypes.length > 0 && !fuelType) {
+            setFuelType(fuelTypes[0].key);
+        }
 
-                if (types.length > 0) setFuelType(types[0].key);
-
-                // Prioritize "Posto Xavier & Xavier Ltda" or fallback to first station
-                const defaultStation = stations.find(s => s.name === "Posto Xavier & Xavier Ltda") || stations[0];
-                if (defaultStation) setStation(defaultStation.name);
-
-            } catch (error) {
-                console.error("Error loading form data", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        loadData();
-    }, []);
+        if (gasStations.length > 0 && !station) {
+            // Prioritize "Posto Xavier & Xavier Ltda" or fallback to first station
+            const defaultStation = gasStations.find(s => s.name === "Posto Xavier & Xavier Ltda") || gasStations[0];
+            if (defaultStation) setStation(defaultStation.name);
+        }
+    }, [fuelTypes, gasStations]); // Run when props change/load
 
     useEffect(() => {
         const calculateCost = () => {
@@ -151,7 +136,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
         }))
         .sort((a, b) => a.label.localeCompare(b.label));
 
-    if (isLoading) return <div className="flex-1 p-6 text-center text-slate-500">Carregando formulário...</div>;
+    // Removed isLoading check as data is passed via props
 
     return (
         <div className="flex-1 h-full bg-slate-50 p-4 md:p-6 overflow-auto custom-scrollbar">

@@ -145,6 +145,9 @@ const App: React.FC = () => {
     sector: currentUser.sector || 'Geral'
   } : null;
 
+  const [isReopeningStage, setIsReopeningStage] = useState(false);
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+
   // Combine allowed signatures + self (For AdminSidebar usage mostly)
   const myAvailableSignatures = currentUser
     ? [
@@ -157,6 +160,11 @@ const App: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [brands, setBrands] = useState<VehicleBrand[]>([]);
   const [schedules, setSchedules] = useState<VehicleSchedule[]>([]);
+
+  // Abastecimento State
+  const [gasStations, setGasStations] = useState<{ id: string, name: string, city: string }[]>([]);
+  const [fuelTypes, setFuelTypes] = useState<{ key: string; label: string; price: number }[]>([]);
+
 
   const [isDownloading, setIsDownloading] = useState(false);
   const [isAdminSidebarOpen, setIsAdminSidebarOpen] = useState(false);
@@ -198,140 +206,70 @@ const App: React.FC = () => {
   // Routing logic
   const [isLicitacaoSettingsOpen, setIsLicitacaoSettingsOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
-  const [isReopeningStage, setIsReopeningStage] = useState(false);
 
+  // Initial Data Fetch
   const refreshData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const loadedOficios = await oficiosService.getAllOficios();
-      setOficios(loadedOficios);
-      const loadedPurchaseOrders = await comprasService.getAllPurchaseOrders();
-      setPurchaseOrders(loadedPurchaseOrders);
-      const loadedServiceRequests = await diariasService.getAllServiceRequests();
+      // Parallelize fetches for speed
+      const [
+        savedOficios,
+        savedPurchaseOrders,
+        savedServiceRequests,
+        savedLicitacaoProcesses,
+        savedPersons,
+        savedSectors,
+        savedJobs,
+        savedBrands,
+        savedVehicles,
+        savedSchedules,
+        counterValue,
+        savedGasStations,
+        savedFuelTypes
+      ] = await Promise.all([
+        oficiosService.getAllOficios(),
+        comprasService.getAllPurchaseOrders(),
+        diariasService.getAllServiceRequests(),
+        licitacaoService.getAllLicitacaoProcesses(),
+        entityService.getPersons(),
+        entityService.getSectors(),
+        entityService.getJobs(),
+        entityService.getBrands(),
+        entityService.getVehicles(),
+        vehicleSchedulingService.getSchedules(),
+        db.getGlobalCounter(),
+        AbastecimentoService.getGasStations(),
+        AbastecimentoService.getFuelTypes()
+      ]);
 
-      setServiceRequests(loadedServiceRequests);
-      const loadedLicitacao = await licitacaoService.getAllLicitacaoProcesses();
-      setLicitacaoProcesses(loadedLicitacao);
+      setOficios(savedOficios);
+      setPurchaseOrders(savedPurchaseOrders);
+      setServiceRequests(savedServiceRequests);
+      setLicitacaoProcesses(savedLicitacaoProcesses);
 
-      // Re-evaluate orders based on active view/block if needed, but for now specific block handling in other functions overrides this.
-      // However, to see updates in current list:
-      if (activeBlock === 'compras') setOrders(loadedPurchaseOrders);
-      else if (activeBlock === 'diarias') setOrders(loadedServiceRequests);
-      else if (activeBlock === 'licitacao') setOrders(loadedLicitacao);
-      else setOrders(loadedOficios);
+      // Update local generic state based on current view/block
+      const allOrders = [
+        ...savedOficios,
+        ...savedPurchaseOrders,
+        ...savedServiceRequests,
+        ...savedLicitacaoProcesses
+      ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+      setOrders(allOrders);
 
-      // Fetch users from Supabase
-      const { data: sbUsers, error: sbError } = await supabase.from('profiles').select('*');
-      if (sbUsers) {
-        const mappedUsers: User[] = sbUsers.map((u: any) => ({
-          id: u.id,
-          username: u.username,
-          name: u.name,
-          role: u.role,
-          sector: u.sector,
-          jobTitle: u.job_title,
-          email: u.email,
-          whatsapp: u.whatsapp,
-          allowedSignatureIds: u.allowed_signature_ids,
-          permissions: u.permissions,
-          tempPassword: u.temp_password,
-          tempPasswordExpiresAt: u.temp_password_expires_at,
-          twoFactorEnabled: u.two_factor_enabled,
-          twoFactorSecret: u.two_factor_secret,
-          twoFactorEnabled2: u.two_factor_enabled_2,
-          twoFactorSecret2: u.two_factor_secret_2
-        }));
-        setUsers(mappedUsers);
-      } else {
-        console.error("Error fetching users:", sbError);
-      }
-
-      // Fetch Global Settings (Try Supabase first, fallback to local)
-      const remoteSettings = await settingsService.getGlobalSettings();
-      if (remoteSettings) {
-        setAppState(prev => {
-          const newState = {
-            ...prev,
-            branding: {
-              ...prev.branding,
-              ...remoteSettings.branding,
-              watermark: {
-                ...prev.branding.watermark,
-                ...(remoteSettings.branding?.watermark || {})
-              }
-            },
-            document: {
-              ...prev.document,
-              ...remoteSettings.document,
-              titleStyle: {
-                ...prev.document.titleStyle,
-                ...(remoteSettings.document?.titleStyle || {})
-              },
-              leftBlockStyle: {
-                ...prev.document.leftBlockStyle,
-                ...(remoteSettings.document?.leftBlockStyle || {})
-              },
-              rightBlockStyle: {
-                ...prev.document.rightBlockStyle,
-                ...(remoteSettings.document?.rightBlockStyle || {})
-              }
-            },
-            ui: {
-              ...prev.ui,
-              ...remoteSettings.ui
-            }
-          };
-          // Cache to LocalStorage
-          localStorage.setItem('cachedAppState', JSON.stringify(newState));
-          return newState;
-        });
-      } else {
-        const savedSettings = await db.getGlobalSettings();
-        if (savedSettings) {
-          setAppState(prev => ({
-            ...prev,
-            branding: savedSettings.branding || prev.branding,
-            document: savedSettings.document || prev.document,
-            ui: savedSettings.ui || prev.ui
-          }));
-        }
-      }
-
-      // Fetch entities from Supabase
-      const savedPersons = await entityService.getPersons();
       setPersons(savedPersons);
-
-      const savedSectors = await entityService.getSectors();
       setSectors(savedSectors);
-
-      const savedJobs = await entityService.getJobs();
       setJobs(savedJobs);
-
-      // MARCAS INICIAIS
-      const savedBrands = await entityService.getBrands();
       setBrands(savedBrands);
-
-      // VEÍCULOS INICIAIS
-      const savedVehicles = await entityService.getVehicles();
       setVehicles(savedVehicles);
-
-
-
-      const savedSchedules = await vehicleSchedulingService.getSchedules();
       setSchedules(savedSchedules);
-
-      const counterValue = await db.getGlobalCounter();
       setGlobalCounter(counterValue);
-
-      setGlobalCounter(counterValue);
+      setGasStations(savedGasStations);
+      setFuelTypes(savedFuelTypes);
 
       // Fetch Licitacao Specific Counter
-      // Use dynamic lookup for "Departamento de Licitação" or fallback to known UUID
       const licitacaoSector = savedSectors.find(s => s.name === 'Departamento de Licitação');
-      const licitacaoSectorId = licitacaoSector?.id || '23c6fa21-f998-4f54-b865-b94212f630ef'; // Fallback to known UUID if name changes
-
+      const licitacaoSectorId = licitacaoSector?.id || '23c6fa21-f998-4f54-b865-b94212f630ef';
       const currentYear = new Date().getFullYear();
       if (licitacaoSectorId) {
         const nextLicParams = await counterService.getNextSectorCount(licitacaoSectorId, currentYear);
@@ -343,7 +281,65 @@ const App: React.FC = () => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [activeBlock]); // Dependency on activeBlock ensures setOrders logical consistency
+  }, [activeBlock]);
+
+  // Realtime Listeners for Abastecimento Entities
+  useEffect(() => {
+    // Vehicles Channel
+    const vehicleChannel = supabase.channel('public:vehicles')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'vehicles' },
+        async () => {
+          const updated = await entityService.getVehicles();
+          setVehicles(updated);
+        }
+      )
+      .subscribe();
+
+    // Profiles (Drivers/Persons) Channel
+    const profileChannel = supabase.channel('public:profiles')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        async () => {
+          const updated = await entityService.getPersons();
+          setPersons(updated);
+        }
+      )
+      .subscribe();
+
+    // Gas Stations Channel
+    const stationChannel = supabase.channel('public:abastecimento_gas_stations')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'abastecimento_gas_stations' },
+        async () => {
+          const updated = await AbastecimentoService.getGasStations();
+          setGasStations(updated);
+        }
+      )
+      .subscribe();
+
+    // Fuel Config Channel
+    const configChannel = supabase.channel('public:abastecimento_config')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'abastecimento_config' },
+        async () => {
+          const updated = await AbastecimentoService.getFuelTypes();
+          setFuelTypes(updated);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(vehicleChannel);
+      supabase.removeChannel(profileChannel);
+      supabase.removeChannel(stationChannel);
+      supabase.removeChannel(configChannel);
+    };
+  }, []);
 
   useEffect(() => {
     // Initial load
@@ -1043,7 +1039,7 @@ const App: React.FC = () => {
           console.log("Auto-saved licitacao process");
         }).catch(err => console.error("Auto-save failed", err));
       }, 2000); // 2 seconds debounce
-  
+   
       return () => clearTimeout(timer);
     }
   }, [appState, activeBlock, currentView, editingOrder]);
@@ -2133,6 +2129,8 @@ const App: React.FC = () => {
                 }}
                 vehicles={vehicles}
                 persons={persons}
+                gasStations={gasStations}
+                fuelTypes={fuelTypes}
               />
             )}
 
@@ -2162,6 +2160,11 @@ const App: React.FC = () => {
                     window.history.pushState({}, '', VIEW_TO_PATH[path]);
                   }
                 }}
+                vehicles={vehicles}
+                persons={persons}
+                gasStations={gasStations}
+                fuelTypes={fuelTypes}
+                sectors={sectors}
               />
             )}
 

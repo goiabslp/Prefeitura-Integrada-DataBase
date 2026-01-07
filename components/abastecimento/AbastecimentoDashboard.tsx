@@ -16,6 +16,11 @@ interface AbastecimentoDashboardProps {
     onBack: () => void;
     state: AppState;
     onAbastecimento: (view: 'new' | 'management') => void;
+    vehicles: Vehicle[];
+    persons: any[];
+    gasStations: { id: string, name: string, city: string }[];
+    fuelTypes: { key: string; label: string; price: number }[];
+    sectors: Sector[];
 }
 
 type TabType = 'overview' | 'vehicle' | 'reports' | 'config';
@@ -28,46 +33,30 @@ interface VehicleStat {
     lastRef: string;
 }
 
-const ConfigPanel: React.FC = () => {
+interface ConfigPanelProps {
+    fuelTypes: { key: string; label: string; price: number }[];
+    gasStations: { id: string; name: string; cnpj?: string; city?: string }[];
+}
+
+const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initialGasStations }) => {
     const [fuelConfig, setFuelConfig] = useState({ diesel: 0, gasolina: 0, etanol: 0, arla: 0 });
-    const [gasStations, setGasStations] = useState<{ id: string, name: string, cnpj: string, city: string }[]>([]);
+    const [gasStations, setGasStations] = useState(initialGasStations);
     const [newStation, setNewStation] = useState({ name: '', cnpj: '', city: '' });
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
 
     useEffect(() => {
-        const loadData = async () => {
-            const [config, stations] = await Promise.all([
-                AbastecimentoService.getFuelConfig(),
-                AbastecimentoService.getGasStations()
-            ]);
-            setFuelConfig(config);
-            setGasStations(stations);
-        };
-        loadData();
+        // Transform array to object for the form state
+        const config: any = { diesel: 0, gasolina: 0, etanol: 0, arla: 0 };
+        fuelTypes.forEach(ft => {
+            if (ft.key in config) config[ft.key] = ft.price;
+        });
+        setFuelConfig(config);
+    }, [fuelTypes]);
 
-        const channel = supabase
-            .channel('config-panel-changes')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'abastecimento_config' },
-                () => {
-                    AbastecimentoService.getFuelConfig().then(setFuelConfig);
-                }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'abastecimento_gas_stations' },
-                () => {
-                    AbastecimentoService.getGasStations().then(setGasStations);
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, []);
+    useEffect(() => {
+        setGasStations(initialGasStations);
+    }, [initialGasStations]);
 
     const handleSaveConfig = async () => {
         await AbastecimentoService.saveFuelConfig(fuelConfig);
@@ -294,16 +283,13 @@ const ConfigPanel: React.FC = () => {
     );
 };
 
-export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ onBack, state, onAbastecimento }) => {
+export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ onBack, state, onAbastecimento, vehicles, persons, gasStations, fuelTypes, sectors }) => {
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [vehicleSearchTerm, setVehicleSearchTerm] = useState('');
     const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
     const [allRecords, setAllRecords] = useState<AbastecimentoRecord[]>([]);
-    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-    const [sectors, setSectors] = useState<Sector[]>([]);
-    const [gasStations, setGasStations] = useState<{ id: string, name: string }[]>([]);
     const [showPrintPreview, setShowPrintPreview] = useState(false);
     const [appliedFilters, setAppliedFilters] = useState({
         startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
@@ -317,16 +303,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
 
     useEffect(() => {
         const loadRecords = async () => {
-            const [data, vehicleData, sectorData, stationData] = await Promise.all([
-                AbastecimentoService.getAbastecimentos(),
-                getVehicles(),
-                getSectors(),
-                AbastecimentoService.getGasStations()
-            ]);
+            const data = await AbastecimentoService.getAbastecimentos();
             setAllRecords(data);
-            setVehicles(vehicleData);
-            setSectors(sectorData);
-            setGasStations(stationData);
         };
         loadRecords();
 
@@ -1641,7 +1619,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     {activeTab === 'overview' && renderOverview()}
                     {activeTab === 'vehicle' && renderVehicleView()}
                     {activeTab === 'reports' && renderReportsView()}
-                    {activeTab === 'config' && <ConfigPanel />}
+                    {activeTab === 'config' && <ConfigPanel fuelTypes={fuelTypes} gasStations={gasStations as any} />}
                 </div>
             </div>
 

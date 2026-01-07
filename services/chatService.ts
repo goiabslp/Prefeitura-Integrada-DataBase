@@ -52,26 +52,36 @@ export const chatService = {
     },
 
     async fetchDirectMessages(currentUserId: string, otherUserId: string) {
-        const { data, error } = await supabase
+        let query = supabase
             .from('chat_messages')
-            .select(`
-                *,
-                sender:profiles!sender_id (name, username)
-            `)
-            .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUserId})`)
-            .order('created_at', { ascending: true });
+            .select('*');
 
-        if (error) throw error;
+        if (otherUserId === 'global-users') {
+            // Global users Mural: both receiver and sector are null
+            query = query.filter('receiver_id', 'is', null).filter('sector_id', 'is', null);
+        } else {
+            // Direct message between two users
+            const u1 = currentUserId.toLowerCase();
+            const u2 = otherUserId.toLowerCase();
+            // Use safer string construction
+            query = query.or(`and(sender_id.eq.${u1},receiver_id.eq.${u2}),and(sender_id.eq.${u2},receiver_id.eq.${u1})`);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: true });
+
+        if (error) {
+            console.error('Error in fetchDirectMessages:', error);
+            throw error;
+        }
+
+        console.log(`[ChatService] Fetched ${data?.length} messages between ${currentUserId} and ${otherUserId}`);
         return data as ChatMessage[];
     },
 
     async fetchSectorMessages(sectorId: string) {
         const { data, error } = await supabase
             .from('chat_messages')
-            .select(`
-                *,
-                 sender:profiles!sender_id (name, username)
-            `)
+            .select('*')
             .eq('sector_id', sectorId)
             .order('created_at', { ascending: true });
 

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, Rea
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from './AuthContext';
 import { chatService, ChatMessage } from '../services/chatService';
+import { isMessageRelevant } from '../utils/chatUtils';
 
 interface ChatContextType {
     activeChat: { type: 'user' | 'sector', id: string, name: string } | null;
@@ -32,6 +33,18 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isOpen, setIsOpen] = useState(false);
     const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
 
+    // Refs for Realtime Listener access without triggering re-renders/invalidation
+    const activeChatRef = React.useRef(activeChat);
+    const isOpenRef = React.useRef(isOpen);
+
+    useEffect(() => {
+        activeChatRef.current = activeChat;
+    }, [activeChat]);
+
+    useEffect(() => {
+        isOpenRef.current = isOpen;
+    }, [isOpen]);
+
     // Initial Unread Load
     useEffect(() => {
         if (user) {
@@ -54,7 +67,25 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 } else if (activeChat.type === 'sector') {
                     data = await chatService.fetchSectorMessages(activeChat.id);
                 }
-                setMessages(data);
+
+                // MERGE STRATEGY: Combine fetched data with existing state to avoid race conditions
+                // where Realtime inserts a message while fetch is in progress.
+                setMessages(prev => {
+                    // 1. Filter 'prev' to only keep messages relevant to the NEW active chat.
+                    // This creates a clean slate while preserving any "just arrived" realtime messages for this chat.
+                    const relevantPrev = prev.filter(m => isMessageRelevant(m, activeChat, user.id));
+
+                    const fetchedIds = new Set(data.map(m => m.id));
+                    // 2. Keep existing messages that are NOT in the fetched set (likely new realtime messages or optimistic updates)
+                    const uniqueExisting = relevantPrev.filter(m => !fetchedIds.has(m.id));
+
+                    // 3. Combine and sort
+                    const combined = [...data, ...uniqueExisting].sort((a, b) =>
+                        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                    );
+
+                    return combined;
+                });
 
                 // Mark unread messages as read
                 const unreadIds = data
@@ -80,7 +111,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [isOpen, user]);
 
-    // Global Message Listener for Updates and Unread Count
+    // Global Message Listener - STABLE CONNECTION
+    // Depends ONLY on 'user', not on 'activeChat' or 'isOpen'
     useEffect(() => {
         if (!user) return;
 
@@ -93,33 +125,16 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     table: 'chat_messages'
                 },
                 (payload) => {
+                    const currentActiveChat = activeChatRef.current;
+                    const currentIsOpen = isOpenRef.current;
+
                     if (payload.eventType === 'INSERT') {
                         const newMessage = payload.new as ChatMessage;
 
                         // 1. Check if it belongs to current active chat
-                        let isRelevantToActiveChat = false;
-                        if (activeChat && user) {
-                            const activeId = activeChat.id.toLowerCase();
-                            const currentUserId = user.id.toLowerCase();
-                            const senderId = newMessage.sender_id?.toLowerCase();
-                            const receiverId = newMessage.receiver_id?.toLowerCase();
-                            const sectorId = newMessage.sector_id?.toLowerCase();
+                        const isRelevant = currentActiveChat && isMessageRelevant(newMessage, currentActiveChat, user.id);
 
-                            if (activeChat.id === 'global-users' && activeChat.type === 'user') {
-                                isRelevantToActiveChat = !newMessage.receiver_id && !newMessage.sector_id;
-                            } else if (activeChat.id === 'global' && activeChat.type === 'sector') {
-                                isRelevantToActiveChat = sectorId === 'global';
-                            } else if (activeChat.type === 'user') {
-                                isRelevantToActiveChat = (
-                                    (senderId === activeId && receiverId === currentUserId) ||
-                                    (senderId === currentUserId && receiverId === activeId)
-                                );
-                            } else if (activeChat.type === 'sector') {
-                                isRelevantToActiveChat = (sectorId === activeId);
-                            }
-                        }
-
-                        if (isRelevantToActiveChat) {
+                        if (isRelevant) {
                             setMessages(prev => {
                                 // 1. If we already have this exact ID, ignore.
                                 if (prev.some(m => m.id === newMessage.id)) return prev;
@@ -145,7 +160,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                             });
 
                             // Mark as read in DB if it's from someone else and window is open
-                            if (newMessage.sender_id !== user.id && isOpen) {
+                            if (newMessage.sender_id !== user.id && currentIsOpen) {
                                 chatService.markAsRead([newMessage.id]);
                                 refreshUnreadCount();
                             }
@@ -161,12 +176,12 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         }
                     } else if (payload.eventType === 'UPDATE') {
                         const updatedMessage = payload.new as ChatMessage;
-
-                        // Update messages list if it was the active chat
-                        setMessages(prev => prev.map(m => m.id === updatedMessage.id ? updatedMessage : m));
-
                         // Always refresh unread count on update because 'read' status might have changed
                         refreshUnreadCount();
+
+                        // Update messages list if present
+                        setMessages(prev => prev.map(m => m.id === updatedMessage.id ? updatedMessage : m));
+
                     } else if (payload.eventType === 'DELETE') {
                         const deletedId = (payload.old as any)?.id;
                         if (deletedId) {
@@ -182,7 +197,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return () => {
             supabase.removeChannel(globalChannel);
         };
-    }, [user, activeChat, isOpen]);
+    }, [user]); // Removed activeChat and isOpen from dependency array
 
     // Simple poller for unread count (as backup/sync)
     useEffect(() => {
