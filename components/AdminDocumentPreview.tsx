@@ -18,7 +18,7 @@ export const AdminDocumentPreview: React.FC<AdminDocumentPreviewProps> = ({ stat
           <PageWrapper state={state} pageIndex={0} totalPages={1} isGenerating={false}>
             {/* Visualização da Estrutura de Design */}
             <div className="flex flex-col h-full border-2 border-dashed border-indigo-200 rounded-xl p-8 relative bg-indigo-50/5">
-              
+
               {/* Overlay de Guia de Design */}
               <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-full shadow-lg z-30 animate-pulse">
                 <Layout className="w-4 h-4" />
@@ -29,11 +29,11 @@ export const AdminDocumentPreview: React.FC<AdminDocumentPreviewProps> = ({ stat
               <div className="flex justify-between items-start mb-12">
                 <div className="w-[45%] p-4 border border-dashed border-slate-300 rounded-lg relative group">
                   <div className="absolute -top-3 left-2 px-2 bg-white text-[8px] font-black text-slate-400 uppercase tracking-tighter border border-slate-200 rounded">Bloco Esquerdo</div>
-                  <div 
+                  <div
                     className="whitespace-pre-wrap font-bold"
-                    style={{ 
-                      fontSize: `${docConfig.leftBlockStyle?.size || 10}pt`, 
-                      color: docConfig.leftBlockStyle?.color || '#191822' 
+                    style={{
+                      fontSize: `${docConfig.leftBlockStyle?.size || 10}pt`,
+                      color: docConfig.leftBlockStyle?.color || '#191822'
                     }}
                   >
                     Exemplo de Referência<br />
@@ -44,11 +44,11 @@ export const AdminDocumentPreview: React.FC<AdminDocumentPreviewProps> = ({ stat
 
                 <div className="w-[45%] p-4 border border-dashed border-slate-300 rounded-lg relative text-right">
                   <div className="absolute -top-3 right-2 px-2 bg-white text-[8px] font-black text-slate-400 uppercase tracking-tighter border border-slate-200 rounded">Bloco Direito</div>
-                  <div 
+                  <div
                     className="whitespace-pre-wrap font-bold"
-                    style={{ 
-                      fontSize: `${docConfig.rightBlockStyle?.size || 10}pt`, 
-                      color: docConfig.rightBlockStyle?.color || '#191822' 
+                    style={{
+                      fontSize: `${docConfig.rightBlockStyle?.size || 10}pt`,
+                      color: docConfig.rightBlockStyle?.color || '#191822'
                     }}
                   >
                     Ao Excelentíssimo Senhor<br />
@@ -61,12 +61,12 @@ export const AdminDocumentPreview: React.FC<AdminDocumentPreviewProps> = ({ stat
               {/* Título */}
               <div className="mb-12 p-6 border border-dashed border-indigo-300 rounded-2xl bg-white/50 relative">
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-indigo-600 text-white text-[8px] font-black uppercase tracking-widest rounded-full">Estilo do Título</div>
-                <h1 
-                  className="font-bold leading-tight tracking-tight" 
-                  style={{ 
-                    fontSize: `${docConfig.titleStyle?.size || 32}pt`, 
-                    color: docConfig.titleStyle?.color || branding.primaryColor, 
-                    textAlign: docConfig.titleStyle?.alignment || 'left' 
+                <h1
+                  className="font-bold leading-tight tracking-tight"
+                  style={{
+                    fontSize: `${docConfig.titleStyle?.size || 32}pt`,
+                    color: docConfig.titleStyle?.color || branding.primaryColor,
+                    textAlign: docConfig.titleStyle?.alignment || 'left'
                   }}
                 >
                   Título do Documento de Exemplo
@@ -78,7 +78,7 @@ export const AdminDocumentPreview: React.FC<AdminDocumentPreviewProps> = ({ stat
                 <Type className="w-12 h-12 text-slate-200 mb-4" />
                 <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">Área de Conteúdo Variável</p>
                 <p className="text-slate-300 text-[9px] mt-2 max-w-xs mx-auto">Esta área será preenchida dinamicamente conforme o módulo operacional selecionado (Ofício, Compras, etc).</p>
-                
+
                 <div className="mt-8 flex items-center gap-4">
                   <div className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-lg shadow-sm">
                     <div className="w-3 h-3 rounded-full bg-indigo-500"></div>

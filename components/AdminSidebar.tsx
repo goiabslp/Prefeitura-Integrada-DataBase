@@ -124,11 +124,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
   const renderSectionHeader = (title: string, subtitle?: string) => (
     <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-      {mode === 'admin' && (
-        <button onClick={() => onTabChange(null)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-500 transition-colors" title="Voltar ao Menu">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-      )}
+
       <div>
         <h2 className="text-xl font-black text-slate-900 tracking-tight">{title}</h2>
         {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
@@ -211,21 +207,29 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       `}>
         <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white z-10 shrink-0">
           <div className="flex items-center gap-3">
-            {mode !== 'admin' && onBack && (
+            {(mode !== 'admin' && onBack) ? (
               <button onClick={onBack} className="p-2 -ml-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all" title="Voltar">
                 <ArrowLeft className="w-5 h-5" />
               </button>
-            )}
+            ) : (mode === 'admin' && activeTab) ? (
+              <button onClick={() => onTabChange(null)} className="p-2 -ml-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all" title="Voltar ao Menu">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            ) : null}
             <div>
               <h2 className="text-lg font-black text-slate-900 uppercase tracking-tighter">
-                {mode === 'admin' ? 'Painel Administrativo' : headerInfo.title}
+                {mode === 'admin'
+                  ? (activeTab === 'design' ? 'Design do Documento' : 'Painel Administrativo')
+                  : headerInfo.title}
               </h2>
               {mode !== 'admin' && (
                 <p className="text-xs text-slate-400 font-medium normal-case tracking-normal">{headerInfo.subtitle}</p>
               )}
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"><X className="w-6 h-6" /></button>
+          {activeTab !== 'design' && (
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"><X className="w-6 h-6" /></button>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50/50">
@@ -233,7 +237,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
           {activeTab === 'design' && (
             <>
-              {renderSectionHeader('Design do documento', 'Configure cores, logos e fontes do documento')}
+
               <DesignForm
                 branding={branding}
                 docConfig={docConfig}

@@ -2035,6 +2035,17 @@ const App: React.FC = () => {
                     </div>
                   );
                 })()}
+                {/* Botão para Abrir Formulário no Painel Admin (Design) */}
+                {!isFinalizedView && !isAdminSidebarOpen && currentView === 'admin' && adminTab === 'design' && (
+                  <button
+                    onClick={() => setIsAdminSidebarOpen(true)}
+                    className="fixed left-0 top-[20%] z-[110] bg-white border border-slate-200 border-l-0 rounded-r-2xl shadow-[10px_0_30px_rgba(0,0,0,0.05)] p-4 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 transition-all active:scale-95 group animate-fade-in"
+                    title="Abrir Formulário"
+                  >
+                    <ChevronRight className="w-7 h-7 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                )}
+
                 {isFinalizedView && (
                   <>
                     {/* Botão para Abrir Formulário (Seta no Lado do Formulário) */}
