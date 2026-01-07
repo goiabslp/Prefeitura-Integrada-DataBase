@@ -35,9 +35,12 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
     const [lastUpdate, setLastUpdate] = useState(Date.now());
 
+    const [userSectorId, setUserSectorId] = useState<string | null>(null);
+
     // Refs for Realtime Listener access without triggering re-renders/invalidation
     const activeChatRef = React.useRef(activeChat);
     const isOpenRef = React.useRef(isOpen);
+    const userSectorIdRef = React.useRef(userSectorId);
 
     useEffect(() => {
         activeChatRef.current = activeChat;
@@ -46,6 +49,27 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         isOpenRef.current = isOpen;
     }, [isOpen]);
+
+    useEffect(() => {
+        userSectorIdRef.current = userSectorId;
+    }, [userSectorId]);
+
+    // Fetch User Sector ID (UUID) because profiles stores Name
+    useEffect(() => {
+        const fetchSectorId = async () => {
+            if (user && (user as any).sector) {
+                const { data } = await supabase
+                    .from('sectors')
+                    .select('id')
+                    .eq('name', (user as any).sector)
+                    .single();
+                if (data) {
+                    setUserSectorId(data.id);
+                }
+            }
+        };
+        fetchSectorId();
+    }, [user]);
 
     // Initial Unread Load
     useEffect(() => {
@@ -94,9 +118,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     .filter(m => !m.read && m.sender_id !== user.id)
                     .map(m => m.id);
 
-                if (unreadIds.length > 0) {
-                    await chatService.markAsRead(unreadIds);
+                // ALWAYS mark as read if active (updates timestamp for Sector, or flags for User)
+                if (data.length > 0 || unreadIds.length > 0) {
+                    await chatService.markAsRead(unreadIds, activeChat.type, user.id, activeChat.id);
                     await refreshUnreadCount();
+                    setLastUpdate(Date.now());
                 }
             } catch (error) {
                 console.error('Error loading messages:', error);
@@ -126,12 +152,36 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     schema: 'public',
                     table: 'chat_messages'
                 },
-                (payload) => {
+                async (payload) => {
                     const currentActiveChat = activeChatRef.current;
                     const currentIsOpen = isOpenRef.current;
+                    const currentUserSectorId = userSectorIdRef.current; // Use Ref
 
                     if (payload.eventType === 'INSERT') {
-                        const newMessage = payload.new as ChatMessage;
+                        let newMessage = payload.new as ChatMessage;
+
+                        // 0. Enrich with sender info (Realtime payload doesn't include joins)
+                        if (newMessage.sender_id === user.id) {
+                            newMessage.sender = { name: user.name, username: user.username };
+                        } else {
+                            // Try to get from active chat if checking a user chat
+                            // But for Sector chats (or unexpected user messages), we need to fetch.
+                            // To be safe and support all cases (including 'name' correctness), let's just fetch if not available.
+                            // Note: For User chat, activeChat.name is the partner's name.
+                            if (currentActiveChat?.type === 'user' && currentActiveChat.id === newMessage.sender_id) {
+                                newMessage.sender = { name: currentActiveChat.name, username: '' };
+                            } else {
+                                // Fetch profile efficiently
+                                const { data: profile } = await supabase
+                                    .from('profiles')
+                                    .select('name, username')
+                                    .eq('id', newMessage.sender_id)
+                                    .single();
+                                if (profile) {
+                                    newMessage.sender = profile;
+                                }
+                            }
+                        }
 
                         // 1. Check if it belongs to current active chat
                         const isRelevant = currentActiveChat && isMessageRelevant(newMessage, currentActiveChat, user.id);
@@ -153,6 +203,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                                     if (optimisticIdx !== -1) {
                                         const newMessages = [...prev];
+                                        // Merge to ensure we keep any client-side props if needed, but mainly ensuring sender is there.
+                                        // logic above already added sender to newMessage.
                                         newMessages[optimisticIdx] = newMessage;
                                         return newMessages;
                                     }
@@ -163,26 +215,39 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                             // Mark as read in DB if it's from someone else and window is open
                             if (newMessage.sender_id !== user.id && currentIsOpen) {
-                                chatService.markAsRead([newMessage.id]);
+                                await chatService.markAsRead([newMessage.id], currentActiveChat?.type || 'user', user.id, currentActiveChat?.id);
                                 refreshUnreadCount();
+                                // Trigger UI update to clear sidebar badge immediately
+                                setLastUpdate(Date.now());
                             }
                         } else {
                             // 2. Increment unread if for me/sector/global and not currently reading
                             const isForMe = newMessage.receiver_id === user.id;
-                            const isForMySector = newMessage.sector_id && newMessage.sector_id === (user as any).sector;
+                            const isForMySector = newMessage.sector_id && currentUserSectorId && newMessage.sector_id === currentUserSectorId;
                             const isGlobal = (newMessage.sector_id === 'global') || (!newMessage.receiver_id && !newMessage.sector_id);
 
                             if ((isForMe || isForMySector || isGlobal) && newMessage.sender_id !== user.id) {
-                                setUnreadCount(prev => prev + 1);
+                                // Logic: If sector, checking last_read is hard here without fetching. 
+                                // But since we are incrementing local count blindly, it might desync.
+                                // BETTER: Just call refreshUnreadCount() to get true server state.
+                                refreshUnreadCount();
                             }
                         }
                     } else if (payload.eventType === 'UPDATE') {
-                        const updatedMessage = payload.new as ChatMessage;
+                        let updatedMessage = payload.new as ChatMessage;
+
+                        // Preserve sender info if it exists in current state or fetch if missing
+                        // Updates usually don't change sender, but payload lacks the join.
+                        setMessages(prev => prev.map(m => {
+                            if (m.id === updatedMessage.id) {
+                                // Keep existing sender if new one lacks it (which it does)
+                                return { ...updatedMessage, sender: m.sender };
+                            }
+                            return m;
+                        }));
+
                         // Always refresh unread count on update because 'read' status might have changed
                         refreshUnreadCount();
-
-                        // Update messages list if present
-                        setMessages(prev => prev.map(m => m.id === updatedMessage.id ? updatedMessage : m));
 
                     } else if (payload.eventType === 'DELETE') {
                         const deletedId = (payload.old as any)?.id;
@@ -213,7 +278,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const refreshUnreadCount = async () => {
         if (!user) return;
-        const count = await chatService.fetchUnreadCount(user.id, (user as any).sector);
+        const count = await chatService.fetchUnreadCount(user.id, userSectorId || undefined);
         setUnreadCount(count);
     };
 
@@ -282,7 +347,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 sector_id: newMessage.sector_id || undefined,
                 file_url: newMessage.file_url || undefined,
                 file_name: newMessage.file_name || undefined,
-                file_type: newMessage.file_type || undefined
+                file_type: newMessage.file_type || undefined,
+                sender: {
+                    name: user.name,
+                    username: user.username
+                }
             };
             setMessages(prev => [...prev, tempMsg]);
 

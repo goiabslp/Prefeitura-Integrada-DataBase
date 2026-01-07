@@ -244,10 +244,12 @@ export const ChatWindow: React.FC = () => {
                             )}
                             <div className="flex flex-col">
                                 <span className="text-white font-semibold text-sm leading-tight">{activeChat.name}</span>
-                                <span className={`text-[10px] flex items-center gap-1 ${onlineUsers.has(activeChat.id) ? 'text-white/60' : 'text-slate-200'}`}>
-                                    <span className={`block h-1.5 w-1.5 rounded-full ${onlineUsers.has(activeChat.id) ? 'bg-emerald-400' : 'bg-slate-400'}`}></span>
-                                    {onlineUsers.has(activeChat.id) ? 'Online' : 'Offline'}
-                                </span>
+                                {activeChat.type === 'user' && (
+                                    <span className={`text-[10px] flex items-center gap-1 ${onlineUsers.has(activeChat.id) ? 'text-white/60' : 'text-slate-200'}`}>
+                                        <span className={`block h-1.5 w-1.5 rounded-full ${onlineUsers.has(activeChat.id) ? 'bg-emerald-400' : 'bg-slate-400'}`}></span>
+                                        {onlineUsers.has(activeChat.id) ? 'Online' : 'Offline'}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -542,6 +544,11 @@ export const ChatWindow: React.FC = () => {
                                                         : 'bg-white text-slate-700 rounded-[18px] rounded-bl-sm border border-slate-100'
                                                     }
                                                 `}>
+                                                    {msg.sender?.name && (
+                                                        <p className={`text-[10px] font-bold mb-1 leading-tight ${isMe ? 'text-violet-100' : 'text-violet-600'}`}>
+                                                            {msg.sender.name.split(' ').slice(0, 2).join(' ')}
+                                                        </p>
+                                                    )}
                                                     {msg.file_url && (
                                                         <div className="mb-2 overflow-hidden rounded-lg">
                                                             {msg.file_type?.startsWith('image/') ? (

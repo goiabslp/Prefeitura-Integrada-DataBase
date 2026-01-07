@@ -72,7 +72,7 @@ export const chatService = {
 
         let query = supabase
             .from('chat_messages')
-            .select('*');
+            .select('*, sender:profiles(name, username)');
 
         if (otherUserId === 'global-users') {
             // Global users Mural: both receiver and sector are null
@@ -116,7 +116,7 @@ export const chatService = {
 
         let query = supabase
             .from('chat_messages')
-            .select('*')
+            .select('*, sender:profiles(name, username)')
             .eq('sector_id', sectorId);
 
         if (clearedAtStr) {
@@ -129,34 +129,75 @@ export const chatService = {
         return data as ChatMessage[];
     },
 
-    async markAsRead(messageIds: string[]) {
-        if (messageIds.length === 0) return;
-        const { error } = await supabase
-            .from('chat_messages')
-            .update({ read: true })
-            .in('id', messageIds);
+    async markAsRead(targetIds: string[], type: 'user' | 'sector' = 'user', currentUserId?: string, targetId?: string) {
+        if (targetIds.length === 0 && !targetId) return;
 
-        if (error) throw error;
-    },
-
-    async fetchUnreadCount(userId: string, userSector?: string) {
-        let orFilter = `receiver_id.eq.${userId},sector_id.eq.global,and(receiver_id.is.null,sector_id.is.null)`;
-        if (userSector) {
-            orFilter += `,sector_id.eq.${userSector}`;
+        // Legacy: Mark specific messages as read (Works for DMs where we know the IDs)
+        if (type === 'user' && targetIds.length > 0) {
+            const { error } = await supabase
+                .from('chat_messages')
+                .update({ read: true })
+                .in('id', targetIds);
+            if (error) throw error;
         }
 
-        const { count, error } = await supabase
+        // New Logic: Update Last Read Timestamp (For Sector and User consistency)
+        if (currentUserId && targetId) {
+            const { error } = await supabase
+                .from('chat_last_read')
+                .upsert({
+                    user_id: currentUserId,
+                    target_id: targetId,
+                    target_type: type,
+                    last_read_at: new Date().toISOString()
+                }, { onConflict: 'user_id, target_id, target_type' });
+
+            if (error) console.error('Error updating last_read:', error);
+        }
+    },
+
+    async fetchUnreadCount(userId: string, userSectorId?: string) {
+        // 1. Direct Messages Unread (Legacy 'read' flag)
+        // Count messages sent to ME where read is false.
+        const { count: dmCount, error: dmError } = await supabase
             .from('chat_messages')
             .select('*', { count: 'exact', head: true })
             .eq('read', false)
-            .neq('sender_id', userId)
-            .or(orFilter);
+            .eq('receiver_id', userId);
 
-        if (error) {
-            console.error('Error fetching unread count', error);
-            return 0;
+        if (dmError) {
+            console.error('Error fetching DM unread count', dmError);
+            // Non-fatal, continue to sector
         }
-        return count || 0;
+
+        // 2. Sector Messages Unread (Time-based)
+        let sectorCount = 0;
+        if (userSectorId) {
+            // Get last read time for my sector
+            const { data: lastRead } = await supabase
+                .from('chat_last_read')
+                .select('last_read_at')
+                .eq('user_id', userId)
+                .eq('target_id', userSectorId)
+                .eq('target_type', 'sector')
+                .single();
+
+            const lastReadAt = lastRead?.last_read_at || '1970-01-01T00:00:00Z';
+
+            // Count messages in my sector NEWER than lastReadAt AND NOT sent by me
+            const { count, error } = await supabase
+                .from('chat_messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('sector_id', userSectorId)
+                .neq('sender_id', userId)
+                .gt('created_at', lastReadAt);
+
+            if (!error && count) {
+                sectorCount = count;
+            }
+        }
+
+        return (dmCount || 0) + sectorCount;
     },
 
     // Helper to get all users for the sidebar list
@@ -192,6 +233,18 @@ export const chatService = {
             clearedMap.set(`${h.target_type}-${h.target_id}`, h.cleared_at);
         });
 
+        // NEW: Fetch Last Read Times for Unread Calculation
+        const { data: readHistory } = await supabase
+            .from('chat_last_read')
+            .select('target_id, target_type, last_read_at')
+            .eq('user_id', userId);
+
+        const readMap = new Map<string, string>();
+        readHistory?.forEach(h => {
+            readMap.set(`${h.target_type}-${h.target_id}`, h.last_read_at);
+        });
+
+
         // Fetch last 500 messages to get a good history of recent interactions
         const { data, error } = await supabase
             .from('chat_messages')
@@ -219,11 +272,19 @@ export const chatService = {
                 };
             }
 
-            // Count unread if I am the receiver (or it's a sector msg not from me) and it's not read
-            // IMPORTANT: Only count unread if message is NEWER than cleared_at (already filtered before call? no, need check)
-            // Actually, we filter messages BEFORE calling this, so logic holds.
-            if (!msg.read && msg.sender_id !== userId) {
-                metadata[key].unreadCount += 1;
+            // UNREAD LOGIC
+            if (type === 'sector') {
+                // For Sector: compare msg.created_at with last_read_at
+                const lastRead = readMap.get(`sector-${key}`) || '1970-01-01';
+                if (new Date(msg.created_at) > new Date(lastRead) && msg.sender_id !== userId) {
+                    metadata[key].unreadCount += 1;
+                }
+            } else {
+                // For User: stick to 'read' flag for now (or switch to time-based if robust)
+                // Keeping 'read' flag logic for DMs as it's fully implemented
+                if (!msg.read && msg.sender_id !== userId) {
+                    metadata[key].unreadCount += 1;
+                }
             }
         };
 
