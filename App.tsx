@@ -176,6 +176,7 @@ const App: React.FC = () => {
   const [schedules, setSchedules] = useState<VehicleSchedule[]>([]);
 
   // Abastecimento State
+  const [editingAbastecimento, setEditingAbastecimento] = useState<any | null>(null);
   const [gasStations, setGasStations] = useState<{ id: string, name: string, city: string }[]>(() => {
     try {
       const cached = sessionStorage.getItem('cachedGasStations');
@@ -2209,30 +2210,49 @@ const App: React.FC = () => {
             {currentView === 'abastecimento' && appState.view === 'new' && (
               <AbastecimentoForm
                 onBack={() => {
-                  setCurrentView('home');
-                  setActiveBlock('abastecimento');
-                  window.history.pushState({}, '', '/PaginaInicial');
+                  if (editingAbastecimento) {
+                    setEditingAbastecimento(null);
+                    setAppState(prev => ({ ...prev, view: 'management' }));
+                  } else {
+                    setEditingAbastecimento(null);
+                    setCurrentView('home');
+                    setActiveBlock('abastecimento');
+                    window.history.pushState({}, '', '/PaginaInicial');
+                  }
                 }}
                 onSave={(data) => {
                   console.log('Abastecimento salvo:', data);
-                  AbastecimentoService.saveAbastecimento(data);
-                  showToast('Abastecimento registrado com sucesso!', 'success');
-                  setCurrentView('home');
-                  setActiveBlock('abastecimento');
+                  showToast(editingAbastecimento ? 'Abastecimento atualizado com sucesso!' : 'Abastecimento registrado com sucesso!', 'success');
+
+                  if (editingAbastecimento) {
+                    setEditingAbastecimento(null);
+                    setAppState(prev => ({ ...prev, view: 'management' }));
+                  } else {
+                    setEditingAbastecimento(null);
+                    setCurrentView('home');
+                    setActiveBlock('abastecimento');
+                  }
                 }}
                 vehicles={vehicles}
                 persons={persons}
                 gasStations={gasStations}
                 fuelTypes={fuelTypes}
+                initialData={editingAbastecimento}
               />
             )}
 
             {currentView === 'abastecimento' && appState.view === 'management' && (
               <AbastecimentoList
                 onBack={() => {
+                  setEditingAbastecimento(null);
                   setCurrentView('home');
                   setActiveBlock('abastecimento');
                   window.history.pushState({}, '', '/PaginaInicial');
+                }}
+                onEdit={(record) => {
+                  setEditingAbastecimento(record);
+                  setAppState(prev => ({ ...prev, view: 'new' })); // Reuse 'new' view for editing form
+                  setCurrentView('abastecimento');
                 }}
               />
             )}

@@ -13,9 +13,10 @@ interface AbastecimentoFormProps {
     persons: Person[];
     gasStations: { id: string, name: string, city: string }[];
     fuelTypes: { key: string; label: string; price: number }[];
+    initialData?: AbastecimentoRecord;
 }
 
-export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, onSave, vehicles, persons, gasStations, fuelTypes }) => {
+export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, onSave, vehicles, persons, gasStations, fuelTypes, initialData }) => {
     const { user: authUser } = useAuth();
 
     // Derived prices from props
@@ -55,6 +56,32 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
         }
     }, [fuelTypes, gasStations]); // Run when props change/load
 
+    // Load initial data for editing
+    useEffect(() => {
+        if (initialData) {
+            const d = new Date(initialData.date);
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+            setDate(d.toISOString().split('T')[0]);
+            setTime(new Date(initialData.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }));
+            setVehicle(initialData.vehicle);
+            setDriver(initialData.driver);
+            setLiters(initialData.liters.toString());
+            setOdometer(initialData.odometer.toString());
+            // Extract fuel key from "type - price" string "gasolina - R$ 5.00" -> "gasolina" or just use full string if needed?
+            // The record stores "gasolina - R$ 5.89". We need to find the key.
+            // Actually record.fuelType stores "gasolina - R$ 5.89".
+            // We need to set 'fuelType' state which is the KEY (e.g. 'gasolina').
+            // Let's try to split by ' - ' or match with fuelTypes.
+            const typePart = initialData.fuelType.split(' - ')[0];
+            const foundType = fuelTypes.find(t => t.key === typePart || t.label === typePart || initialData.fuelType.includes(t.key));
+            if (foundType) setFuelType(foundType.key);
+
+            setStation(initialData.station || '');
+            setInvoiceNumber(initialData.invoiceNumber || '');
+            setCost(initialData.cost);
+        }
+    }, [initialData, fuelTypes]);
+
     useEffect(() => {
         const calculateCost = () => {
             if (!liters || !fuelType) {
@@ -72,13 +99,14 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
         e.preventDefault();
 
         const combinedDate = new Date(`${date}T${time}`);
-
-        const protocolId = `ABA-${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`;
+        // If editing, use existing ID and Protocol. Else generate new.
+        const recordId = initialData?.id || crypto.randomUUID();
+        const protocolId = initialData?.protocol || `ABA-${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`;
 
         const newRecord: AbastecimentoRecord = {
-            id: crypto.randomUUID(),
+            id: recordId,
             protocol: protocolId,
-            fiscal: authUser?.name || authUser?.username || 'Sistema',
+            fiscal: initialData?.fiscal || authUser?.name || authUser?.username || 'Sistema',
             date: combinedDate.toISOString(),
             vehicle,
             driver,
@@ -88,8 +116,9 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             cost: Number(cost.toFixed(2)),
             station,
             invoiceNumber,
-            userId: authUser?.id,
-            userName: authUser?.name
+            userId: initialData?.userId || authUser?.id,
+            userName: initialData?.userName || authUser?.name,
+            created_at: initialData?.created_at // Preserve creation date
         };
 
         await AbastecimentoService.saveAbastecimento(newRecord);
@@ -153,8 +182,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                             <Fuel className="w-5 h-5 text-cyan-400" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-white tracking-tight leading-tight">Novo Abastecimento</h2>
-                            <p className="text-cyan-100/70 text-xs font-medium">Preencha os dados do registro</p>
+                            <h2 className="text-lg font-bold text-white tracking-tight leading-tight">{initialData ? 'Editar Abastecimento' : 'Novo Abastecimento'}</h2>
+                            <p className="text-cyan-100/70 text-xs font-medium">{initialData ? 'Atualize os dados do registro' : 'Preencha os dados do registro'}</p>
                         </div>
                     </div>
                 </div>

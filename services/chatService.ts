@@ -17,6 +17,15 @@ export interface ChatMessage {
     };
 }
 
+export interface RecentConversation {
+    id: string;
+    type: 'user' | 'sector';
+    lastMessage: string;
+    unreadCount: number;
+    timestamp: string;
+    originalRef?: ChatMessage;
+}
+
 export const chatService = {
     async sendMessage(message: Omit<ChatMessage, 'id' | 'created_at' | 'read' | 'sender'>) {
         const { data, error } = await supabase
@@ -140,33 +149,66 @@ export const chatService = {
         return data;
     },
 
-    async fetchRecentConversations(userId: string) {
-        // Fetch last 100 messages involving the user to determine recent chats
+    async fetchRecentConversations(userId: string): Promise<{ userIds: string[], sectorIds: string[], metadata: Record<string, RecentConversation> }> {
+        // Fetch last 300 messages to get a good history of recent interactions
         const { data, error } = await supabase
             .from('chat_messages')
-            .select('sender_id, receiver_id, sector_id')
-            .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+            .select('*')
+            .or(`sender_id.eq.${userId},receiver_id.eq.${userId},sector_id.neq.null`) // Check all relevant messages
             .order('created_at', { ascending: false })
-            .limit(100);
+            .limit(300);
 
         if (error) throw error;
 
         const recentUserIds = new Set<string>();
         const recentSectorIds = new Set<string>();
+        const metadata: Record<string, RecentConversation> = {};
+
+        // Helper to update metadata for a conversation key
+        const updateMetadata = (key: string, type: 'user' | 'sector', msg: ChatMessage) => {
+            if (!metadata[key]) {
+                metadata[key] = {
+                    id: key,
+                    type,
+                    lastMessage: msg.file_url ? (msg.file_type?.startsWith('image/') ? '📷 Imagem' : '📎 Arquivo') : msg.message,
+                    unreadCount: 0,
+                    timestamp: msg.created_at,
+                    originalRef: msg
+                };
+            }
+
+            // Count unread if I am the receiver (or it's a sector msg not from me) and it's not read
+            if (!msg.read && msg.sender_id !== userId) {
+                // For direct messages: correct
+                // For sector messages: primitive "unread" logic (if not read by ANYONE? unread status is shared currently)
+                metadata[key].unreadCount += 1;
+            }
+        };
+
+        const mySectorId = (data.find(m => m.sender_id === userId)?.sender as any)?.sector; // This might be unreliable if not expanded, relying on client filtering mostly, but here filter helps.
 
         data.forEach(msg => {
             if (msg.sector_id) {
+                // It's a sector message
+                // Filter: Include if I sent it OR (it's my sector OR it's global) -- basic visibility logic similar to context
+                // For simplicity in "Recent", we show everything fetched that has sector_id. 
+                // Context usually filters strictly. Assuming API returns what user CAN see usually.
                 recentSectorIds.add(msg.sector_id);
-            } else if (msg.sender_id === userId && msg.receiver_id) {
-                recentUserIds.add(msg.receiver_id);
-            } else if (msg.receiver_id === userId && msg.sender_id) {
-                recentUserIds.add(msg.sender_id);
+                updateMetadata(msg.sector_id, 'sector', msg);
+            } else {
+                // Direct message
+                const otherId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
+                if (otherId) {
+                    recentUserIds.add(otherId);
+                    updateMetadata(otherId, 'user', msg);
+                }
             }
         });
 
         return {
             userIds: Array.from(recentUserIds),
-            sectorIds: Array.from(recentSectorIds)
+            sectorIds: Array.from(recentSectorIds),
+            metadata
         };
     },
 

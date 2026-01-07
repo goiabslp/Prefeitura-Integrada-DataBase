@@ -6,11 +6,12 @@ import { GestureItem } from '../common/GestureItem';
 
 interface AbastecimentoListProps {
     onBack: () => void;
+    onEdit?: (record: AbastecimentoRecord) => void;
 }
-
 import { useAuth } from '../../contexts/AuthContext';
+import { Edit } from 'lucide-react';
 
-export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack }) => {
+export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, onEdit }) => {
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin';
     const [supplies, setSupplies] = useState<AbastecimentoRecord[]>([]);
@@ -218,13 +219,24 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack }) 
 
                                             {/* Action */}
                                             {isAdmin && (
-                                                <button
-                                                    onClick={() => handleDelete(item.id)}
-                                                    className="hidden md:block p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0"
-                                                    title="Excluir Registro"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                <div className="hidden md:flex flex-col gap-2 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+                                                    {onEdit && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); onEdit(item); }}
+                                                            className="p-2.5 text-slate-300 hover:text-cyan-500 hover:bg-cyan-50 rounded-xl transition-all shadow-sm active:scale-95"
+                                                            title="Editar Registro"
+                                                        >
+                                                            <Edit className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                                                        className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shadow-sm active:scale-95"
+                                                        title="Excluir Registro"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             )}
 
 

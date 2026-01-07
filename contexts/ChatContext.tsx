@@ -15,6 +15,7 @@ interface ChatContextType {
     isOpen: boolean;
     setIsOpen: (open: boolean) => void;
     onlineUsers: Set<string>;
+    lastUpdate: number;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -32,6 +33,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
     const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+    const [lastUpdate, setLastUpdate] = useState(Date.now());
 
     // Refs for Realtime Listener access without triggering re-renders/invalidation
     const activeChatRef = React.useRef(activeChat);
@@ -190,6 +192,9 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                             refreshUnreadCount();
                         }
                     }
+
+                    // Trigger global update for lists
+                    setLastUpdate(Date.now());
                 }
             )
             .subscribe();
@@ -302,7 +307,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             refreshUnreadCount,
             isOpen,
             setIsOpen,
-            onlineUsers
+            onlineUsers,
+            lastUpdate
         }}>
             {children}
         </ChatContext.Provider>

@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { chatService } from '../../services/chatService';
 
 export const ChatWindow: React.FC = () => {
-    const { isOpen, setIsOpen, activeChat, setActiveChat, messages, sendMessage, onlineUsers, refreshUnreadCount } = useChat();
+    const { isOpen, setIsOpen, activeChat, setActiveChat, messages, sendMessage, onlineUsers, refreshUnreadCount, lastUpdate } = useChat();
     const { user } = useAuth();
     const [newMessage, setNewMessage] = useState('');
     const [sidebarSearch, setSidebarSearch] = useState('');
@@ -94,12 +94,25 @@ export const ChatWindow: React.FC = () => {
 
             // Categorize Recent
             const recentItems: any[] = [];
-            const userIdsSet = new Set(recent.userIds);
-            const sectorIdsSet = new Set(recent.sectorIds);
+
+            // Handle the new object structure from fetchRecentConversations
+            const recentUserIds = recent.userIds || [];
+            const recentSectorIds = recent.sectorIds || [];
+            const metadata = (recent as any).metadata || {};
+
+            const userIdsSet = new Set(recentUserIds);
+            const sectorIdsSet = new Set(recentSectorIds);
 
             const remainingUsers = finalUsers.filter(u => {
                 if (userIdsSet.has(u.id)) {
-                    recentItems.push({ ...u, type: 'user' });
+                    const meta = metadata[u.id] || {};
+                    recentItems.push({
+                        ...u,
+                        type: 'user',
+                        lastMessage: meta.lastMessage,
+                        unreadCount: meta.unreadCount,
+                        timestamp: meta.timestamp
+                    });
                     return false;
                 }
                 return true;
@@ -107,7 +120,14 @@ export const ChatWindow: React.FC = () => {
 
             const remainingSectors = finalSectors.filter(s => {
                 if (sectorIdsSet.has(s.id)) {
-                    recentItems.push({ ...s, type: 'sector' });
+                    const meta = metadata[s.id] || {};
+                    recentItems.push({
+                        ...s,
+                        type: 'sector',
+                        lastMessage: meta.lastMessage,
+                        unreadCount: meta.unreadCount,
+                        timestamp: meta.timestamp
+                    });
                     return false;
                 }
                 return true;
@@ -134,7 +154,7 @@ export const ChatWindow: React.FC = () => {
 
     useEffect(() => {
         loadSidebarData();
-    }, [isOpen, user]);
+    }, [isOpen, user, lastUpdate]);
 
     const handleDeleteConversation = (e: React.MouseEvent, targetId: string, type: 'user' | 'sector', name: string) => {
         e.stopPropagation();
@@ -347,11 +367,18 @@ export const ChatWindow: React.FC = () => {
                                                                 <p className="truncate text-xs font-bold text-slate-700">
                                                                     {item.name || item.username}
                                                                 </p>
-                                                                <p className="truncate text-[10px] text-slate-500 font-medium flex items-center gap-1">
-                                                                    {item.isGlobal
-                                                                        ? (item.id === 'global' ? 'Chat Global' : 'Mural Geral')
-                                                                        : (item.type === 'user' ? 'Direto' : 'Setor')}
-                                                                </p>
+                                                                <div className="flex items-center justify-between gap-1 w-full">
+                                                                    <p className="truncate text-[11px] text-slate-500 font-medium flex-1">
+                                                                        {item.lastMessage || (item.isGlobal
+                                                                            ? (item.id === 'global' ? 'Chat Global' : 'Mural Geral')
+                                                                            : (item.type === 'user' ? 'Direto' : 'Setor'))}
+                                                                    </p>
+                                                                    {item.unreadCount > 0 && (
+                                                                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white shadow-sm shadow-violet-200">
+                                                                            {item.unreadCount > 99 ? '99+' : item.unreadCount}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </button>
                                                         <button
