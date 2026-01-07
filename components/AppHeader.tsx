@@ -7,9 +7,13 @@ import {
   ChevronDown,
   FileText,
   Home,
-  RefreshCw
+  RefreshCw,
+  Bell
 } from 'lucide-react';
 import { User, UIConfig, BlockType } from '../types';
+import { useNotification } from '../contexts/NotificationContext';
+import { NotificationCenter } from './NotificationCenter';
+import { useState } from 'react';
 
 interface AppHeaderProps {
   currentUser: User;
@@ -52,6 +56,30 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       case 'diarias': return "Diárias e Custeio";
       default: return "Painel de Controle";
     }
+  };
+
+  const NotificationBell = () => {
+    const { unreadCount } = useNotification();
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+      <div className="relative">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={`relative p-2 rounded-xl transition-all active:scale-95 group
+            ${isOpen ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 hover:text-indigo-600'}
+          `}
+          title="Notificações"
+        >
+          <Bell className="w-5 h-5" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 border-2 border-white rounded-full animate-pulse shadow-sm"></span>
+          )}
+        </button>
+
+        <NotificationCenter isOpen={isOpen} onClose={() => setIsOpen(false)} />
+      </div>
+    );
   };
 
   return (
@@ -122,6 +150,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <span className="hidden xl:inline">Atualizar</span>
           </button>
 
+          <div className="h-8 w-px bg-slate-200 mx-1"></div>
+
+          {/* Notification Center */}
+          <NotificationBell />
+
           <div className="flex items-center gap-3 pl-2">
             <div className="hidden lg:flex flex-col items-end">
               <span className="text-xs font-bold text-slate-900 leading-none">{currentUser.name.split(' ')[0]}</span>
@@ -161,6 +194,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           </div>
         </div>
       </div>
-    </header>
+    </header >
   );
 };
+

@@ -1,5 +1,7 @@
 import { supabase } from './supabaseClient';
 import { VehicleSchedule, ScheduleStatus } from '../types';
+import { notificationService } from './notificationService';
+
 
 export const getSchedules = async (): Promise<VehicleSchedule[]> => {
     const { data, error } = await supabase
@@ -59,6 +61,69 @@ const generateProtocol = async (): Promise<string> => {
     }
 };
 
+const notifyApprovers = async (schedule: any) => {
+    // Find who should approve this.
+    // Logic: Request Manager (role or permission) OR Vehicle Responsible.
+    // For now, simpler: Notify users with 'parent_frotas' permission.
+
+    // 1. Get users with 'parent_frotas' permission
+    // In a real app we might query a "permissions" table or "users" table with permission column.
+    // Assuming 'users' table has a text[] permissions column or similar.
+    // However, our User Interface has permissions in JSONB or array.
+    // Let's assume we can query users. Since we may not have easy 'contains' on JSON if not set up,
+    // we will fetch all admin/frotas users.
+
+    // Fallback: Notify known admins if we can't search deeply.
+    // Better: Fetch users where permissions contains 'parent_frotas'
+    const { data: managers } = await supabase
+        .from('users')
+        .select('id')
+        .ilike('permissions', '%parent_frotas%'); // Simple text search if array stored as json/string
+
+    if (managers) {
+        for (const manager of managers) {
+            await notificationService.createNotification({
+                user_id: manager.id,
+                title: 'Nova Solicitação de Veículo',
+                message: `Solicitação ${schedule.protocol} criada para ${schedule.destination}. Aguardando aprovação.`,
+                type: 'info',
+                link: '/AgendamentoVeiculos/Aprovacoes'
+            });
+        }
+    }
+};
+
+const notifyRequester = async (scheduleId: string, status: ScheduleStatus) => {
+    // Get schedule to find requester
+    const { data: schedule } = await supabase
+        .from('vehicle_schedules')
+        .select('requester_id, protocol, destination')
+        .eq('id', scheduleId)
+        .single();
+
+    if (schedule && schedule.requester_id) {
+        let msg = `Sua solicitação ${schedule.protocol} foi atualizada para: ${status}`;
+        let type: 'success' | 'error' | 'info' = 'info';
+
+        if (status === 'confirmado') {
+            msg = `Sua solicitação ${schedule.protocol} foi APROVADA.`;
+            type = 'success';
+        } else if (status === 'cancelado') {
+            msg = `Sua solicitação ${schedule.protocol} foi REJEITADA/CANCELADA.`;
+            type = 'error';
+        }
+
+        await notificationService.createNotification({
+            user_id: schedule.requester_id,
+            title: 'Atualização de Agendamento',
+            message: msg,
+            type: type as any,
+            link: '/AgendamentoVeiculos/Historico'
+        });
+    }
+};
+
+
 export const createSchedule = async (schedule: Omit<VehicleSchedule, 'id' | 'createdAt' | 'protocol'>): Promise<VehicleSchedule | null> => {
     const protocol = await generateProtocol();
 
@@ -90,7 +155,7 @@ export const createSchedule = async (schedule: Omit<VehicleSchedule, 'id' | 'cre
         return null;
     }
 
-    return {
+    const result = {
         id: data.id,
         protocol: data.protocol,
         vehicleId: data.vehicle_id,
@@ -109,6 +174,11 @@ export const createSchedule = async (schedule: Omit<VehicleSchedule, 'id' | 'cre
         authorizedByName: data.authorized_by_name,
         passengers: data.passengers
     };
+
+    // Notification Trigger
+    await notifyApprovers({ ...result });
+
+    return result;
 };
 
 export const updateSchedule = async (schedule: VehicleSchedule): Promise<VehicleSchedule | null> => {
@@ -140,7 +210,7 @@ export const updateSchedule = async (schedule: VehicleSchedule): Promise<Vehicle
         return null;
     }
 
-    return {
+    const result = {
         id: data.id,
         protocol: data.protocol,
         vehicleId: data.vehicle_id,
@@ -159,6 +229,13 @@ export const updateSchedule = async (schedule: VehicleSchedule): Promise<Vehicle
         authorizedByName: data.authorized_by_name,
         passengers: data.passengers
     };
+
+    // Notification Trigger (Notify requester if status changed - but updateSchedule is general update)
+    // Actually, usually updateSchedule is used for edits. Status changes use updateScheduleStatus.
+    // However, if status changes here, we might want to notify.
+    // Let's leave it for now or check if status changed.
+
+    return result;
 };
 
 
@@ -172,6 +249,9 @@ export const updateScheduleStatus = async (id: string, status: ScheduleStatus): 
         console.error('Error updating schedule status:', error);
         return false;
     }
+    // Notification Trigger
+    await notifyRequester(id, status);
+
     return true;
 };
 
@@ -214,3 +294,4 @@ export const checkAvailability = async (vehicleId: string, start: string, end: s
 
     return data.length === 0;
 };
+

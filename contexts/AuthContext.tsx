@@ -86,6 +86,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     twoFactorSecret2: data.two_factor_secret_2
                 };
                 setUser(appUser);
+
+                // Broadcast Login Event (Only if just signed in or first load - but context loads on every refresh. 
+                // To avoid spam on every refresh, maybe check sessionStorage? 
+                // However, "real-time popup when user enters" usually means when they open the app.
+                // Let's use sessionStorage to only send once per browser session.)
+
+                const hasBroadcasted = sessionStorage.getItem(`login_broadcast_${data.id}`);
+                if (!hasBroadcasted) {
+                    await supabase.channel('global_events').send({
+                        type: 'broadcast',
+                        event: 'user-login',
+                        payload: {
+                            username: appUser.name,
+                            avatarUrl: null, // Add avatar logic later if we have it
+                            role: appUser.role
+                        }
+                    });
+                    sessionStorage.setItem(`login_broadcast_${data.id}`, 'true');
+                }
             }
         } catch (err) {
             console.error('Unexpected error fetching profile:', err);

@@ -1,6 +1,7 @@
 
 import { supabase } from './supabaseClient';
 import { Order } from '../types';
+import { notificationService } from './notificationService';
 
 export const getAllPurchaseOrders = async (): Promise<Order[]> => {
     const { data, error } = await supabase
@@ -93,4 +94,23 @@ export const updatePurchaseStatus = async (id: string, status: string, historyEn
         .eq('id', id);
 
     if (error) throw error;
+
+    // Notification Trigger
+    // Fetch order to get user_id notification target
+    const { data: order } = await supabase.from('purchase_orders').select('user_id, protocol, title').eq('id', id).single();
+
+    if (order && order.user_id) {
+
+        let type = 'info';
+        if (status === 'concluido' || status === 'realizado') type = 'success';
+        if (status === 'cancelado') type = 'error';
+
+        await notificationService.createNotification({
+            user_id: order.user_id,
+            title: 'Atualização de Pedido de Compra',
+            message: `O pedido ${order.protocol} (${order.title}) mudou para: ${status}`,
+            type: type as any,
+            link: '/Compras' // or specific link
+        });
+    }
 };
