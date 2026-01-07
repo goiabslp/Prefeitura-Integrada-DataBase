@@ -67,7 +67,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 if (activeChat.type === 'user') {
                     data = await chatService.fetchDirectMessages(user.id, activeChat.id);
                 } else if (activeChat.type === 'sector') {
-                    data = await chatService.fetchSectorMessages(activeChat.id);
+                    data = await chatService.fetchSectorMessages(activeChat.id, user.id);
                 }
 
                 // MERGE STRATEGY: Combine fetched data with existing state to avoid race conditions

@@ -61,6 +61,15 @@ export const chatService = {
     },
 
     async fetchDirectMessages(currentUserId: string, otherUserId: string) {
+        // Check clearance
+        const { data: clearance } = await supabase
+            .from('chat_cleared_history')
+            .select('cleared_at')
+            .eq('user_id', currentUserId)
+            .eq('target_id', otherUserId)
+            .eq('target_type', 'user')
+            .single();
+
         let query = supabase
             .from('chat_messages')
             .select('*');
@@ -76,6 +85,10 @@ export const chatService = {
             query = query.or(`and(sender_id.eq.${u1},receiver_id.eq.${u2}),and(sender_id.eq.${u2},receiver_id.eq.${u1})`);
         }
 
+        if (clearance?.cleared_at) {
+            query = query.gt('created_at', clearance.cleared_at);
+        }
+
         const { data, error } = await query.order('created_at', { ascending: true });
 
         if (error) {
@@ -87,12 +100,30 @@ export const chatService = {
         return data as ChatMessage[];
     },
 
-    async fetchSectorMessages(sectorId: string) {
-        const { data, error } = await supabase
+    async fetchSectorMessages(sectorId: string, currentUserId?: string) {
+        // Check clearance for sector if currentUserId provided
+        let clearedAtStr = null;
+        if (currentUserId) {
+            const { data: clearance } = await supabase
+                .from('chat_cleared_history')
+                .select('cleared_at')
+                .eq('user_id', currentUserId)
+                .eq('target_id', sectorId)
+                .eq('target_type', 'sector')
+                .single();
+            clearedAtStr = clearance?.cleared_at;
+        }
+
+        let query = supabase
             .from('chat_messages')
             .select('*')
-            .eq('sector_id', sectorId)
-            .order('created_at', { ascending: true });
+            .eq('sector_id', sectorId);
+
+        if (clearedAtStr) {
+            query = query.gt('created_at', clearedAtStr);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: true });
 
         if (error) throw error;
         return data as ChatMessage[];
@@ -150,13 +181,24 @@ export const chatService = {
     },
 
     async fetchRecentConversations(userId: string): Promise<{ userIds: string[], sectorIds: string[], metadata: Record<string, RecentConversation> }> {
-        // Fetch last 300 messages to get a good history of recent interactions
+        // Fetch cleared history first
+        const { data: clearedHistory } = await supabase
+            .from('chat_cleared_history')
+            .select('target_id, target_type, cleared_at')
+            .eq('user_id', userId);
+
+        const clearedMap = new Map<string, string>();
+        clearedHistory?.forEach(h => {
+            clearedMap.set(`${h.target_type}-${h.target_id}`, h.cleared_at);
+        });
+
+        // Fetch last 500 messages to get a good history of recent interactions
         const { data, error } = await supabase
             .from('chat_messages')
             .select('*')
-            .or(`sender_id.eq.${userId},receiver_id.eq.${userId},sector_id.neq.null`) // Check all relevant messages
+            .or(`sender_id.eq.${userId},receiver_id.eq.${userId},sector_id.neq.null`)
             .order('created_at', { ascending: false })
-            .limit(300);
+            .limit(500);
 
         if (error) throw error;
 
@@ -178,30 +220,40 @@ export const chatService = {
             }
 
             // Count unread if I am the receiver (or it's a sector msg not from me) and it's not read
+            // IMPORTANT: Only count unread if message is NEWER than cleared_at (already filtered before call? no, need check)
+            // Actually, we filter messages BEFORE calling this, so logic holds.
             if (!msg.read && msg.sender_id !== userId) {
-                // For direct messages: correct
-                // For sector messages: primitive "unread" logic (if not read by ANYONE? unread status is shared currently)
                 metadata[key].unreadCount += 1;
             }
         };
 
-        const mySectorId = (data.find(m => m.sender_id === userId)?.sender as any)?.sector; // This might be unreliable if not expanded, relying on client filtering mostly, but here filter helps.
-
         data.forEach(msg => {
+            let targetId = '';
+            let type: 'user' | 'sector' = 'user';
+
             if (msg.sector_id) {
-                // It's a sector message
-                // Filter: Include if I sent it OR (it's my sector OR it's global) -- basic visibility logic similar to context
-                // For simplicity in "Recent", we show everything fetched that has sector_id. 
-                // Context usually filters strictly. Assuming API returns what user CAN see usually.
-                recentSectorIds.add(msg.sector_id);
-                updateMetadata(msg.sector_id, 'sector', msg);
+                targetId = msg.sector_id;
+                type = 'sector';
             } else {
-                // Direct message
-                const otherId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
-                if (otherId) {
-                    recentUserIds.add(otherId);
-                    updateMetadata(otherId, 'user', msg);
-                }
+                targetId = msg.sender_id === userId ? msg.receiver_id! : msg.sender_id;
+                type = 'user';
+            }
+
+            if (!targetId) return;
+
+            // Check if cleared
+            const clearedAt = clearedMap.get(`${type}-${targetId}`);
+            if (clearedAt && new Date(msg.created_at) <= new Date(clearedAt)) {
+                return; // Skip cleared message
+            }
+
+            // Add to lists
+            if (type === 'sector') {
+                recentSectorIds.add(targetId);
+                updateMetadata(targetId, 'sector', msg);
+            } else {
+                recentUserIds.add(targetId);
+                updateMetadata(targetId, 'user', msg);
             }
         });
 
@@ -213,17 +265,34 @@ export const chatService = {
     },
 
     async deleteConversation(currentUserId: string, targetId: string, type: 'user' | 'sector') {
-        let query = supabase.from('chat_messages').delete();
+        // 1. Clear history (Soft Delete)
+        const { error: upsertError } = await supabase
+            .from('chat_cleared_history')
+            .upsert({
+                user_id: currentUserId,
+                target_id: targetId,
+                target_type: type,
+                cleared_at: new Date().toISOString()
+            }, { onConflict: 'user_id, target_id, target_type' });
+
+        if (upsertError) throw upsertError;
+
+        // 2. Mark unread messages as read (to fix badges)
+        // Only existing unread messages where I am the receiver (or irrelevant for sector shared logic)
+        // Simplified query: Update all unread messages in this conversation where I am NOT the sender.
+        let query = supabase.from('chat_messages').update({ read: true }).eq('read', false).neq('sender_id', currentUserId);
 
         if (type === 'user') {
-            // Delete all messages between these two users
-            query = query.or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${targetId}),and(sender_id.eq.${targetId},receiver_id.eq.${currentUserId})`);
+            query = query.or(`and(sender_id.eq.${targetId},receiver_id.eq.${currentUserId})`);
+            // Note: only mark messages sent BY the other person TO me.
         } else {
-            // targetId is the sector name or ID
             query = query.eq('sector_id', targetId);
         }
 
-        const { error } = await query;
-        if (error) throw error;
+        const { error: updateError } = await query;
+        if (updateError) {
+            console.error('Error marking messages as read during deletion:', updateError);
+            // Don't throw, as the primary action (clearing) succeeded.
+        }
     }
 };
