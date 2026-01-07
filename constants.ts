@@ -186,7 +186,7 @@ export const DEFAULT_USERS: User[] = [
     sector: 'Secretaria de Administração',
     jobTitle: 'Secretário de Administração e Finanças',
     allowedSignatureIds: ['sig1', 'sig2', 'sig3'],
-    permissions: ['parent_criar_oficio', 'parent_compras', 'parent_diarias', 'parent_admin', 'parent_compras_pedidos', 'parent_agendamento_veiculo']
+    permissions: ['parent_criar_oficio', 'parent_compras', 'parent_diarias', 'parent_admin', 'parent_compras_pedidos', 'parent_agendamento_veiculo', 'parent_agricultura', 'parent_obras']
   },
   {
     id: 'user_juliana',
@@ -197,7 +197,7 @@ export const DEFAULT_USERS: User[] = [
     sector: 'Secretaria de Administração',
     jobTitle: 'Tecnico Administrativo',
     allowedSignatureIds: ['sig1', 'sig2', 'sig3'],
-    permissions: ['parent_criar_oficio', 'parent_compras', 'parent_diarias', 'parent_admin', 'parent_compras_pedidos', 'parent_agendamento_veiculo']
+    permissions: ['parent_criar_oficio', 'parent_compras', 'parent_diarias', 'parent_admin', 'parent_compras_pedidos', 'parent_agendamento_veiculo', 'parent_agricultura', 'parent_obras']
   },
   {
     id: 'user_maria',
@@ -241,7 +241,7 @@ export const DEFAULT_USERS: User[] = [
     sector: 'Departamento de Informática',
     jobTitle: 'Tecnico de TI',
     allowedSignatureIds: ['sig1', 'sig2', 'sig3', 'sig4'],
-    permissions: ['parent_criar_oficio', 'parent_compras', 'parent_diarias', 'parent_admin', 'parent_compras_pedidos', 'parent_agendamento_veiculo']
+    permissions: ['parent_criar_oficio', 'parent_compras', 'parent_diarias', 'parent_admin', 'parent_compras_pedidos', 'parent_agendamento_veiculo', 'parent_agricultura', 'parent_obras']
   }
 ];
 

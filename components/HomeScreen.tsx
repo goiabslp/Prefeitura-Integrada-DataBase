@@ -1,5 +1,5 @@
 import React from 'react';
-import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange, FileSearch, Droplet, Fuel, BarChart3, TrendingUp, LogOut } from 'lucide-react';
+import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange, FileSearch, Droplet, Fuel, BarChart3, TrendingUp, LogOut, Sprout, HardHat } from 'lucide-react';
 import { UserRole, UIConfig, AppPermission, BlockType } from '../types';
 import { FleetShortcutCard } from './FleetShortcutCard';
 
@@ -12,6 +12,9 @@ interface HomeScreenProps {
     onVehicleScheduling?: () => void;
     onLogout: () => void;
     onOpenAdmin: (tab?: string | null) => void;
+    onAbastecimento?: (sub: string) => void;
+    onAgricultura?: () => void;
+    onObras?: () => void;
     userRole: UserRole;
     userName: string;
     userJobTitle?: string;
@@ -41,6 +44,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     onManageLicitacaoScreening,
     onViewAllLicitacao,
     onAbastecimento,
+    onAgricultura,
+    onObras,
     onLogout
 }) => {
     const canAccessOficio = permissions.includes('parent_criar_oficio');
@@ -53,8 +58,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     const canAccessLicitacaoTriagem = permissions.includes('parent_licitacao_triagem');
     const canAccessLicitacaoProcessos = permissions.includes('parent_licitacao_processos');
     const canAccessAbastecimento = permissions.includes('parent_abastecimento'); // New Permission Logic
+    const canAccessAgricultura = permissions.includes('parent_agricultura');
+    const canAccessObras = permissions.includes('parent_obras');
 
-    const hasAnyPermission = canAccessOficio || canAccessCompras || canAccessLicitacao || canAccessDiarias || canAccessScheduling || canAccessFleet || canAccessAbastecimento;
+    const hasAnyPermission = canAccessOficio || canAccessCompras || canAccessLicitacao || canAccessDiarias || canAccessScheduling || canAccessFleet || canAccessAbastecimento || canAccessAgricultura || canAccessObras;
 
     const visibleModulesCount = [
         canAccessOficio,
@@ -63,7 +70,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         canAccessDiarias,
         canAccessScheduling,
         canAccessFleet,
-        canAccessAbastecimento
+        canAccessAbastecimento,
+        canAccessAgricultura,
+        canAccessObras
     ].filter(Boolean).length;
 
     const getContainerClass = () => {
@@ -81,8 +90,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         if (visibleModulesCount === 1) sizeClass = "w-72 h-80 md:w-64 md:w-80 md:h-[400px] p-6 md:p-10 scale-100 md:scale-110";
         else if (visibleModulesCount === 2) sizeClass = "w-72 h-72 md:w-48 md:w-64 lg:w-72 md:h-80 lg:h-96 p-6 md:p-8";
-        else if (visibleModulesCount === 3) sizeClass = "w-72 h-64 md:w-40 md:w-56 lg:w-64 md:h-72 lg:h-80 p-6";
-        else if (visibleModulesCount >= 6) sizeClass = "w-72 h-60 md:w-28 md:w-40 lg:w-44 md:h-56 lg:h-60 p-4 md:p-4";
+        else if (visibleModulesCount === 3) sizeClass = "w-72 h-64 md:w-44 md:w-60 lg:w-68 md:h-72 lg:h-80 p-6";
+        else if (visibleModulesCount >= 4 && visibleModulesCount <= 5) sizeClass = "w-72 h-60 md:w-40 md:w-52 lg:w-60 md:h-64 lg:h-72 p-5";
+        else if (visibleModulesCount >= 6 && visibleModulesCount <= 8) sizeClass = "w-72 h-48 md:w-32 md:w-40 lg:w-44 md:h-48 lg:h-56 p-3";
+        else if (visibleModulesCount >= 9) sizeClass = "w-72 h-40 md:w-28 md:w-36 lg:w-40 md:h-40 lg:h-48 p-2.5";
 
         return `${base} ${hoverShadow} ${sizeClass}`;
     };
@@ -97,6 +108,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             case 'diarias': return "Diárias e Custeio";
             case 'agendamento': return "Agendamento de Veículos";
             case 'abastecimento': return "Gestão de Abastecimento"; // New Block Name
+            case 'agricultura': return "Módulo de Agricultura";
+            case 'obras': return "Módulo de Obras";
             default: return "";
         }
     };
@@ -197,6 +210,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                         <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden px-1">Controle de combustível.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-cyan-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
+                                </button>
+                            )}
+
+                            {canAccessAgricultura && (
+                                <button onClick={() => onAgricultura?.()} className={getCardClass('emerald')}>
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
+                                    <div className="relative z-10 flex flex-col items-center w-full">
+                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-emerald-500 to-emerald-600"><Sprout className="w-10 h-10 text-white" /></div>
+                                        <h2 className="text-3xl md:text-xl lg:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight leading-tight px-1">Agricultura</h2>
+                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden px-1">Gestão rural.</p>
+                                    </div>
+                                    <div className="mt-4 flex items-center gap-2 text-emerald-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
+                                </button>
+                            )}
+
+                            {canAccessObras && (
+                                <button onClick={() => onObras?.()} className={getCardClass('orange')}>
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
+                                    <div className="relative z-10 flex flex-col items-center w-full">
+                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-orange-500 to-orange-600"><HardHat className="w-10 h-10 text-white" /></div>
+                                        <h2 className="text-3xl md:text-xl lg:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight leading-tight px-1">Obras</h2>
+                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden px-1">Infraestrutura.</p>
+                                    </div>
+                                    <div className="mt-4 flex items-center gap-2 text-orange-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
                                 </button>
                             )}
 

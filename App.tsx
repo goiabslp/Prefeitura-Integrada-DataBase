@@ -52,6 +52,8 @@ import { FloatingNotification } from './components/FloatingNotification';
 import { ChatProvider } from './contexts/ChatContext';
 import { ChatWidget } from './components/chat/ChatWidget';
 import { ChatWindow } from './components/chat/ChatWindow';
+import { AgricultureModule } from './components/agriculture/AgricultureModule';
+import { ObrasModule } from './components/obras/ObrasModule';
 
 const VIEW_TO_PATH: Record<string, string> = {
   'login': '/Login',
@@ -85,7 +87,9 @@ const VIEW_TO_PATH: Record<string, string> = {
   'vehicle-scheduling:vs_approvals': '/AgendamentoVeiculos/Aprovacoes',
   'abastecimento:new': '/Abastecimento/NovoAbastecimento',
   'abastecimento:management': '/Abastecimento/GestãoAbastecimento',
-  'abastecimento:dashboard': '/Abastecimento/DashboardAbastecimento'
+  'abastecimento:dashboard': '/Abastecimento/DashboardAbastecimento',
+  'agricultura': '/Agricultura',
+  'obras': '/Obras'
 };
 
 const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
@@ -96,7 +100,7 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 );
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento'>('login');
+  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras'>('login');
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
   const [appState, setAppState] = useState<AppState>(() => {
     // Try to load from localStorage first
@@ -245,7 +249,8 @@ const App: React.FC = () => {
         savedSchedules,
         counterValue,
         savedGasStations,
-        savedFuelTypes
+        savedFuelTypes,
+        savedUsers
       ] = await Promise.all([
         oficiosService.getAllOficios(),
         comprasService.getAllPurchaseOrders(),
@@ -259,8 +264,36 @@ const App: React.FC = () => {
         vehicleSchedulingService.getSchedules(),
         db.getGlobalCounter(),
         AbastecimentoService.getGasStations(),
-        AbastecimentoService.getFuelTypes()
+        AbastecimentoService.getFuelTypes(),
+        entityService.getUsers()
       ]);
+
+      const mappedUsers: User[] = savedUsers.map((ru: any) => ({
+        id: ru.id,
+        username: ru.username,
+        name: ru.name,
+        role: ru.role,
+        sector: ru.sector,
+        jobTitle: ru.job_title,
+        email: ru.email,
+        whatsapp: ru.whatsapp,
+        allowedSignatureIds: ru.allowed_signature_ids,
+        permissions: ru.permissions,
+        tempPassword: ru.temp_password,
+        tempPasswordExpiresAt: ru.temp_password_expires_at,
+        twoFactorEnabled: ru.two_factor_enabled,
+        twoFactorSecret: ru.two_factor_secret,
+        twoFactorEnabled2: ru.two_factor_enabled_2,
+        twoFactorSecret2: ru.two_factor_secret_2
+      }));
+
+      // Use DB users if available; otherwise fallback to Mock users (e.g. first run)
+      // This prevents duplicate users (Mock vs Real) and ensures we edit the real UUID users that affect permissions.
+      if (mappedUsers.length > 0) {
+        setUsers(mappedUsers);
+      } else {
+        setUsers(DEFAULT_USERS);
+      }
 
       setOficios(savedOficios);
       setPurchaseOrders(savedPurchaseOrders);
@@ -1274,6 +1307,9 @@ const App: React.FC = () => {
 
 
 
+
+
+
   const handleTrackOrder = () => {
     // Determine which orders to show based on activeBlock
     if (activeBlock === 'compras') {
@@ -1299,6 +1335,16 @@ const App: React.FC = () => {
 
   // Helper for self-updates or other minor updates
   const handleUpdateUserInApp = async (u: User) => {
+    // PREVENT DB ERROR: Do not try to update mock users (non-UUID ids) in Supabase
+    // Real Supabase IDs are UUIDs (36 chars). Mock IDs are 'user_guilherme', etc.
+    const isMockUser = u.id.length < 30 || u.id.startsWith('user_');
+
+    if (isMockUser) {
+      console.warn("Skipping DB update for mock user:", u.id);
+      setUsers(p => p.map(us => us.id === u.id ? u : us));
+      return;
+    }
+
     const { error } = await supabase.from('profiles').update({
       name: u.name,
       username: u.username,
@@ -1383,6 +1429,12 @@ const App: React.FC = () => {
               if (VIEW_TO_PATH[path]) {
                 window.history.pushState({}, '', VIEW_TO_PATH[path]);
               }
+            }} onAgricultura={() => {
+              setCurrentView('agricultura');
+              window.history.pushState({}, '', '/Agricultura');
+            }} onObras={() => {
+              setCurrentView('obras');
+              window.history.pushState({}, '', '/Obras');
             }} />}
             {(currentView === 'editor' || currentView === 'admin') && currentUser && (
               <div className="flex-1 flex flex-col overflow-hidden h-full relative">
@@ -2206,6 +2258,26 @@ const App: React.FC = () => {
                 gasStations={gasStations}
                 fuelTypes={fuelTypes}
                 sectors={sectors}
+              />
+            )}
+
+            {currentView === 'agricultura' && (
+              <AgricultureModule
+                onBack={() => {
+                  setCurrentView('home');
+                  setActiveBlock(null);
+                  window.history.pushState({}, '', '/PaginaInicial');
+                }}
+              />
+            )}
+
+            {currentView === 'obras' && (
+              <ObrasModule
+                onBack={() => {
+                  setCurrentView('home');
+                  setActiveBlock(null);
+                  window.history.pushState({}, '', '/PaginaInicial');
+                }}
               />
             )}
 

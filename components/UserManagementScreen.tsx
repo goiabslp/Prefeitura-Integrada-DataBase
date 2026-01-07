@@ -146,7 +146,8 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
       setFormData({
         ...user,
         allowedSignatureIds: user.allowedSignatureIds || [],
-        permissions: perms
+        permissions: perms,
+        password: '' // Clear password to avoid validation error on existing users
       });
     } else {
       setEditingUser(null);
@@ -324,7 +325,9 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
     { id: 'parent_admin', label: 'Administrativo' },
     { id: 'parent_licitacao_triagem', label: 'Licitação: Triagem' },
     { id: 'parent_licitacao_processos', label: 'Licitação: Processos' },
-    { id: 'parent_compras_pedidos', label: 'Gestão de Pedidos (Compras)' }
+    { id: 'parent_compras_pedidos', label: 'Gestão de Pedidos (Compras)' },
+    { id: 'parent_agricultura', label: 'Módulo: Agricultura' },
+    { id: 'parent_obras', label: 'Módulo: Obras' }
   ];
 
   return (
@@ -923,6 +926,14 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                           { id: 'parent_frotas', label: 'Gestão de Frotas' }
                         ],
                         color: 'rose'
+                      },
+                      {
+                        title: 'Módulos Operacionais',
+                        permissions: [
+                          { id: 'parent_agricultura', label: 'Agricultura' },
+                          { id: 'parent_obras', label: 'Obras' }
+                        ],
+                        color: 'teal'
                       }
                     ].map((category) => (
                       <div key={category.title} className="bg-slate-50/50 rounded-2xl p-5 border border-slate-100/60">

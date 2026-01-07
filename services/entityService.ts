@@ -421,3 +421,13 @@ export const deleteSignature = async (id: string): Promise<boolean> => {
     return true;
 };
 
+// Users
+export const getUsers = async (): Promise<any[]> => {
+    const { data, error } = await supabase.from('profiles').select('*').order('name');
+    if (error) {
+        console.error('Error fetching users:', error);
+        return [];
+    }
+    return data || [];
+};
+
