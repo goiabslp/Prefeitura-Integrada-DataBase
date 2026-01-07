@@ -8,7 +8,11 @@ interface AbastecimentoListProps {
     onBack: () => void;
 }
 
+import { useAuth } from '../../contexts/AuthContext';
+
 export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack }) => {
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
     const [supplies, setSupplies] = useState<AbastecimentoRecord[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -165,7 +169,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack }) 
                             return (
                                 <GestureItem
                                     key={item.id}
-                                    onSwipeLeft={() => handleDelete(item.id)}
+                                    onSwipeLeft={isAdmin ? () => handleDelete(item.id) : undefined}
                                     // onLongPress={() => alert('Long Press triggered!')} // Optional feedback for now
                                     className="rounded-2xl shadow-sm mb-3"
                                 >
@@ -213,13 +217,15 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack }) 
                                             </div>
 
                                             {/* Action */}
-                                            <button
-                                                onClick={() => handleDelete(item.id)}
-                                                className="hidden md:block p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0"
-                                                title="Excluir Registro"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={() => handleDelete(item.id)}
+                                                    className="hidden md:block p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0"
+                                                    title="Excluir Registro"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
 
 
                                         </div>

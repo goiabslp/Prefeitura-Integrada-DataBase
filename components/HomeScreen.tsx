@@ -98,6 +98,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         return `${base} ${hoverShadow} ${sizeClass}`;
     };
 
+    const getTitleClass = () => {
+        if (visibleModulesCount <= 3) return "text-3xl md:text-2xl lg:text-3xl";
+        if (visibleModulesCount <= 5) return "text-2xl md:text-xl lg:text-2xl";
+        if (visibleModulesCount <= 8) return "text-xl md:text-sm lg:text-lg"; // Reduced
+        return "text-lg md:text-[10px] lg:text-xs"; // Compact for 9+
+    };
+
+    const titleBaseClass = "font-black text-slate-900 mb-1 md:mb-1 tracking-tight whitespace-nowrap leading-tight px-1";
+
     const firstName = userName.split(' ')[0];
 
     const getBlockName = () => {
@@ -127,10 +136,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
     return (
         <div className="flex-1 bg-slate-50 font-sans flex flex-col overflow-hidden h-screen max-h-screen">
-            <main className={`flex-1 flex flex-col items-center px-6 bg-gradient-to-b from-white to-slate-50 relative ${activeBlock ? 'pt-8 overflow-y-auto custom-scrollbar' : 'justify-center pb-12 overflow-hidden'}`}>
+            <main className={`flex-1 flex flex-col items-center px-6 bg-gradient-to-b from-white to-slate-50 relative ${activeBlock ? 'pt-8 overflow-y-auto custom-scrollbar' : 'justify-start pt-12 md:pt-20 pb-12 overflow-y-auto custom-scrollbar'}`}>
 
                 {!activeBlock && (
-                    <div className="w-full max-w-full animate-fade-in flex flex-col items-center justify-center flex-1 h-full min-h-0 overflow-hidden">
+                    <div className="w-full max-w-full animate-fade-in flex flex-col items-center justify-start flex-1 min-h-min">
                         <div className="text-center mb-12">
                             <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 tracking-tighter mb-2">
                                 Bem-vindo, <span className="text-indigo-600">{firstName}</span>
@@ -146,7 +155,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-600 to-indigo-700"><FileText className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className="text-3xl md:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight whitespace-nowrap">Ofícios</h2>
+                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Ofícios</h2>
                                         <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden">Geração e histórico.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-indigo-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
@@ -158,7 +167,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-emerald-600 to-emerald-700"><ShoppingCart className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className="text-3xl md:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight whitespace-nowrap">Compras</h2>
+                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Compras</h2>
                                         <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden">Pedidos e requisições.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-emerald-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
@@ -170,7 +179,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-blue-600 to-blue-700"><Gavel className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className="text-3xl md:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight whitespace-nowrap">Licitação</h2>
+                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Licitação</h2>
                                         <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden">Processos e termos.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-blue-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
@@ -182,7 +191,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-amber-600 to-amber-700"><Wallet className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className="text-3xl md:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight whitespace-nowrap">Diárias</h2>
+                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Diárias</h2>
                                         <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden">Gestão de despesas.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-amber-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
@@ -194,7 +203,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center w-full">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-50 to-violet-600"><CalendarRange className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className="text-3xl md:text-xl lg:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight leading-tight px-1">Agendamento</h2>
+                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Agendamento</h2>
                                         <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden px-1">Controle de frotas.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-indigo-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
@@ -202,11 +211,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             )}
 
                             {canAccessAbastecimento && (
-                                <button onClick={() => setActiveBlock('abastecimento')} className={getCardClass('cyan')}>
+                                <button onClick={() => setActiveBlock('abastecimento')} className={`${getCardClass('cyan')} hidden md:flex`}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center w-full">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-cyan-500 to-cyan-600"><Droplet className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className="text-3xl md:text-xl lg:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight leading-tight px-1">Abastecimento</h2>
+                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Abastecimento</h2>
                                         <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden px-1">Controle de combustível.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-cyan-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
@@ -214,11 +223,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             )}
 
                             {canAccessAgricultura && (
-                                <button onClick={() => onAgricultura?.()} className={getCardClass('emerald')}>
+                                <button onClick={() => onAgricultura?.()} className={`${getCardClass('emerald')} hidden md:flex`}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center w-full">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-emerald-500 to-emerald-600"><Sprout className="w-10 h-10 text-white" /></div>
-                                        <h2 className="text-3xl md:text-xl lg:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight leading-tight px-1">Agricultura</h2>
+                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Agricultura</h2>
                                         <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden px-1">Gestão rural.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-emerald-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
@@ -226,11 +235,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             )}
 
                             {canAccessObras && (
-                                <button onClick={() => onObras?.()} className={getCardClass('orange')}>
+                                <button onClick={() => onObras?.()} className={`${getCardClass('orange')} hidden md:flex`}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center w-full">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-orange-500 to-orange-600"><HardHat className="w-10 h-10 text-white" /></div>
-                                        <h2 className="text-3xl md:text-xl lg:text-2xl font-black text-slate-900 mb-1 md:mb-1 tracking-tight leading-tight px-1">Obras</h2>
+                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Obras</h2>
                                         <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden px-1">Infraestrutura.</p>
                                     </div>
                                     <div className="mt-4 flex items-center gap-2 text-orange-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>

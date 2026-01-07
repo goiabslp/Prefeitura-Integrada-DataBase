@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { ArrowLeft, TrendingUp, Droplet, DollarSign, Truck, Settings, LayoutDashboard, Building2, MapPin, CreditCard, Fuel, Save, Plus, Calendar, ChevronDown, History, BarChart3, Search, ChevronRight, FileText, Filter, FileSpreadsheet, Download, CalendarDays, Factory, Car } from 'lucide-react';
 import { ModernSelect } from '../common/ModernSelect';
 import { ModernDateInput } from '../common/ModernDateInput';
@@ -284,6 +285,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
 };
 
 export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ onBack, state, onAbastecimento, vehicles, persons, gasStations, fuelTypes, sectors }) => {
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -1601,16 +1603,18 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 <FileText className="w-3.5 h-3.5" />
                                 Relatórios
                             </button>
-                            <button
-                                onClick={() => setActiveTab('config')}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'config'
-                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-black/5'
-                                    : 'text-slate-500 hover:text-slate-700'
-                                    }`}
-                            >
-                                <Settings className="w-3.5 h-3.5" />
-                                Ajustes
-                            </button>
+                            {user?.role === 'admin' && (
+                                <button
+                                    onClick={() => setActiveTab('config')}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'config'
+                                        ? 'bg-white text-slate-900 shadow-sm ring-1 ring-black/5'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                        }`}
+                                >
+                                    <Settings className="w-3.5 h-3.5" />
+                                    Ajustes
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1619,7 +1623,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     {activeTab === 'overview' && renderOverview()}
                     {activeTab === 'vehicle' && renderVehicleView()}
                     {activeTab === 'reports' && renderReportsView()}
-                    {activeTab === 'config' && <ConfigPanel fuelTypes={fuelTypes} gasStations={gasStations as any} />}
+                    {activeTab === 'config' && user?.role === 'admin' && <ConfigPanel fuelTypes={fuelTypes} gasStations={gasStations as any} />}
                 </div>
             </div>
 
