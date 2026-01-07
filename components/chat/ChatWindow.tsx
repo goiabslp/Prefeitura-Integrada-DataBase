@@ -79,7 +79,10 @@ export const ChatWindow: React.FC = () => {
     // Fetch users and sectors
     const loadSidebarData = async () => {
         if (!isOpen) return;
-        setIsLoading(true);
+        // Only show full loading state if we have no data
+        if (usersList.length === 0 && recentList.length === 0) {
+            setIsLoading(true);
+        }
         setError(null);
 
         try {
