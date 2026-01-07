@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect, useMemo, useDeferredValue } from 'react';
-import { ChevronDown, Search, Check, X } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo, useDeferredValue, memo } from 'react';
+import { ChevronDown, Search, Check } from 'lucide-react';
 
 export interface Option {
     value: string;
     label: string;
     subtext?: string;
+    _sortKey?: string;
 }
 
 interface CustomSelectProps {
@@ -18,7 +19,45 @@ interface CustomSelectProps {
     className?: string;
 }
 
-export const CustomSelect: React.FC<CustomSelectProps> = ({
+// Sub-component for options to enable granular memoization
+const SelectItem = memo(({
+    option,
+    isSelected,
+    onClick
+}: {
+    option: Option;
+    isSelected: boolean;
+    onClick: (val: string) => void
+}) => {
+    return (
+        <button
+            type="button"
+            onClick={(e) => {
+                e.stopPropagation();
+                onClick(option.value);
+            }}
+            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-start sm:items-center justify-between group/item gap-2
+                ${isSelected
+                    ? 'bg-cyan-50 text-cyan-700'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+        >
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-1 min-w-0">
+                <span className="font-semibold truncate">{option.label}</span>
+                {option.subtext && (
+                    <span className={`text-xs sm:text-sm truncate ${isSelected ? 'text-cyan-600/70' : 'text-slate-400'}`}>
+                        {option.subtext}
+                    </span>
+                )}
+            </div>
+            {isSelected && <Check className="w-4 h-4 text-cyan-600 flex-shrink-0" />}
+        </button>
+    );
+});
+
+SelectItem.displayName = 'SelectItem';
+
+export const CustomSelect: React.FC<CustomSelectProps> = memo(({
     label,
     value,
     onChange,
@@ -34,8 +73,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    const selectedOption = options.find(opt => opt.value === value);
-
+    const selectedOption = useMemo(() => options.find(opt => opt.value === value), [options, value]);
     const deferredSearchTerm = useDeferredValue(searchTerm);
 
     useEffect(() => {
@@ -45,30 +83,27 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
             }
         };
 
-        document.addEventListener('mousedown', handleClickOutside);
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [isOpen]);
 
     useEffect(() => {
         if (isOpen && containerRef.current) {
             // Auto-position logic
             const rect = containerRef.current.getBoundingClientRect();
             const spaceBelow = window.innerHeight - rect.bottom;
-            const spaceNeeded = 300; // Approx max height + padding
+            const spaceNeeded = 300;
 
-            if (spaceBelow < spaceNeeded && rect.top > spaceNeeded) {
-                setDropPosition('up');
-            } else {
-                setDropPosition('down');
-            }
+            setDropPosition(spaceBelow < spaceNeeded && rect.top > spaceNeeded ? 'up' : 'down');
 
-            // Only auto-focus on larger screens (desktop) to avoid keyboard popup on mobile
             if (window.innerWidth >= 768 && searchInputRef.current) {
                 searchInputRef.current.focus();
             }
         }
         if (!isOpen) {
-            setSearchTerm(''); // Reset search on close
+            setSearchTerm('');
         }
     }, [isOpen]);
 
@@ -81,7 +116,6 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         );
     }, [options, deferredSearchTerm]);
 
-    // Limit rendered items for mobile performance (Virtualization-lite)
     const displayOptions = useMemo(() => filteredOptions.slice(0, 50), [filteredOptions]);
 
     const labelClass = "block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1";
@@ -106,13 +140,11 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                     </div>
                 </div>
 
-                {/* Dropdown Menu */}
                 {isOpen && (
                     <div className={`absolute z-50 left-0 right-0 bg-white rounded-xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in duration-200 ${dropPosition === 'up'
                         ? 'bottom-full mb-2 slide-in-from-bottom-2'
                         : 'mt-2 slide-in-from-top-2'
                         }`}>
-                        {/* Search Input */}
                         <div className="p-2 border-b border-slate-50 bg-slate-50/50">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -128,34 +160,18 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                             </div>
                         </div>
 
-                        {/* Options List */}
                         <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
                             {displayOptions.length > 0 ? (
                                 displayOptions.map((option) => (
-                                    <button
+                                    <SelectItem
                                         key={option.value}
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onChange(option.value);
+                                        option={option}
+                                        isSelected={value === option.value}
+                                        onClick={(val) => {
+                                            onChange(val);
                                             setIsOpen(false);
                                         }}
-                                        className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-start sm:items-center justify-between group/item gap-2
-                                            ${value === option.value
-                                                ? 'bg-cyan-50 text-cyan-700'
-                                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                                            }`}
-                                    >
-                                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-1 min-w-0">
-                                            <span className="font-semibold truncate">{option.label}</span>
-                                            {option.subtext && (
-                                                <span className={`text-xs sm:text-sm truncate ${value === option.value ? 'text-cyan-600/70' : 'text-slate-400'}`}>
-                                                    {option.subtext}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {value === option.value && <Check className="w-4 h-4 text-cyan-600 flex-shrink-0" />}
-                                    </button>
+                                    />
                                 ))
                             ) : (
                                 <div className="px-4 py-8 text-center text-slate-400 text-sm">
@@ -172,10 +188,11 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                 )}
             </div>
 
-            {/* Required Indicator (Optional visual cue) */}
             {required && !value && !isOpen && (
                 <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-400 opacity-50" />
             )}
         </div>
     );
-};
+});
+
+CustomSelect.displayName = 'CustomSelect';

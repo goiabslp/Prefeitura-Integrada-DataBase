@@ -324,6 +324,7 @@ const App: React.FC = () => {
         async () => {
           const updated = await entityService.getVehicles();
           setVehicles(updated);
+          try { sessionStorage.setItem('cachedVehicles', JSON.stringify(updated)); } catch (e) { }
         }
       )
       .subscribe();
@@ -336,6 +337,7 @@ const App: React.FC = () => {
         async () => {
           const updated = await entityService.getPersons();
           setPersons(updated);
+          try { sessionStorage.setItem('cachedPersons', JSON.stringify(updated)); } catch (e) { }
         }
       )
       .subscribe();
@@ -348,6 +350,7 @@ const App: React.FC = () => {
         async () => {
           const updated = await AbastecimentoService.getGasStations();
           setGasStations(updated);
+          try { sessionStorage.setItem('cachedGasStations', JSON.stringify(updated)); } catch (e) { }
         }
       )
       .subscribe();
@@ -360,6 +363,7 @@ const App: React.FC = () => {
         async () => {
           const updated = await AbastecimentoService.getFuelTypes();
           setFuelTypes(updated);
+          try { sessionStorage.setItem('cachedFuelTypes', JSON.stringify(updated)); } catch (e) { }
         }
       )
       .subscribe();
@@ -475,7 +479,7 @@ const App: React.FC = () => {
     const expectedPath = VIEW_TO_PATH[stateKey];
     if (expectedPath && window.location.pathname !== expectedPath) {
       window.history.pushState(null, '', expectedPath);
-      refreshData();
+      // Removed redundant refreshData() - Initial mount and action-based refreshes are sufficient.
     }
 
     // Auto-refresh handled by useCallback dependency if needed
