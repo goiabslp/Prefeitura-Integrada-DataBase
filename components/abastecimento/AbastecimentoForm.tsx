@@ -112,13 +112,17 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
         }))
         .sort((a, b) => a.label.localeCompare(b.label)), [vehicles]);
 
-    const driverOptions: Option[] = useMemo(() => persons
-        .map(p => ({
-            value: p.name,
-            label: p.name,
-            subtext: p.role
-        }))
-        .sort((a, b) => a.label.trim().toLowerCase().localeCompare(b.label.trim().toLowerCase())), [persons]);
+    const driverOptions: Option[] = useMemo(() => {
+        return persons
+            .map(p => ({
+                value: p.name,
+                label: p.name,
+                subtext: p.role,
+                // Pre-calculating sort key to avoid expensive operations during comparison
+                _sortKey: (p.name || '').trim().toLowerCase()
+            }))
+            .sort((a, b) => a._sortKey.localeCompare(b._sortKey));
+    }, [persons]);
 
     const fuelOptions: Option[] = useMemo(() => fuelTypes
         .map(t => ({

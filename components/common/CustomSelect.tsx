@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useDeferredValue } from 'react';
 import { ChevronDown, Search, Check, X } from 'lucide-react';
 
 export interface Option {
@@ -36,6 +36,8 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 
     const selectedOption = options.find(opt => opt.value === value);
 
+    const deferredSearchTerm = useDeferredValue(searchTerm);
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -67,19 +69,17 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         }
         if (!isOpen) {
             setSearchTerm(''); // Reset search on close
-            // Optional: reset position after close, though not strictly necessary as it re-calcs on open
-            // setDropPosition('down'); 
         }
     }, [isOpen]);
 
     const filteredOptions = useMemo(() => {
-        if (!searchTerm) return options;
-        const lowerSearch = searchTerm.toLowerCase();
+        if (!deferredSearchTerm) return options;
+        const lowerSearch = deferredSearchTerm.toLowerCase();
         return options.filter(opt =>
             opt.label.toLowerCase().includes(lowerSearch) ||
             (opt.subtext && opt.subtext.toLowerCase().includes(lowerSearch))
         );
-    }, [options, searchTerm]);
+    }, [options, deferredSearchTerm]);
 
     // Limit rendered items for mobile performance (Virtualization-lite)
     const displayOptions = useMemo(() => filteredOptions.slice(0, 50), [filteredOptions]);
