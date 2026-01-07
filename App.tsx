@@ -125,7 +125,12 @@ const App: React.FC = () => {
   const [isStepperLocked, setIsStepperLocked] = useState(false);
   const [lastListView, setLastListView] = useState<string>('tracking'); // Default to tracking
 
-  const [persons, setPersons] = useState<Person[]>([]);
+  const [persons, setPersons] = useState<Person[]>(() => {
+    try {
+      const cached = sessionStorage.getItem('cachedPersons');
+      return cached ? JSON.parse(cached) : [];
+    } catch { return []; }
+  });
 
   // Derived signatures from Users
   const allSignatures = users
@@ -157,13 +162,28 @@ const App: React.FC = () => {
     : [];
   const [sectors, setSectors] = useState<Sector[]>(DEFAULT_SECTORS);
   const [jobs, setJobs] = useState<Job[]>(DEFAULT_JOBS);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>(() => {
+    try {
+      const cached = sessionStorage.getItem('cachedVehicles');
+      return cached ? JSON.parse(cached) : [];
+    } catch { return []; }
+  });
   const [brands, setBrands] = useState<VehicleBrand[]>([]);
   const [schedules, setSchedules] = useState<VehicleSchedule[]>([]);
 
   // Abastecimento State
-  const [gasStations, setGasStations] = useState<{ id: string, name: string, city: string }[]>([]);
-  const [fuelTypes, setFuelTypes] = useState<{ key: string; label: string; price: number }[]>([]);
+  const [gasStations, setGasStations] = useState<{ id: string, name: string, city: string }[]>(() => {
+    try {
+      const cached = sessionStorage.getItem('cachedGasStations');
+      return cached ? JSON.parse(cached) : [];
+    } catch { return []; }
+  });
+  const [fuelTypes, setFuelTypes] = useState<{ key: string; label: string; price: number }[]>(() => {
+    try {
+      const cached = sessionStorage.getItem('cachedFuelTypes');
+      return cached ? JSON.parse(cached) : [];
+    } catch { return []; }
+  });
 
 
   const [isDownloading, setIsDownloading] = useState(false);
@@ -258,14 +278,25 @@ const App: React.FC = () => {
       setOrders(allOrders);
 
       setPersons(savedPersons);
+      setVehicles(savedVehicles);
+      setGasStations(savedGasStations);
+      setFuelTypes(savedFuelTypes);
+
+      // Persistence to Session Storage
+      try {
+        sessionStorage.setItem('cachedPersons', JSON.stringify(savedPersons));
+        sessionStorage.setItem('cachedVehicles', JSON.stringify(savedVehicles));
+        sessionStorage.setItem('cachedGasStations', JSON.stringify(savedGasStations));
+        sessionStorage.setItem('cachedFuelTypes', JSON.stringify(savedFuelTypes));
+      } catch (e) {
+        console.error("Failed to update sessionStorage", e);
+      }
+
       setSectors(savedSectors);
       setJobs(savedJobs);
       setBrands(savedBrands);
-      setVehicles(savedVehicles);
       setSchedules(savedSchedules);
       setGlobalCounter(counterValue);
-      setGasStations(savedGasStations);
-      setFuelTypes(savedFuelTypes);
 
       // Fetch Licitacao Specific Counter
       const licitacaoSector = savedSectors.find(s => s.name === 'Departamento de Licitação');
@@ -980,6 +1011,12 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     await signOut();
     clearDraft(); // Clear draft on logout
+    try {
+      sessionStorage.removeItem('cachedPersons');
+      sessionStorage.removeItem('cachedVehicles');
+      sessionStorage.removeItem('cachedGasStations');
+      sessionStorage.removeItem('cachedFuelTypes');
+    } catch (e) { }
     setCurrentView('login');
     setActiveBlock(null);
     setIsFinalizedView(false);
