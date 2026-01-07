@@ -89,12 +89,18 @@ export const chatService = {
         if (error) throw error;
     },
 
-    async fetchUnreadCount(userId: string) {
+    async fetchUnreadCount(userId: string, userSector?: string) {
+        let orFilter = `receiver_id.eq.${userId},sector_id.eq.global,and(receiver_id.is.null,sector_id.is.null)`;
+        if (userSector) {
+            orFilter += `,sector_id.eq.${userSector}`;
+        }
+
         const { count, error } = await supabase
             .from('chat_messages')
             .select('*', { count: 'exact', head: true })
-            .eq('receiver_id', userId)
-            .eq('read', false);
+            .eq('read', false)
+            .neq('sender_id', userId)
+            .or(orFilter);
 
         if (error) {
             console.error('Error fetching unread count', error);
@@ -161,7 +167,7 @@ export const chatService = {
             // Delete all messages between these two users
             query = query.or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${targetId}),and(sender_id.eq.${targetId},receiver_id.eq.${currentUserId})`);
         } else {
-            // Delete all messages in the sector
+            // targetId is the sector name or ID
             query = query.eq('sector_id', targetId);
         }
 

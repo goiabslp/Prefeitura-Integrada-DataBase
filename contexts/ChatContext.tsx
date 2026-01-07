@@ -56,93 +56,123 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 }
                 setMessages(data);
 
-                // Mark loaded messages as read if they are from the other person
-                // For simplicity, we can do this in the UI or here.
-                // Optimistic read local state update?
+                // Mark unread messages as read
+                const unreadIds = data
+                    .filter(m => !m.read && m.sender_id !== user.id)
+                    .map(m => m.id);
+
+                if (unreadIds.length > 0) {
+                    await chatService.markAsRead(unreadIds);
+                    await refreshUnreadCount();
+                }
             } catch (error) {
                 console.error('Error loading messages:', error);
             }
         };
 
         loadMessages();
-
-        // Subscribe to Realtime Changes for the Active Chat
-        const channel = supabase.channel(`chat_${activeChat.id}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'chat_messages',
-
-                    // filter: ... (removing complex filter, will filter client-side)
-                },
-                (payload) => {
-                    const newMessage = payload.new as ChatMessage;
-                    setMessages(prev => {
-                        // Avoid duplicates from Realtime (especially for sender who has optimistic update)
-                        if (prev.find(m => m.id === newMessage.id)) return prev;
-
-                        // Check if it belongs to current active chat
-                        if (activeChat.type === 'user') {
-                            if ((newMessage.sender_id === activeChat.id && newMessage.receiver_id === user.id) ||
-                                (newMessage.sender_id === user.id && newMessage.receiver_id === activeChat.id)) {
-                                return [...prev, newMessage];
-                            }
-                        } else {
-                            if (newMessage.sector_id === activeChat.id) {
-                                return [...prev, newMessage];
-                            }
-                        }
-                        return prev;
-                    });
-                }
-            )
-            .subscribe();
-
-        // ALSO subscribe to a general channel to update Unread Count if chat is closed or different
-        // This logic is complex, for MVP let's poll unread count or rely on a global listener.
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
     }, [activeChat, user]);
 
-    // Global Message Listener for Unread Count
+    // Refresh Unread Count when Window Opens
+    useEffect(() => {
+        if (isOpen && user) {
+            refreshUnreadCount();
+        }
+    }, [isOpen, user]);
+
+    // Global Message Listener for Updates and Unread Count
     useEffect(() => {
         if (!user) return;
 
-        const globalChannel = supabase.channel('global_chat_notifications')
+        const globalChannel = supabase.channel('global_chat_channel')
             .on(
                 'postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*',
                     schema: 'public',
                     table: 'chat_messages'
                 },
                 (payload) => {
-                    const newMessage = payload.new as ChatMessage;
+                    if (payload.eventType === 'INSERT') {
+                        const newMessage = payload.new as ChatMessage;
 
-                    // Logic to increment unread:
-                    // 1. Message is for this user (receiver_id matches)
-                    // 2. OR Message is for a sector (we might want to check if user belongs to sector, but for now any sector message can notify if we want)
-                    // 3. AND Chat window is closed OR this message is NOT from the active conversation
+                        // 1. Check if it belongs to current active chat
+                        let isRelevantToActiveChat = false;
+                        if (activeChat && user) {
+                            const activeId = activeChat.id.toLowerCase();
+                            const currentUserId = user.id.toLowerCase();
+                            const senderId = newMessage.sender_id?.toLowerCase();
+                            const receiverId = newMessage.receiver_id?.toLowerCase();
+                            const sectorId = newMessage.sector_id?.toLowerCase();
 
-                    const isForMe = newMessage.receiver_id === user.id;
-                    const isForSector = !!newMessage.sector_id; // For now notify all sector messages if they want parity
+                            if (activeChat.id === 'global-users' && activeChat.type === 'user') {
+                                isRelevantToActiveChat = !newMessage.receiver_id && !newMessage.sector_id;
+                            } else if (activeChat.id === 'global' && activeChat.type === 'sector') {
+                                isRelevantToActiveChat = sectorId === 'global';
+                            } else if (activeChat.type === 'user') {
+                                isRelevantToActiveChat = (
+                                    (senderId === activeId && receiverId === currentUserId) ||
+                                    (senderId === currentUserId && receiverId === activeId)
+                                );
+                            } else if (activeChat.type === 'sector') {
+                                isRelevantToActiveChat = (sectorId === activeId);
+                            }
+                        }
 
-                    if (isForMe || isForSector) {
-                        // If chat is open and active on this conversation, the window handles it (marks read etc)
-                        // If not, we increment unread count locally for immediate feedback
-                        const isCurrentlyReading = activeChat && (
-                            (activeChat.type === 'user' && activeChat.id === newMessage.sender_id) ||
-                            (activeChat.type === 'sector' && activeChat.id === newMessage.sector_id)
-                        );
+                        if (isRelevantToActiveChat) {
+                            setMessages(prev => {
+                                // 1. If we already have this exact ID, ignore.
+                                if (prev.some(m => m.id === newMessage.id)) return prev;
 
-                        if (!isOpen || !isCurrentlyReading) {
-                            if (newMessage.sender_id !== user.id) { // Don't notify own messages
+                                // 2. Check for optimistic duplicate (replace temp with real)
+                                const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+
+                                if (newMessage.sender_id === user?.id) {
+                                    const optimisticIdx = prev.findIndex(m =>
+                                        !isUuid(m.id) &&
+                                        m.sender_id === newMessage.sender_id &&
+                                        m.message === newMessage.message
+                                    );
+
+                                    if (optimisticIdx !== -1) {
+                                        const newMessages = [...prev];
+                                        newMessages[optimisticIdx] = newMessage;
+                                        return newMessages;
+                                    }
+                                }
+
+                                return [...prev, newMessage];
+                            });
+
+                            // Mark as read in DB if it's from someone else and window is open
+                            if (newMessage.sender_id !== user.id && isOpen) {
+                                chatService.markAsRead([newMessage.id]);
+                                refreshUnreadCount();
+                            }
+                        } else {
+                            // 2. Increment unread if for me/sector/global and not currently reading
+                            const isForMe = newMessage.receiver_id === user.id;
+                            const isForMySector = newMessage.sector_id && newMessage.sector_id === (user as any).sector;
+                            const isGlobal = (newMessage.sector_id === 'global') || (!newMessage.receiver_id && !newMessage.sector_id);
+
+                            if ((isForMe || isForMySector || isGlobal) && newMessage.sender_id !== user.id) {
                                 setUnreadCount(prev => prev + 1);
                             }
+                        }
+                    } else if (payload.eventType === 'UPDATE') {
+                        const updatedMessage = payload.new as ChatMessage;
+
+                        // Update messages list if it was the active chat
+                        setMessages(prev => prev.map(m => m.id === updatedMessage.id ? updatedMessage : m));
+
+                        // Always refresh unread count on update because 'read' status might have changed
+                        refreshUnreadCount();
+                    } else if (payload.eventType === 'DELETE') {
+                        const deletedId = (payload.old as any)?.id;
+                        if (deletedId) {
+                            setMessages(prev => prev.filter(m => m.id !== deletedId));
+                            // Refresh unread count just in case the deleted message was unread
+                            refreshUnreadCount();
                         }
                     }
                 }
@@ -163,7 +193,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const refreshUnreadCount = async () => {
         if (!user) return;
-        const count = await chatService.fetchUnreadCount(user.id);
+        const count = await chatService.fetchUnreadCount(user.id, (user as any).sector);
         setUnreadCount(count);
     };
 
@@ -215,11 +245,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const newMessage = {
                 sender_id: user.id,
                 message: content,
-                receiver_id: activeChat.type === 'user' ? activeChat.id : null,
+                receiver_id: activeChat.type === 'user' ? (activeChat.id === 'global-users' ? null : activeChat.id) : null,
                 sector_id: activeChat.type === 'sector' ? activeChat.id : null,
-                file_url: fileData?.url,
-                file_name: fileData?.name,
-                file_type: fileData?.type
+                file_url: fileData?.url || null,
+                file_name: fileData?.name || null,
+                file_type: fileData?.type || null
             };
 
             // Optimistic update
@@ -237,13 +267,12 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setMessages(prev => [...prev, tempMsg]);
 
             await chatService.sendMessage(newMessage);
-            // Realtime will confirm it, or we replace the temp one. 
-            // Since we listen to INSERT, we might get duplicate if we don't handle it.
-            // Usually we wait for realtime to receive our own message if we want robust sync, 
-            // OR we filter out our own realtime echo.
-            // For now, let's just refetch or let realtime handle it (re-deduping might be needed).
+            // We rely on Realtime to confirm it, which will replace the temp message or add it.
+            // But we already have a replacement logic in the listener that matches by content/sender.
         } catch (error) {
             console.error('Failed to send message:', error);
+            // Optionally remove the temp message on failure
+            setMessages(prev => prev.filter(m => !m.id.includes('.'))); // Simple way to remove temp
         }
     };
 

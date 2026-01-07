@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { chatService } from '../../services/chatService';
 
 export const ChatWindow: React.FC = () => {
-    const { isOpen, setIsOpen, activeChat, setActiveChat, messages, sendMessage, onlineUsers } = useChat();
+    const { isOpen, setIsOpen, activeChat, setActiveChat, messages, sendMessage, onlineUsers, refreshUnreadCount } = useChat();
     const { user } = useAuth();
     const [newMessage, setNewMessage] = useState('');
     const [sidebarSearch, setSidebarSearch] = useState('');
@@ -147,6 +147,7 @@ export const ChatWindow: React.FC = () => {
         try {
             await chatService.deleteConversation(user.id, deleteConfirm.targetId, deleteConfirm.type);
             await loadSidebarData();
+            await refreshUnreadCount();
             if (activeChat && activeChat.id === deleteConfirm.targetId && activeChat.type === deleteConfirm.type) {
                 setActiveChat(null);
             }
@@ -303,17 +304,7 @@ export const ChatWindow: React.FC = () => {
 
                         {/* List Area */}
                         <div className="flex-1 overflow-y-auto px-3 pb-4 scrollbar-hide">
-                            {/* Welcome card ONLY on Recent tab if empty search */}
-                            {activeSidebarTab === 'recent' && !sidebarSearch && (
-                                <div className="mb-3 p-4 rounded-2xl bg-gradient-to-br from-indigo-50/50 to-violet-50/50 border border-indigo-100/50 animate-in fade-in slide-in-from-top-2 duration-500">
-                                    <h3 className="text-sm font-bold text-indigo-900 mb-1 flex items-center gap-2">
-                                        Olá, {user?.name?.split(' ')[0] || 'Servidor'}! 👋
-                                    </h3>
-                                    <p className="text-[11px] text-indigo-700/70 leading-relaxed font-medium">
-                                        Bem-vindo ao chat. Explore as abas acima para encontrar contatos ou setores.
-                                    </p>
-                                </div>
-                            )}
+
 
                             {isLoading ? (
                                 <div className="flex flex-col items-center justify-center py-10 gap-3">

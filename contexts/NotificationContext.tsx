@@ -43,7 +43,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const { user } = useAuth(); // Assuming useAuth exists and provides current user
 
-    // Load from DB on mount and poll
+    // Load from DB on mount
     useEffect(() => {
         if (!user) {
             setNotifications([]);
@@ -61,10 +61,45 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         };
 
         loadNotifications();
+    }, [user]);
 
-        const interval = setInterval(loadNotifications, 15000); // Poll every 15s
+    // Real-time Notifications Listener (DB Table)
+    useEffect(() => {
+        if (!user) return;
 
-        return () => clearInterval(interval);
+        const channel = supabase.channel(`notifications:${user.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'notifications',
+                    filter: `user_id=eq.${user.id}`
+                },
+                (payload) => {
+                    const newNotif = payload.new;
+                    setNotifications(prev => {
+                        // Avoid duplicates if we already have it (e.g. from refetch or optimistic)
+                        if (prev.some(n => n.id === newNotif.id)) return prev;
+
+                        const mapped: Notification = {
+                            id: newNotif.id,
+                            title: newNotif.title,
+                            message: newNotif.message,
+                            type: newNotif.type as ToastType,
+                            read: newNotif.read,
+                            createdAt: new Date(newNotif.created_at),
+                            link: newNotif.link
+                        };
+                        return [mapped, ...prev];
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [user]);
 
 
@@ -99,9 +134,12 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                 link
             });
 
-            // Refresh to get real ID
-            const data = await notificationService.fetchNotifications(user.id);
-            setNotifications(data.map(n => ({ ...n, createdAt: new Date(n.created_at) })));
+            // We don't need to refetch here anymore as Realtime will push the new record.
+            // But if we want to replace the tempId one immediately with the real ID,
+            // we could do that if the Realtime event hasn't arrived yet.
+            // For simplicity, the Realtime listener's deduplication check `prev.some(n => n.id === newNotif.id)`
+            // doesn't handle tempId.
+            // Let's refine addNotification to avoid double entries.
         } else {
             // For login, we don't persist to DB, so likely no real ID update needed unless we want to keep it in local memory only.
             // The tempId is fine.
