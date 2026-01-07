@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Search, Filter, Fuel, Trash2, Calendar, User, Truck, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Search, Filter, Fuel, Trash2, Calendar, User, Truck, ShieldCheck, FileText } from 'lucide-react';
 import { AbastecimentoService, AbastecimentoRecord } from '../../services/abastecimentoService';
 import { supabase } from '../../services/supabaseClient';
 import { GestureItem } from '../common/GestureItem';
@@ -13,6 +13,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack }) 
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [vehicleSectorMap, setVehicleSectorMap] = useState<Record<string, string>>({});
+    const [vehiclePlateMap, setVehiclePlateMap] = useState<Record<string, string>>({});
 
     const loadSupplies = async () => {
         setIsLoading(true);
@@ -41,12 +42,15 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack }) 
                 }, {});
 
                 const vMap: Record<string, string> = {};
+                const pMap: Record<string, string> = {};
                 vehiclesRes.data.forEach((v: any) => {
                     // Match the format used in AbastecimentoForm: `${v.model} - ${v.brand}`
                     const key = `${v.model} - ${v.brand}`;
-                    vMap[key] = sectorLookup[v.sector_id] || 'N/A'; // Note: Supabase returns snake_case 'sector_id'
+                    vMap[key] = sectorLookup[v.sector_id] || 'N/A';
+                    pMap[key] = v.plate || 'S/PLACA';
                 });
                 setVehicleSectorMap(vMap);
+                setVehiclePlateMap(pMap);
             }
 
         } catch (error) {
@@ -129,7 +133,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack }) 
                         <div className="relative group flex-1">
                             <input
                                 type="text"
-                                placeholder="Buscar veículo, motorista ou protocolo..."
+                                placeholder="Buscar veículo, motorista, nota ou protocolo..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 w-full sm:w-72 shadow-sm transition-all placeholder:font-medium"
@@ -174,34 +178,35 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack }) 
                                                 <div className="grid grid-cols-2 lg:flex lg:items-start gap-4 w-full">
                                                     <DataItem
                                                         label="Protocolo"
-                                                        value={item.protocol || item.id}
-                                                        colorClass="text-slate-500 font-mono text-[10px] bg-slate-100 px-2 py-1 rounded-md border border-slate-200"
-                                                        flex="col-span-2 lg:w-[15%]"
+                                                        value={item.protocol || item.id.substring(0, 8)}
+                                                        colorClass="text-slate-400 font-mono text-[9px] bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200"
+                                                        flex="col-span-1 lg:w-[10%]"
                                                         truncateValue={false}
                                                     />
                                                     <DataItem label="Data / Hora" value={new Date(item.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} icon={Calendar} flex="col-span-1 lg:w-[15%]" />
+                                                    <DataItem label="Veículo" value={item.vehicle} icon={Truck} colorClass="text-slate-900 uppercase tracking-tight" flex="col-span-2 lg:w-[25%]" />
+                                                    <DataItem label="Placa" value={vehiclePlateMap[item.vehicle] || '-'} colorClass="text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-100 font-mono text-xs" flex="col-span-1 lg:w-[12%]" />
+                                                    <DataItem label="Motorista" value={item.driver} icon={User} colorClass="text-slate-600 uppercase tracking-tight" flex="col-span-2 lg:w-[23%]" />
                                                     <DataItem
                                                         label="Combustível"
-                                                        value={item.fuelType.split(' - ')[0]}
+                                                        value={item.fuelType.split(' - ')[0].toUpperCase()}
                                                         icon={Fuel}
                                                         colorClass={fuelColor}
                                                         flex="col-span-1 lg:w-[15%] lg:order-last"
                                                         isBadge={true}
                                                     />
-                                                    <DataItem label="Veículo" value={item.vehicle} icon={Truck} colorClass="text-slate-900 uppercase tracking-tight" flex="col-span-2 lg:w-[30%]" />
-                                                    <DataItem label="Motorista" value={item.driver} icon={User} colorClass="text-slate-600 uppercase tracking-tight" flex="col-span-2 lg:w-[25%]" />
                                                 </div>
 
                                                 {/* Row 2 */}
                                                 <div className="grid grid-cols-2 lg:flex lg:items-start gap-4 pt-4 border-t border-slate-100 w-full">
-                                                    <DataItem label="Fiscal" value={item.fiscal || 'Sistema'} icon={ShieldCheck} colorClass="text-slate-700 font-medium" flex="col-span-2 lg:w-[25%]" truncateValue={false} />
-                                                    <DataItem label="Quantidade" value={`${item.liters.toFixed(2)} L`} flex="col-span-1 lg:w-[10%]" colorClass="text-slate-600" />
-                                                    <DataItem label="KM" value={`${item.odometer.toLocaleString()} Km`} flex="col-span-1 lg:w-[10%]" colorClass="text-slate-600" />
-                                                    <DataItem label="Setor" value={vehicleSectorMap[item.vehicle] || '-'} icon={ShieldCheck} colorClass="text-slate-500 uppercase text-[11px]" flex="col-span-2 lg:w-[30%]" truncateValue={false} />
+                                                    <DataItem label="Nº Nota" value={item.invoiceNumber || '-'} icon={FileText} colorClass="text-slate-700 font-bold" flex="col-span-1 lg:w-[15%]" truncateValue={false} />
+                                                    <DataItem label="Fiscal" value={item.fiscal || 'Sistema'} icon={ShieldCheck} colorClass="text-slate-600 font-medium" flex="col-span-1 lg:w-[20%]" truncateValue={false} />
+                                                    <DataItem label="Quantidade / KM" value={`${item.liters.toFixed(2)} L - ${item.odometer.toLocaleString()} Km`} flex="col-span-2 lg:w-[20%]" colorClass="text-slate-600" />
+                                                    <DataItem label="Setor" value={vehicleSectorMap[item.vehicle] || '-'} colorClass="text-slate-500 uppercase text-[10px]" flex="col-span-2 lg:w-[20%]" truncateValue={false} />
                                                     <DataItem
                                                         label="Custo"
                                                         value={`R$ ${item.cost.toFixed(2)}`}
-                                                        colorClass="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100"
+                                                        colorClass="text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100 font-black text-base"
                                                         flex="col-span-2 lg:w-[25%]"
                                                     />
                                                 </div>
