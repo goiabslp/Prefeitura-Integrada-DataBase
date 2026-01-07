@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Fuel, Calendar, User, Truck, DollarSign, Clock, Save, X, MapPin, FileText } from 'lucide-react';
 import { AbastecimentoService, AbastecimentoRecord } from '../../services/abastecimentoService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -103,38 +103,38 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     const inputClass = "w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-900 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none transition-all";
     const labelClass = "block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1";
 
-    // Prepare Options
-    const vehicleOptions: Option[] = vehicles
+    // Prepare Options - Memoized for performance
+    const vehicleOptions: Option[] = useMemo(() => vehicles
         .map(v => ({
-            value: `${v.model} - ${v.brand}`, // Keeping original value format logic
+            value: `${v.model} - ${v.brand}`,
             label: `${v.model} - ${v.brand}`,
             subtext: v.plate
         }))
-        .sort((a, b) => a.label.localeCompare(b.label));
+        .sort((a, b) => a.label.localeCompare(b.label)), [vehicles]);
 
-    const driverOptions: Option[] = persons
+    const driverOptions: Option[] = useMemo(() => persons
         .map(p => ({
             value: p.name,
             label: p.name,
-            subtext: p.role // Assuming role exists on Person, otherwise undefined
+            subtext: p.role
         }))
-        .sort((a, b) => a.label.trim().toLowerCase().localeCompare(b.label.trim().toLowerCase()));
+        .sort((a, b) => a.label.trim().toLowerCase().localeCompare(b.label.trim().toLowerCase())), [persons]);
 
-    const fuelOptions: Option[] = fuelTypes
+    const fuelOptions: Option[] = useMemo(() => fuelTypes
         .map(t => ({
             value: t.key,
             label: t.label,
             subtext: `R$ ${t.price.toFixed(2)}/L`
         }))
-        .sort((a, b) => a.label.localeCompare(b.label));
+        .sort((a, b) => a.label.localeCompare(b.label)), [fuelTypes]);
 
-    const stationOptions: Option[] = gasStations
+    const stationOptions: Option[] = useMemo(() => gasStations
         .map(s => ({
             value: s.name,
             label: s.name,
             subtext: s.city
         }))
-        .sort((a, b) => a.label.localeCompare(b.label));
+        .sort((a, b) => a.label.localeCompare(b.label)), [gasStations]);
 
     // Removed isLoading check as data is passed via props
 

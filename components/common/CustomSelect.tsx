@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Search, Check, X } from 'lucide-react';
 
 export interface Option {
@@ -72,10 +72,17 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         }
     }, [isOpen]);
 
-    const filteredOptions = options.filter(opt =>
-        opt.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (opt.subtext && opt.subtext.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredOptions = useMemo(() => {
+        if (!searchTerm) return options;
+        const lowerSearch = searchTerm.toLowerCase();
+        return options.filter(opt =>
+            opt.label.toLowerCase().includes(lowerSearch) ||
+            (opt.subtext && opt.subtext.toLowerCase().includes(lowerSearch))
+        );
+    }, [options, searchTerm]);
+
+    // Limit rendered items for mobile performance (Virtualization-lite)
+    const displayOptions = useMemo(() => filteredOptions.slice(0, 50), [filteredOptions]);
 
     const labelClass = "block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1";
     const inputClass = "w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-900 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none transition-all flex items-center justify-between cursor-pointer group-hover:bg-white group-hover:border-cyan-200";
@@ -123,8 +130,8 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 
                         {/* Options List */}
                         <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
-                            {filteredOptions.length > 0 ? (
-                                filteredOptions.map((option) => (
+                            {displayOptions.length > 0 ? (
+                                displayOptions.map((option) => (
                                     <button
                                         key={option.value}
                                         type="button"
@@ -153,6 +160,11 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                             ) : (
                                 <div className="px-4 py-8 text-center text-slate-400 text-sm">
                                     Nenhum resultado encontrado
+                                </div>
+                            )}
+                            {filteredOptions.length > 50 && (
+                                <div className="px-4 py-2 text-[10px] text-center text-slate-400 border-t border-slate-50">
+                                    Refine sua busca para ver mais resultados ({filteredOptions.length} total)
                                 </div>
                             )}
                         </div>
