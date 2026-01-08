@@ -27,7 +27,8 @@ interface AbastecimentoDashboardProps {
 type TabType = 'overview' | 'vehicle' | 'sector' | 'reports' | 'config';
 
 interface VehicleStat {
-    name: string;
+    id: string; // The key used in records (r.vehicle)
+    name: string; // The display name
     totalCost: number;
     totalLiters: number;
     count: number;
@@ -373,6 +374,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     : r.vehicle;
 
                 acc[r.vehicle] = {
+                    id: r.vehicle,
                     name: displayName,
                     totalCost: 0,
                     totalLiters: 0,
@@ -1538,8 +1540,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         {filteredVehicles.map((v) => (
                             <div
-                                key={v.name}
-                                onClick={() => setSelectedVehicle(v.name)}
+                                key={v.id}
+                                onClick={() => setSelectedVehicle(v.id)}
                                 className="group bg-white rounded-[2rem] border border-slate-200 p-6 shadow-sm hover:shadow-xl hover:border-cyan-200 transition-all duration-300 cursor-pointer relative overflow-hidden"
                             >
                                 <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1555,13 +1557,13 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                             <div className="flex flex-col">
                                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                                                     {(() => {
-                                                        const veh = vehicles.find(veh => `${veh.model} - ${veh.brand}` === v.name);
-                                                        return veh?.plate || 'Placa não encontrada';
+                                                        const veh = vehicles.find(veh => veh.plate === v.id || `${veh.model} - ${veh.brand}` === v.id);
+                                                        return veh?.plate || 'S/ Placa';
                                                     })()}
                                                 </p>
                                                 <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">
                                                     {(() => {
-                                                        const veh = vehicles.find(veh => `${veh.model} - ${veh.brand}` === v.name);
+                                                        const veh = vehicles.find(veh => veh.plate === v.id || `${veh.model} - ${veh.brand}` === v.id);
                                                         const sec = sectors.find(s => s.id === veh?.sectorId);
                                                         return sec?.name || 'Setor não informado';
                                                     })()}
