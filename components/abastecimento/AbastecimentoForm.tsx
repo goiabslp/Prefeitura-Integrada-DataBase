@@ -137,7 +137,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
         .map(v => ({
             value: `${v.model} - ${v.brand}`,
             label: `${v.model} - ${v.brand}`,
-            subtext: v.plate
+            subtext: v.plate,
+            key: v.id
         }))
         .sort((a, b) => a.label.localeCompare(b.label)), [vehicles]);
 

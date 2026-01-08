@@ -6,6 +6,7 @@ export interface Option {
     label: string;
     subtext?: string;
     _sortKey?: string;
+    key?: string;
 }
 
 interface CustomSelectProps {
@@ -164,7 +165,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
                             {displayOptions.length > 0 ? (
                                 displayOptions.map((option) => (
                                     <SelectItem
-                                        key={option.value}
+                                        key={option.key || option.value}
                                         option={option}
                                         isSelected={value === option.value}
                                         onClick={(val) => {
