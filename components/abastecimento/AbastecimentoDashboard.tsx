@@ -24,7 +24,7 @@ interface AbastecimentoDashboardProps {
     sectors: Sector[];
 }
 
-type TabType = 'overview' | 'vehicle' | 'reports' | 'config';
+type TabType = 'overview' | 'vehicle' | 'sector' | 'reports' | 'config';
 
 interface VehicleStat {
     name: string;
@@ -302,6 +302,14 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         fuelType: 'all'
     });
     const [pendingFilters, setPendingFilters] = useState({ ...appliedFilters });
+    const [selectedSector, setSelectedSector] = useState<string>('all');
+
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+        }).format(value);
+    };
 
     useEffect(() => {
         const loadRecords = async () => {
@@ -562,6 +570,146 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         };
     }, [selectedMonth, selectedYear, allRecords, vehicles, sectors]);
 
+    const sectorStats = useMemo(() => {
+        // Find vehicles belonging to the selected sector
+        const sectorVehicles = vehicles.filter(v => {
+            if (selectedSector === 'all') return true;
+            const sectorName = sectors.find(s => s.id === v.sectorId)?.name;
+            return sectorName === selectedSector;
+        });
+
+        const sectorVehiclePlateSet = new Set(sectorVehicles.map(v => `${v.model} - ${v.brand}`));
+
+        // Records for current month filtered by sector
+        const currentMonthRecords = allRecords.filter(r => {
+            const date = new Date(r.date);
+            return date.getMonth() === selectedMonth &&
+                date.getFullYear() === selectedYear &&
+                sectorVehiclePlateSet.has(r.vehicle);
+        });
+
+        // Records for previous month for comparison
+        const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
+        const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
+        const prevMonthRecords = allRecords.filter(r => {
+            const date = new Date(r.date);
+            return date.getMonth() === prevMonth &&
+                date.getFullYear() === prevYear &&
+                sectorVehiclePlateSet.has(r.vehicle);
+        });
+
+        // Helper to calculate totals
+        const calcTotals = (recs: AbastecimentoRecord[]) => {
+            const totalCost = recs.reduce((sum, r) => sum + r.cost, 0);
+            const totalLiters = recs.reduce((sum, r) => sum + r.liters, 0);
+            return { totalCost, totalLiters };
+        };
+
+        const current = calcTotals(currentMonthRecords);
+        const previous = calcTotals(prevMonthRecords);
+
+        // Variations
+        const costDiff = previous.totalCost === 0 ? 0 : ((current.totalCost - previous.totalCost) / previous.totalCost) * 100;
+        const litersDiff = previous.totalLiters === 0 ? 0 : ((current.totalLiters - previous.totalLiters) / previous.totalLiters) * 100;
+
+        // Active Vehicles count in this period for sector
+        const uniqueVehiclesThisMonth = new Set(currentMonthRecords.map(r => r.vehicle)).size;
+
+        // Averages per vehicle
+        const avgCostPerVehicle = uniqueVehiclesThisMonth > 0 ? current.totalCost / uniqueVehiclesThisMonth : 0;
+        const prevAvgCost = previous.totalCost / (new Set(prevMonthRecords.map(r => r.vehicle)).size || 1);
+        const avgCostDiff = prevAvgCost === 0 ? 0 : ((avgCostPerVehicle - prevAvgCost) / prevAvgCost) * 100;
+
+        const avgLitersPerVehicle = uniqueVehiclesThisMonth > 0 ? current.totalLiters / uniqueVehiclesThisMonth : 0;
+
+        // KM driven (Sector specific)
+        let totalKmSector = 0;
+        let prevTotalKmSector = 0;
+
+        // We reuse the global logic structure but filtered for sector vehicles
+        // To be accurate, we need to iterate ALL records for these vehicles to find diffs
+        const calcSectorKm = (targetMonth: number, targetYear: number) => {
+            let kmSum = 0;
+            const sectorRecordsByVehicle: Record<string, AbastecimentoRecord[]> = {};
+
+            // Group relevant sector records
+            allRecords.forEach(r => {
+                if (sectorVehiclePlateSet.has(r.vehicle)) {
+                    if (!sectorRecordsByVehicle[r.vehicle]) sectorRecordsByVehicle[r.vehicle] = [];
+                    sectorRecordsByVehicle[r.vehicle].push(r);
+                }
+            });
+
+            Object.values(sectorRecordsByVehicle).forEach(vRecs => {
+                const sorted = vRecs.map(r => ({ ...r, dateObj: new Date(r.date) })).sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+                sorted.forEach((record, index) => {
+                    const rDate = record.dateObj;
+                    if (rDate.getMonth() === targetMonth && rDate.getFullYear() === targetYear) {
+                        const isArla = record.fuelType.toLowerCase().includes('arla');
+                        if (!isArla) {
+                            let nextRecord = null;
+                            for (let i = index + 1; i < sorted.length; i++) {
+                                if (!sorted[i].fuelType.toLowerCase().includes('arla')) {
+                                    nextRecord = sorted[i];
+                                    break;
+                                }
+                            }
+                            if (nextRecord) {
+                                const dist = Number(nextRecord.odometer) - Number(record.odometer);
+                                if (dist > 0) kmSum += dist;
+                            }
+                        }
+                    }
+                });
+            });
+            return kmSum;
+        };
+
+        totalKmSector = calcSectorKm(selectedMonth, selectedYear);
+        prevTotalKmSector = calcSectorKm(prevMonth, prevYear);
+        const kmDiff = prevTotalKmSector === 0 ? 0 : ((totalKmSector - prevTotalKmSector) / prevTotalKmSector) * 100;
+
+        // Ranking: Spending by Vehicle
+        const spendingByVehicle: Record<string, { cost: number, liters: number }> = {};
+        currentMonthRecords.forEach(r => {
+            if (!spendingByVehicle[r.vehicle]) spendingByVehicle[r.vehicle] = { cost: 0, liters: 0 };
+            spendingByVehicle[r.vehicle].cost += r.cost;
+            spendingByVehicle[r.vehicle].liters += r.liters;
+        });
+        const vehicleRankingData = Object.entries(spendingByVehicle)
+            .map(([name, data]) => ({ name, value: data.cost, liters: data.liters }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 10);
+
+        // Ranking: Driver Supplies
+        const statsByDriver: Record<string, { cost: number, liters: number, count: number }> = {};
+        currentMonthRecords.forEach(r => {
+            const driverName = r.driver || 'Não Identificado';
+            if (!statsByDriver[driverName]) statsByDriver[driverName] = { cost: 0, liters: 0, count: 0 };
+            statsByDriver[driverName].cost += r.cost;
+            statsByDriver[driverName].liters += r.liters;
+            statsByDriver[driverName].count += 1;
+        });
+        const driverRankingData = Object.entries(statsByDriver)
+            .map(([name, data]) => ({ name, value: data.cost, liters: data.liters, count: data.count }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 10);
+
+        return {
+            current,
+            costDiff,
+            litersDiff,
+            avgCostPerVehicle,
+            avgCostDiff,
+            avgLitersPerVehicle,
+            totalKmSector,
+            kmDiff,
+            vehicleRankingData,
+            driverRankingData,
+            activeVehiclesCount: uniqueVehiclesThisMonth
+        };
+    }, [selectedMonth, selectedYear, selectedSector, allRecords, vehicles, sectors]);
+
     const reportData = useMemo(() => {
         // Pre-process all records to include derived sector/plate once
         const processedRecords = allRecords.map(r => {
@@ -638,57 +786,28 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         };
     }, [allRecords, appliedFilters, vehicles, sectors]);
 
-    const renderReportsView = () => (
+    const renderSectorView = () => (
         <div className="space-y-6 animate-fade-in pb-20">
-            {/* Filters Section */}
+            {/* Sector Filters */}
             <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 md:p-8">
-                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
-                    <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
-                        <Filter className="w-6 h-6" />
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
+                            <Factory className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-black text-slate-900 uppercase">Visão por Setor</h2>
+                            <p className="text-slate-500 text-sm font-medium">Análise detalhada de consumo por departamento</p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-xl font-black text-slate-900 uppercase">Filtros do Relatório</h2>
-                        <p className="text-slate-500 text-sm font-medium">Refine os dados para geração do relatório</p>
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {/* Date inputs */}
-                    <div>
-                        <ModernDateInput
-                            label="Período Inicial"
-                            value={pendingFilters.startDate}
-                            onChange={(val) => setPendingFilters({ ...pendingFilters, startDate: val })}
-                        />
-                    </div>
-                    <div>
-                        <ModernDateInput
-                            label="Período Final"
-                            value={pendingFilters.endDate}
-                            onChange={(val) => setPendingFilters({ ...pendingFilters, endDate: val })}
-                        />
-                    </div>
-                    {/* Select dropdowns */}
-                    <div>
+                    <div className="w-full md:w-72">
                         <ModernSelect
-                            label="Posto"
-                            value={pendingFilters.station}
-                            onChange={(val) => setPendingFilters({ ...pendingFilters, station: val })}
+                            label="Selecione o Setor"
+                            value={selectedSector}
+                            onChange={setSelectedSector}
                             options={[
-                                { value: 'all', label: 'Todos os Postos' },
-                                ...gasStations.map(s => ({ value: s.name, label: s.name }))
-                            ]}
-                            icon={Building2}
-                            placeholder="Todos os Postos"
-                        />
-                    </div>
-                    <div>
-                        <ModernSelect
-                            label="Setor"
-                            value={pendingFilters.sector}
-                            onChange={(val) => setPendingFilters({ ...pendingFilters, sector: val })}
-                            options={[
-                                { value: 'all', label: 'Todos os Setores' },
+                                { value: 'all', label: 'Todos os Setores (Global)' },
                                 ...sectors.map(s => ({ value: s.name, label: s.name }))
                             ]}
                             icon={Factory}
@@ -696,210 +815,152 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             searchable
                         />
                     </div>
-                    <div>
-                        <ModernSelect
-                            label="Veículo (Placa)"
-                            value={pendingFilters.vehicle}
-                            onChange={(val) => setPendingFilters({ ...pendingFilters, vehicle: val })}
-                            options={[
-                                { value: 'all', label: 'Todos os Veículos' },
-                                ...vehicles.map(v => ({ value: v.plate || v.id, label: `${v.plate} - ${v.model}` }))
-                            ]}
-                            icon={Car}
-                            placeholder="Selecione o Veículo"
-                            searchable
-                        />
-                    </div>
-                    <div>
-                        <ModernSelect
-                            label="Combustível"
-                            value={pendingFilters.fuelType}
-                            onChange={(val) => setPendingFilters({ ...pendingFilters, fuelType: val })}
-                            options={[
-                                { value: 'all', label: 'Todos' },
-                                { value: 'diesel', label: 'Diesel' },
-                                { value: 'gasolina', label: 'Gasolina' },
-                                { value: 'etanol', label: 'Etanol' },
-                                { value: 'arla', label: 'Arla' }
-                            ]}
-                            icon={Fuel}
-                            placeholder="Todos"
-                        />
-                    </div>
-
-                    <div className="md:col-span-3 lg:col-span-2 flex items-end">
-                        <button
-                            onClick={() => setAppliedFilters({ ...pendingFilters })}
-                            className="w-full md:w-auto px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95 flex items-center justify-center gap-2 h-[46px]"
-                        >
-                            <Filter className="w-4 h-4" />
-                            Aplicar Filtros
-                        </button>
-                    </div>
                 </div>
             </div>
 
-            {/* Summary Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Liters and Value Totals */}
-                <div className="bg-slate-900 text-white rounded-[2rem] border border-slate-800 p-8 shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-6 opacity-10">
-                        <FileSpreadsheet className="w-32 h-32" />
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Total Cost */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
+                    <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <DollarSign className="w-24 h-24" />
                     </div>
-                    <div className="relative z-10 flex flex-col h-full justify-between">
-                        <div>
-                            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400 mb-6">Resumo Geral</h3>
-                            <div className="space-y-6">
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Volume Total</p>
-                                    <p className="text-4xl font-black tracking-tighter">{reportData.grandTotalLiters.toFixed(1)} <span className="text-xl text-slate-500">L</span></p>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valor Total</p>
-                                    <p className="text-4xl font-black tracking-tighter text-emerald-400">R$ {reportData.grandTotalValue.toFixed(2)}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="pt-8 border-t border-white/5 mt-8 flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase">{reportData.records.length} registros encontrados</span>
-                            <button
-                                onClick={() => setShowPrintPreview(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-                            >
-                                <Download className="w-3.5 h-3.5" /> Exportar PDF
-                            </button>
-                        </div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Gasto Total</p>
+                    <p className="text-2xl font-black text-slate-900">{formatCurrency(sectorStats.current.totalCost)}</p>
+                    <div className={`text-xs font-bold mt-2 flex items-center gap-1 ${sectorStats.costDiff > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                        {sectorStats.costDiff > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
+                        {Math.abs(sectorStats.costDiff).toFixed(1)}% vs anterior
                     </div>
                 </div>
 
-                {/* Totals by Fuel */}
-                <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Por Combustível</h3>
-                    <div className="space-y-4">
-                        {Object.entries(reportData.totalLitersByFuel).map(([fuel, liters]) => (
-                            <div key={fuel} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                <div>
-                                    <p className="text-xs font-black text-slate-900 uppercase">{fuel}</p>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase">R$ {(reportData.totalValueByFuel[fuel] as number).toFixed(2)}</p>
-                                </div>
-                                <p className="font-black text-slate-700">{(liters as number).toFixed(1)} L</p>
-                            </div>
-                        ))}
-                        {Object.keys(reportData.totalLitersByFuel).length === 0 && (
-                            <div className="text-center py-12">
-                                <Fuel className="w-12 h-12 text-slate-100 mx-auto mb-3" />
-                                <p className="text-xs font-bold text-slate-300 uppercase">Nenhum dado</p>
-                            </div>
-                        )}
+                {/* Avg Cost per Vehicle */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
+                    <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <Car className="w-24 h-24" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Custo Médio / Veículo</p>
+                    <p className="text-2xl font-black text-slate-900">{formatCurrency(sectorStats.avgCostPerVehicle)}</p>
+                    <div className={`text-xs font-bold mt-2 flex items-center gap-1 ${sectorStats.avgCostDiff > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                        {sectorStats.avgCostDiff > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
+                        {Math.abs(sectorStats.avgCostDiff).toFixed(1)}% vs anterior
                     </div>
                 </div>
 
-                {/* Totals by Sector */}
-                <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6 text-center">Valor por Setor</h3>
-                    <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                        {Object.entries(reportData.totalValueBySector)
-                            .sort((a, b) => (b[1] as number) - (a[1] as number))
-                            .map(([sector, value]) => {
-                                const val = value as number;
-                                return (
-                                    <div key={sector} className="flex flex-col gap-1 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                        <p className="text-[10px] font-black text-slate-900 uppercase truncate" title={sector}>{sector}</p>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden mr-4">
-                                                <div
-                                                    className="h-full bg-indigo-500 rounded-full"
-                                                    style={{ width: `${reportData.grandTotalValue > 0 ? (val / reportData.grandTotalValue) * 100 : 0}%` }}
-                                                />
-                                            </div>
-                                            <p className="text-xs font-black text-slate-700 whitespace-nowrap">R$ {val.toFixed(2)}</p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        {Object.keys(reportData.totalValueBySector).length === 0 && (
-                            <div className="text-center py-12">
-                                <Building2 className="w-12 h-12 text-slate-100 mx-auto mb-3" />
-                                <p className="text-xs font-bold text-slate-300 uppercase">Nenhum dado</p>
-                            </div>
-                        )}
+                {/* Total KM */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
+                    <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <MapPin className="w-24 h-24" />
                     </div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total Percorrido</p>
+                    <p className="text-2xl font-black text-slate-900">{sectorStats.totalKmSector.toLocaleString('pt-BR')} km</p>
+                    <div className={`text-xs font-bold mt-2 flex items-center gap-1 ${sectorStats.kmDiff > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {sectorStats.kmDiff > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
+                        {Math.abs(sectorStats.kmDiff).toFixed(1)}% vs anterior
+                    </div>
+                </div>
+
+                {/* Active Vehicles */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
+                    <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <Truck className="w-24 h-24" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Veículos Ativos</p>
+                    <p className="text-2xl font-black text-slate-900">{sectorStats.activeVehiclesCount}</p>
+                    <p className="text-[10px] text-slate-400 font-medium mt-2">
+                        De {sectorStats.activeVehiclesCount} veículos vinculados
+                    </p>
                 </div>
             </div>
 
-            {/* Records Table */}
-            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                    <div>
-                        <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Detalhamento dos Abastecimentos</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Listagem individual conforme filtros</p>
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Ranking Vehicle Cost */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-6 flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-indigo-500" />
+                        Ranking de Gastos por Veículo
+                    </h3>
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={sectorStats.vehicleRankingData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} />
+                                <Tooltip
+                                    cursor={{ fill: '#f8fafc' }}
+                                    content={({ active, payload }) => {
+                                        if (active && payload && payload.length) {
+                                            const data = payload[0].payload;
+                                            return (
+                                                <div className="bg-white p-3 rounded-2xl shadow-xl border border-slate-100 min-w-[150px]">
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{data.name}</p>
+                                                    <p className="text-lg font-black text-indigo-600">{formatCurrency(data.value)}</p>
+                                                    <p className="text-xs font-bold text-slate-500">{data.liters.toFixed(1)} Litros</p>
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    }}
+                                />
+                                <Bar dataKey="value" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={24}>
+                                    {
+                                        sectorStats.vehicleRankingData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={index < 3 ? '#4f46e5' : '#818cf8'} />
+                                        ))
+                                    }
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50">
-                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Data</th>
-                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Nº Nota</th>
-                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Veículo</th>
-                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Setor</th>
-                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Combustível</th>
-                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 whitespace-nowrap">Custo (R$)</th>
-                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Litros</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                            {reportData.records.map((r, idx) => (
-                                <tr key={r.id} className="hover:bg-slate-50/50 transition-colors group">
-                                    <td className="p-4">
-                                        <p className="text-xs font-black text-slate-700">{new Date(r.date).toLocaleDateString('pt-BR')}</p>
-                                    </td>
-                                    <td className="p-4">
-                                        <p className="text-[10px] font-mono font-bold text-slate-500 uppercase truncate max-w-[100px]">
-                                            {r.invoiceNumber || '-'}
-                                        </p>
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex flex-col">
-                                            <p className="text-xs font-black text-slate-900 uppercase">{r.vehicle}</p>
-                                            <p className="text-[10px] font-bold text-slate-400">
-                                                {(r as any).derivedPlate}
-                                            </p>
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase truncate max-w-[150px]">
-                                            {(r as any).derivedSector}
-                                        </p>
-                                    </td>
-                                    <td className="p-4">
-                                        <span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest ${r.fuelType.toLowerCase().includes('diesel') ? 'bg-amber-100 text-amber-700' :
-                                            r.fuelType.toLowerCase().includes('gasolina') ? 'bg-emerald-100 text-emerald-700' :
-                                                r.fuelType.toLowerCase().includes('etanol') ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
-                                            }`}>
-                                            {r.fuelType.split(' - ')[0]}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 font-black text-slate-900 whitespace-nowrap">R$ {r.cost.toFixed(2)}</td>
-                                    <td className="p-4 font-bold text-slate-700">{r.liters.toFixed(1)}</td>
-                                </tr>
-                            ))}
-                            {reportData.records.length === 0 && (
-                                <tr>
-                                    <td colSpan={6} className="p-12 text-center">
-                                        <div className="flex flex-col items-center">
-                                            <Search className="w-12 h-12 text-slate-200 mb-3" />
-                                            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Nenhum registro encontrado para estes filtros</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+
+                {/* Ranking Driver Supplies Count */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-6 flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-emerald-500" />
+                        Ranking de Abastecimentos (Motorista)
+                    </h3>
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={sectorStats.driverRankingData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} />
+                                <Tooltip
+                                    cursor={{ fill: '#f8fafc' }}
+                                    content={({ active, payload }) => {
+                                        if (active && payload && payload.length) {
+                                            const data = payload[0].payload;
+                                            return (
+                                                <div className="bg-white p-3 rounded-2xl shadow-xl border border-slate-100 min-w-[150px]">
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{data.name}</p>
+                                                    <p className="text-lg font-black text-emerald-600">{formatCurrency(data.value)}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-xs font-bold text-slate-500">{data.liters.toFixed(1)} L</span>
+                                                        <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                                        <span className="text-[10px] font-bold text-slate-400">{data.count} abastecimentos</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    }}
+                                />
+                                <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} barSize={24}>
+                                    {
+                                        sectorStats.driverRankingData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={index < 3 ? '#059669' : '#34d399'} />
+                                        ))
+                                    }
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
             </div>
         </div>
     );
+
 
     const renderOverview = () => (
         <div className="space-y-6 animate-fade-in pb-10">
@@ -918,7 +979,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     </div>
                     <div className="relative z-10">
                         <h3 className="text-3xl font-black text-emerald-900 tracking-tight">
-                            R$ {stats.totalCost.toFixed(2)}
+                            {formatCurrency(stats.totalCost)}
                         </h3>
                         <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${stats.costDiff > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
                             {stats.costDiff > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
@@ -1090,7 +1151,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 <Tooltip
                                     cursor={{ fill: '#f8fafc' }}
                                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                    formatter={(value: number) => [`R$ ${value.toFixed(2)}`, 'Gasto']}
+                                    formatter={(value: number) => [formatCurrency(value), 'Gasto']}
                                 />
                                 <Bar dataKey="value" fill="#0ea5e9" radius={[0, 4, 4, 0]} barSize={20} />
                             </BarChart>
@@ -1122,7 +1183,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-sm font-black text-slate-700">R$ {v.totalCost.toFixed(0)}</p>
+                                    <p className="text-sm font-black text-slate-700">{formatCurrency(v.totalCost)}</p>
                                     <p className="text-[10px] text-slate-400 font-medium">{v.totalLiters.toFixed(0)} Litros</p>
                                 </div>
                             </div>
@@ -1148,7 +1209,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             <div key={idx} className="bg-white p-3 rounded-2xl shadow-sm border border-rose-100 flex justify-between items-center">
                                 <div>
                                     <p className="text-xs font-bold text-slate-800 uppercase">{v.name}</p>
-                                    <p className="text-[10px] text-rose-500 font-bold">R$ {v.totalCost.toFixed(2)}</p>
+                                    <p className="text-[10px] text-rose-500 font-bold">{formatCurrency(v.totalCost)}</p>
                                 </div>
                                 <span className="text-[10px] font-bold bg-rose-100 text-rose-600 px-2 py-1 rounded-lg">Alto Gasto</span>
                             </div>
@@ -1282,7 +1343,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             <DollarSign className="w-4 h-4 text-emerald-500" />
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Custo Total</span>
                         </div>
-                        <p className="text-2xl font-black text-slate-900">R$ {totalVehicleCost.toFixed(2)}</p>
+                        <p className="text-2xl font-black text-slate-900">{formatCurrency(totalVehicleCost)}</p>
                     </div>
                     <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
@@ -1312,7 +1373,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Custo Médio</span>
                         </div>
                         <p className="text-2xl font-black text-slate-900">
-                            {avgCostPerKm > 0 ? `R$ ${avgCostPerKm.toFixed(2)} ` : '--'} <span className="text-sm text-slate-400 font-bold">/km</span>
+                            {avgCostPerKm > 0 ? `${formatCurrency(avgCostPerKm)} ` : '--'} <span className="text-sm text-slate-400 font-bold">/km</span>
                         </p>
                     </div>
                 </div>
@@ -1330,7 +1391,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                     <div className="relative w-full bg-slate-100 rounded-t-lg overflow-hidden flex items-end h-40">
                                         <div
                                             className="w-full bg-cyan-400 group-hover:bg-cyan-500 transition-all duration-500 ease-out"
-                                            style={{ height: `${Math.min((rec.liters / 100) * 100, 100)}% ` }}
+                                            style={{ height: Math.min((rec.liters / 100) * 100, 100) + '%' }}
                                         ></div>
                                         <div className="absolute inset-0 flex items-end justify-center pb-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <span className="text-[10px] font-bold text-white drop-shadow-md">{rec.liters.toFixed(0)}L</span>
@@ -1352,7 +1413,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             {/* Just listing the costs as boxes for now to show data */}
                             {currentMonthRecords.slice(0, 5).map((rec, i) => (
                                 <div key={i} className="flex-1 bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col items-center justify-center gap-1">
-                                    <span className="text-xs font-bold text-emerald-600">R$ {rec.cost.toFixed(0)}</span>
+                                    <span className="text-xs font-bold text-emerald-600">{formatCurrency(rec.cost)}</span>
                                     <span className="text-[10px] font-bold text-slate-400">{new Date(rec.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
                                 </div>
                             ))}
@@ -1364,56 +1425,56 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 {/* History List */}
                 <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
                     <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-                        <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Histórico Detalhado</h4>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-xs tracking-wider">
-                                <tr>
-                                    <th className="px-6 py-4">Data</th>
-                                    <th className="px-6 py-4">Motorista</th>
-                                    <th className="px-6 py-4">KM</th>
-                                    <th className="px-6 py-4">Combustível</th>
-                                    <th className="px-6 py-4">Litros</th>
-                                    <th className="px-6 py-4">Consumo</th>
-                                    <th className="px-6 py-4 text-right">Valor</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {[...currentMonthRecords].reverse().map((r) => (
-                                    <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 font-bold text-slate-700">
-                                            {new Date(r.date).toLocaleDateString('pt-BR')}
-                                            <span className="block text-[10px] text-slate-400 font-normal">
-                                                {new Date(r.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="font-bold text-slate-600 uppercase">{r.driver}</span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-slate-700">{r.odometer.toFixed(0)} km</span>
-                                                {r.distance > 0 && <span className="text-[10px] text-cyan-600 font-bold mt-1">(+{r.distance} km)</span>}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 font-bold text-cyan-600">{r.fuelType.split(' - ')[0]}</td>
-                                        <td className="px-6 py-4 font-bold text-blue-600">{r.liters.toFixed(1)} L</td>
-                                        <td className="px-6 py-4">
-                                            {r.efficiency > 0 ? (
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-700">{r.efficiency.toFixed(1)} km/L</span>
-                                                    <span className="text-xs text-slate-400">R$ {r.costPerKm.toFixed(2)}/km</span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-xs text-slate-300 italic">--</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 font-bold text-emerald-600 text-right">R$ {r.cost.toFixed(2)}</td>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-xs tracking-wider">
+                                    <tr>
+                                        <th className="px-6 py-4">Data</th>
+                                        <th className="px-6 py-4">Motorista</th>
+                                        <th className="px-6 py-4">KM</th>
+                                        <th className="px-6 py-4">Combustível</th>
+                                        <th className="px-6 py-4">Litros</th>
+                                        <th className="px-6 py-4">Consumo</th>
+                                        <th className="px-6 py-4 text-right">Valor</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {[...currentMonthRecords].reverse().map((r) => (
+                                        <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-6 py-4 font-bold text-slate-700">
+                                                {new Date(r.date).toLocaleDateString('pt-BR')}
+                                                <span className="block text-[10px] text-slate-400 font-normal">
+                                                    {new Date(r.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="font-bold text-slate-600 uppercase">{r.driver}</span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-slate-700">{r.odometer.toFixed(0)} km</span>
+                                                    {r.distance > 0 && <span className="text-[10px] text-cyan-600 font-bold mt-1">(+{r.distance} km)</span>}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 font-bold text-cyan-600">{r.fuelType.split(' - ')[0]}</td>
+                                            <td className="px-6 py-4 font-bold text-blue-600">{r.liters.toFixed(1)} L</td>
+                                            <td className="px-6 py-4">
+                                                {r.efficiency > 0 ? (
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-slate-700">{r.efficiency.toFixed(1)} km/L</span>
+                                                        <span className="text-xs text-slate-400">{formatCurrency(r.costPerKm)}/km</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-slate-300 italic">--</span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 font-bold text-emerald-600 text-right">{formatCurrency(r.cost)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1536,6 +1597,260 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         );
     };
 
+    const renderReportsView = () => (
+        <div className="space-y-6 animate-fade-in pb-20">
+            {/* Filters Section */}
+            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 md:p-8">
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
+                    <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
+                        <Filter className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-slate-900 uppercase">Filtros do Relatório</h2>
+                        <p className="text-slate-500 text-sm font-medium">Refine os dados para geração do relatório</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {/* Date inputs */}
+                    <div>
+                        <ModernDateInput
+                            label="Período Inicial"
+                            value={pendingFilters.startDate}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, startDate: val })}
+                        />
+                    </div>
+                    <div>
+                        <ModernDateInput
+                            label="Período Final"
+                            value={pendingFilters.endDate}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, endDate: val })}
+                        />
+                    </div>
+                    {/* Select dropdowns */}
+                    <div>
+                        <ModernSelect
+                            label="Posto"
+                            value={pendingFilters.station}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, station: val })}
+                            options={[
+                                { value: 'all', label: 'Todos os Postos' },
+                                ...gasStations.map(s => ({ value: s.name, label: s.name }))
+                            ]}
+                            icon={Building2}
+                            placeholder="Todos os Postos"
+                        />
+                    </div>
+                    <div>
+                        <ModernSelect
+                            label="Setor"
+                            value={pendingFilters.sector}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, sector: val })}
+                            options={[
+                                { value: 'all', label: 'Todos os Setores' },
+                                ...sectors.map(s => ({ value: s.name, label: s.name }))
+                            ]}
+                            icon={Factory}
+                            placeholder="Todos os Setores"
+                            searchable
+                        />
+                    </div>
+                    <div>
+                        <ModernSelect
+                            label="Veículo (Placa)"
+                            value={pendingFilters.vehicle}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, vehicle: val })}
+                            options={[
+                                { value: 'all', label: 'Todos os Veículos' },
+                                ...vehicles.map(v => ({ value: v.plate || v.id, label: `${v.plate} - ${v.model}` }))
+                            ]}
+                            icon={Car}
+                            placeholder="Selecione o Veículo"
+                            searchable
+                        />
+                    </div>
+                    <div>
+                        <ModernSelect
+                            label="Combustível"
+                            value={pendingFilters.fuelType}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, fuelType: val })}
+                            options={[
+                                { value: 'all', label: 'Todos' },
+                                { value: 'diesel', label: 'Diesel' },
+                                { value: 'gasolina', label: 'Gasolina' },
+                                { value: 'etanol', label: 'Etanol' },
+                                { value: 'arla', label: 'Arla' }
+                            ]}
+                            icon={Fuel}
+                            placeholder="Todos"
+                        />
+                    </div>
+
+                    <div className="md:col-span-3 lg:col-span-2 flex items-end">
+                        <button
+                            onClick={() => setAppliedFilters({ ...pendingFilters })}
+                            className="w-full md:w-auto px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95 flex items-center justify-center gap-2 h-[46px]"
+                        >
+                            <Filter className="w-4 h-4" />
+                            Aplicar Filtros
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Summary Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Liters and Value Totals */}
+                <div className="bg-slate-900 text-white rounded-[2rem] border border-slate-800 p-8 shadow-xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-6 opacity-10">
+                        <FileSpreadsheet className="w-32 h-32" />
+                    </div>
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                        <div>
+                            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400 mb-6">Resumo Geral</h3>
+                            <div className="space-y-6">
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Volume Total</p>
+                                    <p className="text-4xl font-black tracking-tighter">{reportData.grandTotalLiters.toFixed(1)} <span className="text-xl text-slate-500">L</span></p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valor Total</p>
+                                    <p className="text-4xl font-black tracking-tighter text-emerald-400">{formatCurrency(reportData.grandTotalValue)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="pt-8 border-t border-white/5 mt-8 flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">{reportData.records.length} registros encontrados</span>
+                            <button
+                                onClick={() => setShowPrintPreview(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                            >
+                                <Download className="w-3.5 h-3.5" /> Exportar PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Totals by Fuel */}
+                <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Por Combustível</h3>
+                    <div className="space-y-4">
+                        {Object.entries(reportData.totalLitersByFuel).map(([fuel, liters]) => (
+                            <div key={fuel} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div>
+                                    <p className="text-xs font-black text-slate-900 uppercase">{fuel}</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">{formatCurrency(reportData.totalValueByFuel[fuel] as number)}</p>
+                                </div>
+                                <p className="font-black text-slate-700">{(liters as number).toFixed(1)} L</p>
+                            </div>
+                        ))}
+                        {Object.keys(reportData.totalLitersByFuel).length === 0 && (
+                            <div className="text-center py-12">
+                                <Fuel className="w-12 h-12 text-slate-100 mx-auto mb-3" />
+                                <p className="text-xs font-bold text-slate-300 uppercase">Nenhum dado</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Totals by Sector */}
+                <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6 text-center">Valor por Setor</h3>
+                    <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                        {Object.entries(reportData.totalValueBySector)
+                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                            .map(([sector, value]) => (
+                                <div key={sector} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors border-b border-slate-50 last:border-0">
+                                    <p className="text-[10px] font-bold text-slate-600 uppercase truncate max-w-[120px]" title={sector}>{sector}</p>
+                                    <p className="font-black text-slate-900 text-xs">{formatCurrency(value as number)}</p>
+                                </div>
+                            ))
+                        }
+                        {Object.keys(reportData.totalValueBySector).length === 0 && (
+                            <div className="text-center py-12">
+                                <Factory className="w-12 h-12 text-slate-100 mx-auto mb-3" />
+                                <p className="text-xs font-bold text-slate-300 uppercase">Nenhum dado</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Detailed Table */}
+            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
+                <div className="p-8 border-b border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500">
+                            <FileText className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-black text-slate-900">Registros Detalhados</h3>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Histórico filtrado</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-100">
+                            <tr>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Protocolo</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Data/Hora</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Veículo/Motorista</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Posto/Combustível</th>
+                                <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-wider">Volume/Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {reportData.records.map((record) => (
+                                <tr key={record.id} className="hover:bg-slate-50/80 transition-colors group">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-2 h-2 rounded-full bg-slate-300 group-hover:bg-indigo-500 transition-colors" />
+                                            <span className="font-mono text-xs font-bold text-slate-500">#{record.protocol || 'N/A'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-slate-900 text-sm">{new Date(record.date).toLocaleDateString()}</span>
+                                            <span className="text-[10px] font-medium text-slate-400">{new Date(record.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-slate-900 text-sm">{record.vehicle}</span>
+                                            <span className="text-[10px] font-medium text-slate-500 flex items-center gap-1">
+                                                <Car className="w-3 h-3" /> {record.derivedPlate} • {record.driver}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-slate-900 text-xs">{record.station || 'N/A'}</span>
+                                            <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded-md w-fit mt-1">{record.fuelType}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex flex-col items-end">
+                                            <span className="font-black text-emerald-600 text-sm">{formatCurrency(record.cost)}</span>
+                                            <span className="text-[10px] font-bold text-slate-400">{record.liters.toFixed(1)} L</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {reportData.records.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                                        Nenhum registro encontrado com os filtros selecionados.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <div className="flex-1 h-full bg-slate-50 p-4 md:p-6 overflow-auto custom-scrollbar">
             <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
@@ -1594,7 +1909,18 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 Veículos
                             </button>
                             <button
+                                onClick={() => setActiveTab('sector')}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'sector'
+                                    ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5'
+                                    : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                            >
+                                <Factory className="w-3.5 h-3.5" />
+                                Setor
+                            </button>
+                            <button
                                 onClick={() => setActiveTab('reports')}
+
                                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'reports'
                                     ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5'
                                     : 'text-slate-500 hover:text-slate-700'
@@ -1622,6 +1948,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 <div className="min-h-[500px]">
                     {activeTab === 'overview' && renderOverview()}
                     {activeTab === 'vehicle' && renderVehicleView()}
+                    {activeTab === 'sector' && renderSectorView()}
                     {activeTab === 'reports' && renderReportsView()}
                     {activeTab === 'config' && user?.role === 'admin' && <ConfigPanel fuelTypes={fuelTypes} gasStations={gasStations as any} />}
                 </div>
