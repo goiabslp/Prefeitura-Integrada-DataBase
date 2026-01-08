@@ -211,7 +211,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             )}
 
                             {canAccessAbastecimento && (
-                                <button onClick={() => setActiveBlock('abastecimento')} className={`${getCardClass('cyan')} hidden md:flex`}>
+                                <button onClick={() => setActiveBlock('abastecimento')} className={`${getCardClass('cyan')}`}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
                                     <div className="relative z-10 flex flex-col items-center w-full">
                                         <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-cyan-500 to-cyan-600"><Droplet className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
