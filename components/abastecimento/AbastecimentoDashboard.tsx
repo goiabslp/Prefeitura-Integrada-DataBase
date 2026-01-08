@@ -1070,7 +1070,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         <p className="text-sm text-slate-400 font-medium">Histórico dos últimos 6 meses</p>
                     </div>
                     <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                             <AreaChart data={stats.evolutionChartData}>
                                 <defs>
                                     <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
@@ -1116,7 +1116,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         <p className="text-sm text-slate-400 font-medium">Distribuição de volume (L)</p>
                     </div>
                     <div className="h-[300px] w-full flex flex-col items-center justify-center">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                             <PieChart>
                                 <Pie
                                     data={stats.fuelChartData}
@@ -1149,7 +1149,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         <p className="text-sm text-slate-400 font-medium">Top 5 setores com maior consumo</p>
                     </div>
                     <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                             <BarChart layout="vertical" data={stats.sectorChartData} margin={{ left: 40 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
                                 <XAxis type="number" hide />

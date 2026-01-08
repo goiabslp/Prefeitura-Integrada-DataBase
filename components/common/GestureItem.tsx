@@ -87,9 +87,6 @@ export const GestureItem: React.FC<GestureItemProps> = ({
                 axis: 'x', // Constrain to horizontal axis to allow browser vertical scrolling
                 from: () => [x.get(), 0],
             },
-            longPress: {
-                delay: 500
-            }
         }
     );
 
