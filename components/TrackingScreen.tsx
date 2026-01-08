@@ -65,8 +65,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
     const extractOficioNumber = (text: string | undefined) => {
         if (!text) return '---';
-        const match = text.match(/nº\s*(\d+\/\d+)/i);
-        return match ? match[1] : '---';
+        const match = text.match(/(?:(?:n[º°o]|\W|^)\s*)(\d+\s*\/\s*\d{4})/i);
+        return match ? match[1].replace(/\s/g, '') : '---';
     };
 
     const genericAttachmentRef = useRef<HTMLInputElement>(null);
@@ -315,7 +315,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                         </div>
                                         {activeBlock === 'oficio' && (
                                             <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
-                                                <FileText className="w-3 h-3" /> Ofício
+                                                <FileText className="w-3 h-3" /> Número do Ofício
                                             </div>
                                         )}
                                         <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-4' : 'md:col-span-6'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
@@ -573,7 +573,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
                                                 {activeBlock === 'oficio' && (
                                                     <div className="md:col-span-2 text-xs font-bold text-slate-700">
-                                                        {extractOficioNumber(order.title || order.documentSnapshot?.content.title)}
+                                                        {extractOficioNumber(order.documentSnapshot?.content.leftBlockText || order.title)}
                                                     </div>
                                                 )}
 
@@ -736,9 +736,21 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                         </button>
                                                     )}
 
-                                                    <button onClick={() => onEditOrder(order)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title={order.status === 'pending' ? "Editar" : "Visualizar"}>
-                                                        {order.status === 'pending' ? <Edit3 className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                                    </button>
+                                                    {activeBlock === 'oficio' && (
+                                                        <button
+                                                            onClick={() => setPreviewOrder(order)}
+                                                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                                            title="Visualizar"
+                                                        >
+                                                            <Eye className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+
+                                                    {activeBlock !== 'oficio' && (
+                                                        <button onClick={() => onEditOrder(order)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title={order.status === 'pending' ? "Editar" : "Visualizar"}>
+                                                            {order.status === 'pending' ? <Edit3 className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                                        </button>
+                                                    )}
 
                                                     {activeBlock !== 'oficio' && (
                                                         <button

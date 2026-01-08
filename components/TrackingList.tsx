@@ -65,7 +65,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
     const extractOficioNumber = (text: string | undefined) => {
         if (!text) return '---';
-        const match = text.match(/nº\s*(\d+\/\d+)/i);
+        // Match standard format XXX/YYYY with flexible prefix (nº, n°, no, or just spaced)
+        const match = text.match(/(?:(?:n[º°o]|\W|^)\s*)(\d+\s*\/\s*\d{4})/i);
         return match ? match[1] : '---';
     };
 
@@ -313,12 +314,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                         <div className={`${isCompras ? 'md:col-span-1' : 'md:col-span-2'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
                                             <HashIcon className="w-3 h-3" /> {isCompras ? 'ID' : 'Protocolo'}
                                         </div>
-                                        {activeBlock === 'oficio' && (
-                                            <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
-                                                <FileText className="w-3 h-3" /> Ofício
-                                            </div>
-                                        )}
-                                        <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-4' : 'md:col-span-6'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
+                                        <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : 'md:col-span-6'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
                                             {isDiarias ? <><FileText className="w-3 h-3" /> Solicitante + Destino</> : isCompras ? <><Network className="w-3 h-3" /> Setor / Solicitante</> : <><FileText className="w-3 h-3" /> Solicitante</>}
                                         </div>
                                         {isDiarias && (
@@ -571,13 +567,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                     </span>
                                                 </div>
 
-                                                {activeBlock === 'oficio' && (
-                                                    <div className="md:col-span-2 text-xs font-bold text-slate-700">
-                                                        {extractOficioNumber(order.title || order.documentSnapshot?.content.title)}
-                                                    </div>
-                                                )}
-
-                                                <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-4' : 'md:col-span-6'}`}>
+                                                <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : 'md:col-span-6'}`}>
                                                     <h3 className="text-sm font-bold text-slate-800 leading-tight">
                                                         {isDiarias ? (content?.requesterName || '---') : isCompras ? (content?.requesterSector || 'Sem Setor') : order.userName}
                                                     </h3>

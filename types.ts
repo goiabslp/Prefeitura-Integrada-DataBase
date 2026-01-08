@@ -212,6 +212,7 @@ export interface Person {
 export interface Sector {
   id: string;
   name: string;
+  full_name?: string;
 }
 
 export interface Job {

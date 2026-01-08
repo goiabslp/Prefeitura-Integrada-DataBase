@@ -9,7 +9,7 @@ import {
   AlertTriangle, MousePointer2, ChevronRight, Check, Sparkles, Upload, FileText, Paperclip, ExternalLink,
   Download, Plus, Network, Trash, Send, Info, Flag, Hash, RefreshCw, ChevronLeft
 } from 'lucide-react';
-import { User as UserType, Order, AppState, StatusMovement, Attachment, BlockType } from '../types';
+import { User as UserType, Order, AppState, StatusMovement, Attachment, BlockType, Sector } from '../types';
 import { DocumentPreview } from './DocumentPreview';
 import { uploadFile } from '../services/storageService';
 
@@ -17,6 +17,7 @@ interface PurchaseManagementScreenProps {
   onBack: () => void;
   currentUser: UserType;
   orders: Order[];
+  sectors: Sector[];
   onDownloadPdf: (snapshot: AppState, blockType?: BlockType) => void;
   onUpdateStatus: (orderId: string, status: Order['status'], justification?: string) => void;
   onUpdatePurchaseStatus?: (orderId: string, purchaseStatus: Order['purchaseStatus'], justification?: string, budgetFileUrl?: string) => void;
@@ -29,6 +30,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
   onBack,
   currentUser,
   orders,
+  sectors,
   onDownloadPdf,
   onUpdateStatus,
   onUpdatePurchaseStatus,
@@ -374,7 +376,14 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
 
                       {/* Detalhes do Pedido */}
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-bold text-slate-800 truncate mb-1">{order.documentSnapshot?.content.requesterSector || 'Setor Não Informado'}</h4>
+                        <h4 className="text-sm font-bold text-slate-800 mb-1 leading-snug">
+                          {(() => {
+                            const sectorName = order.documentSnapshot?.content.requesterSector;
+                            if (!sectorName) return 'Setor Não Informado';
+                            const foundSector = sectors.find(s => s.name === sectorName || s.full_name === sectorName);
+                            return foundSector?.full_name || foundSector?.name || sectorName;
+                          })()}
+                        </h4>
                         <div className="flex items-center gap-4 text-[10px] text-slate-400 font-medium">
                           <div className="flex items-center gap-1.5"><User className="w-3 h-3 text-slate-300" /> {order.userName.split(' ')[0]}</div>
                           <div className="flex items-center gap-1.5"><ShoppingBag className="w-3 h-3 text-slate-300" /> {(order.documentSnapshot?.content.purchaseItems || []).length} itens</div>

@@ -661,13 +661,46 @@ const App: React.FC = () => {
       const year = new Date().getFullYear();
 
       // AUTO-INCREMENT SECTOR COUNTER (Unified for ALL blocks)
-      // AUTO-INCREMENT SECTOR COUNTER (Unified for ALL blocks)
       // For Diarias, we use a global counter, so skip the sector counter increment
-      if (currentUser?.sector && activeBlock !== 'diarias') {
-        const userSector = sectors.find(s => s.name === currentUser.sector);
-        if (userSector) {
-          // Increment the server counter regardless of block type (except Diarias)
+      const userSector = currentUser?.sector ? sectors.find(s => s.name === currentUser.sector) : null;
+
+      if (userSector) {
+        // Increment the server counter regardless of block type (except Diarias)
+        // EXCEPTION: Oficio is now generated dynamically below, so we skip it here if it's 'oficio'
+
+        if (activeBlock !== 'oficio' && activeBlock !== 'diarias') {
           await counterService.incrementSectorCount(userSector.id, year);
+        }
+      }
+
+      // OFICIO ON-DEMAND GENERATION LOGIC
+      // Note: userSector must be re-derived or accessed from scope if we are outside the previous block.
+      // However, the previous block was inside 'else'. We are currently inside 'else'.
+      // Let's ensure userSector is available.
+
+      // We need to fetch userSector again or ensure it's in scope if we are strictly following previous logic structure.
+      // To be safe, I will re-find it here if it wasn't hoisted, but locally in this block it is available if I defined it above.
+
+      // Wait, the block at 654 'else {' wraps everything until 766. 
+      // So 'userSector' defined at 663 (replacement) is available throughout.
+
+      if (activeBlock === 'oficio') {
+        const currentSector = sectors.find(s => s.name === currentUser?.sector);
+        if (currentSector) {
+          const nextOficioNum = await counterService.incrementSectorCount(currentSector.id, year);
+
+          if (nextOficioNum) {
+            const formattedNum = nextOficioNum.toString().padStart(3, '0');
+            // Update leftBlockText in the snapshot
+            // Get existing extra info (everything after first line)
+            const currentLeftText = appState.content.leftBlockText || '';
+            const extraInfo = currentLeftText.includes('\n') ? currentLeftText.substring(currentLeftText.indexOf('\n')) : '';
+
+            const finalRefText = `Ref: Ofício nº ${formattedNum}/${year}${extraInfo}`;
+
+            // Mutate appState temporarily for this save structure (and preferably update state too)
+            appState.content.leftBlockText = finalRefText;
+          }
         }
       }
 
@@ -1226,9 +1259,9 @@ const App: React.FC = () => {
           } else {
             // Default Oficio and fallback for others
             defaultTitle = `Novo Ofício`;
-            const defaultLeftBlock = INITIAL_STATE.content.leftBlockText;
-            const extraInfo = defaultLeftBlock.includes('\n') ? defaultLeftBlock.split('\n').slice(1).join('\n') : '';
-            leftBlockContent = `Ref: Ofício nº ${formattedNum}/${currentYear}${extraInfo ? '\n' + extraInfo : ''}`;
+            // DELAYED GENERATION: Set placeholder
+            const defaultLeftBlock = INITIAL_STATE.content.leftBlockText; // 'Carregando...\nAssunto: ...'
+            leftBlockContent = defaultLeftBlock;
           }
         }
       }
@@ -2434,6 +2467,7 @@ const App: React.FC = () => {
                 onBack={handleBackToModule}
                 currentUser={currentUser}
                 orders={purchaseOrders}
+                sectors={sectors}
                 onDownloadPdf={(snapshot, forcedBlockType) => { const order = purchaseOrders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order, forcedBlockType); }}
                 onUpdateStatus={handleUpdateOrderStatus}
                 onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
