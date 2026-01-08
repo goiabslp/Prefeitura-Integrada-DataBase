@@ -19,6 +19,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
     const [isLoading, setIsLoading] = useState(true);
     const [vehicleSectorMap, setVehicleSectorMap] = useState<Record<string, string>>({});
     const [vehiclePlateMap, setVehiclePlateMap] = useState<Record<string, string>>({});
+    const [vehicleModelMap, setVehicleModelMap] = useState<Record<string, string>>({});
 
     const loadSupplies = async () => {
         setIsLoading(true);
@@ -48,14 +49,35 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
 
                 const vMap: Record<string, string> = {};
                 const pMap: Record<string, string> = {};
+                const modelMap: Record<string, string> = {}; // New map to find model by plate
+
                 vehiclesRes.data.forEach((v: any) => {
-                    // Match the format used in AbastecimentoForm: `${v.model} - ${v.brand}`
-                    const key = `${v.model} - ${v.brand}`;
-                    vMap[key] = sectorLookup[v.sector_id] || 'N/A';
-                    pMap[key] = v.plate || 'S/PLACA';
+                    const sectorName = sectorLookup[v.sector_id] || 'N/A';
+                    const plate = v.plate || 'S/PLACA';
+
+                    // Legacy Key: "Model - Brand"
+                    const legacyKey = `${v.model} - ${v.brand}`;
+                    vMap[legacyKey] = sectorName;
+                    pMap[legacyKey] = plate;
+
+                    // New Key: "Plate" (The main identifier now)
+                    if (v.plate) {
+                        vMap[v.plate] = sectorName;
+                        pMap[v.plate] = v.plate;
+                        modelMap[v.plate] = `${v.model} - ${v.brand}`;
+                    }
                 });
                 setVehicleSectorMap(vMap);
                 setVehiclePlateMap(pMap);
+                // We can store modelMap in state if we want to display Model for Plate-based records
+                // For now, let's piggyback on vehiclePlateMap or just keep it simple.
+                // Actually, let's update state to include model lookup if possible, or just Map locally?
+                // `vehiclePlateMap` is used for "Placa" column.
+                // If the record IS a plate, vehiclePlateMap returns the plate.
+                // If we want to show Model in "Veículo" column, we need a map.
+                // Let's repurpose vehiclePlateMap? No, that's confusing.
+                // Let's add a new state `vehicleModelMap`.
+                setVehicleModelMap(modelMap);
             }
 
         } catch (error) {
@@ -189,7 +211,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
                                                         truncateValue={false}
                                                     />
                                                     <DataItem label="Data / Hora" value={new Date(item.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} icon={Calendar} flex="col-span-1 lg:w-[15%]" />
-                                                    <DataItem label="Veículo" value={item.vehicle} icon={Truck} colorClass="text-slate-900 uppercase tracking-tight" flex="col-span-2 lg:w-[25%]" />
+                                                    <DataItem label="Veículo" value={vehicleModelMap[item.vehicle] ? `${vehicleModelMap[item.vehicle]} (${item.vehicle})` : item.vehicle} icon={Truck} colorClass="text-slate-900 uppercase tracking-tight" flex="col-span-2 lg:w-[25%]" />
                                                     <DataItem label="Placa" value={vehiclePlateMap[item.vehicle] || '-'} colorClass="text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-100 font-mono text-xs" flex="col-span-1 lg:w-[12%]" />
                                                     <DataItem label="Motorista" value={item.driver} icon={User} colorClass="text-slate-600 uppercase tracking-tight" flex="col-span-2 lg:w-[23%]" />
                                                     <DataItem

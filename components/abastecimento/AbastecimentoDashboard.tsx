@@ -366,8 +366,14 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         // Group by vehicle
         const vehicleGroups = filtered.reduce((acc, r) => {
             if (!acc[r.vehicle]) {
+                // Try to resolve a friendly name if the record stores a Plate
+                const matchedVehicle = vehicles.find(v => v.plate === r.vehicle);
+                const displayName = matchedVehicle
+                    ? `${matchedVehicle.model} (${matchedVehicle.plate})`
+                    : r.vehicle;
+
                 acc[r.vehicle] = {
-                    name: r.vehicle,
+                    name: displayName,
                     totalCost: 0,
                     totalLiters: 0,
                     count: 0,
@@ -447,7 +453,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         const sectorSpending: Record<string, number> = {};
         filtered.forEach(r => {
             // Find vehicle to get sector
-            const v = vehicles.find(veh => `${veh.model} - ${veh.brand}` === r.vehicle);
+            // Try matching by Plate first (new records), then by "Model - Brand" (legacy)
+            const v = vehicles.find(veh => veh.plate === r.vehicle || `${veh.model} - ${veh.brand}` === r.vehicle);
             if (v) {
                 const s = sectors.find(sec => sec.id === v.sectorId);
                 const sectorName = s?.name || 'Não Identificado';
@@ -578,7 +585,11 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             return sectorName === selectedSector;
         });
 
-        const sectorVehiclePlateSet = new Set(sectorVehicles.map(v => `${v.model} - ${v.brand}`));
+        const sectorVehiclePlateSet = new Set<string>();
+        sectorVehicles.forEach(v => {
+            if (v.plate) sectorVehiclePlateSet.add(v.plate);
+            sectorVehiclePlateSet.add(`${v.model} - ${v.brand}`);
+        });
 
         // Records for current month filtered by sector
         const currentMonthRecords = allRecords.filter(r => {
@@ -1326,7 +1337,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             <h2 className="text-xl font-black text-slate-900 uppercase">{selectedVehicle}</h2>
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                                 {(() => {
-                                    const veh = vehicles.find(v => `${v.model} - ${v.brand}` === selectedVehicle);
+                                    const veh = vehicles.find(v => v.plate === selectedVehicle || `${v.model} - ${v.brand}` === selectedVehicle);
                                     if (!veh) return 'Placa não encontrada';
                                     const sec = sectors.find(s => s.id === veh.sectorId);
                                     return `${veh.plate} • ${sec?.name || 'Setor não informado'}`;

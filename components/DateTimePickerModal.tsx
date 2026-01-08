@@ -136,7 +136,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
 
     // Time Logic
     const hours = Array.from({ length: 24 }, (_, i) => i);
-    const minutes = Array.from({ length: 12 }, (_, i) => i * 5); // 0, 5, 10...
+    const minutes = Array.from({ length: 60 }, (_, i) => i); // 0, 1, 2... 59
 
     const updateTime = (hour: number, minute: number) => {
         const newDate = new Date(selectedDate);

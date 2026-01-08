@@ -63,7 +63,13 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
             setDate(d.toISOString().split('T')[0]);
             setTime(new Date(initialData.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }));
-            setVehicle(initialData.vehicle);
+            // Handle legacy data (Model - Brand) vs new data (Plate)
+            const savedVehicle = initialData.vehicle;
+            const matchedVehicle = vehicles.find(v =>
+                v.plate === savedVehicle ||
+                `${v.model} - ${v.brand}` === savedVehicle
+            );
+            setVehicle(matchedVehicle ? matchedVehicle.plate : savedVehicle);
             setDriver(initialData.driver);
             setLiters(initialData.liters.toString());
             setOdometer(initialData.odometer.toString());
@@ -135,9 +141,9 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     // Prepare Options - Memoized for performance
     const vehicleOptions: Option[] = useMemo(() => vehicles
         .map(v => ({
-            value: `${v.model} - ${v.brand}`,
-            label: `${v.model} - ${v.brand}`,
-            subtext: v.plate,
+            value: v.plate, // Store PLATE as the unique identifier
+            label: `${v.plate} - ${v.model} (${v.brand})`, // Display Plate first
+            subtext: v.type.toUpperCase(),
             key: v.id
         }))
         .sort((a, b) => a.label.localeCompare(b.label)), [vehicles]);
