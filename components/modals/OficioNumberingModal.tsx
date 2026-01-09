@@ -8,9 +8,11 @@ interface Props {
     onConfirm: () => void;
     sectorId: string | null;
     sectorName: string;
+    title?: string;
+    label?: string;
 }
 
-export const OficioNumberingModal: React.FC<Props> = ({ isOpen, onClose, onConfirm, sectorId, sectorName }) => {
+export const OficioNumberingModal: React.FC<Props> = ({ isOpen, onClose, onConfirm, sectorId, sectorName, title = "Gerando Número", label = "PRÓXIMO OFÍCIO DO SETOR" }) => {
     const [loading, setLoading] = useState(true);
     const [nextNumber, setNextNumber] = useState<number | null>(null);
     const [year, setYear] = useState<number>(new Date().getFullYear());
@@ -53,12 +55,12 @@ export const OficioNumberingModal: React.FC<Props> = ({ isOpen, onClose, onConfi
                     </div>
 
                     <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2 uppercase">
-                        Gerando Número
+                        {title}
                     </h3>
 
                     <div className="flex flex-col items-center justify-center py-6 w-full">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                            PRÓXIMO OFÍCIO DO SETOR
+                            {label}
                         </span>
                         <div className="text-5xl font-mono font-black text-slate-900 tracking-tighter flex items-end leading-none">
                             {loading ? (

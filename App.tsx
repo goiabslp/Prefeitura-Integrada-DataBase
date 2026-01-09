@@ -599,8 +599,8 @@ const App: React.FC = () => {
       }
     }
 
-    // INTERCEPTION FOR NEW OFICIO NUMBERING
-    if (activeBlock === 'oficio' && !editingOrder && !forceOficio) {
+    // INTERCEPTION FOR NEW OFICIO NUMBERING & COMPRAS
+    if ((activeBlock === 'oficio' || activeBlock === 'compras') && !editingOrder && !forceOficio) {
       setIsOficioNumberingModalOpen(true);
       return false;
     }
@@ -704,22 +704,27 @@ const App: React.FC = () => {
       // Wait, the block at 654 'else {' wraps everything until 766. 
       // So 'userSector' defined at 663 (replacement) is available throughout.
 
-      if (activeBlock === 'oficio') {
+      if (activeBlock === 'oficio' || activeBlock === 'compras') {
         const currentSector = sectors.find(s => s.name === currentUser?.sector);
         if (currentSector) {
-          const nextOficioNum = await counterService.incrementSectorCount(currentSector.id, year);
+          const nextNum = await counterService.incrementSectorCount(currentSector.id, year);
 
-          if (nextOficioNum) {
-            const formattedNum = nextOficioNum.toString().padStart(3, '0');
-            // Update leftBlockText in the snapshot
-            // Get existing extra info (everything after first line)
-            const currentLeftText = appState.content.leftBlockText || '';
-            const extraInfo = currentLeftText.includes('\n') ? currentLeftText.substring(currentLeftText.indexOf('\n')) : '';
+          if (nextNum) {
+            const formattedNum = nextNum.toString().padStart(3, '0');
 
-            const finalRefText = `Ref: Ofício nº ${formattedNum}/${year}${extraInfo}`;
+            if (activeBlock === 'oficio') {
+              // Update leftBlockText in the snapshot
+              const currentLeftText = appState.content.leftBlockText || '';
+              const extraInfo = currentLeftText.includes('\n') ? currentLeftText.substring(currentLeftText.indexOf('\n')) : '';
+              const finalRefText = `Ref: Ofício nº ${formattedNum}/${year}${extraInfo}`;
+              appState.content.leftBlockText = finalRefText;
 
-            // Mutate appState temporarily for this save structure (and preferably update state too)
-            appState.content.leftBlockText = finalRefText;
+              // Also set protocol string for consistency
+              protocolString = `OFC-${formattedNum}/${year}`;
+            } else if (activeBlock === 'compras') {
+              // For Compras, we set the protocol string
+              protocolString = `COM-${formattedNum}/${year}`;
+            }
           }
         }
       }
@@ -737,7 +742,7 @@ const App: React.FC = () => {
 
         // Generate Unique Tracking ID for Diarias (Global Counter + Random)
         uniqueProtocolId = `GID-${nextVal}-${year}-${randomPart}`;
-      } else {
+      } else if (!protocolString) { // Only generate random if not already set (by Diarias or Compras/Oficio above)
         const prefix = activeBlock === 'oficio' ? 'OFC' : activeBlock === 'compras' ? 'COM' : 'LIC';
         protocolString = `${prefix}-${year}-${randomPart}`;
       }
@@ -1267,7 +1272,8 @@ const App: React.FC = () => {
 
           if (currentBlock === 'compras') {
             defaultTitle = 'Novo Pedido';
-            leftBlockContent = `Ref: Requisição nº ${formattedNum}/${currentYear}`;
+            // DELAYED GENERATION: Set placeholder
+            leftBlockContent = INITIAL_STATE.content.leftBlockText; // 'Carregando...\nAssunto: ...'
           } else if (currentBlock === 'diarias') {
             // Diarias handle their own numbering via global protocol count on subtype selection
             defaultTitle = 'Requisição de Diária';
@@ -2699,6 +2705,8 @@ const App: React.FC = () => {
                 return s ? s.id : null;
               })()}
               sectorName={currentUser.sector}
+              title={activeBlock === 'compras' ? "Gerando Pedido" : "Gerando Número"}
+              label={activeBlock === 'compras' ? "PRÓXIMO PEDIDO COMPRA" : "PRÓXIMO OFÍCIO DO SETOR"}
             />
           )}
         </div >
