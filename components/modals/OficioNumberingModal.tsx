@@ -1,0 +1,108 @@
+import React, { useEffect, useState } from 'react';
+import { CheckCircle2, FileText, Loader2, X } from 'lucide-react';
+import * as counterService from '../../services/counterService';
+
+interface Props {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    sectorId: string | null;
+    sectorName: string;
+}
+
+export const OficioNumberingModal: React.FC<Props> = ({ isOpen, onClose, onConfirm, sectorId, sectorName }) => {
+    const [loading, setLoading] = useState(true);
+    const [nextNumber, setNextNumber] = useState<number | null>(null);
+    const [year, setYear] = useState<number>(new Date().getFullYear());
+
+    useEffect(() => {
+        if (isOpen && sectorId) {
+            const fetchNext = async () => {
+                setLoading(true);
+                // Add a small artificial delay for "dynamic" feel if it's too fast
+                const start = Date.now();
+                const num = await counterService.getNextSectorCount(sectorId, new Date().getFullYear());
+                const elapsed = Date.now() - start;
+                if (elapsed < 600) await new Promise(resolve => setTimeout(resolve, 600 - elapsed));
+
+                setNextNumber(num);
+                setLoading(false);
+            };
+            fetchNext();
+        }
+    }, [isOpen, sectorId]);
+
+    if (!isOpen) return null;
+
+    const formattedNumber = nextNumber ? nextNumber.toString().padStart(3, '0') : '...';
+
+    return (
+        <div className="fixed inset-0 z-[2500] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl animate-fade-in">
+            <div className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-scale-in relative">
+
+                {/* Header / Decor */}
+                <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-10 pointer-events-none" />
+
+                <div className="p-8 text-center flex flex-col items-center relative z-10">
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-6 shadow-2xl shadow-indigo-500/20 border-4 border-indigo-50">
+                        {loading ? (
+                            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                        ) : (
+                            <FileText className="w-8 h-8 text-indigo-600" />
+                        )}
+                    </div>
+
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2 uppercase">
+                        Gerando Número
+                    </h3>
+
+                    <div className="flex flex-col items-center justify-center py-6 w-full">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+                            PRÓXIMO OFÍCIO DO SETOR
+                        </span>
+                        <div className="text-5xl font-mono font-black text-slate-900 tracking-tighter flex items-end leading-none">
+                            {loading ? (
+                                <span className="animate-pulse text-slate-300">...</span>
+                            ) : (
+                                <>
+                                    <span>{formattedNumber}</span>
+                                    <span className="text-2xl text-slate-400 mb-1">/{year}</span>
+                                </>
+                            )}
+                        </div>
+                        {sectorName && (
+                            <span className="mt-3 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-bold uppercase tracking-wide">
+                                {sectorName}
+                            </span>
+                        )}
+                    </div>
+
+                    <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8 max-w-[280px]">
+                        O sistema identificou o próximo número sequencial para o seu setor. Deseja confirmar e salvar o documento?
+                    </p>
+
+                    <div className="flex w-full gap-3">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 py-3.5 text-slate-500 font-bold text-xs uppercase tracking-widest hover:bg-slate-50 hover:text-slate-700 rounded-xl transition-all"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={onConfirm}
+                            disabled={loading || !nextNumber}
+                            className="flex-1 py-3.5 bg-indigo-600 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 hover:shadow-indigo-600/40 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+                        >
+                            {loading ? 'Calculando...' : (
+                                <>
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Confirmar
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};

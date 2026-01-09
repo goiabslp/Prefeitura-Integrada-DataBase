@@ -39,6 +39,7 @@ import { PurchaseManagementScreen } from './components/PurchaseManagementScreen'
 import { AdminDashboard } from './components/AdminDashboard';
 import { TwoFactorAuthScreen } from './components/TwoFactorAuthScreen';
 import { TwoFactorModal } from './components/TwoFactorModal';
+import { OficioNumberingModal } from './components/modals/OficioNumberingModal';
 import { ProcessStepper } from './components/common/ProcessStepper';
 import { LicitacaoScreeningScreen } from './components/LicitacaoScreeningScreen';
 import { LicitacaoSettingsModal } from './components/LicitacaoSettingsModal';
@@ -184,6 +185,7 @@ const App: React.FC = () => {
   const [isAdminSidebarOpen, setIsAdminSidebarOpen] = useState(false);
   const [adminTab, setAdminTab] = useState<string | null>(null);
   const [isFinalizedView, setIsFinalizedView] = useState(false);
+  const [isOficioNumberingModalOpen, setIsOficioNumberingModalOpen] = useState(false);
 
   // --- GLOBAL SETTINGS LOAD & SAVE ---
   const [successOverlay, setSuccessOverlay] = useState<{ show: boolean, protocol: string } | null>(null);
@@ -574,28 +576,18 @@ const App: React.FC = () => {
     return { error };
   };
 
-  const handleFinish = async (skip2FA = false, digitalSignatureData?: { enabled: boolean, method: string, ip: string, date: string }): Promise<boolean> => {
+  const handleFinish = async (skip2FA = false, digitalSignatureData?: { enabled: boolean, method: string, ip: string, date: string }, forceOficio = false): Promise<boolean> => {
     if (!currentUser || !activeBlock) return false;
 
     // 2FA Interception Logic
     if (!skip2FA && appState.content.useDigitalSignature) {
       // Find the selected signature user
-      // We can infer the selected signer from the content.signatureName (which is text) 
-      // OR we need to track the selected signer ID in AppState (better).
-      // Currently AppState only stores text names.
-      // However, we can try to find the user by name/sector/role match.
-      // A robust solution: AppState should store signerId. 
-      // For now, I will match by Name + JobTitle (Role) to find the User.
-
       const signerName = appState.content.signatureName;
       const signerRole = appState.content.signatureRole;
 
       const signerUser = users.find(u => u.name === signerName && (u.jobTitle === signerRole || u.role === 'admin')); // simplified match
 
       if (signerUser && (signerUser.twoFactorEnabled || signerUser.twoFactorEnabled2)) {
-        // We require 2FA if EITHER is enabled.
-        // We pass BOTH secrets if they exist AND are enabled to allow validation against either.
-
         setTwoFASecret(signerUser.twoFactorEnabled ? (signerUser.twoFactorSecret || '') : '');
         setTwoFASecret2(signerUser.twoFactorEnabled2 ? (signerUser.twoFactorSecret2 || null) : null);
 
@@ -605,6 +597,12 @@ const App: React.FC = () => {
         setIs2FAModalOpen(true);
         return false;
       }
+    }
+
+    // INTERCEPTION FOR NEW OFICIO NUMBERING
+    if (activeBlock === 'oficio' && !editingOrder && !forceOficio) {
+      setIsOficioNumberingModalOpen(true);
+      return false;
     }
 
     let finalOrder: Order;
@@ -2686,6 +2684,23 @@ const App: React.FC = () => {
               />
             )
           }
+
+          {/* OFICIO NUMBERING MODAL */}
+          {currentUser && (
+            <OficioNumberingModal
+              isOpen={isOficioNumberingModalOpen}
+              onClose={() => setIsOficioNumberingModalOpen(false)}
+              onConfirm={() => {
+                setIsOficioNumberingModalOpen(false);
+                handleFinish(false, undefined, true); // forceOficio = true
+              }}
+              sectorId={(() => {
+                const s = sectors.find(sec => sec.name === currentUser.sector);
+                return s ? s.id : null;
+              })()}
+              sectorName={currentUser.sector}
+            />
+          )}
         </div >
       </ChatProvider>
     </NotificationProvider >
