@@ -102,18 +102,7 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras'>('login');
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
-  const [appState, setAppState] = useState<AppState>(() => {
-    // Try to load from localStorage first
-    try {
-      const cached = localStorage.getItem('cachedAppState');
-      if (cached) {
-        return JSON.parse(cached);
-      }
-    } catch (e) {
-      console.error("Failed to load cached AppState", e);
-    }
-    return INITIAL_STATE;
-  });
+  const [appState, setAppState] = useState<AppState>(INITIAL_STATE);
   const [activeBlock, setActiveBlock] = useState<BlockType | null>(null);
   const [oficios, setOficios] = useState<Order[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<Order[]>([]);
@@ -196,7 +185,40 @@ const App: React.FC = () => {
   const [adminTab, setAdminTab] = useState<string | null>(null);
   const [isFinalizedView, setIsFinalizedView] = useState(false);
 
+  // --- GLOBAL SETTINGS LOAD & SAVE ---
   const [successOverlay, setSuccessOverlay] = useState<{ show: boolean, protocol: string } | null>(null);
+
+  const handleSaveGlobalSettings = async () => {
+    try {
+      const success = await settingsService.saveGlobalSettings(appState);
+      if (success) {
+        setShowSaveSuccess(true);
+        setTimeout(() => setShowSaveSuccess(false), 3000);
+        // showToast("Configurações globais salvas com sucesso!", "success"); // Assuming toast is available or use existing state
+      } else {
+        alert("Erro ao salvar configurações.");
+      }
+    } catch (error) {
+      console.error("Error saving global settings:", error);
+      alert("Erro ao salvar configurações.");
+    }
+  };
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const settings = await settingsService.getGlobalSettings();
+      if (settings) {
+        setAppState(prev => ({
+          ...prev,
+          branding: settings.branding,
+          document: settings.document,
+          ui: settings.ui
+        }));
+      }
+    };
+    loadSettings();
+  }, []);
+
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; type: 'info' | 'warning' | 'error'; singleButton?: boolean }>({
     isOpen: false,
     title: '',
@@ -1961,7 +1983,7 @@ const App: React.FC = () => {
                         isDownloading={isDownloading}
                         currentUser={currentUser}
                         mode={currentView === 'admin' ? 'admin' : 'editor'}
-                        onSaveDefault={async () => { await settingsService.saveGlobalSettings(appState); await db.saveGlobalSettings(appState); }}
+                        onSaveDefault={handleSaveGlobalSettings}
                         onFinish={handleFinish} activeTab={adminTab} onTabChange={setAdminTab} availableSignatures={myAvailableSignatures} activeBlock={activeBlock} persons={persons} sectors={sectors} jobs={jobs}
                         onBack={() => { if (currentView === 'editor') setCurrentView('home'); }}
                         isReadOnly={isStepperLocked || (activeBlock === 'licitacao' ? (editingOrder?.status === 'completed' && !isReopeningStage) : (editingOrder?.status === 'approved' || editingOrder?.status === 'completed'))}

@@ -117,7 +117,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     if (!onSaveDefault) return;
     setGlobalSaveStatus('loading');
     await new Promise(resolve => setTimeout(resolve, 800));
-    onSaveDefault();
+    await onSaveDefault();
     setGlobalSaveStatus('success');
     setTimeout(() => setGlobalSaveStatus('idle'), 2000);
   };
