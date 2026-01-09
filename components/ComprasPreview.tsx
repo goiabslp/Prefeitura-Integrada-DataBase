@@ -103,7 +103,7 @@ export const ComprasPreview: React.FC<ComprasPreviewProps> = ({ state, isGenerat
                       color: '#000000'
                     }}
                   >
-                    {content.leftBlockText}
+                    {content.leftBlockText?.replace(/(\n|^)Assunto: Solicitação de Material/g, '')}
                   </div>
                 )}
                 {docConfig.showRightBlock && content.rightBlockText && (

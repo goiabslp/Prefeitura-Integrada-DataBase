@@ -50,7 +50,7 @@ export const AgricultureRegistrations: React.FC = () => {
         switch (tab) {
             case 'produtores': return ['Produtor', 'Documento', 'Localidade', 'Status'];
             case 'maquinario': return ['Equipamento', 'Modelo/Ano', 'Ident.', 'Status'];
-            case 'propriedades': return ['Propriedade', 'CAR', 'Área (ha)', 'Situação'];
+            case 'propriedades': return ['Localidade', 'CAR', 'Área (ha)', 'Situação'];
         }
     };
 
@@ -191,7 +191,13 @@ export const AgricultureRegistrations: React.FC = () => {
                                     : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
                                     }`}
                             >
-                                {tab}
+                                {
+                                    {
+                                        produtores: 'Produtores',
+                                        maquinario: 'Maquinário',
+                                        propriedades: 'Localidade'
+                                    }[tab]
+                                }
                             </button>
                         ))}
                     </div>
