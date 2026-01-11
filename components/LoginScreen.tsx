@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Lock, ArrowRight, FileText, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { UIConfig } from '../types';
+import { getCachedImage, IMAGE_KEYS } from '../services/cacheService';
 
 interface LoginScreenProps {
   onLogin: (username: string, password: string) => Promise<{ error?: any; data?: any }>;
@@ -125,10 +126,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, uiConfig }) =
         {/* Lado Direito - Form de Login */}
         <div className="p-8 lg:p-16 flex flex-col justify-center bg-white/[0.02]">
           <div className="mb-10 text-center">
+
             {logoUrl ? (
               <div className="mb-8 flex justify-center">
                 <img
-                  src={logoUrl}
+                  src={getCachedImage(logoUrl, IMAGE_KEYS.loginLogoUrl) || logoUrl}
                   alt="Logo"
                   style={{ height: `${logoHeight}px` }}
                   className="object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.3)]"

@@ -14,6 +14,7 @@ import { User, UIConfig, BlockType } from '../types';
 import { useNotification } from '../contexts/NotificationContext';
 import { NotificationCenter } from './NotificationCenter';
 import { useState } from 'react';
+import { getCachedImage, IMAGE_KEYS } from '../services/cacheService';
 
 interface AppHeaderProps {
   currentUser: User;
@@ -95,7 +96,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           >
             {uiConfig.headerLogoUrl ? (
               <img
-                src={uiConfig.headerLogoUrl}
+                src={getCachedImage(uiConfig.headerLogoUrl, IMAGE_KEYS.headerLogoUrl) || uiConfig.headerLogoUrl}
                 alt="Logo"
                 style={{ height: `${uiConfig.headerLogoHeight || 32}px` }}
                 className="object-contain"
@@ -113,10 +114,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1">Tela Atual</span>
             <span className="text-sm font-bold text-slate-900 tracking-tight">{getModuleTitle()}</span>
           </div>
-        </div>
+        </div >
 
         {/* Lado Direito: Ações e Perfil */}
-        <div className="flex items-center gap-2 md:gap-4">
+        < div className="flex items-center gap-2 md:gap-4" >
 
           {isNotHome && (
             <button
@@ -128,15 +129,17 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             </button>
           )}
 
-          {isAdmin && currentView !== 'admin' && (
-            <button
-              onClick={() => onOpenAdmin(null)}
-              className="hidden sm:flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-slate-900/10 active:scale-95"
-            >
-              <Settings className="w-4 h-4" />
-              Administração
-            </button>
-          )}
+          {
+            isAdmin && currentView !== 'admin' && (
+              <button
+                onClick={() => onOpenAdmin(null)}
+                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-slate-900/10 active:scale-95"
+              >
+                <Settings className="w-4 h-4" />
+                Administração
+              </button>
+            )
+          }
 
           <div className="h-8 w-px bg-slate-200 mx-1"></div>
 
@@ -192,8 +195,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </div >
+      </div >
     </header >
   );
 };

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { AppState, BrandingConfig, DocumentConfig } from '../../types';
 import { uploadAsset } from '../../services/settingsService';
+import { getCachedImage, IMAGE_KEYS } from '../../services/cacheService';
 
 interface DesignFormProps {
   branding: BrandingConfig;
@@ -89,7 +90,7 @@ export const DesignForm: React.FC<DesignFormProps> = ({
                   className={`aspect-square rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:bg-purple-50 hover:border-purple-300 transition-all group/upload relative overflow-hidden ${logoUploading ? 'pointer-events-none opacity-70' : ''}`}
                 >
                   {branding.logoUrl ? (
-                    <img src={branding.logoUrl} alt="Logo" className="w-3/4 h-3/4 object-contain transition-transform group-hover/upload:scale-110 duration-500" />
+                    <img src={getCachedImage(branding.logoUrl, IMAGE_KEYS.logoUrl) || branding.logoUrl} alt="Logo" className="w-3/4 h-3/4 object-contain transition-transform group-hover/upload:scale-110 duration-500" />
                   ) : (
                     <div className="text-center p-6">
                       <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-3 text-slate-400 group-hover/upload:text-purple-500 transition-colors">
@@ -275,7 +276,7 @@ export const DesignForm: React.FC<DesignFormProps> = ({
                     {branding.watermark.imageUrl ? (
                       <div className="relative w-full h-full p-4 flex items-center justify-center">
                         <img
-                          src={branding.watermark.imageUrl}
+                          src={getCachedImage(branding.watermark.imageUrl, IMAGE_KEYS.watermarkUrl) || branding.watermark.imageUrl}
                           alt="Watermark"
                           className="w-full h-full object-contain"
                           style={{

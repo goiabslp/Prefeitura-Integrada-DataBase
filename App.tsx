@@ -196,7 +196,9 @@ const App: React.FC = () => {
       if (success) {
         setShowSaveSuccess(true);
         setTimeout(() => setShowSaveSuccess(false), 3000);
-        // showToast("Configurações globais salvas com sucesso!", "success"); // Assuming toast is available or use existing state
+        // Update cache with new images
+        const { syncImageCache } = await import('./services/cacheService');
+        syncImageCache(appState);
       } else {
         alert("Erro ao salvar configurações.");
       }
@@ -210,12 +212,19 @@ const App: React.FC = () => {
     const loadSettings = async () => {
       const settings = await settingsService.getGlobalSettings();
       if (settings) {
-        setAppState(prev => ({
-          ...prev,
-          branding: settings.branding,
-          document: settings.document,
-          ui: settings.ui
-        }));
+        setAppState(prev => {
+          const newState = {
+            ...prev,
+            branding: settings.branding,
+            document: settings.document,
+            ui: settings.ui
+          };
+          // Start caching routine
+          import('./services/cacheService').then(({ syncImageCache }) => {
+            syncImageCache(newState);
+          });
+          return newState;
+        });
       }
     };
     loadSettings();

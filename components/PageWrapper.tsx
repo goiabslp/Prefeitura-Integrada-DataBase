@@ -1,6 +1,6 @@
-
 import React from 'react';
 import { AppState } from '../types';
+import { getCachedImage, IMAGE_KEYS } from '../services/cacheService';
 
 interface PageWrapperProps {
   state: AppState;
@@ -20,7 +20,8 @@ export const PageWrapper: React.FC<PageWrapperProps> = ({
   ...props
 }) => {
   const { branding, document: docConfig, content } = state;
-  const watermarkImg = branding.watermark.imageUrl || branding.logoUrl;
+  const originalWatermark = branding.watermark.imageUrl || branding.logoUrl;
+  const watermarkImg = getCachedImage(originalWatermark, 'branding_watermark') || originalWatermark;
 
   return (
     <div
@@ -62,7 +63,12 @@ export const PageWrapper: React.FC<PageWrapperProps> = ({
           transform: branding.logoAlignment === 'center' ? 'translateX(-50%)' : 'none'
         }}>
           {branding.logoUrl ? (
-            <img src={branding.logoUrl} alt="Logo" className="object-contain" style={{ width: `${branding.logoWidth}mm`, maxHeight: '30mm' }} />
+            <img
+              src={getCachedImage(branding.logoUrl, IMAGE_KEYS.logoUrl) || branding.logoUrl}
+              alt="Logo"
+              className="object-contain"
+              style={{ width: `${branding.logoWidth}mm`, maxHeight: '30mm' }}
+            />
           ) : (
             <div className="bg-slate-50 border rounded flex items-center justify-center text-[10px]" style={{ width: `${branding.logoWidth}mm`, height: '20mm' }}>Logo</div>
           )}
