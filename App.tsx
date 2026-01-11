@@ -2300,7 +2300,7 @@ const App: React.FC = () => {
                 onAbastecimento={(sub) => {
                   setActiveBlock('abastecimento');
                   setCurrentView('abastecimento');
-                  // You might need a state for sub-view if Abastecimento uses it
+                  setAppState(prev => ({ ...prev, view: sub }));
                 }}
                 onAgricultura={() => setCurrentView('agricultura')}
                 onObras={() => setCurrentView('obras')}

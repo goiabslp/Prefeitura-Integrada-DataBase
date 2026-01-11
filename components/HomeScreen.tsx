@@ -117,6 +117,36 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </button>
     );
 
+    // --- Scroll Indicator Logic ---
+    const [showScrollIndicator, setShowScrollIndicator] = React.useState(false);
+    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const checkScroll = () => {
+            if (scrollContainerRef.current) {
+                const { scrollHeight, clientHeight, scrollTop } = scrollContainerRef.current;
+                // Show if content is taller than container AND user hasn't scrolled much yet
+                if (scrollHeight > clientHeight && scrollTop < 50) {
+                    setShowScrollIndicator(true);
+                } else {
+                    setShowScrollIndicator(false);
+                }
+            }
+        };
+
+        // Check on mount and resize
+        checkScroll();
+        window.addEventListener('resize', checkScroll);
+
+        return () => window.removeEventListener('resize', checkScroll);
+    }, []);
+
+    const handleScroll = () => {
+        if (showScrollIndicator) {
+            setShowScrollIndicator(false);
+        }
+    };
+
     // --- Active Block Rendering Logic (Unchanged from original essentially, but restyled container) ---
     const renderActiveBlock = () => {
         const getBlockConfig = () => {
@@ -172,80 +202,68 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         }
 
         return (
-            <div className="w-full h-full flex flex-col animate-fade-in">
-                {/* Back & Title */}
-                <div className="flex flex-col items-center mb-10 shrink-0">
-                    <button onClick={() => setActiveBlock(null)} className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold mb-2 transition-all">
-                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                        <span className="text-xs uppercase tracking-widest">Voltar ao Menu</span>
-                    </button>
-                    <div className={`p-3 rounded-2xl bg-${config.color}-50 mb-3`}>
-                        <config.icon className={`w-8 h-8 text-${config.color}-600`} />
+            <>
+                {/* Fixed Back Button - Hoisted up to ensure true fixed positioning regardless of parent transforms */}
+                <button
+                    onClick={() => setActiveBlock(null)}
+                    className="fixed top-24 left-4 md:top-28 md:left-8 z-[999] group flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold transition-all p-2 pr-4 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-lg hover:shadow-xl hover:bg-white hover:-translate-y-0.5 hover:border-indigo-100"
+                    title="Voltar ao Menu"
+                >
+                    <div className="w-8 h-8 rounded-full bg-white border border-slate-100 flex items-center justify-center group-hover:bg-indigo-50 group-hover:border-indigo-100 transition-colors">
+                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform text-slate-400 group-hover:text-indigo-600" />
                     </div>
-                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">{config.name}</h2>
-                </div>
+                    <span className="text-[10px] uppercase tracking-widest font-extrabold group-hover:text-indigo-700">Voltar</span>
+                </button>
 
-                {/* Actions Grid */}
-                <div className="flex-1 w-full max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pb-20 px-4">
-                    {actionButtons.map((btn, idx) => (
-                        <button
-                            key={idx}
-                            onClick={btn.onClick}
-                            className={`group relative h-48 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] hover:shadow-${btn.color}-500/20 hover:border-${btn.color}-200 hover:from-white hover:to-${btn.color}-50 transition-all duration-300 ease-out hover:-translate-y-1.5 active:scale-95 flex flex-col items-center justify-center overflow-hidden`}
-                        >
-                            <div className={`absolute top-0 right-0 w-32 h-32 bg-${btn.color}-500/5 rounded-bl-[100%] -mr-10 -mt-10 transition-transform duration-700 ease-out group-hover:scale-150`}></div>
-                            <div className={`absolute bottom-0 left-0 w-24 h-24 bg-${btn.color}-500/5 rounded-tr-[100%] -ml-10 -mb-10 transition-transform duration-700 ease-out group-hover:scale-125 opacity-0 group-hover:opacity-100`}></div>
+                <div className="w-full h-full flex flex-col relative animate-fade-in z-0">
+                    {/* Centered Content Container */}
+                    <div className="flex-1 flex flex-col items-center justify-center w-full h-full p-4 md:p-8 pt-36 md:pt-40 min-h-0 container mx-auto">
+                        <div className="w-full flex-1 flex flex-col items-center justify-center max-h-full">
 
-                            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br from-${btn.color}-500 to-${btn.color}-600 flex items-center justify-center mb-4 text-white group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-lg ring-4 ring-white`}>
-                                <btn.icon className="w-7 h-7 drop-shadow-md" />
+                            {/* Header */}
+                            <div className="flex flex-col items-center mb-8 shrink-0 animation-delay-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className={`p-5 rounded-[2rem] bg-gradient-to-br from-${config.color}-50 to-${config.color}-100/50 mb-5 shadow-sm ring-8 ring-white/50`}>
+                                    <config.icon className={`w-12 h-12 text-${config.color}-600 drop-shadow-sm`} />
+                                </div>
+                                <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tight text-center drop-shadow-sm">{config.name}</h2>
                             </div>
 
-                            <h3 className="text-xl font-bold text-slate-800 mb-1 group-hover:text-slate-900">{btn.label}</h3>
-                            <p className="text-xs font-medium text-slate-500 group-hover:text-${btn.color}-600 transition-colors">{btn.desc}</p>
-                        </button>
-                    ))}
+                            {/* Actions Grid */}
+                            <div className="w-full flex flex-wrap justify-center items-stretch gap-4 md:gap-6 max-w-6xl animate-in zoom-in duration-500 fill-mode-backwards p-2">
+                                {actionButtons.map((btn, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={btn.onClick}
+                                        className={`group relative flex-1 min-w-[260px] md:min-w-[280px] max-w-[380px] min-h-[160px] rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50/50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_25px_60px_rgb(0,0,0,0.12)] hover:shadow-${btn.color}-500/30 hover:border-${btn.color}-200 hover:from-white hover:to-${btn.color}-50/30 transition-all duration-300 ease-spring hover:-translate-y-2 active:scale-95 flex flex-col items-center justify-center overflow-hidden shrink-0 basis-0 grow`}
+                                        style={{ animationDelay: `${idx * 100}ms` }}
+                                    >
+                                        <div className={`absolute top-0 right-0 w-32 h-32 bg-${btn.color}-500/5 rounded-bl-[100%] -mr-10 -mt-10 transition-transform duration-700 ease-out group-hover:scale-150`}></div>
+                                        <div className={`absolute bottom-0 left-0 w-24 h-24 bg-${btn.color}-500/5 rounded-tr-[100%] -ml-10 -mb-10 transition-transform duration-700 ease-out group-hover:scale-125 opacity-0 group-hover:opacity-100`}></div>
+
+                                        <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-${btn.color}-500 to-${btn.color}-600 flex items-center justify-center mb-3 text-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300 shadow-lg shadow-${btn.color}-500/30 ring-4 ring-white`}>
+                                            <btn.icon className="w-6 h-6 md:w-7 md:h-7 drop-shadow-md" />
+                                        </div>
+
+                                        <h3 className="text-lg md:text-2xl font-bold text-slate-800 mb-1 group-hover:text-slate-900 tracking-tight">{btn.label}</h3>
+                                        <p className="text-[10px] md:text-xs font-bold text-slate-400 group-hover:text-${btn.color}-600 transition-colors uppercase tracking-widest">{btn.desc}</p>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </>
         );
     };
 
     if (activeBlock) {
         return (
-            <div className="fixed inset-0 w-full h-full bg-slate-50 font-sans flex flex-col overflow-hidden pt-8 px-6">
+            <div className="fixed inset-0 w-full h-full bg-[#FAFAFA] font-sans flex flex-col overflow-hidden z-50">
                 {renderActiveBlock()}
             </div>
         );
     }
 
-    // --- Scroll Indicator Logic ---
-    const [showScrollIndicator, setShowScrollIndicator] = React.useState(false);
-    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
-
-    React.useEffect(() => {
-        const checkScroll = () => {
-            if (scrollContainerRef.current) {
-                const { scrollHeight, clientHeight, scrollTop } = scrollContainerRef.current;
-                // Show if content is taller than container AND user hasn't scrolled much yet
-                if (scrollHeight > clientHeight && scrollTop < 50) {
-                    setShowScrollIndicator(true);
-                } else {
-                    setShowScrollIndicator(false);
-                }
-            }
-        };
-
-        // Check on mount and resize
-        checkScroll();
-        window.addEventListener('resize', checkScroll);
-
-        return () => window.removeEventListener('resize', checkScroll);
-    }, []);
-
-    const handleScroll = () => {
-        if (showScrollIndicator) {
-            setShowScrollIndicator(false);
-        }
-    };
 
     return (
         <div className="fixed inset-0 w-full h-full bg-[#F8FAFC] font-sans flex flex-col overflow-hidden relative">
