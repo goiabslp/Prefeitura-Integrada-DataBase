@@ -16,6 +16,7 @@ interface ChatContextType {
     setIsOpen: (open: boolean) => void;
     onlineUsers: Set<string>;
     lastUpdate: number;
+    latestIncomingMessage: ChatMessage | null;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -34,6 +35,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isOpen, setIsOpen] = useState(false);
     const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
     const [lastUpdate, setLastUpdate] = useState(Date.now());
+    const [latestIncomingMessage, setLatestIncomingMessage] = useState<ChatMessage | null>(null);
 
     const [userSectorId, setUserSectorId] = useState<string | null>(null);
 
@@ -214,11 +216,16 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                             });
 
                             // Mark as read in DB if it's from someone else and window is open
-                            if (newMessage.sender_id !== user.id && currentIsOpen) {
-                                await chatService.markAsRead([newMessage.id], currentActiveChat?.type || 'user', user.id, currentActiveChat?.id);
-                                refreshUnreadCount();
-                                // Trigger UI update to clear sidebar badge immediately
-                                setLastUpdate(Date.now());
+                            if (newMessage.sender_id !== user.id) {
+                                if (currentIsOpen) {
+                                    await chatService.markAsRead([newMessage.id], currentActiveChat?.type || 'user', user.id, currentActiveChat?.id);
+                                    refreshUnreadCount();
+                                    // Trigger UI update to clear sidebar badge immediately
+                                    setLastUpdate(Date.now());
+                                } else {
+                                    // Is Relevant (I'm talking to him) BUT window is closed -> Notify
+                                    setLatestIncomingMessage(newMessage);
+                                }
                             }
                         } else {
                             // 2. Increment unread if for me/sector/global and not currently reading
@@ -227,6 +234,9 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                             const isGlobal = (newMessage.sector_id === 'global') || (!newMessage.receiver_id && !newMessage.sector_id);
 
                             if ((isForMe || isForMySector || isGlobal) && newMessage.sender_id !== user.id) {
+                                // NOT RELEVANT (Chat not open OR in another chat) -> Notify
+                                setLatestIncomingMessage(newMessage);
+
                                 // Logic: If sector, checking last_read is hard here without fetching. 
                                 // But since we are incrementing local count blindly, it might desync.
                                 // BETTER: Just call refreshUnreadCount() to get true server state.
@@ -377,7 +387,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isOpen,
             setIsOpen,
             onlineUsers,
-            lastUpdate
+            lastUpdate,
+            latestIncomingMessage
         }}>
             {children}
         </ChatContext.Provider>

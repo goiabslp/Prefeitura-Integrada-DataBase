@@ -53,6 +53,7 @@ import { FloatingNotification } from './components/FloatingNotification';
 import { ChatProvider } from './contexts/ChatContext';
 import { ChatWidget } from './components/chat/ChatWidget';
 import { ChatWindow } from './components/chat/ChatWindow';
+import { ChatNotificationPopup } from './components/chat/ChatNotificationPopup';
 import { AgricultureModule } from './components/agriculture/AgricultureModule';
 import { ObrasModule } from './components/obras/ObrasModule';
 
@@ -1483,6 +1484,7 @@ const App: React.FC = () => {
             <>
               <ChatWidget />
               <ChatWindow />
+              <ChatNotificationPopup />
             </>
           )}
 

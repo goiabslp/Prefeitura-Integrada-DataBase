@@ -8,10 +8,12 @@ import {
   FileText,
   Home,
   RefreshCw,
-  Bell
+  Bell,
+  MessageCircle
 } from 'lucide-react';
 import { User, UIConfig, BlockType } from '../types';
 import { useNotification } from '../contexts/NotificationContext';
+import { useChat } from '../contexts/ChatContext';
 import { NotificationCenter } from './NotificationCenter';
 import { useState } from 'react';
 import { getCachedImage, IMAGE_KEYS } from '../services/cacheService';
@@ -83,8 +85,34 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     );
   };
 
+  const ChatIcon = () => {
+    const { unreadCount, setIsOpen, isOpen } = useChat();
+
+    return (
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`relative p-2 rounded-xl transition-all active:scale-95 group
+            ${isOpen ? 'bg-violet-50 text-violet-600' : 'text-slate-400 hover:bg-slate-50 hover:text-violet-600'}
+          `}
+        title="Chat"
+      >
+        <MessageCircle className={`w-5 h-5 ${unreadCount > 0 ? 'animate-pulse text-violet-600' : ''}`} />
+        {unreadCount > 0 && (
+          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-violet-500 border-2 border-white rounded-full shadow-sm animate-bounce"></span>
+        )}
+      </button>
+    );
+  };
+
+  const { unreadCount, setIsOpen, isOpen } = useChat();
+
   return (
-    <header className="sticky top-0 z-[60] w-full bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0">
+    <header className={`sticky top-0 z-[60] w-full border-b shrink-0 transition-all duration-500 ease-in-out
+      ${unreadCount > 0
+        ? 'bg-violet-50/30 border-violet-200 shadow-[0_4px_30px_rgba(139,92,246,0.3)] animate-pulse-glow'
+        : 'bg-white/80 backdrop-blur-md border-slate-200'
+      }
+    `}>
       <div className="max-w-[1920px] mx-auto px-6 h-16 flex items-center justify-between">
 
         {/* Lado Esquerdo: Logo e Título */}
@@ -114,7 +142,27 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1">Tela Atual</span>
             <span className="text-sm font-bold text-slate-900 tracking-tight">{getModuleTitle()}</span>
           </div>
-        </div >
+        </div>
+
+        {/* Internal Style for refined active state */}
+        <style dangerouslySetInnerHTML={{
+          __html: `
+        @keyframes pulse-glow {
+          0%, 100% { 
+            background-color: rgba(245, 243, 255, 0.4); 
+            border-color: rgba(221, 214, 254, 0.5);
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15);
+          }
+          50% { 
+            background-color: rgba(237, 233, 254, 0.6); 
+            border-color: rgba(167, 139, 250, 0.8);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.35);
+          }
+        }
+        .animate-pulse-glow {
+          animation: pulse-glow 3s infinite ease-in-out;
+        }
+      `}} />
 
         {/* Lado Direito: Ações e Perfil */}
         < div className="flex items-center gap-2 md:gap-4" >
@@ -156,6 +204,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <div className="h-8 w-px bg-slate-200 mx-1"></div>
 
           {/* Notification Center */}
+          <ChatIcon />
+          <div className="w-2"></div>
           <NotificationBell />
 
           <div className="flex items-center gap-3 pl-2">
