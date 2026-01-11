@@ -1,7 +1,8 @@
 import React from 'react';
-import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange, FileSearch, Droplet, Fuel, BarChart3, TrendingUp, LogOut, Sprout, HardHat } from 'lucide-react';
+import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange, FileSearch, Droplet, Fuel, BarChart3, TrendingUp, LogOut, Sprout, HardHat, Activity, Car, ChevronDown } from 'lucide-react';
 import { UserRole, UIConfig, AppPermission, BlockType } from '../types';
-import { FleetShortcutCard } from './FleetShortcutCard';
+import { TasksDashboard } from './dashboard/TasksDashboard';
+import { Order } from '../types';
 
 interface HomeScreenProps {
     onNewOrder: (block?: BlockType) => void;
@@ -27,6 +28,8 @@ interface HomeScreenProps {
         historyCount: number;
         activeUsers: number;
     };
+    orders?: Order[];
+    onViewOrder?: (order: Order) => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -46,8 +49,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     onAbastecimento,
     onAgricultura,
     onObras,
-    onLogout
+    onLogout,
+    orders = [], // Receive orders for Tasks Dashboard
+    onViewOrder // Callback to view order details
 }) => {
+    // Permission Checks
     const canAccessOficio = permissions.includes('parent_criar_oficio');
     const canAccessCompras = permissions.includes('parent_compras');
     const canAccessLicitacao = permissions.includes('parent_licitacao');
@@ -57,298 +63,318 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     const canAccessFleet = permissions.includes('parent_frotas');
     const canAccessLicitacaoTriagem = permissions.includes('parent_licitacao_triagem');
     const canAccessLicitacaoProcessos = permissions.includes('parent_licitacao_processos');
-    const canAccessAbastecimento = permissions.includes('parent_abastecimento'); // New Permission Logic
+    const canAccessAbastecimento = permissions.includes('parent_abastecimento');
     const canAccessAgricultura = permissions.includes('parent_agricultura');
     const canAccessObras = permissions.includes('parent_obras');
 
-    const hasAnyPermission = canAccessOficio || canAccessCompras || canAccessLicitacao || canAccessDiarias || canAccessScheduling || canAccessFleet || canAccessAbastecimento || canAccessAgricultura || canAccessObras;
-
-    const visibleModulesCount = [
-        canAccessOficio,
-        canAccessCompras,
-        canAccessLicitacao,
-        canAccessDiarias,
-        canAccessScheduling,
-        canAccessFleet,
-        canAccessAbastecimento,
-        canAccessAgricultura,
-        canAccessObras
-    ].filter(Boolean).length;
-
-    const getContainerClass = () => {
-        return 'flex flex-col md:flex-row flex-nowrap md:flex-wrap items-center justify-start md:justify-center gap-4 md:gap-4 lg:gap-6 w-full max-w-full px-4 overflow-y-auto md:overflow-visible h-full md:h-auto pb-24 md:pb-0 pt-4 md:pt-0';
-    };
-
-    const getCardClass = (color: string) => {
-        const base = "group relative rounded-[2.5rem] border transition-all duration-500 text-center flex flex-col items-center justify-center overflow-hidden bg-white border-slate-200 hover:scale-[1.05] shrink-0";
-        const hoverShadow = `hover:border-${color}-400`;
-
-        // More aggressive dynamic sizing to ensure single-row display
-        // Mobile: Fixed size (w-72 h-64) stacked vertically
-        // Desktop: Dynamic based on count
-        let sizeClass = "w-72 h-64 md:w-48 lg:w-56 md:h-64 lg:h-72 p-6 flex-col justify-center gap-0";
-
-        if (visibleModulesCount === 1) sizeClass = "w-72 h-80 md:w-64 md:w-80 md:h-[400px] p-6 md:p-10 scale-100 md:scale-110";
-        else if (visibleModulesCount === 2) sizeClass = "w-72 h-72 md:w-48 md:w-64 lg:w-72 md:h-80 lg:h-96 p-6 md:p-8";
-        else if (visibleModulesCount === 3) sizeClass = "w-72 h-64 md:w-44 md:w-60 lg:w-68 md:h-72 lg:h-80 p-6";
-        else if (visibleModulesCount >= 4 && visibleModulesCount <= 5) sizeClass = "w-72 h-60 md:w-40 md:w-52 lg:w-60 md:h-64 lg:h-72 p-5";
-        else if (visibleModulesCount >= 6 && visibleModulesCount <= 8) sizeClass = "w-72 h-48 md:w-32 md:w-40 lg:w-44 md:h-48 lg:h-56 p-3";
-        else if (visibleModulesCount >= 9) sizeClass = "w-72 h-40 md:w-28 md:w-36 lg:w-40 md:h-40 lg:h-48 p-2.5";
-
-        return `${base} ${hoverShadow} ${sizeClass}`;
-    };
-
-    const getTitleClass = () => {
-        if (visibleModulesCount <= 3) return "text-3xl md:text-2xl lg:text-3xl";
-        if (visibleModulesCount <= 5) return "text-2xl md:text-xl lg:text-2xl";
-        if (visibleModulesCount <= 8) return "text-xl md:text-sm lg:text-lg"; // Reduced
-        return "text-lg md:text-[10px] lg:text-xs"; // Compact for 9+
-    };
-
-    const titleBaseClass = "font-black text-slate-900 mb-1 md:mb-1 tracking-tight whitespace-nowrap leading-tight px-1";
-
     const firstName = userName.split(' ')[0];
 
-    const getBlockName = () => {
-        switch (activeBlock) {
-            case 'oficio': return "Módulo de Ofícios";
-            case 'compras': return "Módulo de Compras";
-            case 'licitacao': return "Módulo de Licitação";
-            case 'diarias': return "Diárias e Custeio";
-            case 'agendamento': return "Agendamento de Veículos";
-            case 'abastecimento': return "Gestão de Abastecimento"; // New Block Name
-            case 'agricultura': return "Módulo de Agricultura";
-            case 'obras': return "Módulo de Obras";
-            default: return "";
-        }
+    // --- Helper Functions for Card Styling ---
+    // --- Helper Functions for Card Styling ---
+    const getCardClass = (color: string) => {
+        // Dynamic classes for hover states
+        const hoverShadow = `hover:shadow-${color}-500/20`;
+        const hoverBorder = `hover:border-${color}-200`;
+        const hoverBg = `hover:from-white hover:to-${color}-50`;
+
+        return `group relative w-full h-40 md:h-48 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] ${hoverShadow} hover:-translate-y-1.5 ${hoverBorder} ${hoverBg} active:scale-95 transition-all duration-300 ease-out flex flex-col items-center justify-center overflow-hidden shrink-0`;
     };
 
-    const getNewActionLabel = () => {
-        switch (activeBlock) {
-            case 'compras': return 'Novo Pedido';
-            case 'oficio': return 'Novo Ofício';
-            case 'diarias': return 'Nova Solicitação';
-            case 'licitacao': return 'Novo Processo';
-            case 'agendamento': return 'Novo Agendamento';
-            default: return 'Novo Documento';
+    const getIconContainerClass = (color: string) => {
+        return `w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center mb-3 transition-transform duration-500 ease-spring group-hover:scale-110 group-hover:rotate-3 shadow-lg bg-gradient-to-br from-${color}-500 to-${color}-600 text-white ring-4 ring-white`;
+    };
+
+    const [isTasksDrawerOpen, setIsTasksDrawerOpen] = React.useState(false);
+
+    // --- Render Module Button ---
+    const renderModuleButton = (
+        onClick: () => void,
+        color: string,
+        Icon: React.ElementType,
+        title: string,
+        description: string,
+        delay: string = '0ms'
+    ) => (
+        <button
+            onClick={onClick}
+            className={`${getCardClass(color)} animate-in fade-in zoom-in duration-500 fill-mode-backwards`}
+            style={{ animationDelay: delay }}
+        >
+            <div className={`absolute top-0 right-0 w-32 h-32 bg-${color}-500/5 rounded-bl-[100%] -mr-10 -mt-10 transition-transform duration-700 ease-out group-hover:scale-150`}></div>
+            <div className={`absolute bottom-0 left-0 w-24 h-24 bg-${color}-500/5 rounded-tr-[100%] -ml-10 -mb-10 transition-transform duration-700 ease-out group-hover:scale-125 opacity-0 group-hover:opacity-100`}></div>
+
+            <div className="relative z-10 flex flex-col items-center p-4">
+                <div className={`${getIconContainerClass(color)}`}>
+                    <Icon className="w-7 h-7 md:w-8 md:h-8 drop-shadow-md" />
+                </div>
+                <h2 className="text-lg md:text-xl font-bold text-slate-800 tracking-tight leading-none mb-1.5 group-hover:text-slate-900 transition-colors">{title}</h2>
+                <p className="text-xs font-medium text-slate-500 text-center max-w-[150px] leading-tight group-hover:text-${color}-600 transition-colors">{description}</p>
+            </div>
+
+            <div className={`absolute bottom-5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-${color}-600 font-bold text-[10px] uppercase tracking-widest flex items-center gap-1`}>
+                Acessar <ArrowRight className="w-3 h-3" />
+            </div>
+        </button>
+    );
+
+    // --- Active Block Rendering Logic (Unchanged from original essentially, but restyled container) ---
+    const renderActiveBlock = () => {
+        const getBlockConfig = () => {
+            switch (activeBlock) {
+                case 'oficio': return { name: "Módulo de Ofícios", color: 'indigo', icon: FileText };
+                case 'compras': return { name: "Módulo de Compras", color: 'emerald', icon: ShoppingCart };
+                case 'licitacao': return { name: "Módulo de Licitação", color: 'blue', icon: Gavel };
+                case 'diarias': return { name: "Diárias e Custeio", color: 'amber', icon: Wallet };
+                case 'agendamento': return { name: "Agendamento", color: 'indigo', icon: CalendarRange };
+                case 'abastecimento': return { name: "Abastecimento", color: 'cyan', icon: Fuel };
+                case 'agricultura': return { name: "Agricultura", color: 'emerald', icon: Sprout };
+                case 'obras': return { name: "Obras", color: 'orange', icon: HardHat };
+                default: return { name: "", color: 'slate', icon: Package };
+            }
+        };
+
+        const config = getBlockConfig();
+
+        // Define Action Buttons for Active Block
+        const actionButtons = [];
+
+        // "New" Button
+        if (activeBlock !== 'abastecimento') {
+            actionButtons.push({
+                label: activeBlock === 'compras' ? 'Novo Pedido' : activeBlock === 'oficio' ? 'Novo Ofício' : activeBlock === 'diarias' ? 'Nova Solicitação' : activeBlock === 'licitacao' ? 'Novo Processo' : 'Novo Registro',
+                desc: "Criar novo registro",
+                icon: FilePlus,
+                onClick: () => onNewOrder(activeBlock || 'oficio'),
+                color: config.color
+            });
+            // "Track" Button
+            actionButtons.push({
+                label: activeBlock === 'licitacao' ? 'Meus Processos' : 'Histórico',
+                desc: `Consulte registros de ${activeBlock?.toUpperCase()}`,
+                icon: History,
+                onClick: onTrackOrder,
+                color: 'purple' // Use distinct color for history? Or theme color? Let's use theme color but slightly diff shading if needed, or stick to purple for history globally. Stick to purple for consistency.
+            });
+        }
+
+        // Specific Extra Buttons
+        if (activeBlock === 'compras' && canManagePurchaseOrders) {
+            actionButtons.push({ label: 'Pedidos', desc: 'Gestão Administrativa', icon: Inbox, onClick: onManagePurchaseOrders, color: 'emerald' });
+        }
+        if (activeBlock === 'licitacao') {
+            if (canAccessLicitacaoTriagem) actionButtons.push({ label: 'Triagem', desc: 'Triagem de Processos', icon: Inbox, onClick: onManageLicitacaoScreening, color: 'amber' });
+            if (canAccessLicitacaoProcessos) actionButtons.push({ label: 'Processos', desc: 'Todos os Processos', icon: FileSearch, onClick: onViewAllLicitacao, color: 'sky' });
+        }
+        if (activeBlock === 'abastecimento') {
+            actionButtons.push({ label: 'Novo Abastecimento', desc: 'Registrar entrada', icon: Fuel, onClick: () => onAbastecimento?.('new'), color: 'cyan' });
+            actionButtons.push({ label: 'Gestão', desc: 'Histórico Completo', icon: History, onClick: () => onAbastecimento?.('management'), color: 'blue' });
+            actionButtons.push({ label: 'Dashboard', desc: 'Indicadores', icon: BarChart3, onClick: () => onAbastecimento?.('dashboard'), color: 'emerald' });
+        }
+
+        return (
+            <div className="w-full h-full flex flex-col animate-fade-in">
+                {/* Back & Title */}
+                <div className="flex flex-col items-center mb-10 shrink-0">
+                    <button onClick={() => setActiveBlock(null)} className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold mb-2 transition-all">
+                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        <span className="text-xs uppercase tracking-widest">Voltar ao Menu</span>
+                    </button>
+                    <div className={`p-3 rounded-2xl bg-${config.color}-50 mb-3`}>
+                        <config.icon className={`w-8 h-8 text-${config.color}-600`} />
+                    </div>
+                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">{config.name}</h2>
+                </div>
+
+                {/* Actions Grid */}
+                <div className="flex-1 w-full max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pb-20 px-4">
+                    {actionButtons.map((btn, idx) => (
+                        <button
+                            key={idx}
+                            onClick={btn.onClick}
+                            className={`group relative h-48 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] hover:shadow-${btn.color}-500/20 hover:border-${btn.color}-200 hover:from-white hover:to-${btn.color}-50 transition-all duration-300 ease-out hover:-translate-y-1.5 active:scale-95 flex flex-col items-center justify-center overflow-hidden`}
+                        >
+                            <div className={`absolute top-0 right-0 w-32 h-32 bg-${btn.color}-500/5 rounded-bl-[100%] -mr-10 -mt-10 transition-transform duration-700 ease-out group-hover:scale-150`}></div>
+                            <div className={`absolute bottom-0 left-0 w-24 h-24 bg-${btn.color}-500/5 rounded-tr-[100%] -ml-10 -mb-10 transition-transform duration-700 ease-out group-hover:scale-125 opacity-0 group-hover:opacity-100`}></div>
+
+                            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br from-${btn.color}-500 to-${btn.color}-600 flex items-center justify-center mb-4 text-white group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-lg ring-4 ring-white`}>
+                                <btn.icon className="w-7 h-7 drop-shadow-md" />
+                            </div>
+
+                            <h3 className="text-xl font-bold text-slate-800 mb-1 group-hover:text-slate-900">{btn.label}</h3>
+                            <p className="text-xs font-medium text-slate-500 group-hover:text-${btn.color}-600 transition-colors">{btn.desc}</p>
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    if (activeBlock) {
+        return (
+            <div className="fixed inset-0 w-full h-full bg-slate-50 font-sans flex flex-col overflow-hidden pt-8 px-6">
+                {renderActiveBlock()}
+            </div>
+        );
+    }
+
+    // --- Scroll Indicator Logic ---
+    const [showScrollIndicator, setShowScrollIndicator] = React.useState(false);
+    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const checkScroll = () => {
+            if (scrollContainerRef.current) {
+                const { scrollHeight, clientHeight, scrollTop } = scrollContainerRef.current;
+                // Show if content is taller than container AND user hasn't scrolled much yet
+                if (scrollHeight > clientHeight && scrollTop < 50) {
+                    setShowScrollIndicator(true);
+                } else {
+                    setShowScrollIndicator(false);
+                }
+            }
+        };
+
+        // Check on mount and resize
+        checkScroll();
+        window.addEventListener('resize', checkScroll);
+
+        return () => window.removeEventListener('resize', checkScroll);
+    }, []);
+
+    const handleScroll = () => {
+        if (showScrollIndicator) {
+            setShowScrollIndicator(false);
         }
     };
 
     return (
-        <div className="flex-1 bg-slate-50 font-sans flex flex-col overflow-hidden h-screen max-h-screen">
-            <main className={`flex-1 flex flex-col items-center px-6 bg-gradient-to-b from-white to-slate-50 relative ${activeBlock ? 'pt-8 overflow-y-auto custom-scrollbar' : 'justify-start pt-12 md:pt-20 pb-12 overflow-y-auto custom-scrollbar'}`}>
+        <div className="fixed inset-0 w-full h-full bg-[#F8FAFC] font-sans flex flex-col overflow-hidden relative">
 
-                {!activeBlock && (
-                    <div className="w-full max-w-full animate-fade-in flex flex-col items-center justify-start flex-1 min-h-min">
-                        <div className="text-center mb-12">
-                            <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 tracking-tighter mb-2">
-                                Bem-vindo, <span className="text-indigo-600">{firstName}</span>
+            {/* Main Content Area (Full Width) */}
+            <main className="flex-1 flex flex-col overflow-hidden relative">
+
+                {/* Header Actions (Tasks Trigger) */}
+                <div className="absolute top-8 right-8 z-20">
+                    <button
+                        onClick={() => setIsTasksDrawerOpen(true)}
+                        className="group flex items-center gap-3 bg-white/80 backdrop-blur-md p-2 pr-5 rounded-full shadow-lg border border-white/50 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
+                    >
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                            <Activity className="w-5 h-5" />
+                        </div>
+                        <div className="flex flex-col items-start">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-0.5">Minhas</span>
+                            <span className="text-sm font-black text-slate-800 leading-none">Tarefas</span>
+                        </div>
+                        {/* Badge removed per user request for clean state
+                        {orders.length > 0 && orders.filter(o => o.status === 'pending').length > 0 && (
+                            <div className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ml-1 animate-pulse">
+                                {orders.filter(o => o.status === 'pending').length}
+                            </div>
+                        )}
+                        */}
+                    </button>
+                </div>
+
+                {/* Scrollable Modules Grid */}
+                <div
+                    ref={scrollContainerRef}
+                    onScroll={handleScroll}
+                    className="flex-1 overflow-y-auto custom-scrollbar scroll-smooth"
+                >
+                    <div className="p-8 lg:p-12 pb-40 md:pb-32 max-w-7xl mx-auto w-full pt-12 md:pt-16">
+
+                        {/* ... content ... */}
+
+                        {/* Welcome Header */}
+                        <div className="mb-12">
+                            <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tighter mb-3">
+                                Olá, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">{firstName}</span>.
                             </h1>
-                            <p className="text-slate-500 text-base font-medium">
-                                {hasAnyPermission ? 'Selecione um módulo operacional para trabalhar:' : 'Aguarde a liberação de permissões pelo administrador.'}
+                            <p className="text-slate-500 text-lg font-medium max-w-2xl">
+                                Selecione um módulo para iniciar suas atividades.
                             </p>
                         </div>
 
-                        <div className={getContainerClass()}>
-                            {canAccessOficio && (
-                                <button onClick={() => setActiveBlock('oficio')} className={`${getCardClass('indigo')} hidden md:flex`}>
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
-                                    <div className="relative z-10 flex flex-col items-center">
-                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-600 to-indigo-700"><FileText className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Ofícios</h2>
-                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden">Geração e histórico.</p>
-                                    </div>
-                                    <div className="mt-4 flex items-center gap-2 text-indigo-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
-                                </button>
-                            )}
+                        {/* Modules Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
+                            {/* Operational Modules */}
+                            {canAccessOficio && renderModuleButton(() => setActiveBlock('oficio'), 'indigo', FileText, 'Ofícios', 'Geração e trâmite', '50ms')}
+                            {canAccessCompras && renderModuleButton(() => setActiveBlock('compras'), 'emerald', ShoppingCart, 'Compras', 'Pedidos e requisições', '100ms')}
+                            {canAccessDiarias && renderModuleButton(() => setActiveBlock('diarias'), 'amber', Wallet, 'Diárias', 'Gestão de despesas', '150ms')}
+                            {canAccessLicitacao && renderModuleButton(() => setActiveBlock('licitacao'), 'blue', Gavel, 'Licitação', 'Processos e editais', '200ms')}
 
-                            {canAccessCompras && (
-                                <button onClick={() => setActiveBlock('compras')} className={`${getCardClass('emerald')} hidden md:flex`}>
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
-                                    <div className="relative z-10 flex flex-col items-center">
-                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-emerald-600 to-emerald-700"><ShoppingCart className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Compras</h2>
-                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden">Pedidos e requisições.</p>
-                                    </div>
-                                    <div className="mt-4 flex items-center gap-2 text-emerald-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
-                                </button>
-                            )}
+                            {/* Management Modules */}
+                            {canAccessScheduling && renderModuleButton(() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }, 'violet', CalendarRange, 'Veículos', 'Agendamento de frota', '250ms')}
+                            {canAccessAbastecimento && renderModuleButton(() => setActiveBlock('abastecimento'), 'cyan', Droplet, 'Abastecimento', 'Controle de combustível', '300ms')}
 
-                            {canAccessLicitacao && (
-                                <button onClick={() => setActiveBlock('licitacao')} className={`${getCardClass('blue')} hidden md:flex`}>
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
-                                    <div className="relative z-10 flex flex-col items-center">
-                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-blue-600 to-blue-700"><Gavel className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Licitação</h2>
-                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden">Processos e termos.</p>
-                                    </div>
-                                    <div className="mt-4 flex items-center gap-2 text-blue-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
-                                </button>
-                            )}
+                            {/* Field Modules */}
+                            {canAccessAgricultura && renderModuleButton(() => onAgricultura?.(), 'emerald', Sprout, 'Agricultura', 'Gestão rural', '350ms')}
+                            {canAccessObras && renderModuleButton(() => onObras?.(), 'orange', HardHat, 'Obras', 'Gestão de obras', '400ms')}
 
-                            {canAccessDiarias && (
-                                <button onClick={() => setActiveBlock('diarias')} className={`${getCardClass('amber')} hidden md:flex`}>
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
-                                    <div className="relative z-10 flex flex-col items-center">
-                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-amber-600 to-amber-700"><Wallet className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Diárias</h2>
-                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden">Gestão de despesas.</p>
-                                    </div>
-                                    <div className="mt-4 flex items-center gap-2 text-amber-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
-                                </button>
-                            )}
-
-                            {canAccessScheduling && (
-                                <button onClick={() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }} className={`${getCardClass('indigo')} hidden md:flex`}>
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
-                                    <div className="relative z-10 flex flex-col items-center w-full">
-                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-indigo-50 to-violet-600"><CalendarRange className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Agendamento</h2>
-                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden px-1">Controle de frotas.</p>
-                                    </div>
-                                    <div className="mt-4 flex items-center gap-2 text-indigo-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
-                                </button>
-                            )}
-
-                            {canAccessAbastecimento && (
-                                <button onClick={() => setActiveBlock('abastecimento')} className={`${getCardClass('cyan')}`}>
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
-                                    <div className="relative z-10 flex flex-col items-center w-full">
-                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-cyan-500 to-cyan-600"><Droplet className="w-10 h-10 md:w-8 md:h-8 text-white" /></div>
-                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Abastecimento</h2>
-                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden px-1">Controle de combustível.</p>
-                                    </div>
-                                    <div className="mt-4 flex items-center gap-2 text-cyan-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
-                                </button>
-                            )}
-
-                            {canAccessAgricultura && (
-                                <button onClick={() => onAgricultura?.()} className={`${getCardClass('emerald')} hidden md:flex`}>
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
-                                    <div className="relative z-10 flex flex-col items-center w-full">
-                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-emerald-500 to-emerald-600"><Sprout className="w-10 h-10 text-white" /></div>
-                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Agricultura</h2>
-                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden px-1">Gestão rural.</p>
-                                    </div>
-                                    <div className="mt-4 flex items-center gap-2 text-emerald-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
-                                </button>
-                            )}
-
-                            {canAccessObras && (
-                                <button onClick={() => onObras?.()} className={`${getCardClass('orange')} hidden md:flex`}>
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-bl-full -mr-8 -mt-8 transition-transform duration-700 group-hover:scale-125 opacity-40"></div>
-                                    <div className="relative z-10 flex flex-col items-center w-full">
-                                        <div className="w-20 h-20 md:w-16 md:h-16 rounded-[1.2rem] flex items-center justify-center mb-4 md:mb-3 transition-all duration-500 bg-gradient-to-br from-orange-500 to-orange-600"><HardHat className="w-10 h-10 text-white" /></div>
-                                        <h2 className={`${getTitleClass()} ${titleBaseClass}`}>Obras</h2>
-                                        <p className="text-slate-500 text-sm md:text-xs font-medium opacity-100 md:opacity-100 h-auto overflow-hidden px-1">Infraestrutura.</p>
-                                    </div>
-                                    <div className="mt-4 flex items-center gap-2 text-orange-600 font-bold text-[10px] uppercase tracking-widest group-hover:gap-4 transition-all">Acessar <ArrowRight className="w-4 h-4" /></div>
-                                </button>
-                            )}
-
-                            {canAccessFleet && <FleetShortcutCard onClick={() => onOpenAdmin('fleet')} className={getCardClass('slate')} />}
-
-                            {/* Mobile Logout Button */}
-                            <button
-                                onClick={onLogout}
-                                className="w-72 h-14 rounded-[2rem] border border-rose-200 bg-white text-rose-500 font-bold uppercase tracking-widest text-xs flex md:hidden items-center justify-center gap-2 hover:bg-rose-50 hover:border-rose-300 transition-all shrink-0 mt-4 shadow-sm"
-                            >
-                                <LogOut className="w-4 h-4" /> Sair do Sistema
-                            </button>
+                            {/* Admin Shortcut */}
+                            {canAccessFleet && renderModuleButton(() => onOpenAdmin('fleet'), 'slate', Car, 'Gestão de Frotas', 'Veículos e Marcas', '450ms')}
                         </div>
+
+                        {/* Mobile-only Logout */}
+                        <button
+                            onClick={onLogout}
+                            className="mt-12 w-full py-4 rounded-2xl border border-rose-200 bg-white text-rose-500 font-bold uppercase tracking-widest text-xs flex md:hidden items-center justify-center gap-2 hover:bg-rose-50 transition-all shadow-sm"
+                        >
+                            <LogOut className="w-4 h-4" /> Sair do Sistema
+                        </button>
                     </div>
-                )}
-
-                {activeBlock && activeBlock !== 'agendamento' && (
-                    <div className="w-full max-w-6xl animate-fade-in flex flex-col items-center">
-                        <div className="space-y-6 w-full max-w-5xl">
-                            <button onClick={() => setActiveBlock(null)} className="group flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold mb-4 transition-all w-fit">
-                                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                                <span className="text-xs uppercase tracking-widest">Voltar</span>
-                            </button>
-                            <div className="text-center space-y-1">
-                                <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight text-center">{getBlockName()}</h2>
-                                <p className="text-slate-500 text-xs font-medium">Gestão Integrada Municipal</p>
-                            </div>
-
-                            <div className="flex flex-col md:flex-row flex-nowrap md:flex-wrap items-center justify-start md:justify-center gap-4 md:gap-6 lg:gap-8 pt-4 w-full max-w-full overflow-y-auto md:overflow-visible h-[calc(100vh-200px)] md:h-auto pb-24 md:pb-0">
-                                {activeBlock !== 'abastecimento' && (
-                                    <>
-                                        <button onClick={() => onNewOrder(activeBlock || 'oficio')} className={`group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-indigo-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-full md:w-52 h-64 md:h-52' : 'w-full md:w-64 h-64 md:h-56'} shrink-0 overflow-hidden`}>
-                                            <div className="w-20 h-20 md:w-14 md:h-14 bg-indigo-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><FilePlus className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
-                                            <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">{getNewActionLabel()}</h3>
-                                            <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Criar novo registro.</p>
-                                        </button>
-
-                                        <button onClick={onTrackOrder} className={`group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-purple-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-full md:w-52 h-64 md:h-52' : 'w-full md:w-64 h-64 md:h-56'} shrink-0 overflow-hidden`}>
-                                            <div className="w-20 h-20 md:w-14 md:h-14 bg-purple-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><History className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
-                                            <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">{
-                                                activeBlock === 'oficio' ? 'Histórico de Ofícios' :
-                                                    activeBlock === 'compras' ? 'Histórico de Compras' :
-                                                        activeBlock === 'diarias' ? 'Histórico de Solicitações' :
-                                                            activeBlock === 'licitacao' ? 'Meus Processos' :
-                                                                'Histórico'
-                                            }</h3>
-                                            <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Consulte registros de {activeBlock?.toUpperCase()}.</p>
-                                        </button>
-                                    </>
-                                )}
-
-                                {activeBlock === 'compras' && canManagePurchaseOrders && (
-                                    <button onClick={onManagePurchaseOrders} className={`group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-emerald-300 transition-all flex flex-col items-center text-center justify-center ${activeBlock === 'licitacao' ? 'w-full md:w-52 h-64 md:h-52' : 'w-full md:w-64 h-64 md:h-56'} shrink-0 overflow-hidden`}>
-                                        <div className="w-20 h-20 md:w-14 md:h-14 bg-emerald-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><Inbox className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
-                                        <h3 className="text-3xl sm:text-xs md:text-lg lg:text-xl font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">Pedidos</h3>
-                                        <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Gestão Administrativa (Admin)</p>
-                                    </button>
-                                )}
-
-                                {activeBlock === 'licitacao' && canAccessLicitacaoTriagem && (
-                                    <button onClick={onManageLicitacaoScreening} className="group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-amber-300 transition-all flex flex-col items-center text-center justify-center w-full md:w-52 h-64 md:h-52 shrink-0 overflow-hidden">
-                                        <div className="w-20 h-20 md:w-14 md:h-14 bg-amber-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><Inbox className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
-                                        <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">Triagem</h3>
-                                        <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Triagem de Processos</p>
-                                    </button>
-
-                                )}
-
-                                {activeBlock === 'licitacao' && canAccessLicitacaoProcessos && (
-                                    <button onClick={onViewAllLicitacao} className="group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-sky-300 transition-all flex flex-col items-center text-center justify-center w-full md:w-52 h-64 md:h-52 shrink-0 overflow-hidden">
-                                        <div className="w-20 h-20 md:w-14 md:h-14 bg-sky-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><FileSearch className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
-                                        <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">Processos</h3>
-                                        <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Todos os Processos</p>
-                                    </button>
-                                )}
-
-                                {activeBlock === 'abastecimento' && (
-                                    <>
-                                        <button onClick={() => onAbastecimento?.('new')} className="group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-cyan-300 transition-all flex flex-col items-center text-center justify-center w-full md:w-52 h-64 md:h-52 shrink-0 overflow-hidden">
-                                            <div className="w-20 h-20 md:w-14 md:h-14 bg-cyan-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><Fuel className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
-                                            <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">Novo Abastecimento</h3>
-                                            <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Registrar entrada.</p>
-                                        </button>
-
-                                        <button onClick={() => onAbastecimento?.('management')} className="group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-blue-300 transition-all flex flex-col items-center text-center justify-center w-full md:w-52 h-64 md:h-52 shrink-0 overflow-hidden">
-                                            <div className="w-20 h-20 md:w-14 md:h-14 bg-blue-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><History className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
-                                            <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 leading-tight px-1">Gestão de<br />Abastecimento</h3>
-                                            <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Consultar histórico.</p>
-                                        </button>
-
-                                        <button onClick={() => onAbastecimento?.('dashboard')} className="group p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-emerald-300 transition-all hidden md:flex flex-col items-center text-center justify-center w-full md:w-52 h-64 md:h-52 shrink-0 overflow-hidden">
-                                            <div className="w-20 h-20 md:w-14 md:h-14 bg-emerald-600 rounded-xl flex items-center justify-center mb-4 md:mb-4 group-hover:scale-110 transition-transform"><BarChart3 className="w-10 h-10 md:w-7 md:h-7 text-white" /></div>
-                                            <h3 className="text-3xl sm:text-xs md:text-base lg:text-lg font-black text-slate-900 mb-1 md:mb-1 whitespace-nowrap px-1">Dashboard</h3>
-                                            <p className="text-slate-500 text-sm sm:text-[10px] md:text-xs font-medium px-1">Indicadores e gráficos.</p>
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                <div className="mt-auto py-8 flex items-center justify-center gap-2 text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em] shrink-0">
-                    <Package className="w-4 h-4" /><span>Plataforma de Gestão Integrada v1.2.0</span>
                 </div>
+
+                {/* Scroll Indicator */}
+                <div
+                    className={`absolute bottom-8 left-1/2 -translate-x-1/2 transition-all duration-700 pointer-events-none z-30 ${showScrollIndicator ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+                >
+                    <div className="flex flex-col items-center gap-2 animate-bounce">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Ver Mais</span>
+                        <div className="w-10 h-10 rounded-full bg-white/50 backdrop-blur-sm border border-white/60 shadow-lg flex items-center justify-center text-indigo-600">
+                            <ChevronDown className="w-5 h-5" />
+                        </div>
+                    </div>
+                </div>
+
             </main>
+
+            {/* Footer Info */}
+            <div className="absolute bottom-4 left-8 text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em] hidden lg:block pointer-events-none">
+                <Package className="w-3 h-3 inline mr-2" /> Plataforma Integrada v1.3.0
+            </div>
+
+            {/* TASKS DRAWER OVERLAY */}
+            {isTasksDrawerOpen && (
+                <div className="fixed inset-0 z-[100] flex justify-end">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm animate-in fade-in duration-300"
+                        onClick={() => setIsTasksDrawerOpen(false)}
+                    />
+
+                    {/* Drawer Content */}
+                    <div className="relative z-10 w-full max-w-md h-full bg-white/60 backdrop-blur-xl border-l border-white/50 shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col p-4 md:p-6">
+                        <TasksDashboard
+                            orders={orders}
+                            userRole={userRole}
+                            userName={userName}
+                            onViewOrder={(order) => {
+                                onViewOrder?.(order);
+                                setIsTasksDrawerOpen(false); // Close drawer on selection
+                            }}
+                            onViewAll={(type) => {
+                                onTrackOrder();
+                                setIsTasksDrawerOpen(false);
+                            }}
+                            onClose={() => setIsTasksDrawerOpen(false)}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
+
+

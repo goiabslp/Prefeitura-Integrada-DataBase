@@ -1493,20 +1493,7 @@ const App: React.FC = () => {
           </div>
           {/* ... rest of the app structure ... */}
           <div className="flex-1 flex relative overflow-hidden">
-            {currentView === 'home' && currentUser && <HomeScreen onNewOrder={handleStartEditing} onViewAllLicitacao={handleViewAllLicitacao} onTrackOrder={handleTrackOrder} onManagePurchaseOrders={handleManagePurchaseOrders} onManageLicitacaoScreening={() => setCurrentView('licitacao-screening')} onVehicleScheduling={() => setCurrentView('vehicle-scheduling')} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} userRole={currentUser.role} userName={currentUser.name} permissions={currentUser.permissions} activeBlock={activeBlock} setActiveBlock={setActiveBlock} stats={{ totalGenerated: globalCounter, historyCount: orders.length, activeUsers: users.length }} onAbastecimento={(sub) => {
-              setAppState(prev => ({ ...prev, view: sub }));
-              setCurrentView('abastecimento');
-              const path = `abastecimento:${sub}`;
-              if (VIEW_TO_PATH[path]) {
-                window.history.pushState({}, '', VIEW_TO_PATH[path]);
-              }
-            }} onAgricultura={() => {
-              setCurrentView('agricultura');
-              window.history.pushState({}, '', '/Agricultura');
-            }} onObras={() => {
-              setCurrentView('obras');
-              window.history.pushState({}, '', '/Obras');
-            }} />}
+
             {(currentView === 'editor' || currentView === 'admin') && currentUser && (
               <div className="flex-1 flex flex-col overflow-hidden h-full relative">
                 {/* GLOBAL STEPPER FOR LICITACAO */}
@@ -2277,6 +2264,71 @@ const App: React.FC = () => {
                   </main>
                 </div>
               </div>
+            )}
+            {currentView === 'home' && (
+              <HomeScreen
+                onNewOrder={(block) => {
+                  setActiveBlock(block || 'oficio');
+                  // If specific block logic needed for new order
+                  if (block === 'licitacao') {
+                    setCurrentView('editor');
+                    setEditingOrder(null);
+                    setIsLicitacaoSettingsOpen(true);
+                  } else if (block === 'abastecimento') {
+                    // Handled by onAbastecimento usually, but just in case
+                    setCurrentView('abastecimento');
+                  } else {
+                    setEditingOrder(null);
+                    setCurrentView('editor');
+                  }
+                }}
+                onTrackOrder={() => {
+                  if (activeBlock) setCurrentView(activeBlock === 'licitacao' ? 'licitacao-tracking' : 'tracking');
+                  else setCurrentView('tracking');
+                }}
+                onManagePurchaseOrders={() => {
+                  setActiveBlock('compras');
+                  setCurrentView('purchase-management');
+                }}
+                onViewAllLicitacao={() => setCurrentView('licitacao-all')}
+                onManageLicitacaoScreening={() => setCurrentView('licitacao-screening')}
+                onVehicleScheduling={() => setCurrentView('vehicle-scheduling')}
+                onOpenAdmin={(tab) => {
+                  setCurrentView('admin');
+                  setAdminTab(tab || 'users');
+                }}
+                onAbastecimento={(sub) => {
+                  setActiveBlock('abastecimento');
+                  setCurrentView('abastecimento');
+                  // You might need a state for sub-view if Abastecimento uses it
+                }}
+                onAgricultura={() => setCurrentView('agricultura')}
+                onObras={() => setCurrentView('obras')}
+                activeBlock={activeBlock}
+                setActiveBlock={setActiveBlock}
+                userRole={currentUser?.role || 'collaborator'}
+                userName={currentUser?.name || 'Usuário'}
+                userJobTitle={currentUser?.jobTitle}
+                uiConfig={appState.ui}
+                permissions={currentUser?.permissions || []}
+                stats={{
+                  totalGenerated: orders.length,
+                  historyCount: orders.length, // Simplified
+                  activeUsers: users.length
+                }}
+                onLogout={() => signOut()}
+                orders={orders}
+                onViewOrder={(order) => {
+                  setEditingOrder(order);
+                  setActiveBlock(order.blockType);
+                  // Determine appropriate view based on block type
+                  if (order.blockType === 'licitacao') {
+                    setCurrentView('editor'); // Or tracking? Usually editor for details/edit
+                  } else {
+                    setCurrentView('editor');
+                  }
+                }}
+              />
             )}
             {/* Abastecimento Module */}
             {currentView === 'abastecimento' && appState.view === 'new' && (
