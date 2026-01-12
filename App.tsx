@@ -74,6 +74,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   'admin:entities': '/Admin/Entidades',
   'admin:fleet': '/Frota',
   'admin:signatures': '/Admin/Assinaturas',
+  'admin:2fa': '/Admin/autenticador',
   'admin:ui': '/Admin/Interface',
   'admin:design': '/Admin/Design',
   'tracking:oficio': '/Historico/Oficio',
@@ -84,12 +85,14 @@ const VIEW_TO_PATH: Record<string, string> = {
   'editor:diarias': '/Editor/Diarias',
   'purchase-management': '/GestaoCompras',
   'vehicle-scheduling': '/AgendamentoVeiculos',
+  'vehicle-scheduling:agendamento': '/AgendamentoVeiculos',
   'vehicle-scheduling:vs_calendar': '/AgendamentoVeiculos/Agendar',
   'vehicle-scheduling:vs_history': '/AgendamentoVeiculos/Historico',
   'vehicle-scheduling:vs_approvals': '/AgendamentoVeiculos/Aprovacoes',
   'abastecimento:new': '/Abastecimento/NovoAbastecimento',
-  'abastecimento:management': '/Abastecimento/GestãoAbastecimento',
+  'abastecimento:management': '/Abastecimento/GestaoAbastecimento',
   'abastecimento:dashboard': '/Abastecimento/DashboardAbastecimento',
+  'abastecimento': '/Abastecimento',
   'agricultura': '/Agricultura',
   'obras': '/Obras'
 };
@@ -469,6 +472,12 @@ const App: React.FC = () => {
         } else if (state.view === 'licitacao-screening') {
           setCurrentView('licitacao-screening');
           setActiveBlock('licitacao');
+        } else if (state.view === 'abastecimento') {
+          setCurrentView('abastecimento');
+          setActiveBlock('abastecimento');
+          if (state.sub === 'new') setAppState(prev => ({ ...prev, view: 'new' }));
+          else if (state.sub === 'management') setAppState(prev => ({ ...prev, view: 'management' }));
+          else if (state.sub === 'dashboard') setAppState(prev => ({ ...prev, view: 'dashboard' }));
         } else {
           // General Handling
           setCurrentView(state.view);
@@ -500,6 +509,12 @@ const App: React.FC = () => {
       } else if (initialState.view === 'licitacao-screening') {
         setCurrentView('licitacao-screening');
         setActiveBlock('licitacao');
+      } else if (initialState.view === 'abastecimento') {
+        setCurrentView('abastecimento');
+        setActiveBlock('abastecimento');
+        if (initialState.sub === 'new') setAppState(prev => ({ ...prev, view: 'new' }));
+        else if (initialState.sub === 'management') setAppState(prev => ({ ...prev, view: 'management' }));
+        else if (initialState.sub === 'dashboard') setAppState(prev => ({ ...prev, view: 'dashboard' }));
       } else {
         if (initialState.view !== currentView) setCurrentView(initialState.view);
         if (initialState.view === 'admin') {
@@ -529,6 +544,8 @@ const App: React.FC = () => {
       else if (currentView === 'licitacao-all') stateKey = 'licitacao-all';
       else if (currentView === 'licitacao-screening') stateKey = 'licitacao-screening';
       else if (currentView === 'home') stateKey = 'home:licitacao';
+    } else if (currentView === 'abastecimento') {
+      stateKey = `abastecimento:${appState.view || 'management'}`;
     } else {
       // Standard Keys
       if (currentView === 'admin' && adminTab) {
@@ -2283,7 +2300,7 @@ const App: React.FC = () => {
                   }
                 }}
                 onTrackOrder={() => {
-                  if (activeBlock) setCurrentView(activeBlock === 'licitacao' ? 'licitacao-tracking' : 'tracking');
+                  if (activeBlock) setCurrentView('tracking');
                   else setCurrentView('tracking');
                 }}
                 onManagePurchaseOrders={() => {
@@ -2523,6 +2540,10 @@ const App: React.FC = () => {
               currentUser={currentUser}
               persons={persons}
               sectors={sectors}
+              currentView={currentView}
+              onRefresh={refreshData}
+              isRefreshing={isRefreshing}
+              currentSubView={appState.view}
               onUpdate={(updates) => {
                 setAppState(prev => ({
                   ...prev,
