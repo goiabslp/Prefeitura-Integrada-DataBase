@@ -568,8 +568,12 @@ const App: React.FC = () => {
       window.history.pushState(null, '', expectedPath);
     }
 
-    // Auto-refresh on route change
-    refreshData(true);
+    // Auto-refresh on route change (Debounced to prevent timeout floods)
+    const timeoutId = setTimeout(() => {
+      refreshData(true);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
   }, [currentView, activeBlock, adminTab, editingOrder]);
 
   // Fetch Licitacao Global Protocol Counter
