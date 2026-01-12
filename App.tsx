@@ -276,36 +276,47 @@ const App: React.FC = () => {
     if (!silent) showToast("Atualizando dados...", "info");
     try {
       // Parallelize fetches for speed
+      // Batch 1: Metadata & Config (Fast)
+      const [
+        savedSectors,
+        savedJobs,
+        savedBrands,
+        savedGasStations,
+        savedFuelTypes,
+        savedUsers,
+        counterValue
+      ] = await Promise.all([
+        entityService.getSectors(),
+        entityService.getJobs(),
+        entityService.getBrands(),
+        AbastecimentoService.getGasStations(),
+        AbastecimentoService.getFuelTypes(),
+        entityService.getUsers(),
+        db.getGlobalCounter(),
+      ]);
+
+      // Batch 2: Heavy Entities
+      const [
+        savedPersons,
+        savedVehicles
+      ] = await Promise.all([
+        entityService.getPersons(),
+        entityService.getVehicles()
+      ]);
+
+      // Batch 3: Transactional Data (Heaviest)
       const [
         savedOficios,
         savedPurchaseOrders,
         savedServiceRequests,
         savedLicitacaoProcesses,
-        savedPersons,
-        savedSectors,
-        savedJobs,
-        savedBrands,
-        savedVehicles,
-        savedSchedules,
-        counterValue,
-        savedGasStations,
-        savedFuelTypes,
-        savedUsers
+        savedSchedules
       ] = await Promise.all([
         oficiosService.getAllOficios(),
         comprasService.getAllPurchaseOrders(),
         diariasService.getAllServiceRequests(),
         licitacaoService.getAllLicitacaoProcesses(),
-        entityService.getPersons(),
-        entityService.getSectors(),
-        entityService.getJobs(),
-        entityService.getBrands(),
-        entityService.getVehicles(),
-        vehicleSchedulingService.getSchedules(),
-        db.getGlobalCounter(),
-        AbastecimentoService.getGasStations(),
-        AbastecimentoService.getFuelTypes(),
-        entityService.getUsers()
+        vehicleSchedulingService.getSchedules()
       ]);
 
       const mappedUsers: User[] = savedUsers.map((ru: any) => ({

@@ -180,7 +180,13 @@ export const deletePerson = async (id: string): Promise<boolean> => {
 
 // Vehicles
 export const getVehicles = async (): Promise<Vehicle[]> => {
-    const { data, error } = await supabase.from('vehicles').select('*');
+    const { data, error } = await supabase
+        .from('vehicles')
+        .select(`
+            id, type, model, plate, brand, year, color, renavam, chassis,
+            sector_id, responsible_person_id, document_url, document_name,
+            vehicle_image_url, status, maintenance_status, fuel_types, request_manager_ids
+        `);
     if (error) {
         console.error('Error fetching vehicles:', error);
         return [];
