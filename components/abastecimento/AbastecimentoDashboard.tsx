@@ -22,6 +22,7 @@ interface AbastecimentoDashboardProps {
     gasStations: { id: string, name: string, city: string }[];
     fuelTypes: { key: string; label: string; price: number }[];
     sectors: Sector[];
+    refreshTrigger?: number;
 }
 
 type TabType = 'overview' | 'vehicle' | 'sector' | 'reports' | 'config';
@@ -285,7 +286,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
     );
 };
 
-export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ onBack, state, onAbastecimento, vehicles, persons, gasStations, fuelTypes, sectors }) => {
+export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ onBack, state, onAbastecimento, vehicles, persons, gasStations, fuelTypes, sectors, refreshTrigger }) => {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -312,11 +313,12 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         }).format(value);
     };
 
+    const loadRecords = async () => {
+        const data = await AbastecimentoService.getAbastecimentos();
+        setAllRecords(data);
+    };
+
     useEffect(() => {
-        const loadRecords = async () => {
-            const data = await AbastecimentoService.getAbastecimentos();
-            setAllRecords(data);
-        };
         loadRecords();
 
         const channel = supabase
@@ -334,6 +336,13 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             supabase.removeChannel(channel);
         };
     }, []);
+
+    // Effect to handle manual refresh trigger
+    useEffect(() => {
+        if (refreshTrigger && refreshTrigger > 0) {
+            loadRecords();
+        }
+    }, [refreshTrigger]);
 
     const months = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',

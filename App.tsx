@@ -193,6 +193,7 @@ const App: React.FC = () => {
 
   // --- GLOBAL SETTINGS LOAD & SAVE ---
   const [successOverlay, setSuccessOverlay] = useState<{ show: boolean, protocol: string } | null>(null);
+  const [lastRefresh, setLastRefresh] = useState(0);
 
   const handleSaveGlobalSettings = async () => {
     try {
@@ -270,8 +271,9 @@ const App: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Initial Data Fetch
-  const refreshData = useCallback(async () => {
+  const refreshData = useCallback(async (silent = false) => {
     setIsRefreshing(true);
+    if (!silent) showToast("Atualizando dados...", "info");
     try {
       // Parallelize fetches for speed
       const [
@@ -378,8 +380,11 @@ const App: React.FC = () => {
         if (nextLicParams) setLicitacaoNextProtocol(nextLicParams);
       }
 
+      if (!silent) showToast("Dados atualizados com sucesso!", "success");
+      setLastRefresh(Date.now());
     } catch (err) {
       console.error("Failed to load data", err);
+      if (!silent) showToast("Erro ao atualizar dados.", "error");
     } finally {
       setIsRefreshing(false);
     }
@@ -447,10 +452,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    // Initial load
-    refreshData();
-  }, []);
+  /* Removed Initial Refresh Effect - Handled by Route Sync Effect */
   useEffect(() => {
     const handlePopState = () => {
       const currentPath = window.location.pathname;
@@ -484,7 +486,7 @@ const App: React.FC = () => {
           if (state.view === 'admin') setAdminTab(state.sub);
           else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(state.view)) setActiveBlock(state.sub || null);
         }
-        refreshData();
+        // Refresh handled by effect dependency on currentView/activeBlock
       }
     };
 
@@ -524,7 +526,7 @@ const App: React.FC = () => {
           if (newBlock !== activeBlock) setActiveBlock(newBlock);
         }
       }
-      refreshData();
+      // Refresh handled by effect dependency
     } else if (initialPath === '/' || initialPath === '') {
       if (currentUser) setCurrentView('home');
       else setCurrentView('login');
@@ -564,10 +566,10 @@ const App: React.FC = () => {
     const expectedPath = VIEW_TO_PATH[stateKey];
     if (expectedPath && window.location.pathname !== expectedPath) {
       window.history.pushState(null, '', expectedPath);
-      // Removed redundant refreshData() - Initial mount and action-based refreshes are sufficient.
     }
 
-    // Auto-refresh handled by useCallback dependency if needed
+    // Auto-refresh on route change
+    refreshData(true);
   }, [currentView, activeBlock, adminTab, editingOrder]);
 
   // Fetch Licitacao Global Protocol Counter
@@ -2395,6 +2397,7 @@ const App: React.FC = () => {
                   setAppState(prev => ({ ...prev, view: 'new' })); // Reuse 'new' view for editing form
                   setCurrentView('abastecimento');
                 }}
+                refreshTrigger={lastRefresh}
               />
             )}
 
@@ -2419,6 +2422,7 @@ const App: React.FC = () => {
                 gasStations={gasStations}
                 fuelTypes={fuelTypes}
                 sectors={sectors}
+                refreshTrigger={lastRefresh}
               />
             )}
 

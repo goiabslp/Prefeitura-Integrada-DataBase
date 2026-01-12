@@ -120,7 +120,7 @@ const AbastecimentoCard = ({ item, isAdmin, onEdit, onDelete, vehicleModelMap, v
     );
 };
 
-export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, onEdit }) => {
+export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, onEdit, refreshTrigger }) => {
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin';
     const [supplies, setSupplies] = useState<AbastecimentoRecord[]>([]);
@@ -200,6 +200,12 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
             setIsLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (refreshTrigger && refreshTrigger > 0) {
+            loadSupplies();
+        }
+    }, [refreshTrigger]);
 
     useEffect(() => {
         loadSupplies();
