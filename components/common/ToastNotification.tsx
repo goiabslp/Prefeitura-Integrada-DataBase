@@ -54,10 +54,10 @@ export const ToastNotification: React.FC<ToastNotificationProps> = ({
 
     const getColors = () => {
         switch (type) {
-            case 'success': return 'bg-emerald-600 text-white shadow-emerald-500/30';
-            case 'error': return 'bg-rose-600 text-white shadow-rose-500/30';
-            case 'warning': return 'bg-amber-500 text-white shadow-amber-500/30';
-            default: return 'bg-blue-600 text-white shadow-blue-500/30';
+            case 'success': return 'bg-emerald-600/70 border-emerald-500/30 text-white shadow-lg shadow-emerald-500/20';
+            case 'error': return 'bg-rose-600/70 border-rose-500/30 text-white shadow-lg shadow-rose-500/20';
+            case 'warning': return 'bg-amber-500/70 border-amber-500/30 text-white shadow-lg shadow-amber-500/20';
+            default: return 'bg-blue-600/70 border-blue-500/30 text-white shadow-lg shadow-blue-500/20';
         }
     };
 

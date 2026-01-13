@@ -842,10 +842,18 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                 <button onClick={() => setPreviewOrder(null)} className="p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
                             </div>
                             <div className="flex-1 overflow-auto bg-slate-100 p-8 flex justify-center">
-                                <DocumentPreview
-                                    state={previewOrder.documentSnapshot}
-                                    scale={0.8}
-                                />
+                                {previewOrder.documentSnapshot ? (
+                                    <DocumentPreview
+                                        state={previewOrder.documentSnapshot}
+                                        scale={0.8}
+                                    />
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center p-8 text-slate-400 h-full">
+                                        <FileText className="w-16 h-16 mb-4 opacity-20" />
+                                        <p className="font-bold text-lg text-slate-500">Documento não disponível</p>
+                                        <p className="text-sm">Os dados deste documento não foram encontrados.</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

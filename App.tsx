@@ -18,7 +18,7 @@ import * as signatureService from './services/signatureService';
 import * as vehicleSchedulingService from './services/vehicleSchedulingService';
 import * as licitacaoService from './services/licitacaoService';
 import { AbastecimentoService } from './services/abastecimentoService';
-import { Send, CheckCircle2, X, Download, Save, FilePlus, Package, History, FileText, Settings, LogOut, ChevronRight, ChevronDown, Search, Filter, Upload, Trash2, Printer, Edit, ArrowLeft } from 'lucide-react';
+import { Send, CheckCircle2, X, Download, Save, FilePlus, Package, History, FileText, Settings, LogOut, ChevronRight, ChevronDown, Search, Filter, Upload, Trash2, Printer, Edit, ArrowLeft, Loader2 } from 'lucide-react';
 
 // Components
 import { LoginScreen } from './components/LoginScreen';
@@ -74,6 +74,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   'admin:entities': '/Admin/Entidades',
   'admin:fleet': '/Frota',
   'admin:signatures': '/Admin/Assinaturas',
+  'admin:2fa': '/Admin/autenticador',
   'admin:ui': '/Admin/Interface',
   'admin:design': '/Admin/Design',
   'tracking:oficio': '/Historico/Oficio',
@@ -84,12 +85,14 @@ const VIEW_TO_PATH: Record<string, string> = {
   'editor:diarias': '/Editor/Diarias',
   'purchase-management': '/GestaoCompras',
   'vehicle-scheduling': '/AgendamentoVeiculos',
+  'vehicle-scheduling:agendamento': '/AgendamentoVeiculos',
   'vehicle-scheduling:vs_calendar': '/AgendamentoVeiculos/Agendar',
   'vehicle-scheduling:vs_history': '/AgendamentoVeiculos/Historico',
   'vehicle-scheduling:vs_approvals': '/AgendamentoVeiculos/Aprovacoes',
   'abastecimento:new': '/Abastecimento/NovoAbastecimento',
-  'abastecimento:management': '/Abastecimento/GestãoAbastecimento',
+  'abastecimento:management': '/Abastecimento/GestaoAbastecimento',
   'abastecimento:dashboard': '/Abastecimento/DashboardAbastecimento',
+  'abastecimento': '/Abastecimento',
   'agricultura': '/Agricultura',
   'obras': '/Obras'
 };
@@ -189,7 +192,9 @@ const App: React.FC = () => {
   const [isOficioNumberingModalOpen, setIsOficioNumberingModalOpen] = useState(false);
 
   // --- GLOBAL SETTINGS LOAD & SAVE ---
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false); // New state for lazy loading
   const [successOverlay, setSuccessOverlay] = useState<{ show: boolean, protocol: string } | null>(null);
+  const [lastRefresh, setLastRefresh] = useState(0);
 
   const handleSaveGlobalSettings = async () => {
     try {
@@ -261,46 +266,59 @@ const App: React.FC = () => {
   const [twoFASignatureName, setTwoFASignatureName] = useState('');
   const [pendingParams, setPendingParams] = useState<any>(null); // To store state/action to resume after 2FA
   const [pending2FAAction, setPending2FAAction] = useState<((metadata: any) => Promise<void>) | null>(null); // Generic callback for 2FA success
+  const [pendingSignatureMetadata, setPendingSignatureMetadata] = useState<any | null>(null);
 
   // Routing logic
   const [isLicitacaoSettingsOpen, setIsLicitacaoSettingsOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Initial Data Fetch
-  const refreshData = useCallback(async () => {
+  const refreshData = useCallback(async (silent = false) => {
     setIsRefreshing(true);
+    if (!silent) showToast("Atualizando dados...", "info");
     try {
       // Parallelize fetches for speed
+      // Batch 1: Metadata & Config (Fast)
+      const [
+        savedSectors,
+        savedJobs,
+        savedBrands,
+        savedGasStations,
+        savedFuelTypes,
+        savedUsers,
+        counterValue
+      ] = await Promise.all([
+        entityService.getSectors(),
+        entityService.getJobs(),
+        entityService.getBrands(),
+        AbastecimentoService.getGasStations(),
+        AbastecimentoService.getFuelTypes(),
+        entityService.getUsers(),
+        db.getGlobalCounter(),
+      ]);
+
+      // Batch 2: Heavy Entities
+      const [
+        savedPersons,
+        savedVehicles
+      ] = await Promise.all([
+        entityService.getPersons(),
+        entityService.getVehicles()
+      ]);
+
+      // Batch 3: Transactional Data (Heaviest)
       const [
         savedOficios,
         savedPurchaseOrders,
         savedServiceRequests,
         savedLicitacaoProcesses,
-        savedPersons,
-        savedSectors,
-        savedJobs,
-        savedBrands,
-        savedVehicles,
-        savedSchedules,
-        counterValue,
-        savedGasStations,
-        savedFuelTypes,
-        savedUsers
+        savedSchedules
       ] = await Promise.all([
         oficiosService.getAllOficios(),
         comprasService.getAllPurchaseOrders(),
         diariasService.getAllServiceRequests(),
         licitacaoService.getAllLicitacaoProcesses(),
-        entityService.getPersons(),
-        entityService.getSectors(),
-        entityService.getJobs(),
-        entityService.getBrands(),
-        entityService.getVehicles(),
-        vehicleSchedulingService.getSchedules(),
-        db.getGlobalCounter(),
-        AbastecimentoService.getGasStations(),
-        AbastecimentoService.getFuelTypes(),
-        entityService.getUsers()
+        vehicleSchedulingService.getSchedules()
       ]);
 
       const mappedUsers: User[] = savedUsers.map((ru: any) => ({
@@ -375,8 +393,11 @@ const App: React.FC = () => {
         if (nextLicParams) setLicitacaoNextProtocol(nextLicParams);
       }
 
+      if (!silent) showToast("Dados atualizados com sucesso!", "success");
+      setLastRefresh(Date.now());
     } catch (err) {
       console.error("Failed to load data", err);
+      if (!silent) showToast("Erro ao atualizar dados.", "error");
     } finally {
       setIsRefreshing(false);
     }
@@ -444,10 +465,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    // Initial load
-    refreshData();
-  }, []);
+  /* Removed Initial Refresh Effect - Handled by Route Sync Effect */
   useEffect(() => {
     const handlePopState = () => {
       const currentPath = window.location.pathname;
@@ -469,13 +487,19 @@ const App: React.FC = () => {
         } else if (state.view === 'licitacao-screening') {
           setCurrentView('licitacao-screening');
           setActiveBlock('licitacao');
+        } else if (state.view === 'abastecimento') {
+          setCurrentView('abastecimento');
+          setActiveBlock('abastecimento');
+          if (state.sub === 'new') setAppState(prev => ({ ...prev, view: 'new' }));
+          else if (state.sub === 'management') setAppState(prev => ({ ...prev, view: 'management' }));
+          else if (state.sub === 'dashboard') setAppState(prev => ({ ...prev, view: 'dashboard' }));
         } else {
           // General Handling
           setCurrentView(state.view);
           if (state.view === 'admin') setAdminTab(state.sub);
           else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(state.view)) setActiveBlock(state.sub || null);
         }
-        refreshData();
+        // Refresh handled by effect dependency on currentView/activeBlock
       }
     };
 
@@ -500,6 +524,12 @@ const App: React.FC = () => {
       } else if (initialState.view === 'licitacao-screening') {
         setCurrentView('licitacao-screening');
         setActiveBlock('licitacao');
+      } else if (initialState.view === 'abastecimento') {
+        setCurrentView('abastecimento');
+        setActiveBlock('abastecimento');
+        if (initialState.sub === 'new') setAppState(prev => ({ ...prev, view: 'new' }));
+        else if (initialState.sub === 'management') setAppState(prev => ({ ...prev, view: 'management' }));
+        else if (initialState.sub === 'dashboard') setAppState(prev => ({ ...prev, view: 'dashboard' }));
       } else {
         if (initialState.view !== currentView) setCurrentView(initialState.view);
         if (initialState.view === 'admin') {
@@ -509,7 +539,7 @@ const App: React.FC = () => {
           if (newBlock !== activeBlock) setActiveBlock(newBlock);
         }
       }
-      refreshData();
+      // Refresh handled by effect dependency
     } else if (initialPath === '/' || initialPath === '') {
       if (currentUser) setCurrentView('home');
       else setCurrentView('login');
@@ -529,6 +559,8 @@ const App: React.FC = () => {
       else if (currentView === 'licitacao-all') stateKey = 'licitacao-all';
       else if (currentView === 'licitacao-screening') stateKey = 'licitacao-screening';
       else if (currentView === 'home') stateKey = 'home:licitacao';
+    } else if (currentView === 'abastecimento') {
+      stateKey = `abastecimento:${appState.view || 'management'}`;
     } else {
       // Standard Keys
       if (currentView === 'admin' && adminTab) {
@@ -547,10 +579,14 @@ const App: React.FC = () => {
     const expectedPath = VIEW_TO_PATH[stateKey];
     if (expectedPath && window.location.pathname !== expectedPath) {
       window.history.pushState(null, '', expectedPath);
-      // Removed redundant refreshData() - Initial mount and action-based refreshes are sufficient.
     }
 
-    // Auto-refresh handled by useCallback dependency if needed
+    // Auto-refresh on route change (Debounced to prevent timeout floods)
+    const timeoutId = setTimeout(() => {
+      refreshData(true);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
   }, [currentView, activeBlock, adminTab, editingOrder]);
 
   // Fetch Licitacao Global Protocol Counter
@@ -611,6 +647,10 @@ const App: React.FC = () => {
 
     // INTERCEPTION FOR NEW OFICIO NUMBERING & COMPRAS
     if ((activeBlock === 'oficio' || activeBlock === 'compras') && !editingOrder && !forceOficio) {
+      // PRESERVE DIGITAL SIGNATURE DATA IF PRESENT
+      if (digitalSignatureData) {
+        setPendingSignatureMetadata(digitalSignatureData);
+      }
       setIsOficioNumberingModalOpen(true);
       return false;
     }
@@ -824,12 +864,38 @@ const App: React.FC = () => {
     setSuccessOverlay({ show: true, protocol: appState.content.protocol || lastOrder?.protocol || 'ERRO-PROTOCOLO' });
   };
 
-  const handleEditOrder = (order: Order) => {
+  const handleEditOrder = async (order: Order) => {
     setLastListView(currentView); // Track where we came from
-    let snapshotToUse = order.documentSnapshot;
+
+    // LAZY LOAD DETAILS (Optimized Oficios)
+    let fullOrder = order;
+    if (order.blockType === 'oficio' && (!order.documentSnapshot?.content || Object.keys(order.documentSnapshot.content).length === 0)) {
+      setIsLoadingDetails(true);
+      try {
+        const fetched = await oficiosService.getOficioById(order.id);
+        if (fetched) {
+          fullOrder = fetched;
+          // Update local cache so we don't fetch again
+          setOficios(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+        } else {
+          alert("Erro ao carregar os detalhes do ofício. Tente novamente.");
+          setIsLoadingDetails(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Error fetching details", err);
+        alert("Erro de conexão ao carregar ofício.");
+        setIsLoadingDetails(false);
+        return;
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    }
+
+    let snapshotToUse = fullOrder.documentSnapshot;
 
     // STRICT NAVIGATION GUARD: Licitacao logic
-    if (order.blockType === 'licitacao') {
+    if (fullOrder.blockType === 'licitacao') {
       const isMeusProcessos = currentView === 'tracking';
 
       if (isMeusProcessos) {
@@ -1040,10 +1106,33 @@ const App: React.FC = () => {
   };
 
   const handleDownloadFromHistory = async (order: Order, forcedBlockType?: BlockType) => {
-    if (!order.documentSnapshot) return;
+    // Lazy load details if missing
+    let fullOrder = order;
+    if (order.blockType === 'oficio' && (!order.documentSnapshot?.content || Object.keys(order.documentSnapshot.content).length === 0)) {
+      setIsLoadingDetails(true);
+      try {
+        const fetched = await oficiosService.getOficioById(order.id);
+        if (fetched) {
+          fullOrder = fetched;
+          setOficios(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+        } else {
+          alert("Erro ao baixar: Detalhes não encontrados.");
+          setIsLoadingDetails(false);
+          return;
+        }
+      } catch (e) {
+        alert("Erro ao baixar: Falha na conexão.");
+        setIsLoadingDetails(false);
+        return;
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    }
+
+    if (!fullOrder.documentSnapshot) return;
     setIsDownloading(true);
-    setSnapshotToDownload(order.documentSnapshot);
-    setBlockTypeToDownload(forcedBlockType || order.blockType);
+    setSnapshotToDownload(fullOrder.documentSnapshot);
+    setBlockTypeToDownload(forcedBlockType || fullOrder.blockType);
     setTimeout(async () => {
       const element = document.getElementById('background-preview-scaler');
       if (!element) return;
@@ -2283,7 +2372,7 @@ const App: React.FC = () => {
                   }
                 }}
                 onTrackOrder={() => {
-                  if (activeBlock) setCurrentView(activeBlock === 'licitacao' ? 'licitacao-tracking' : 'tracking');
+                  if (activeBlock) setCurrentView('tracking');
                   else setCurrentView('tracking');
                 }}
                 onManagePurchaseOrders={() => {
@@ -2378,6 +2467,7 @@ const App: React.FC = () => {
                   setAppState(prev => ({ ...prev, view: 'new' })); // Reuse 'new' view for editing form
                   setCurrentView('abastecimento');
                 }}
+                refreshTrigger={lastRefresh}
               />
             )}
 
@@ -2402,6 +2492,8 @@ const App: React.FC = () => {
                 gasStations={gasStations}
                 fuelTypes={fuelTypes}
                 sectors={sectors}
+                refreshTrigger={lastRefresh}
+                onFetchDetails={entityService.getVehicleById}
               />
             )}
 
@@ -2523,6 +2615,10 @@ const App: React.FC = () => {
               currentUser={currentUser}
               persons={persons}
               sectors={sectors}
+              currentView={currentView}
+              onRefresh={refreshData}
+              isRefreshing={isRefreshing}
+              currentSubView={appState.view}
               onUpdate={(updates) => {
                 setAppState(prev => ({
                   ...prev,
@@ -2754,6 +2850,16 @@ const App: React.FC = () => {
             )
           }
 
+          {/* LOADING DETAILS OVERLAY */}
+          {isLoadingDetails && (
+            <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm flex items-center justify-center animate-fade-in">
+              <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4 animate-scale-in">
+                <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+                <span className="text-slate-700 font-medium">Carregando detalhes...</span>
+              </div>
+            </div>
+          )}
+
           {/* OFICIO NUMBERING MODAL */}
           {currentUser && (
             <OficioNumberingModal
@@ -2761,7 +2867,9 @@ const App: React.FC = () => {
               onClose={() => setIsOficioNumberingModalOpen(false)}
               onConfirm={() => {
                 setIsOficioNumberingModalOpen(false);
-                handleFinish(false, undefined, true); // forceOficio = true
+                // Pass persisted metadata if available, avoiding second 2FA
+                handleFinish(true, pendingSignatureMetadata || undefined, true);
+                setPendingSignatureMetadata(null); // Clear after use
               }}
               sectorId={(() => {
                 const s = sectors.find(sec => sec.name === currentUser.sector);

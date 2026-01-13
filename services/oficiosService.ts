@@ -5,7 +5,9 @@ import { Order } from '../types';
 export const getAllOficios = async (): Promise<Order[]> => {
     const { data, error } = await supabase
         .from('oficios')
-        .select('*')
+        .select(`
+            id, protocol, title, status, status_history, created_at, user_id, user_name
+        `)
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -25,6 +27,32 @@ export const getAllOficios = async (): Promise<Order[]> => {
         blockType: 'oficio', // Explicitly set block type
         documentSnapshot: item.document_snapshot
     }));
+};
+
+export const getOficioById = async (id: string): Promise<Order | null> => {
+    const { data, error } = await supabase
+        .from('oficios')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.error('Error fetching oficio details:', error);
+        return null;
+    }
+
+    return {
+        id: data.id,
+        protocol: data.protocol,
+        title: data.title,
+        status: data.status,
+        statusHistory: data.status_history,
+        createdAt: data.created_at,
+        userId: data.user_id,
+        userName: data.user_name,
+        blockType: 'oficio',
+        documentSnapshot: data.document_snapshot
+    };
 };
 
 export const saveOficio = async (order: Order): Promise<void> => {

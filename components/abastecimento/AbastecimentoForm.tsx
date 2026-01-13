@@ -4,7 +4,9 @@ import { AbastecimentoService, AbastecimentoRecord } from '../../services/abaste
 import { useAuth } from '../../contexts/AuthContext';
 import { Vehicle, Person } from '../../types';
 import { CustomSelect, Option } from '../common/CustomSelect';
+
 import { CustomDateTimeInput } from '../common/CustomDateTimeInput';
+import { AbastecimentoConfirmationModal } from '../modals/AbastecimentoConfirmationModal';
 
 interface AbastecimentoFormProps {
     onBack: () => void;
@@ -36,6 +38,11 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     const [station, setStation] = useState('');
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [cost, setCost] = useState(0);
+
+    // Confirmation Modal State
+    const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+    const [pendingData, setPendingData] = useState<AbastecimentoRecord | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Initialize state from props
     useEffect(() => {
@@ -109,6 +116,15 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
         const recordId = initialData?.id || crypto.randomUUID();
         const protocolId = initialData?.protocol || `ABA-${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`;
 
+        // Check for duplicate invoice number
+        if (invoiceNumber) {
+            const isDuplicate = await AbastecimentoService.checkInvoiceExists(invoiceNumber, initialData?.id);
+            if (isDuplicate) {
+                alert('ERRO: Já existe um registro com este Número da Nota. Por favor, verifique.');
+                return;
+            }
+        }
+
         const newRecord: AbastecimentoRecord = {
             id: recordId,
             protocol: protocolId,
@@ -124,11 +140,28 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             invoiceNumber,
             userId: initialData?.userId || authUser?.id,
             userName: initialData?.userName || authUser?.name,
-            created_at: initialData?.created_at // Preserve creation date
+            created_at: initialData?.created_at
         };
 
-        await AbastecimentoService.saveAbastecimento(newRecord);
-        onSave(newRecord); // Pass the new record to onSave
+        // Open Confirmation Modal instead of saving directly
+        setPendingData(newRecord);
+        setConfirmModalOpen(true);
+    };
+
+    const handleFinalSave = async () => {
+        if (!pendingData) return;
+
+        try {
+            setIsSaving(true);
+            await AbastecimentoService.saveAbastecimento(pendingData);
+            onSave(pendingData);
+            setConfirmModalOpen(false);
+        } catch (error) {
+            console.error(error);
+            alert("Erro ao salvar abastecimento.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleCancel = () => {
@@ -361,6 +394,21 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                     </div>
                 </form>
             </div>
-        </div>
+
+
+            <AbastecimentoConfirmationModal
+                isOpen={confirmModalOpen}
+                onClose={() => setConfirmModalOpen(false)}
+                onConfirm={handleFinalSave}
+                data={pendingData ? {
+                    invoiceNumber: pendingData.invoiceNumber || '',
+                    vehicle: pendingData.vehicle,
+                    fuelType: pendingData.fuelType,
+                    liters: pendingData.liters,
+                    cost: pendingData.cost
+                } : null}
+                isSaving={isSaving}
+            />
+        </div >
     );
 };
