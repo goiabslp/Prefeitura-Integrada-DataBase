@@ -184,8 +184,18 @@ export const getVehicles = async (): Promise<Vehicle[]> => {
         .from('vehicles')
         .select(`
             id, type, model, plate, brand, year, color, renavam, chassis,
+<<<<<<< HEAD
             sector_id, responsible_person_id, document_url, document_name,
             vehicle_image_url, status, maintenance_status, fuel_types, request_manager_ids
+=======
+<<<<<<< HEAD
+            sector_id, responsible_person_id, document_name,
+            status, maintenance_status, fuel_types, request_manager_ids
+=======
+            sector_id, responsible_person_id, document_url, document_name,
+            vehicle_image_url, status, maintenance_status, fuel_types, request_manager_ids
+>>>>>>> 94b329a83e875205332146e3ac02ddb124c0de0f
+>>>>>>> 0b6c505e63d6d6b28f0dc61354aa11ee91a040e2
         `);
     if (error) {
         console.error('Error fetching vehicles:', error);
