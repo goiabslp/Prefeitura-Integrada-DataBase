@@ -8,10 +8,14 @@ import {
   FileText,
   Home,
   RefreshCw,
-  Bell
+  Bell,
+  MessageCircle,
+  ShieldCheck,
+  ShieldOff
 } from 'lucide-react';
 import { User, UIConfig, BlockType } from '../types';
 import { useNotification } from '../contexts/NotificationContext';
+import { useChat } from '../contexts/ChatContext';
 import { NotificationCenter } from './NotificationCenter';
 import { useState } from 'react';
 import { getCachedImage, IMAGE_KEYS } from '../services/cacheService';
@@ -26,6 +30,7 @@ interface AppHeaderProps {
   currentView: string;
   onRefresh: () => void;
   isRefreshing: boolean;
+  currentSubView?: string;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -37,7 +42,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onGoHome,
   currentView,
   onRefresh,
-  isRefreshing
+  isRefreshing,
+  currentSubView
 }) => {
   const isAdmin = currentUser.role === 'admin';
   const isNotHome = currentView !== 'home';
@@ -46,16 +52,37 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     if (currentView === 'admin') return "Painel Administrativo";
     if (currentView === 'tracking') {
       if (activeBlock === 'licitacao') return "Histórico de Processos";
+      if (activeBlock === 'oficio') return "Histórico de Ofícios";
+      if (activeBlock === 'compras') return "Histórico de Compras";
+      if (activeBlock === 'diarias') return "Histórico de Diárias";
       return `Histórico: ${activeBlock?.toUpperCase()}`;
     }
-    if (currentView === 'vehicle-scheduling') return "Gestão de Veículos Municipais";
+    if (currentView === 'vehicle-scheduling') {
+      if (activeBlock === 'vs_calendar') return "Novo Agendamento";
+      if (activeBlock === 'vs_history') return "Histórico de Agendamento de Veículos";
+      if (activeBlock === 'vs_approvals') return "Aprovações de Agendamento de Veículos";
+      return "Módulo Agendamento de Veículos";
+    }
+    if (currentView === 'editor') {
+      if (activeBlock === 'oficio') return "Novo Ofício";
+      if (activeBlock === 'compras') return "Novo Pedido de Compras";
+      if (activeBlock === 'diarias') return "Nova Solicitação de Diárias";
+      return "Novo Registro";
+    }
+    if (currentView === 'purchase-management') return "Pedidos de Compras";
+    if (currentView === 'abastecimento') {
+      if (currentSubView === 'new') return "Novo Abastecimento";
+      if (currentSubView === 'management') return "Gestão de Abastecimento";
+      if (currentSubView === 'dashboard') return "Dashboard de Abastecimento";
+      return "Módulo de Abastecimento";
+    }
 
     switch (activeBlock) {
       case 'oficio': return "Módulo de Ofícios";
       case 'compras': return "Módulo de Compras";
       case 'licitacao': return "Módulo de Licitação";
-      case 'diarias': return "Diárias e Custeio";
-      default: return "Painel de Controle";
+      case 'diarias': return "Módulo de Diárias";
+      default: return "Página Inicial";
     }
   };
 
@@ -83,8 +110,57 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     );
   };
 
+  const ChatIcon = () => {
+    const { unreadCount, setIsOpen, isOpen } = useChat();
+
+    return (
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`relative p-2 rounded-xl transition-all active:scale-95 group
+            ${isOpen ? 'bg-violet-50 text-violet-600' : 'text-slate-400 hover:bg-slate-50 hover:text-violet-600'}
+          `}
+        title="Chat"
+      >
+        <MessageCircle className={`w-5 h-5 ${unreadCount > 0 ? 'animate-pulse text-violet-600' : ''}`} />
+        {unreadCount > 0 && (
+          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-violet-500 border-2 border-white rounded-full shadow-sm animate-bounce"></span>
+        )}
+      </button>
+    );
+  };
+
+  const TwoFactorStatus = () => {
+    const isEnabled = currentUser.twoFactorEnabled;
+
+    return (
+      <button
+        onClick={() => onOpenAdmin('2fa')}
+        className={`relative p-2 rounded-xl transition-all active:scale-95 group
+            ${isEnabled ? 'text-emerald-500 hover:bg-emerald-50' : 'text-rose-400 hover:bg-rose-50 hover:text-rose-600'}
+          `}
+        title={isEnabled ? "2FA Ativado" : "2FA Desativado - Clique para configurar"}
+      >
+        {isEnabled ? (
+          <ShieldCheck className="w-5 h-5" />
+        ) : (
+          <ShieldOff className="w-5 h-5" />
+        )}
+        {!isEnabled && (
+          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 border-2 border-white rounded-full shadow-sm animate-pulse opacity-0 group-hover:opacity-100 transition-opacity"></span>
+        )}
+      </button>
+    );
+  };
+
+  const { unreadCount, setIsOpen, isOpen } = useChat();
+
   return (
-    <header className="sticky top-0 z-[60] w-full bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0">
+    <header className={`sticky top-0 z-[60] w-full border-b shrink-0 transition-all duration-500 ease-in-out
+      ${unreadCount > 0
+        ? 'bg-violet-50/30 border-violet-200 shadow-[0_4px_30px_rgba(139,92,246,0.3)] animate-pulse-glow'
+        : 'bg-white/80 backdrop-blur-md border-slate-200'
+      }
+    `}>
       <div className="max-w-[1920px] mx-auto px-6 h-16 flex items-center justify-between">
 
         {/* Lado Esquerdo: Logo e Título */}
@@ -114,7 +190,27 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1">Tela Atual</span>
             <span className="text-sm font-bold text-slate-900 tracking-tight">{getModuleTitle()}</span>
           </div>
-        </div >
+        </div>
+
+        {/* Internal Style for refined active state */}
+        <style dangerouslySetInnerHTML={{
+          __html: `
+        @keyframes pulse-glow {
+          0%, 100% { 
+            background-color: rgba(245, 243, 255, 0.4); 
+            border-color: rgba(221, 214, 254, 0.5);
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15);
+          }
+          50% { 
+            background-color: rgba(237, 233, 254, 0.6); 
+            border-color: rgba(167, 139, 250, 0.8);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.35);
+          }
+        }
+        .animate-pulse-glow {
+          animation: pulse-glow 3s infinite ease-in-out;
+        }
+      `}} />
 
         {/* Lado Direito: Ações e Perfil */}
         < div className="flex items-center gap-2 md:gap-4" >
@@ -144,7 +240,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <div className="h-8 w-px bg-slate-200 mx-1"></div>
 
           <button
-            onClick={onRefresh}
+            onClick={() => onRefresh()}
             disabled={isRefreshing}
             className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Atualizar dados do sistema"
@@ -156,6 +252,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <div className="h-8 w-px bg-slate-200 mx-1"></div>
 
           {/* Notification Center */}
+          <TwoFactorStatus />
+          <div className="w-2"></div>
+          <ChatIcon />
+          <div className="w-2"></div>
           <NotificationBell />
 
           <div className="flex items-center gap-3 pl-2">
@@ -184,6 +284,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 >
                   <UserIcon className="w-4 h-4" />
                   Meu Perfil
+                </button>
+                <button
+                  onClick={() => onOpenAdmin('2fa')}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  Autenticador 2FA
                 </button>
                 <button
                   onClick={onLogout}

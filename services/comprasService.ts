@@ -6,7 +6,9 @@ import { notificationService } from './notificationService';
 export const getAllPurchaseOrders = async (): Promise<Order[]> => {
     const { data, error } = await supabase
         .from('purchase_orders')
-        .select('*')
+        .select(`
+            id, protocol, title, status, status_history, created_at, user_id, user_name
+        `) // Excluding document_snapshot and other heavy fields if any
         .order('created_at', { ascending: false });
 
     if (error) {

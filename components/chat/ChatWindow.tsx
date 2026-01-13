@@ -144,6 +144,13 @@ export const ChatWindow: React.FC = () => {
                 recentItems.push({ id: 'global-users', name: 'Todos os Usuários', type: 'user', isGlobal: true });
             }
 
+            // Sort by timestamp desc to show newest first
+            recentItems.sort((a, b) => {
+                const timeA = new Date(a.timestamp || 0).getTime();
+                const timeB = new Date(b.timestamp || 0).getTime();
+                return timeB - timeA;
+            });
+
             setUsersList(remainingUsers);
             setSectorsList(remainingSectors);
             setRecentList(recentItems);
