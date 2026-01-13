@@ -1617,9 +1617,9 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                                 <Truck className="w-7 h-7" />
                                             </div>
                                             <div>
-                                                <h3 className="text-lg font-black text-slate-900 leading-tight uppercase truncate max-w-[150px]" title={v.name}>{v.name}</h3>
-                                                <div className="flex flex-col mt-0.5">
-                                                    <p className={`text-[10px] font-bold ${textSectorClass} uppercase tracking-wider`}>
+                                                <h3 className="text-lg font-black text-slate-900 leading-tight uppercase mb-1" title={v.name}>{v.name}</h3>
+                                                <div className="flex flex-col">
+                                                    <p className={`text-xs font-bold ${textSectorClass} uppercase tracking-wider`}>
                                                         {v.sectorName}
                                                     </p>
                                                 </div>
