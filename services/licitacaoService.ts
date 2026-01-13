@@ -5,7 +5,9 @@ import { Order } from '../types';
 export const getAllLicitacaoProcesses = async (): Promise<Order[]> => {
     const { data, error } = await supabase
         .from('licitacao_processes')
-        .select('*')
+        .select(`
+            id, protocol, title, status, status_history, created_at, user_id, user_name
+        `)
         .order('created_at', { ascending: false });
 
     if (error) {

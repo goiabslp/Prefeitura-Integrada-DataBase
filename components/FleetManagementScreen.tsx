@@ -22,6 +22,7 @@ interface FleetManagementScreenProps {
   onDeleteVehicle: (id: string) => void;
   onAddBrand: (b: VehicleBrand) => void;
   onBack: () => void;
+  onFetchDetails?: (id: string) => Promise<Vehicle | null>;
 }
 
 const Gavel = ({ className }: { className?: string }) => (
@@ -52,7 +53,7 @@ const MAINTENANCE_OPTIONS: { value: MaintenanceStatus, label: string, color: str
 const FUEL_OPTIONS = ['ALCOOL', 'GASOLINA', 'DIESEL'] as const;
 
 export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
-  vehicles, sectors, persons, jobs, brands, onAddVehicle, onUpdateVehicle, onDeleteVehicle, onAddBrand, onBack
+  vehicles, sectors, persons, jobs, brands, onAddVehicle, onUpdateVehicle, onDeleteVehicle, onAddBrand, onBack, onFetchDetails
 }) => {
   const [activeTab, setActiveTab] = useState<VehicleType>('leve');
   const [searchTerm, setSearchTerm] = useState('');
@@ -115,10 +116,29 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleOpenModal = (v?: Vehicle) => {
+  const handleOpenModal = async (v?: Vehicle) => {
     if (v) {
-      setEditingVehicle(v);
-      setFormData({ ...v, fuelTypes: v.fuelTypes || [], requestManagerIds: v.requestManagerIds || [] });
+      if (v.id && (!v.documentUrl || !v.vehicleImageUrl) && isModalOpen === false) {
+        // Lazy load if missing details
+        if (onBack && typeof onBack === 'function') { // Check props existence (dummy check)
+        }
+      }
+
+      // Check if we need to fetch details
+      let fullVehicle = v;
+      if (onFetchDetails && (!v.documentUrl || !v.vehicleImageUrl)) {
+        // Show loading or something?
+        // For now, let's just await. Ideally we'd have a loading state.
+        const fetched = await onFetchDetails(v.id);
+        if (fetched) fullVehicle = fetched;
+      }
+
+      setEditingVehicle(fullVehicle);
+      setFormData({
+        ...fullVehicle,
+        fuelTypes: fullVehicle.fuelTypes || [],
+        requestManagerIds: fullVehicle.requestManagerIds || []
+      });
     } else {
       setEditingVehicle(null);
       setFormData({

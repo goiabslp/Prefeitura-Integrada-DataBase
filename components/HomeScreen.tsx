@@ -71,13 +71,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
     // --- Helper Functions for Card Styling ---
     // --- Helper Functions for Card Styling ---
-    const getCardClass = (color: string) => {
+    const getCardClass = (color: string, hideOnMobile: boolean = false) => {
         // Dynamic classes for hover states
         const hoverShadow = `hover:shadow-${color}-500/20`;
         const hoverBorder = `hover:border-${color}-200`;
         const hoverBg = `hover:from-white hover:to-${color}-50`;
 
-        return `group relative w-full h-40 md:h-48 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] ${hoverShadow} hover:-translate-y-1.5 ${hoverBorder} ${hoverBg} active:scale-95 transition-all duration-300 ease-out flex flex-col items-center justify-center overflow-hidden shrink-0`;
+        return `group relative w-full h-40 md:h-48 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] ${hoverShadow} hover:-translate-y-1.5 ${hoverBorder} ${hoverBg} active:scale-95 transition-all duration-300 ease-out ${hideOnMobile ? 'hidden md:flex' : 'flex'} flex-col items-center justify-center overflow-hidden shrink-0`;
     };
 
     const getIconContainerClass = (color: string) => {
@@ -93,11 +93,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         Icon: React.ElementType,
         title: string,
         description: string,
-        delay: string = '0ms'
+        delay: string = '0ms',
+        hideOnMobile: boolean = false
     ) => (
         <button
             onClick={onClick}
-            className={`${getCardClass(color)} animate-in fade-in zoom-in duration-500 fill-mode-backwards`}
+            className={`${getCardClass(color, hideOnMobile)} animate-in fade-in zoom-in duration-500 fill-mode-backwards`}
             style={{ animationDelay: delay }}
         >
             <div className={`absolute top-0 right-0 w-32 h-32 bg-${color}-500/5 rounded-bl-[100%] -mr-10 -mt-10 transition-transform duration-700 ease-out group-hover:scale-150`}></div>
@@ -196,9 +197,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             if (canAccessLicitacaoProcessos) actionButtons.push({ label: 'Processos', desc: 'Todos os Processos', icon: FileSearch, onClick: onViewAllLicitacao, color: 'sky' });
         }
         if (activeBlock === 'abastecimento') {
-            actionButtons.push({ label: 'Novo Abastecimento', desc: 'Registrar entrada', icon: Fuel, onClick: () => onAbastecimento?.('new'), color: 'cyan' });
-            actionButtons.push({ label: 'Gestão', desc: 'Histórico Completo', icon: History, onClick: () => onAbastecimento?.('management'), color: 'blue' });
-            actionButtons.push({ label: 'Dashboard', desc: 'Indicadores', icon: BarChart3, onClick: () => onAbastecimento?.('dashboard'), color: 'emerald' });
+            actionButtons.push({ label: 'Novo Abastecimento', desc: 'Registrar entrada', icon: Fuel, onClick: () => onAbastecimento?.('new'), color: 'cyan', hideOnMobile: false });
+            actionButtons.push({ label: 'Gestão', desc: 'Histórico Completo', icon: History, onClick: () => onAbastecimento?.('management'), color: 'blue', hideOnMobile: true });
+            actionButtons.push({ label: 'Dashboard', desc: 'Indicadores', icon: BarChart3, onClick: () => onAbastecimento?.('dashboard'), color: 'emerald', hideOnMobile: true });
         }
 
         return (
@@ -206,7 +207,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 {/* Fixed Back Button - Hoisted up to ensure true fixed positioning regardless of parent transforms */}
                 <button
                     onClick={() => setActiveBlock(null)}
-                    className="fixed top-24 left-4 md:top-28 md:left-8 z-[999] group flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold transition-all p-2 pr-4 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-lg hover:shadow-xl hover:bg-white hover:-translate-y-0.5 hover:border-indigo-100"
+                    className="fixed top-20 left-4 md:top-24 md:left-8 z-[999] group flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold transition-all p-2 pr-4 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-lg hover:shadow-xl hover:bg-white hover:-translate-y-0.5 hover:border-indigo-100"
                     title="Voltar ao Menu"
                 >
                     <div className="w-8 h-8 rounded-full bg-white border border-slate-100 flex items-center justify-center group-hover:bg-indigo-50 group-hover:border-indigo-100 transition-colors">
@@ -234,7 +235,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                     <button
                                         key={idx}
                                         onClick={btn.onClick}
-                                        className={`group relative flex-1 min-w-[260px] md:min-w-[280px] max-w-[380px] min-h-[160px] rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50/50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_25px_60px_rgb(0,0,0,0.12)] hover:shadow-${btn.color}-500/30 hover:border-${btn.color}-200 hover:from-white hover:to-${btn.color}-50/30 transition-all duration-300 ease-spring hover:-translate-y-2 active:scale-95 flex flex-col items-center justify-center overflow-hidden shrink-0 basis-0 grow`}
+                                        className={`group relative flex-1 min-w-[260px] md:min-w-[280px] max-w-[380px] min-h-[160px] rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50/50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_25px_60px_rgb(0,0,0,0.12)] hover:shadow-${btn.color}-500/30 hover:border-${btn.color}-200 hover:from-white hover:to-${btn.color}-50/30 transition-all duration-300 ease-spring hover:-translate-y-2 active:scale-95 flex flex-col items-center justify-center overflow-hidden shrink-0 basis-0 grow ${btn.hideOnMobile ? 'hidden md:flex' : 'flex'}`}
                                         style={{ animationDelay: `${idx * 100}ms` }}
                                     >
                                         <div className={`absolute top-0 right-0 w-32 h-32 bg-${btn.color}-500/5 rounded-bl-[100%] -mr-10 -mt-10 transition-transform duration-700 ease-out group-hover:scale-150`}></div>
@@ -272,7 +273,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <main className="flex-1 flex flex-col overflow-hidden relative">
 
                 {/* Header Actions (Tasks Trigger) */}
-                <div className="absolute top-8 right-8 z-20">
+                <div className="absolute top-8 right-8 z-20 hidden md:block">
                     <button
                         onClick={() => setIsTasksDrawerOpen(true)}
                         className="group flex items-center gap-3 bg-white/80 backdrop-blur-md p-2 pr-5 rounded-full shadow-lg border border-white/50 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
@@ -317,21 +318,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         {/* Modules Grid */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
                             {/* Operational Modules */}
-                            {canAccessOficio && renderModuleButton(() => setActiveBlock('oficio'), 'indigo', FileText, 'Ofícios', 'Geração e trâmite', '50ms')}
-                            {canAccessCompras && renderModuleButton(() => setActiveBlock('compras'), 'emerald', ShoppingCart, 'Compras', 'Pedidos e requisições', '100ms')}
-                            {canAccessDiarias && renderModuleButton(() => setActiveBlock('diarias'), 'amber', Wallet, 'Diárias', 'Gestão de despesas', '150ms')}
-                            {canAccessLicitacao && renderModuleButton(() => setActiveBlock('licitacao'), 'blue', Gavel, 'Licitação', 'Processos e editais', '200ms')}
+                            {canAccessOficio && renderModuleButton(() => setActiveBlock('oficio'), 'indigo', FileText, 'Ofícios', 'Geração e trâmite', '50ms', true)}
+                            {canAccessCompras && renderModuleButton(() => setActiveBlock('compras'), 'emerald', ShoppingCart, 'Compras', 'Pedidos e requisições', '100ms', true)}
+                            {canAccessDiarias && renderModuleButton(() => setActiveBlock('diarias'), 'amber', Wallet, 'Diárias', 'Gestão de despesas', '150ms', true)}
+                            {canAccessLicitacao && renderModuleButton(() => setActiveBlock('licitacao'), 'blue', Gavel, 'Licitação', 'Processos e editais', '200ms', true)}
 
                             {/* Management Modules */}
-                            {canAccessScheduling && renderModuleButton(() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }, 'violet', CalendarRange, 'Veículos', 'Agendamento de frota', '250ms')}
-                            {canAccessAbastecimento && renderModuleButton(() => setActiveBlock('abastecimento'), 'cyan', Droplet, 'Abastecimento', 'Controle de combustível', '300ms')}
+                            {canAccessScheduling && renderModuleButton(() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }, 'violet', CalendarRange, 'Veículos', 'Agendamento de frota', '250ms', true)}
+                            {canAccessAbastecimento && renderModuleButton(() => setActiveBlock('abastecimento'), 'cyan', Droplet, 'Abastecimento', 'Controle de combustível', '300ms', false)}
 
                             {/* Field Modules */}
-                            {canAccessAgricultura && renderModuleButton(() => onAgricultura?.(), 'emerald', Sprout, 'Agricultura', 'Gestão rural', '350ms')}
-                            {canAccessObras && renderModuleButton(() => onObras?.(), 'orange', HardHat, 'Obras', 'Gestão de obras', '400ms')}
+                            {canAccessAgricultura && renderModuleButton(() => onAgricultura?.(), 'emerald', Sprout, 'Agricultura', 'Gestão rural', '350ms', true)}
+                            {canAccessObras && renderModuleButton(() => onObras?.(), 'orange', HardHat, 'Obras', 'Gestão de obras', '400ms', true)}
 
                             {/* Admin Shortcut */}
-                            {canAccessFleet && renderModuleButton(() => onOpenAdmin('fleet'), 'slate', Car, 'Gestão de Frotas', 'Veículos e Marcas', '450ms')}
+                            {canAccessFleet && renderModuleButton(() => onOpenAdmin('fleet'), 'slate', Car, 'Gestão de Frotas', 'Veículos e Marcas', '450ms', true)}
                         </div>
 
                         {/* Mobile-only Logout */}
@@ -358,10 +359,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             </main>
 
-            {/* Footer Info */}
-            <div className="absolute bottom-4 left-8 text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em] hidden lg:block pointer-events-none">
-                <Package className="w-3 h-3 inline mr-2" /> Plataforma Integrada v1.3.0
-            </div>
+
 
             {/* TASKS DRAWER OVERLAY */}
             {isTasksDrawerOpen && (

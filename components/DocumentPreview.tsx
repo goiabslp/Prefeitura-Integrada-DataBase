@@ -24,6 +24,13 @@ export const DocumentPreview = forwardRef<HTMLDivElement, DocumentPreviewProps>(
 
   // Decide qual componente de visualização renderizar
   const renderPreviewContent = () => {
+    if (!state || !state.content) {
+      return (
+        <div className="flex flex-col items-center justify-center p-8 text-slate-400">
+          <p>Documento indisponível para visualização.</p>
+        </div>
+      );
+    }
     const effectiveBlock = blockType || (state.content.subType ? 'diarias' : 'oficio');
 
     switch (effectiveBlock) {
