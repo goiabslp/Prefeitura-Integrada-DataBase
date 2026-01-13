@@ -1528,22 +1528,26 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         );
     };
 
-    const getSectorColor = (sectorName: string) => {
-        const colors = [
-            'emerald', 'blue', 'violet', 'amber', 'rose', 'cyan', 'indigo', 'fuchsia', 'lime', 'sky', 'teal', 'orange'
+    // Generate unique colors for each sector
+    const sectorColorMap = useMemo(() => {
+        const uniqueSectors = Array.from(new Set(stats.vehicleStats.map((v: any) => v.sectorName))).sort() as string[];
+        const palette = [
+            'emerald', 'blue', 'rose', 'amber', 'violet',
+            'cyan', 'fuchsia', 'lime', 'orange', 'indigo',
+            'teal', 'sky', 'pink', 'purple', 'red',
+            'yellow', 'green'
         ];
 
-        let hash = 0;
-        for (let i = 0; i < sectorName.length; i++) {
-            hash = sectorName.charCodeAt(i) + ((hash << 5) - hash);
-        }
+        const map: Record<string, string> = {};
+        uniqueSectors.forEach((sector, index) => {
+            map[sector] = palette[index % palette.length];
+        });
 
-        const index = Math.abs(hash) % colors.length;
-        const color = colors[index];
+        return map;
+    }, [stats.vehicleStats]);
 
-        // Return full tailwind class sets or just the name
-        // Returning just name for flexibility in template string
-        return color;
+    const getSectorColor = (sectorName: string) => {
+        return sectorColorMap[sectorName] || 'slate';
     };
 
     const renderVehicleView = () => {
@@ -1593,25 +1597,22 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         {filteredVehicles.map((v) => {
                             const color = getSectorColor(v.sectorName);
-                            // Define color classes dynamically based on the hash color
-                            const borderClass = `hover:border-${color}-300`;
-                            const bgIconClass = `bg-${color}-50 text-${color}-600 group-hover:bg-${color}-100`;
-                            const textSectorClass = `text-${color}-500`;
+                            // White background, colored left border
+                            const borderClass = `border-l-4 border-${color}-400 border-y border-r border-slate-200 hover:border-r-${color}-200 hover:border-y-${color}-200`;
+                            const bgIconClass = `bg-${color}-50 text-${color}-600`;
+                            const textSectorClass = `text-${color}-600`;
 
                             return (
                                 <div
                                     key={v.id}
                                     onClick={() => setSelectedVehicle(v.id)}
-                                    className={`group bg-white rounded-[2rem] border border-slate-200 p-6 shadow-sm hover:shadow-xl ${borderClass} transition-all duration-300 cursor-pointer relative overflow-hidden`}
+                                    className={`group bg-white rounded-2xl ${borderClass} p-6 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer relative overflow-hidden`}
                                 >
-                                    {/* Sector Strip */}
-                                    <div className={`absolute top-0 left-0 bottom-0 w-1.5 bg-${color}-500`}></div>
-
                                     <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <ChevronRight className={`w-5 h-5 text-${color}-400`} />
                                     </div>
 
-                                    <div className="pl-3 flex items-start justify-between mb-6">
+                                    <div className="flex items-start justify-between mb-6">
                                         <div className="flex items-center gap-4">
                                             <div className={`w-14 h-14 ${bgIconClass} rounded-2xl flex items-center justify-center transition-colors`}>
                                                 <Truck className="w-7 h-7" />
@@ -1631,7 +1632,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                         </div>
                                     </div>
 
-                                    <div className="pl-3 grid grid-cols-2 gap-4 mb-4">
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
                                         <div className="bg-slate-50 rounded-2xl p-3.5 transition-colors group-hover:bg-slate-50/80 border border-transparent">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
@@ -1650,7 +1651,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                         </div>
                                     </div>
 
-                                    <div className="pl-3 flex items-center justify-between pt-4 border-t border-slate-50">
+                                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                                         <div className="flex items-center gap-2">
                                             <History className="w-3.5 h-3.5 text-slate-300" />
                                             <span className="text-[10px] font-bold text-slate-400 uppercase">Último: {new Date(v.lastRef).toLocaleDateString('pt-BR')}</span>

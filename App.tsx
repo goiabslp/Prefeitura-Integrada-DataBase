@@ -265,6 +265,7 @@ const App: React.FC = () => {
   const [twoFASignatureName, setTwoFASignatureName] = useState('');
   const [pendingParams, setPendingParams] = useState<any>(null); // To store state/action to resume after 2FA
   const [pending2FAAction, setPending2FAAction] = useState<((metadata: any) => Promise<void>) | null>(null); // Generic callback for 2FA success
+  const [pendingSignatureMetadata, setPendingSignatureMetadata] = useState<any | null>(null);
 
   // Routing logic
   const [isLicitacaoSettingsOpen, setIsLicitacaoSettingsOpen] = useState(false);
@@ -645,6 +646,10 @@ const App: React.FC = () => {
 
     // INTERCEPTION FOR NEW OFICIO NUMBERING & COMPRAS
     if ((activeBlock === 'oficio' || activeBlock === 'compras') && !editingOrder && !forceOficio) {
+      // PRESERVE DIGITAL SIGNATURE DATA IF PRESENT
+      if (digitalSignatureData) {
+        setPendingSignatureMetadata(digitalSignatureData);
+      }
       setIsOficioNumberingModalOpen(true);
       return false;
     }
@@ -2801,7 +2806,9 @@ const App: React.FC = () => {
               onClose={() => setIsOficioNumberingModalOpen(false)}
               onConfirm={() => {
                 setIsOficioNumberingModalOpen(false);
-                handleFinish(false, undefined, true); // forceOficio = true
+                // Pass persisted metadata if available, avoiding second 2FA
+                handleFinish(true, pendingSignatureMetadata || undefined, true);
+                setPendingSignatureMetadata(null); // Clear after use
               }}
               sectorId={(() => {
                 const s = sectors.find(sec => sec.name === currentUser.sector);
