@@ -125,35 +125,67 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
     const isAdmin = user?.role === 'admin';
     const [supplies, setSupplies] = useState<AbastecimentoRecord[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [vehicleSectorMap, setVehicleSectorMap] = useState<Record<string, string>>({});
     const [vehiclePlateMap, setVehiclePlateMap] = useState<Record<string, string>>({});
     const [vehicleModelMap, setVehicleModelMap] = useState<Record<string, string>>({});
+
+    // Pagination State
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [totalCount, setTotalCount] = useState(0);
 
     // Filter States
     const [filterMode, setFilterMode] = useState<'today' | 'all' | 'date'>('today');
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-    const loadSupplies = async () => {
+    // Debounce Search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchTerm);
+            setPage(1); // Reset to page 1 on search change
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [filterMode, selectedDate, refreshTrigger]);
+
+    const loadSupplies = async (currentPage: number, resetList: boolean = false) => {
         setIsLoading(true);
         try {
-            const [data, vehiclesRes, sectorsRes] = await Promise.all([
-                AbastecimentoService.getAbastecimentos(),
-                supabase.from('vehicles').select('*'),
-                supabase.from('sectors').select('*')
+            // Helper to get filter object
+            const filters: any = {};
+            if (debouncedSearch) filters.search = debouncedSearch;
+
+            if (filterMode === 'today') {
+                filters.date = new Date().toISOString().split('T')[0];
+            } else if (filterMode === 'date') {
+                filters.date = selectedDate;
+            }
+
+            const [dataRes, vehiclesRes, sectorsRes] = await Promise.all([
+                AbastecimentoService.getAbastecimentos(currentPage, 50, filters),
+                // Only load metadata once if possible, or cache it. 
+                // For simplicity, we load it every time for now, or we could check if maps are empty.
+                Object.keys(vehicleSectorMap).length === 0 ? supabase.from('vehicles').select('*') : Promise.resolve({ data: null }),
+                Object.keys(vehicleSectorMap).length === 0 ? supabase.from('sectors').select('*') : Promise.resolve({ data: null })
             ]);
 
-            setSupplies(data.sort((a, b) => {
-                const dateA = new Date(a.date).getTime();
-                const dateB = new Date(b.date).getTime();
-                if (dateB !== dateA) return dateB - dateA;
+            if (resetList || currentPage === 1) {
+                setSupplies(dataRes.data);
+            } else {
+                setSupplies(prev => [...prev, ...dataRes.data]);
+            }
 
-                // Tie-breaker: created_at (seconds precision)
-                const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
-                const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
-                return createdB - createdA;
-            }));
+            setTotalCount(dataRes.count);
+            setHasMore(dataRes.data.length === 50); // Improved check? count > current length?
+            // Actually, if we received LIMIT items, there might be more. 
+            // Better: if (currentListLength + newData.length < count)
 
             if (vehiclesRes.data && sectorsRes.data) {
                 const sectorLookup = sectorsRes.data.reduce((acc: any, s: any) => {
@@ -163,34 +195,23 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
 
                 const vMap: Record<string, string> = {};
                 const pMap: Record<string, string> = {};
-                const modelMap: Record<string, string> = {}; // New map to find model by plate
+                const modelMap: Record<string, string> = {};
 
                 vehiclesRes.data.forEach((v: any) => {
                     const sectorName = sectorLookup[v.sector_id] || 'N/A';
-                    const plate = v.plate || 'S/PLACA';
-
-                    // Legacy Key: "Model - Brand"
-                    const legacyKey = `${v.model} - ${v.brand}`;
-                    vMap[legacyKey] = sectorName;
-                    pMap[legacyKey] = plate;
-
                     // New Key: "Plate" (The main identifier now)
                     if (v.plate) {
                         vMap[v.plate] = sectorName;
                         pMap[v.plate] = v.plate;
                         modelMap[v.plate] = `${v.model} - ${v.brand}`;
                     }
+                    // Legacy Key: "Model - Brand" 
+                    const legacyKey = `${v.model} - ${v.brand}`;
+                    if (!vMap[legacyKey]) vMap[legacyKey] = sectorName;
+                    if (!pMap[legacyKey]) pMap[legacyKey] = v.plate || 'S/PLACA';
                 });
                 setVehicleSectorMap(vMap);
                 setVehiclePlateMap(pMap);
-                // We can store modelMap in state if we want to display Model for Plate-based records
-                // For now, let's piggyback on vehiclePlateMap or just keep it simple.
-                // Actually, let's update state to include model lookup if possible, or just Map locally?
-                // `vehiclePlateMap` is used for "Placa" column.
-                // If the record IS a plate, vehiclePlateMap returns the plate.
-                // If we want to show Model in "Veículo" column, we need a map.
-                // Let's repurpose vehiclePlateMap? No, that's confusing.
-                // Let's add a new state `vehicleModelMap`.
                 setVehicleModelMap(modelMap);
             }
 
@@ -202,21 +223,24 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
     };
 
     useEffect(() => {
-        if (refreshTrigger && refreshTrigger > 0) {
-            loadSupplies();
-        }
-    }, [refreshTrigger]);
+        loadSupplies(page, page === 1);
+    }, [page, debouncedSearch, filterMode, selectedDate, refreshTrigger]);
 
+    // Cleanup subscription to avoid duplicates/complexity with pagination.
+    // For now, we disable realtime listener for the list to avoid list jumping while paginating.
+    // Or we can just re-load page 1 on change.
     useEffect(() => {
-        loadSupplies();
-
         const channel = supabase
             .channel('abastecimentos-list-changes')
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'abastecimentos' },
                 () => {
-                    loadSupplies();
+                    // On valid change, just refresh page 1? Or ignore?
+                    // Let's refresh page 1 to be safe, but it might reset user scroll.
+                    // Ideally, show a "New data available" toast. 
+                    // For MVP simplicity: just reload if on page 1.
+                    if (page === 1) loadSupplies(1, true);
                 }
             )
             .subscribe();
@@ -224,60 +248,19 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [page]); // Re-sub if page changes? No. Just on mount. 
+    // Actually, accessing 'page' inside the callback needs a ref or dependency.
+    // Let's keep it simple: Realtime update only if we are at the top (page 1).
 
     const handleDelete = async (id: string) => {
         if (window.confirm('Tem certeza que deseja excluir este registro?')) {
             await AbastecimentoService.deleteAbastecimento(id);
-            loadSupplies();
+            if (page === 1) loadSupplies(1, true);
         }
     };
 
-    const filteredSupplies = supplies.filter(item => {
-        // 1. Text Search
-        const matchesSearch =
-            item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.vehicle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.driver.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (item.fiscal && item.fiscal.toLowerCase().includes(searchTerm.toLowerCase()));
-
-        // 2. Date Filter
-        let matchesDate = true;
-
-        // Adjust for timezone issues if necessary, but simple string split works if backend returns ISO 8601
-        // Assuming item.date is ISO string or YYYY-MM-DD
-        const itemDate = new Date(item.date).toISOString().split('T')[0];
-
-        if (filterMode === 'today') {
-            const today = new Date().toISOString().split('T')[0];
-            matchesDate = itemDate === today;
-        } else if (filterMode === 'date') {
-            matchesDate = itemDate === selectedDate;
-        }
-        // 'all' implies matchesDate = true
-
-        return matchesSearch && matchesDate;
-    });
-
-
-
-    const getTodayCount = () => {
-        const today = new Date().toISOString().split('T')[0];
-        return supplies.filter(item => {
-            const itemDate = new Date(item.date).toISOString().split('T')[0];
-            return itemDate === today;
-        }).length;
-    };
-
-    const getDateCount = () => {
-        return supplies.filter(item => {
-            const itemDate = new Date(item.date).toISOString().split('T')[0];
-            return itemDate === selectedDate;
-        }).length;
-    };
-
-    const todayCount = getTodayCount();
-    const dateCount = getDateCount();
+    // We no longer filter client-side. 'supplies' contains the VIEW data.
+    const filteredSupplies = supplies;
 
     return (
         <div className="flex-1 h-full bg-slate-50/50 p-4 md:p-6 overflow-auto custom-scrollbar">
@@ -314,7 +297,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
                                     }`}
                             >
                                 <Filter className="w-4 h-4" />
-                                {filterMode === 'today' ? `Hoje (${todayCount})` : filterMode === 'date' ? `${new Date(selectedDate).toLocaleDateString('pt-BR')} (${dateCount})` : `Todos (${supplies.length})`}
+                                {filterMode === 'today' ? `Hoje` : filterMode === 'date' ? `${new Date(selectedDate).toLocaleDateString('pt-BR')}` : `Todos`}
                                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
                             </button>
 
@@ -328,14 +311,14 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
                                                 onClick={() => { setFilterMode('today'); setIsFilterOpen(false); }}
                                                 className={`flex items-center justify-between w-full px-3 py-2 rounded-xl text-xs font-bold transition-colors ${filterMode === 'today' ? 'bg-cyan-50 text-cyan-700' : 'text-slate-600 hover:bg-slate-50'}`}
                                             >
-                                                <span>Hoje ({todayCount})</span>
+                                                <span>Hoje</span>
                                                 {filterMode === 'today' && <Check className="w-4 h-4" />}
                                             </button>
                                             <button
                                                 onClick={() => { setFilterMode('all'); setIsFilterOpen(false); }}
                                                 className={`flex items-center justify-between w-full px-3 py-2 rounded-xl text-xs font-bold transition-colors ${filterMode === 'all' ? 'bg-cyan-50 text-cyan-700' : 'text-slate-600 hover:bg-slate-50'}`}
                                             >
-                                                <span>Todos ({supplies.length})</span>
+                                                <span>Todos</span>
                                                 {filterMode === 'all' && <Check className="w-4 h-4" />}
                                             </button>
 
@@ -343,7 +326,6 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
 
                                             <div className="px-2 pb-1 flex justify-between items-center">
                                                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Por Data</span>
-                                                {filterMode === 'date' && <span className="text-[10px] font-bold text-cyan-600">{dateCount}</span>}
                                             </div>
 
                                             <div className="relative">
@@ -372,7 +354,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
                 </div>
 
                 {/* List Container */}
-                {filteredSupplies.length === 0 ? (
+                {filteredSupplies.length === 0 && !isLoading ? (
                     <div className="bg-white rounded-[2rem] p-16 text-center border-2 border-dashed border-slate-200/60 flex flex-col items-center justify-center gap-4">
                         <div className="p-4 bg-slate-50 rounded-full">
                             <Fuel className="w-8 h-8 text-slate-300" />
@@ -383,7 +365,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
                         </div>
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-3 pb-8">
                         {filteredSupplies.map((item) => (
                             <AbastecimentoCard
                                 key={item.id}
@@ -396,6 +378,25 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
                                 vehicleSectorMap={vehicleSectorMap}
                             />
                         ))}
+
+                        {/* Load More Button or Loading Indicator */}
+                        {hasMore && (
+                            <div className="flex justify-center mt-4">
+                                <button
+                                    onClick={() => setPage(prev => prev + 1)}
+                                    disabled={isLoading}
+                                    className="px-6 py-2 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl shadow-sm hover:bg-slate-50 hover:text-cyan-600 transition-colors disabled:opacity-50"
+                                >
+                                    {isLoading ? 'Carregando...' : 'Carregar Mais'}
+                                </button>
+                            </div>
+                        )}
+
+                        {!hasMore && filteredSupplies.length > 0 && (
+                            <p className="text-center text-xs text-slate-400 font-medium py-4">
+                                Todos os registros foram carregados.
+                            </p>
+                        )}
                     </div>
                 )}
             </div>

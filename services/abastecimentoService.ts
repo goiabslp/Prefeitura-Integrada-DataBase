@@ -83,16 +83,69 @@ export const AbastecimentoService = {
         ];
     },
 
-    getAbastecimentos: async (): Promise<AbastecimentoRecord[]> => {
+    getAbastecimentos: async (
+        page: number = 1,
+        limit: number = 50,
+        filters?: {
+            search?: string;
+            date?: string;
+            startDate?: string;
+            endDate?: string;
+            station?: string;
+            sector?: string;
+            vehicle?: string;
+            fuelType?: string;
+        }
+    ): Promise<{ data: AbastecimentoRecord[], count: number }> => {
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('abastecimentos')
-                .select('*')
-                .order('date', { ascending: false });
+                .select('*', { count: 'exact' });
+
+            // Apply Filters
+            if (filters) {
+                if (filters.search) {
+                    const s = filters.search.toLowerCase();
+                    query = query.or(`vehicle.ilike.%${s}%,driver.ilike.%${s}%,fiscal.ilike.%${s}%,invoice_number.ilike.%${s}%`);
+                }
+                if (filters.date) {
+                    // Exact date match (assuming YYYY-MM-DD input, filtering whole day)
+                    const start = `${filters.date}T00:00:00`;
+                    const end = `${filters.date}T23:59:59`;
+                    query = query.gte('date', start).lte('date', end);
+                }
+                if (filters.startDate) {
+                    query = query.gte('date', `${filters.startDate}T00:00:00`);
+                }
+                if (filters.endDate) {
+                    query = query.lte('date', `${filters.endDate}T23:59:59`);
+                }
+                if (filters.station && filters.station !== 'all') {
+                    query = query.eq('station', filters.station);
+                }
+                if (filters.vehicle && filters.vehicle !== 'all') {
+                    query = query.eq('vehicle', filters.vehicle);
+                }
+                if (filters.fuelType && filters.fuelType !== 'all') {
+                    query = query.ilike('fuel_type', `%${filters.fuelType}%`);
+                }
+                // Note: Sector filtering is tricky because 'sector' is not on 'abastecimentos' directly in most cases,
+                // it's derived from 'vehicle'. If we want to filter by sector server-side, 
+                // we'd need to join with vehicles/sectors tables or denormalize sector_id onto abastecimentos.
+                // For now, we'll handle sector filtering client-side or assume the vehicle filter covers it if pre-resolved.
+            }
+
+            // Pagination
+            const from = (page - 1) * limit;
+            const to = from + limit - 1;
+
+            const { data, error, count } = await query
+                .order('date', { ascending: false })
+                .range(from, to);
 
             if (error) throw error;
 
-            return data.map((item: any) => ({
+            const mappedData = data?.map((item: any) => ({
                 id: item.id,
                 protocol: item.protocol,
                 fiscal: item.fiscal,
@@ -108,10 +161,12 @@ export const AbastecimentoService = {
                 userId: item.user_id,
                 userName: item.user_name,
                 created_at: item.created_at
-            }));
+            })) || [];
+
+            return { data: mappedData, count: count || 0 };
         } catch (error) {
             console.error('Error loading records:', error);
-            return [];
+            return { data: [], count: 0 };
         }
     },
 

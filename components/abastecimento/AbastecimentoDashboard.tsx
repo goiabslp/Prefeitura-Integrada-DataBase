@@ -316,7 +316,9 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     };
 
     const loadRecords = async () => {
-        const data = await AbastecimentoService.getAbastecimentos();
+        // PERF: Temporarily fetching a large number of records to maintain dashboard functionality 
+        // which relies on client-side aggregation. Future TODO: Refactor dashboard to use server-side aggregation.
+        const { data } = await AbastecimentoService.getAbastecimentos(1, 2000);
         setAllRecords(data);
     };
 
