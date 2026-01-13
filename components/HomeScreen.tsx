@@ -359,10 +359,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             </main>
 
-            {/* Footer Info */}
-            <div className="absolute bottom-4 left-8 text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em] hidden lg:block pointer-events-none">
-                <Package className="w-3 h-3 inline mr-2" /> Plataforma Integrada v1.3.0
-            </div>
+
 
             {/* TASKS DRAWER OVERLAY */}
             {isTasksDrawerOpen && (

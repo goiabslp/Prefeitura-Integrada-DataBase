@@ -34,6 +34,8 @@ interface VehicleStat {
     totalLiters: number;
     count: number;
     lastRef: string;
+    avgKmL: number;
+    sectorName: string;
 }
 
 interface ConfigPanelProps {
@@ -373,7 +375,6 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         const litersDiff = prevLiters === 0 ? 0 : ((totalLiters - prevLiters) / prevLiters) * 100;
 
         // Group by vehicle
-        // Group by vehicle
         const vehicleGroups = filtered.reduce((acc, r) => {
             if (!acc[r.vehicle]) {
                 // Try to resolve a friendly name if the record stores a Plate
@@ -382,13 +383,22 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     ? `${matchedVehicle.model} (${matchedVehicle.plate})`
                     : r.vehicle;
 
+                // Solve Sector Name
+                let sectorName = 'Não Identificado';
+                if (matchedVehicle) {
+                    const s = sectors.find(sec => sec.id === matchedVehicle.sectorId);
+                    if (s) sectorName = s.name;
+                }
+
                 acc[r.vehicle] = {
                     id: r.vehicle,
                     name: displayName,
                     totalCost: 0,
                     totalLiters: 0,
                     count: 0,
-                    lastRef: r.date
+                    lastRef: r.date,
+                    avgKmL: 0,
+                    sectorName: sectorName
                 };
             }
             acc[r.vehicle].totalCost += r.cost;
@@ -400,13 +410,11 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             return acc;
         }, {} as Record<string, VehicleStat>);
 
-        const vehicleStats = Object.values(vehicleGroups).sort((a: VehicleStat, b: VehicleStat) => b.totalCost - a.totalCost) as VehicleStat[];
-        const activeVehicles = vehicleStats.length;
-
-        // Calculate Global Average KM/L (Efficiency)
+        // Calculate Global Average KM/L (Efficiency) AND Per Vehicle Efficiency
         // We need to calculate efficiency for each fill-up interval across all vehicles
         let totalEfficiencySum = 0;
         let efficiencyCount = 0;
+        const vehicleEfficiencySums: Record<string, { sum: number, count: number }> = {};
 
         // Group ALL records (not just filtered) by vehicle to calculate full history context
         // We need history to calculate efficiency for the CURRENT month records
@@ -449,6 +457,13 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 const efficiency = distanceToNext / nextLiters;
                                 totalEfficiencySum += efficiency;
                                 efficiencyCount++;
+
+                                // Per Vehicle Accumulation
+                                if (!vehicleEfficiencySums[record.vehicle]) {
+                                    vehicleEfficiencySums[record.vehicle] = { sum: 0, count: 0 };
+                                }
+                                vehicleEfficiencySums[record.vehicle].sum += efficiency;
+                                vehicleEfficiencySums[record.vehicle].count++;
                             }
                         }
                     }
@@ -457,6 +472,16 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         });
 
         const avgKmL = efficiencyCount > 0 ? (totalEfficiencySum / efficiencyCount) : 0;
+
+        // Finalize Vehicle Stats with Efficiency
+        const vehicleStats = Object.values(vehicleGroups)
+            .map((v: VehicleStat) => ({
+                ...v,
+                avgKmL: vehicleEfficiencySums[v.id] ? (vehicleEfficiencySums[v.id].sum / vehicleEfficiencySums[v.id].count) : 0
+            }))
+            .sort((a, b) => b.totalCost - a.totalCost);
+
+        const activeVehicles = vehicleStats.length;
 
         // --- NEW AGGREGATIONS FOR CHARTS ---
 
@@ -1503,13 +1528,36 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         );
     };
 
+    // Generate unique colors for each sector
+    const sectorColorMap = useMemo(() => {
+        const uniqueSectors = Array.from(new Set(stats.vehicleStats.map((v: any) => v.sectorName))).sort() as string[];
+        const palette = [
+            'emerald', 'blue', 'rose', 'amber', 'violet',
+            'cyan', 'fuchsia', 'lime', 'orange', 'indigo',
+            'teal', 'sky', 'pink', 'purple', 'red',
+            'yellow', 'green'
+        ];
+
+        const map: Record<string, string> = {};
+        uniqueSectors.forEach((sector, index) => {
+            map[sector] = palette[index % palette.length];
+        });
+
+        return map;
+    }, [stats.vehicleStats]);
+
+    const getSectorColor = (sectorName: string) => {
+        return sectorColorMap[sectorName] || 'slate';
+    };
+
     const renderVehicleView = () => {
         if (selectedVehicle) {
             return renderVehicleDetail();
         }
 
         const filteredVehicles = stats.vehicleStats.filter(v =>
-            v.name.toLowerCase().includes(vehicleSearchTerm.toLowerCase())
+            v.name.toLowerCase().includes(vehicleSearchTerm.toLowerCase()) ||
+            v.sectorName.toLowerCase().includes(vehicleSearchTerm.toLowerCase())
         );
 
         return (
@@ -1519,7 +1567,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     <div className="relative group w-full md:w-80">
                         <input
                             type="text"
-                            placeholder="Buscar veículo..."
+                            placeholder="Buscar veículo, placa ou setor..."
                             value={vehicleSearchTerm}
                             onChange={(e) => setVehicleSearchTerm(e.target.value)}
                             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 shadow-sm transition-all"
@@ -1547,72 +1595,74 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {filteredVehicles.map((v) => (
-                            <div
-                                key={v.id}
-                                onClick={() => setSelectedVehicle(v.id)}
-                                className="group bg-white rounded-[2rem] border border-slate-200 p-6 shadow-sm hover:shadow-xl hover:border-cyan-200 transition-all duration-300 cursor-pointer relative overflow-hidden"
-                            >
-                                <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <ChevronRight className="w-5 h-5 text-cyan-400" />
-                                </div>
-                                <div className="flex items-start justify-between mb-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-cyan-50 group-hover:text-cyan-600 transition-colors">
-                                            <Truck className="w-7 h-7" />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-lg font-black text-slate-900 leading-tight uppercase truncate max-w-[150px]">{v.name}</h3>
-                                            <div className="flex flex-col">
-                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                                    {(() => {
-                                                        const veh = vehicles.find(veh => veh.plate === v.id || `${veh.model} - ${veh.brand}` === v.id);
-                                                        return veh?.plate || 'S/ Placa';
-                                                    })()}
-                                                </p>
-                                                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">
-                                                    {(() => {
-                                                        const veh = vehicles.find(veh => veh.plate === v.id || `${veh.model} - ${veh.brand}` === v.id);
-                                                        const sec = sectors.find(s => s.id === veh?.sectorId);
-                                                        return sec?.name || 'Setor não informado';
-                                                    })()}
-                                                </p>
+                        {filteredVehicles.map((v) => {
+                            const color = getSectorColor(v.sectorName);
+                            // White background, colored left border
+                            const borderClass = `border-l-4 border-${color}-400 border-y border-r border-slate-200 hover:border-r-${color}-200 hover:border-y-${color}-200`;
+                            const bgIconClass = `bg-${color}-50 text-${color}-600`;
+                            const textSectorClass = `text-${color}-600`;
+
+                            return (
+                                <div
+                                    key={v.id}
+                                    onClick={() => setSelectedVehicle(v.id)}
+                                    className={`group bg-white rounded-2xl ${borderClass} p-6 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer relative overflow-hidden`}
+                                >
+                                    <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <ChevronRight className={`w-5 h-5 text-${color}-400`} />
+                                    </div>
+
+                                    <div className="flex items-start justify-between mb-6">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-14 h-14 ${bgIconClass} rounded-2xl flex items-center justify-center transition-colors`}>
+                                                <Truck className="w-7 h-7" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-black text-slate-900 leading-tight uppercase mb-1" title={v.name}>{v.name}</h3>
+                                                <div className="flex flex-col">
+                                                    <p className={`text-xs font-bold ${textSectorClass} uppercase tracking-wider`}>
+                                                        {v.sectorName}
+                                                    </p>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-bold text-slate-500 uppercase">
-                                        {v.count} {v.count === 1 ? 'Abastecimento' : 'Abastecimentos'}
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4 mb-6">
-                                    <div className="bg-slate-50 rounded-2xl p-4 transition-colors group-hover:bg-white border border-transparent group-hover:border-slate-100">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Investido</span>
+                                        <div className="px-3 py-1.5 bg-slate-100 rounded-lg text-[10px] font-bold text-slate-500 uppercase flex flex-col items-end">
+                                            <span className="text-[10px] text-slate-400">Abastecimentos</span>
+                                            <span className="text-sm text-slate-700">{v.count}</span>
                                         </div>
-                                        <p className="text-xl font-black text-slate-900">R$ {v.totalCost.toFixed(2)}</p>
                                     </div>
-                                    <div className="bg-slate-50 rounded-2xl p-4 transition-colors group-hover:bg-white border border-transparent group-hover:border-slate-100">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Droplet className="w-3.5 h-3.5 text-blue-500" />
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Consumo</span>
-                                        </div>
-                                        <p className="text-xl font-black text-slate-900">{v.totalLiters.toFixed(1)} L</p>
-                                    </div>
-                                </div>
 
-                                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                                    <div className="flex items-center gap-2">
-                                        <History className="w-3.5 h-3.5 text-slate-300" />
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Último: {new Date(v.lastRef).toLocaleDateString('pt-BR')}</span>
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div className="bg-slate-50 rounded-2xl p-3.5 transition-colors group-hover:bg-slate-50/80 border border-transparent">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Gasto Mensal</span>
+                                            </div>
+                                            <p className="text-lg font-black text-slate-900">{formatCurrency(v.totalCost)}</p>
+                                        </div>
+                                        <div className="bg-slate-50 rounded-2xl p-3.5 transition-colors group-hover:bg-slate-50/80 border border-transparent">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Consumo Médio</span>
+                                            </div>
+                                            <p className="text-lg font-black text-slate-900">
+                                                {v.avgKmL > 0 ? v.avgKmL.toFixed(1) : '--'} <span className="text-xs text-slate-400 font-bold">km/L</span>
+                                            </p>
+                                        </div>
                                     </div>
-                                    <button className="flex items-center gap-1.5 text-xs font-bold text-cyan-600 hover:text-cyan-700 transition-colors">
-                                        Ver Detalhes <BarChart3 className="w-3.5 h-3.5" />
-                                    </button>
+
+                                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                                        <div className="flex items-center gap-2">
+                                            <History className="w-3.5 h-3.5 text-slate-300" />
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Último: {new Date(v.lastRef).toLocaleDateString('pt-BR')}</span>
+                                        </div>
+                                        <span className={`text-xs font-bold text-${color}-600 group-hover:underline`}>
+                                            Ver Detalhes
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

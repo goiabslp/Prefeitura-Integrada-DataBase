@@ -115,6 +115,27 @@ export const AbastecimentoService = {
         }
     },
 
+    checkInvoiceExists: async (invoiceNumber: string, excludeId?: string): Promise<boolean> => {
+        try {
+            let query = supabase
+                .from('abastecimentos')
+                .select('id')
+                .eq('invoice_number', invoiceNumber);
+
+            if (excludeId) {
+                query = query.neq('id', excludeId);
+            }
+
+            const { data, error } = await query;
+
+            if (error) throw error;
+            return data && data.length > 0;
+        } catch (error) {
+            console.error('Error checking invoice:', error);
+            return false;
+        }
+    },
+
     saveAbastecimento: async (record: AbastecimentoRecord): Promise<void> => {
         try {
             const dbRecord = {
