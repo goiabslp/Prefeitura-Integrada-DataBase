@@ -265,6 +265,7 @@ const App: React.FC = () => {
   const [twoFASignatureName, setTwoFASignatureName] = useState('');
   const [pendingParams, setPendingParams] = useState<any>(null); // To store state/action to resume after 2FA
   const [pending2FAAction, setPending2FAAction] = useState<((metadata: any) => Promise<void>) | null>(null); // Generic callback for 2FA success
+  const [pendingSignatureMetadata, setPendingSignatureMetadata] = useState<any | null>(null);
 
   // Routing logic
   const [isLicitacaoSettingsOpen, setIsLicitacaoSettingsOpen] = useState(false);
@@ -276,36 +277,47 @@ const App: React.FC = () => {
     if (!silent) showToast("Atualizando dados...", "info");
     try {
       // Parallelize fetches for speed
+      // Batch 1: Metadata & Config (Fast)
+      const [
+        savedSectors,
+        savedJobs,
+        savedBrands,
+        savedGasStations,
+        savedFuelTypes,
+        savedUsers,
+        counterValue
+      ] = await Promise.all([
+        entityService.getSectors(),
+        entityService.getJobs(),
+        entityService.getBrands(),
+        AbastecimentoService.getGasStations(),
+        AbastecimentoService.getFuelTypes(),
+        entityService.getUsers(),
+        db.getGlobalCounter(),
+      ]);
+
+      // Batch 2: Heavy Entities
+      const [
+        savedPersons,
+        savedVehicles
+      ] = await Promise.all([
+        entityService.getPersons(),
+        entityService.getVehicles()
+      ]);
+
+      // Batch 3: Transactional Data (Heaviest)
       const [
         savedOficios,
         savedPurchaseOrders,
         savedServiceRequests,
         savedLicitacaoProcesses,
-        savedPersons,
-        savedSectors,
-        savedJobs,
-        savedBrands,
-        savedVehicles,
-        savedSchedules,
-        counterValue,
-        savedGasStations,
-        savedFuelTypes,
-        savedUsers
+        savedSchedules
       ] = await Promise.all([
         oficiosService.getAllOficios(),
         comprasService.getAllPurchaseOrders(),
         diariasService.getAllServiceRequests(),
         licitacaoService.getAllLicitacaoProcesses(),
-        entityService.getPersons(),
-        entityService.getSectors(),
-        entityService.getJobs(),
-        entityService.getBrands(),
-        entityService.getVehicles(),
-        vehicleSchedulingService.getSchedules(),
-        db.getGlobalCounter(),
-        AbastecimentoService.getGasStations(),
-        AbastecimentoService.getFuelTypes(),
-        entityService.getUsers()
+        vehicleSchedulingService.getSchedules()
       ]);
 
       const mappedUsers: User[] = savedUsers.map((ru: any) => ({
@@ -634,6 +646,10 @@ const App: React.FC = () => {
 
     // INTERCEPTION FOR NEW OFICIO NUMBERING & COMPRAS
     if ((activeBlock === 'oficio' || activeBlock === 'compras') && !editingOrder && !forceOficio) {
+      // PRESERVE DIGITAL SIGNATURE DATA IF PRESENT
+      if (digitalSignatureData) {
+        setPendingSignatureMetadata(digitalSignatureData);
+      }
       setIsOficioNumberingModalOpen(true);
       return false;
     }
@@ -2790,7 +2806,9 @@ const App: React.FC = () => {
               onClose={() => setIsOficioNumberingModalOpen(false)}
               onConfirm={() => {
                 setIsOficioNumberingModalOpen(false);
-                handleFinish(false, undefined, true); // forceOficio = true
+                // Pass persisted metadata if available, avoiding second 2FA
+                handleFinish(true, pendingSignatureMetadata || undefined, true);
+                setPendingSignatureMetadata(null); // Clear after use
               }}
               sectorId={(() => {
                 const s = sectors.find(sec => sec.name === currentUser.sector);
