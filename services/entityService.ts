@@ -184,8 +184,8 @@ export const getVehicles = async (): Promise<Vehicle[]> => {
         .from('vehicles')
         .select(`
             id, type, model, plate, brand, year, color, renavam, chassis,
-            sector_id, responsible_person_id, document_url, document_name,
-            vehicle_image_url, status, maintenance_status, fuel_types, request_manager_ids
+            sector_id, responsible_person_id, document_name,
+            status, maintenance_status, fuel_types, request_manager_ids
         `);
     if (error) {
         console.error('Error fetching vehicles:', error);
@@ -203,14 +203,48 @@ export const getVehicles = async (): Promise<Vehicle[]> => {
         chassis: v.chassis,
         sectorId: v.sector_id,
         responsiblePersonId: v.responsible_person_id,
-        documentUrl: v.document_url,
+        documentUrl: v.document_url, // undefined in list view
         documentName: v.document_name,
-        vehicleImageUrl: v.vehicle_image_url,
+        vehicleImageUrl: v.vehicle_image_url, // undefined in list view
         status: v.status,
         maintenanceStatus: v.maintenance_status,
         fuelTypes: v.fuel_types,
         requestManagerIds: v.request_manager_ids || []
     })) || [];
+};
+
+export const getVehicleById = async (id: string): Promise<Vehicle | null> => {
+    const { data, error } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.error('Error fetching vehicle details:', error);
+        return null;
+    }
+
+    return {
+        id: data.id,
+        type: data.type,
+        model: data.model,
+        plate: data.plate,
+        brand: data.brand,
+        year: data.year,
+        color: data.color,
+        renavam: data.renavam,
+        chassis: data.chassis,
+        sectorId: data.sector_id,
+        responsiblePersonId: data.responsible_person_id,
+        documentUrl: data.document_url,
+        documentName: data.document_name,
+        vehicleImageUrl: data.vehicle_image_url,
+        status: data.status,
+        maintenanceStatus: data.maintenance_status,
+        fuelTypes: data.fuel_types,
+        requestManagerIds: data.request_manager_ids || []
+    };
 };
 
 export const createVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> => {

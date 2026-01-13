@@ -18,7 +18,7 @@ import * as signatureService from './services/signatureService';
 import * as vehicleSchedulingService from './services/vehicleSchedulingService';
 import * as licitacaoService from './services/licitacaoService';
 import { AbastecimentoService } from './services/abastecimentoService';
-import { Send, CheckCircle2, X, Download, Save, FilePlus, Package, History, FileText, Settings, LogOut, ChevronRight, ChevronDown, Search, Filter, Upload, Trash2, Printer, Edit, ArrowLeft } from 'lucide-react';
+import { Send, CheckCircle2, X, Download, Save, FilePlus, Package, History, FileText, Settings, LogOut, ChevronRight, ChevronDown, Search, Filter, Upload, Trash2, Printer, Edit, ArrowLeft, Loader2 } from 'lucide-react';
 
 // Components
 import { LoginScreen } from './components/LoginScreen';
@@ -192,6 +192,7 @@ const App: React.FC = () => {
   const [isOficioNumberingModalOpen, setIsOficioNumberingModalOpen] = useState(false);
 
   // --- GLOBAL SETTINGS LOAD & SAVE ---
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false); // New state for lazy loading
   const [successOverlay, setSuccessOverlay] = useState<{ show: boolean, protocol: string } | null>(null);
   const [lastRefresh, setLastRefresh] = useState(0);
 
@@ -863,12 +864,38 @@ const App: React.FC = () => {
     setSuccessOverlay({ show: true, protocol: appState.content.protocol || lastOrder?.protocol || 'ERRO-PROTOCOLO' });
   };
 
-  const handleEditOrder = (order: Order) => {
+  const handleEditOrder = async (order: Order) => {
     setLastListView(currentView); // Track where we came from
-    let snapshotToUse = order.documentSnapshot;
+
+    // LAZY LOAD DETAILS (Optimized Oficios)
+    let fullOrder = order;
+    if (order.blockType === 'oficio' && (!order.documentSnapshot?.content || Object.keys(order.documentSnapshot.content).length === 0)) {
+      setIsLoadingDetails(true);
+      try {
+        const fetched = await oficiosService.getOficioById(order.id);
+        if (fetched) {
+          fullOrder = fetched;
+          // Update local cache so we don't fetch again
+          setOficios(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+        } else {
+          alert("Erro ao carregar os detalhes do ofício. Tente novamente.");
+          setIsLoadingDetails(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Error fetching details", err);
+        alert("Erro de conexão ao carregar ofício.");
+        setIsLoadingDetails(false);
+        return;
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    }
+
+    let snapshotToUse = fullOrder.documentSnapshot;
 
     // STRICT NAVIGATION GUARD: Licitacao logic
-    if (order.blockType === 'licitacao') {
+    if (fullOrder.blockType === 'licitacao') {
       const isMeusProcessos = currentView === 'tracking';
 
       if (isMeusProcessos) {
@@ -1079,10 +1106,33 @@ const App: React.FC = () => {
   };
 
   const handleDownloadFromHistory = async (order: Order, forcedBlockType?: BlockType) => {
-    if (!order.documentSnapshot) return;
+    // Lazy load details if missing
+    let fullOrder = order;
+    if (order.blockType === 'oficio' && (!order.documentSnapshot?.content || Object.keys(order.documentSnapshot.content).length === 0)) {
+      setIsLoadingDetails(true);
+      try {
+        const fetched = await oficiosService.getOficioById(order.id);
+        if (fetched) {
+          fullOrder = fetched;
+          setOficios(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+        } else {
+          alert("Erro ao baixar: Detalhes não encontrados.");
+          setIsLoadingDetails(false);
+          return;
+        }
+      } catch (e) {
+        alert("Erro ao baixar: Falha na conexão.");
+        setIsLoadingDetails(false);
+        return;
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    }
+
+    if (!fullOrder.documentSnapshot) return;
     setIsDownloading(true);
-    setSnapshotToDownload(order.documentSnapshot);
-    setBlockTypeToDownload(forcedBlockType || order.blockType);
+    setSnapshotToDownload(fullOrder.documentSnapshot);
+    setBlockTypeToDownload(forcedBlockType || fullOrder.blockType);
     setTimeout(async () => {
       const element = document.getElementById('background-preview-scaler');
       if (!element) return;
@@ -2443,6 +2493,7 @@ const App: React.FC = () => {
                 fuelTypes={fuelTypes}
                 sectors={sectors}
                 refreshTrigger={lastRefresh}
+                onFetchDetails={entityService.getVehicleById}
               />
             )}
 
@@ -2798,6 +2849,16 @@ const App: React.FC = () => {
               />
             )
           }
+
+          {/* LOADING DETAILS OVERLAY */}
+          {isLoadingDetails && (
+            <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm flex items-center justify-center animate-fade-in">
+              <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4 animate-scale-in">
+                <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+                <span className="text-slate-700 font-medium">Carregando detalhes...</span>
+              </div>
+            </div>
+          )}
 
           {/* OFICIO NUMBERING MODAL */}
           {currentUser && (
