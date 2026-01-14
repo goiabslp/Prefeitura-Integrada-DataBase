@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useDeferredValue, memo } from 'react';
-import { ChevronDown, Search, Check } from 'lucide-react';
+import { ChevronDown, Search, Check, X } from 'lucide-react';
 
 export interface Option {
     value: string;
@@ -18,6 +18,7 @@ interface CustomSelectProps {
     icon?: React.ElementType;
     required?: boolean;
     className?: string;
+    enableMobileModal?: boolean;
 }
 
 // Sub-component for options to enable granular memoization
@@ -66,19 +67,29 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
     placeholder = 'Selecione...',
     icon: Icon,
     required,
-    className
+    className,
+    enableMobileModal = false
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [dropPosition, setDropPosition] = useState<'down' | 'up'>('down');
     const containerRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const selectedOption = useMemo(() => options.find(opt => opt.value === value), [options, value]);
     const deferredSearchTerm = useDeferredValue(searchTerm);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
+            if (isMobile && enableMobileModal) return; // Don't close on outside click for mobile modal (use heavy overlay instead)
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
             }
@@ -86,27 +97,36 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
 
         if (isOpen) {
             document.addEventListener('mousedown', handleClickOutside);
+            // Lock body scroll for mobile modal
+            if (isMobile && enableMobileModal) {
+                document.body.style.overflow = 'hidden';
+            }
         }
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isOpen]);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.body.style.overflow = '';
+        };
+    }, [isOpen, isMobile, enableMobileModal]);
 
     useEffect(() => {
         if (isOpen && containerRef.current) {
-            // Auto-position logic
-            const rect = containerRef.current.getBoundingClientRect();
-            const spaceBelow = window.innerHeight - rect.bottom;
-            const spaceNeeded = 300;
+            // Auto-position logic only for desktop
+            if (!isMobile || !enableMobileModal) {
+                const rect = containerRef.current.getBoundingClientRect();
+                const spaceBelow = window.innerHeight - rect.bottom;
+                const spaceNeeded = 300;
+                setDropPosition(spaceBelow < spaceNeeded && rect.top > spaceNeeded ? 'up' : 'down');
+            }
 
-            setDropPosition(spaceBelow < spaceNeeded && rect.top > spaceNeeded ? 'up' : 'down');
-
-            if (window.innerWidth >= 768 && searchInputRef.current) {
-                searchInputRef.current.focus();
+            if ((!isMobile || enableMobileModal) && searchInputRef.current) {
+                // Focus search input after a short delay to allow transition
+                setTimeout(() => searchInputRef.current?.focus(), 100);
             }
         }
         if (!isOpen) {
             setSearchTerm('');
         }
-    }, [isOpen]);
+    }, [isOpen, isMobile, enableMobileModal]);
 
     const filteredOptions = useMemo(() => {
         if (!deferredSearchTerm) return options;
@@ -121,6 +141,74 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
 
     const labelClass = "block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1";
     const inputClass = "w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-900 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none transition-all flex items-center justify-between cursor-pointer group-hover:bg-white group-hover:border-cyan-200";
+
+    const renderMobileModal = () => (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+            {/* Backdrop Blur */}
+            <div
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+                onClick={() => setIsOpen(false)}
+            />
+
+            {/* Modal Content */}
+            <div className="relative w-full sm:w-[500px] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom duration-300">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50">
+                    <h3 className="font-bold text-slate-700">{label || placeholder}</h3>
+                    <button
+                        onClick={() => setIsOpen(false)}
+                        className="p-2 -mr-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Search */}
+                <div className="p-3 border-b border-slate-50">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                            ref={searchInputRef}
+                            type="text"
+                            className="w-full pl-9 pr-4 py-3 text-sm rounded-xl border border-slate-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none bg-slate-50 focus:bg-white transition-all placeholder:text-slate-400 font-medium"
+                            placeholder="Buscar opção..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {/* List */}
+                <div className="overflow-y-auto p-2 custom-scrollbar flex-1 min-h-0">
+                    {displayOptions.length > 0 ? (
+                        <div className="space-y-1">
+                            {displayOptions.map((option) => (
+                                <SelectItem
+                                    key={option.key || option.value}
+                                    option={option}
+                                    isSelected={value === option.value}
+                                    onClick={(val) => {
+                                        onChange(val);
+                                        setIsOpen(false);
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-2">
+                            <Search className="w-8 h-8 opacity-20" />
+                            <span className="text-sm font-medium">Nenhum resultado encontrado</span>
+                        </div>
+                    )}
+                    {filteredOptions.length > 50 && (
+                        <div className="px-4 py-3 text-xs text-center text-slate-400 border-t border-slate-50 mt-2 font-medium">
+                            Mostrando 50 de {filteredOptions.length} opções
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 
     return (
         <div className={`relative ${className}`} ref={containerRef}>
@@ -142,50 +230,52 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
                 </div>
 
                 {isOpen && (
-                    <div className={`absolute z-50 left-0 right-0 bg-white rounded-xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in duration-200 ${dropPosition === 'up'
-                        ? 'bottom-full mb-2 slide-in-from-bottom-2'
-                        : 'mt-2 slide-in-from-top-2'
-                        }`}>
-                        <div className="p-2 border-b border-slate-50 bg-slate-50/50">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                <input
-                                    ref={searchInputRef}
-                                    type="text"
-                                    className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 outline-none bg-white placeholder:text-slate-300"
-                                    placeholder="Buscar..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    onClick={(e) => e.stopPropagation()}
-                                />
+                    (isMobile && enableMobileModal) ? renderMobileModal() : (
+                        <div className={`absolute z-50 left-0 right-0 bg-white rounded-xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in duration-200 ${dropPosition === 'up'
+                            ? 'bottom-full mb-2 slide-in-from-bottom-2'
+                            : 'mt-2 slide-in-from-top-2'
+                            }`}>
+                            <div className="p-2 border-b border-slate-50 bg-slate-50/50">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <input
+                                        ref={searchInputRef}
+                                        type="text"
+                                        className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 outline-none bg-white placeholder:text-slate-300"
+                                        placeholder="Buscar..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
+                                {displayOptions.length > 0 ? (
+                                    displayOptions.map((option) => (
+                                        <SelectItem
+                                            key={option.key || option.value}
+                                            option={option}
+                                            isSelected={value === option.value}
+                                            onClick={(val) => {
+                                                onChange(val);
+                                                setIsOpen(false);
+                                            }}
+                                        />
+                                    ))
+                                ) : (
+                                    <div className="px-4 py-8 text-center text-slate-400 text-sm">
+                                        Nenhum resultado encontrado
+                                    </div>
+                                )}
+                                {filteredOptions.length > 50 && (
+                                    <div className="px-4 py-2 text-[10px] text-center text-slate-400 border-t border-slate-50">
+                                        Refine sua busca para ver mais resultados ({filteredOptions.length} total)
+                                    </div>
+                                )}
                             </div>
                         </div>
-
-                        <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
-                            {displayOptions.length > 0 ? (
-                                displayOptions.map((option) => (
-                                    <SelectItem
-                                        key={option.key || option.value}
-                                        option={option}
-                                        isSelected={value === option.value}
-                                        onClick={(val) => {
-                                            onChange(val);
-                                            setIsOpen(false);
-                                        }}
-                                    />
-                                ))
-                            ) : (
-                                <div className="px-4 py-8 text-center text-slate-400 text-sm">
-                                    Nenhum resultado encontrado
-                                </div>
-                            )}
-                            {filteredOptions.length > 50 && (
-                                <div className="px-4 py-2 text-[10px] text-center text-slate-400 border-t border-slate-50">
-                                    Refine sua busca para ver mais resultados ({filteredOptions.length} total)
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    )
                 )}
             </div>
 

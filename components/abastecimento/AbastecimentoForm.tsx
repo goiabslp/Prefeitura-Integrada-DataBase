@@ -18,8 +18,12 @@ interface AbastecimentoFormProps {
     initialData?: AbastecimentoRecord;
 }
 
-export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, onSave, vehicles, persons, gasStations, fuelTypes, initialData }) => {
+import { useCachedVehicles } from '../../hooks/useCachedVehicles';
+
+export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, onSave, vehicles: initialVehicles, persons, gasStations, fuelTypes, initialData }) => {
     const { user: authUser } = useAuth();
+    // Use cached vehicles for optimized loading, falling back to props if cache empty/loading
+    const vehicles = useCachedVehicles(initialVehicles);
 
     // Derived prices from props
     const [fuelPrices, setFuelPrices] = useState<{ [key: string]: number }>({});
@@ -38,6 +42,40 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     const [station, setStation] = useState('');
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [cost, setCost] = useState(0);
+
+    // Formatting Helpers
+    const formatNumberInput = (value: string, decimals: number) => {
+        // Remove non-digits
+        const digits = value.replace(/\D/g, '');
+        if (!digits) return '';
+
+        // Convert to float based on precision
+        const floatVal = parseInt(digits) / Math.pow(10, decimals);
+
+        // Format with thousands separator and correct decimal places
+        return floatVal.toLocaleString('pt-BR', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    };
+
+    const parseFormattedNumber = (value: string) => {
+        if (!value) return 0;
+        // Remove dots, replace comma with dot
+        return parseFloat(value.replace(/\./g, '').replace(',', '.'));
+    };
+
+    const handleOdometerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // Odometer: 1 decimal place
+        const formatted = formatNumberInput(e.target.value, 1);
+        setOdometer(formatted);
+    };
+
+    const handleLitersChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // Liters: 2 decimal places
+        const formatted = formatNumberInput(e.target.value, 2);
+        setLiters(formatted);
+    };
 
     // Confirmation Modal State
     const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -78,8 +116,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             );
             setVehicle(matchedVehicle ? matchedVehicle.plate : savedVehicle);
             setDriver(initialData.driver);
-            setLiters(initialData.liters.toString());
-            setOdometer(initialData.odometer.toString());
+            setLiters(initialData.liters.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+            setOdometer(initialData.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 1 }));
             // Extract fuel key from "type - price" string "gasolina - R$ 5.00" -> "gasolina" or just use full string if needed?
             // The record stores "gasolina - R$ 5.89". We need to find the key.
             // Actually record.fuelType stores "gasolina - R$ 5.89".
@@ -102,7 +140,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                 return;
             }
             const price = fuelPrices[fuelType] || 0;
-            const total = parseFloat(liters) * price;
+            const litersFloat = parseFormattedNumber(liters);
+            const total = litersFloat * price;
             setCost(total);
         };
         calculateCost();
@@ -133,8 +172,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             vehicle,
             driver,
             fuelType: `${fuelType} - R$ ${fuelPrices[fuelType]?.toFixed(2)}`,
-            liters: Number(liters),
-            odometer: Number(odometer),
+            liters: parseFormattedNumber(liters),
+            odometer: parseFormattedNumber(odometer),
             cost: Number(cost.toFixed(2)),
             station,
             invoiceNumber,
@@ -187,6 +226,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                 value: p.name,
                 label: p.name,
                 subtext: p.role,
+                key: p.id,
                 // Pre-calculating sort key to avoid expensive operations during comparison
                 _sortKey: (p.name || '').trim().toLowerCase()
             }))
@@ -205,7 +245,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
         .map(s => ({
             value: s.name,
             label: s.name,
-            subtext: s.city
+            subtext: s.city,
+            key: s.id
         }))
         .sort((a, b) => a.label.localeCompare(b.label)), [gasStations]);
 
@@ -275,6 +316,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 placeholder="Selecione o veículo"
                                 icon={Truck}
                                 required
+                                enableMobileModal
                             />
                         </div>
                         <div className="col-span-12 md:col-span-6">
@@ -286,6 +328,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 placeholder="Selecione o motorista"
                                 icon={User}
                                 required
+                                enableMobileModal
                             />
                         </div>
 
@@ -295,13 +338,12 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 <label className={labelClass}>Odômetro (KM)</label>
                                 <div className="relative group">
                                     <input
-                                        type="number"
+                                        type="text"
                                         inputMode="numeric"
-                                        pattern="[0-9]*"
                                         required
-                                        placeholder="000000"
+                                        placeholder="00.000,0"
                                         value={odometer}
-                                        onChange={(e) => setOdometer(e.target.value)}
+                                        onChange={handleOdometerChange}
                                         className="w-full font-bold text-slate-800 bg-white border border-slate-200 rounded-xl px-3 py-2.5 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all outline-none"
                                     />
                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-bold text-slate-400">
@@ -319,6 +361,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                     placeholder="Tipo"
                                     icon={Fuel}
                                     required
+                                    enableMobileModal
                                 />
                             </div>
 
@@ -326,13 +369,12 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 <label className={labelClass}>Litros</label>
                                 <div className="relative group">
                                     <input
-                                        type="number"
-                                        inputMode="decimal"
-                                        step="0.1"
+                                        type="text"
+                                        inputMode="numeric"
                                         required
-                                        placeholder="00.0"
+                                        placeholder="00,00"
                                         value={liters}
-                                        onChange={(e) => setLiters(e.target.value)}
+                                        onChange={handleLitersChange}
                                         className={inputClass}
                                     />
                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
@@ -353,6 +395,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                     placeholder="Selecione o posto..."
                                     icon={MapPin}
                                     required
+                                    enableMobileModal
                                 />
                                 {gasStations.length === 0 && (
                                     <p className="text-[10px] text-amber-600 mt-1 ml-1 flex items-center gap-1">
