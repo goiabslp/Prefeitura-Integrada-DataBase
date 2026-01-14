@@ -155,6 +155,25 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
         const recordId = initialData?.id || crypto.randomUUID();
         const protocolId = initialData?.protocol || `ABA-${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`;
 
+        // Strict Validation
+        if (!vehicle || !driver || !fuelType) {
+            alert('Por favor, preencha todos os campos obrigatórios (Veículo, Motorista, Combustível).');
+            return;
+        }
+
+        const litersVal = parseFormattedNumber(liters);
+        const odometerVal = parseFormattedNumber(odometer);
+
+        if (litersVal <= 0) {
+            alert('A quantidade de litros deve ser maior que zero.');
+            return;
+        }
+
+        if (odometerVal <= 0) {
+            alert('O odômetro deve ser maior que zero.');
+            return;
+        }
+
         // Check for duplicate invoice number
         if (invoiceNumber) {
             const isDuplicate = await AbastecimentoService.checkInvoiceExists(invoiceNumber, initialData?.id);
@@ -172,8 +191,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             vehicle,
             driver,
             fuelType: `${fuelType} - R$ ${fuelPrices[fuelType]?.toFixed(2)}`,
-            liters: parseFormattedNumber(liters),
-            odometer: parseFormattedNumber(odometer),
+            liters: litersVal,
+            odometer: odometerVal,
             cost: Number(cost.toFixed(2)),
             station,
             invoiceNumber,
@@ -192,12 +211,22 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
 
         try {
             setIsSaving(true);
+
+            // Audit Log (Console for now, can be extended to DB)
+            console.log(`[AUDIT] Saving Supply Record: 
+                Protocol: ${pendingData.protocol}, 
+                User: ${pendingData.userName} (${pendingData.userId}), 
+                Vehicle: ${pendingData.vehicle}, 
+                Timestamp: ${new Date().toISOString()}`
+            );
+
             await AbastecimentoService.saveAbastecimento(pendingData);
+
             onSave(pendingData);
             setConfirmModalOpen(false);
         } catch (error) {
-            console.error(error);
-            alert("Erro ao salvar abastecimento.");
+            console.error("[AUDIT] Error saving supply:", error);
+            alert("Erro ao salvar abastecimento. Verifique sua conexão e tente novamente.");
         } finally {
             setIsSaving(false);
         }

@@ -166,7 +166,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
         setPage(1);
     }, [filterMode, selectedDate, filterSector, filterFuel, refreshTrigger]);
 
-    const loadSupplies = async (currentPage: number, resetList: boolean = false) => {
+    const loadSupplies = React.useCallback(async (currentPage: number, resetList: boolean = false) => {
         setIsLoading(true);
         try {
             // Helper to get filter object
@@ -175,19 +175,24 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
             if (filterSector && filterSector !== 'all') filters.sector = filterSector;
             if (filterFuel && filterFuel !== 'all') filters.fuelType = filterFuel;
 
-            if (filterMode === 'today') {
-                const date = new Date();
-                const offset = date.getTimezoneOffset();
-                const localDate = new Date(date.getTime() - (offset * 60 * 1000));
-                filters.date = localDate.toISOString().split('T')[0];
-            } else if (filterMode === 'date') {
-                filters.date = selectedDate;
+            if (filterMode === 'today' || filterMode === 'date') {
+                const baseDateStr = filterMode === 'today'
+                    ? new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD in local time
+                    : selectedDate;
+
+                // Create start and end of day in LOCAL time, then convert to ISO (UTC)
+                // This ensures we capture the full day regardless of timezone offset
+                const startLocal = new Date(`${baseDateStr}T00:00:00`);
+                const endLocal = new Date(`${baseDateStr}T23:59:59.999`);
+
+                filters.startDate = startLocal.toISOString();
+                filters.endDate = endLocal.toISOString();
             }
 
             const [dataRes, vehiclesRes, sectorsRes] = await Promise.all([
                 AbastecimentoService.getAbastecimentos(currentPage, 50, filters),
-                // Only load metadata once if possible, or cache it. 
-                // For simplicity, we load it every time for now, or we could check if maps are empty.
+                // Optimization: Load metadata only if maps are empty or forced refresh
+                // But for now keeping simple to ensure consistency
                 Object.keys(vehicleSectorMap).length === 0 ? supabase.from('vehicles').select('*') : Promise.resolve({ data: null }),
                 Object.keys(vehicleSectorMap).length === 0 ? supabase.from('sectors').select('*') : Promise.resolve({ data: null })
             ]);
@@ -199,9 +204,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
             }
 
             setTotalCount(dataRes.count);
-            setHasMore(dataRes.data.length === 50); // Improved check? count > current length?
-            // Actually, if we received LIMIT items, there might be more. 
-            // Better: if (currentListLength + newData.length < count)
+            setHasMore(dataRes.data.length === 50);
 
             if (vehiclesRes.data && sectorsRes.data) {
                 const sectorLookup = sectorsRes.data.reduce((acc: any, s: any) => {
@@ -220,13 +223,11 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
 
                 vehiclesRes.data.forEach((v: any) => {
                     const sectorName = sectorLookup[v.sector_id] || 'N/A';
-                    // New Key: "Plate" (The main identifier now)
                     if (v.plate) {
                         vMap[v.plate] = sectorName;
                         pMap[v.plate] = v.plate;
                         modelMap[v.plate] = `${v.model} - ${v.brand}`;
                     }
-                    // Legacy Key: "Model - Brand" 
                     const legacyKey = `${v.model} - ${v.brand}`;
                     if (!vMap[legacyKey]) vMap[legacyKey] = sectorName;
                     if (!pMap[legacyKey]) pMap[legacyKey] = v.plate || 'S/PLACA';
@@ -241,15 +242,13 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [debouncedSearch, filterSector, filterFuel, filterMode, selectedDate]); // Dependencies ensuring fresh state
 
     useEffect(() => {
         loadSupplies(page, page === 1);
-    }, [page, debouncedSearch, filterMode, selectedDate, refreshTrigger]);
+    }, [loadSupplies, page, refreshTrigger]);
 
     // Cleanup subscription to avoid duplicates/complexity with pagination.
-    // For now, we disable realtime listener for the list to avoid list jumping while paginating.
-    // Or we can just re-load page 1 on change.
     useEffect(() => {
         const channel = supabase
             .channel('abastecimentos-list-changes')
@@ -257,10 +256,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'abastecimentos' },
                 () => {
-                    // On valid change, just refresh page 1? Or ignore?
-                    // Let's refresh page 1 to be safe, but it might reset user scroll.
-                    // Ideally, show a "New data available" toast. 
-                    // For MVP simplicity: just reload if on page 1.
+                    // On valid change, refresh if on page 1 to show latest data
                     if (page === 1) loadSupplies(1, true);
                 }
             )
@@ -269,9 +265,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [page]); // Re-sub if page changes? No. Just on mount. 
-    // Actually, accessing 'page' inside the callback needs a ref or dependency.
-    // Let's keep it simple: Realtime update only if we are at the top (page 1).
+    }, [page, loadSupplies]); // Including loadSupplies ensures we use the version with fresh state closure
 
     const handleDelete = async (id: string) => {
         if (window.confirm('Tem certeza que deseja excluir este registro?')) {
