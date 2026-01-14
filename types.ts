@@ -200,6 +200,7 @@ export interface Order {
   completionForecast?: string;
   stage?: string;
   requestingSector?: string;
+  description?: string;
 }
 
 export interface Person {

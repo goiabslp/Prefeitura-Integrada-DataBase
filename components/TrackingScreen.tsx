@@ -5,11 +5,14 @@ import {
     FileDown, Calendar, Edit3, TrendingUp, Loader2,
     CheckCircle2, AlertCircle, CalendarCheck, Check, RotateCcw,
     Paperclip, PackageCheck, FileSearch, Scale, Landmark, ShoppingCart, CheckCircle, XCircle,
-    Eye, History, X, Lock, User, MessageCircle, Sparkles, Plus, Upload, Download, AlertTriangle, ShieldAlert, Zap, Info, Network, Trash, ArrowRight
+    Eye, History, X, Lock, User, MessageCircle, Sparkles, Plus, Upload, Download, AlertTriangle, ShieldAlert, Zap, Info, Network, Trash, ArrowRight, Edit2
 } from 'lucide-react';
 import { User as UserType, Order, AppState, BlockType, Attachment } from '../types';
 import { DocumentPreview } from './DocumentPreview';
 import { uploadFile } from '../services/storageService';
+import { useOficios, useOficio, useUpdateOficioDescription } from '../hooks/useOficios';
+import { usePurchaseOrders, usePurchaseOrder } from '../hooks/usePurchaseOrders';
+import { useServiceRequests, useServiceRequest } from '../hooks/useServiceRequests';
 
 const HashIcon = ({ className }: { className?: string }) => (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -52,8 +55,30 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     showAllProcesses = false
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
+    const { data: oficiosData } = useOficios();
+    const { data: purchaseOrdersData } = usePurchaseOrders();
+    const { data: serviceRequestsData } = useServiceRequests();
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
     const [previewOrder, setPreviewOrder] = useState<Order | null>(null);
+
+    // Dynamic hooks for full preview
+    const { data: fullPurchaseOrder } = usePurchaseOrder(
+        (activeBlock === 'compras' && previewOrder) ? previewOrder.id : null
+    );
+    const { data: fullServiceRequest } = useServiceRequest(
+        (activeBlock === 'diarias' && previewOrder) ? previewOrder.id : null
+    );
+    const { data: fullOficio } = useOficio(
+        (activeBlock === 'oficio' && previewOrder) ? previewOrder.id : null
+    );
+
+    const effectivePreviewOrder = (() => {
+        if (activeBlock === 'compras' && fullPurchaseOrder) return fullPurchaseOrder;
+        if (activeBlock === 'diarias' && fullServiceRequest) return fullServiceRequest;
+        if (activeBlock === 'oficio' && fullOficio) return fullOficio;
+        return previewOrder;
+    })();
+
     const [historyOrder, setHistoryOrder] = useState<Order | null>(null);
     const [attachmentManagerOrder, setAttachmentManagerOrder] = useState<Order | null>(null);
     const [priorityJustificationOrder, setPriorityJustificationOrder] = useState<Order | null>(null);
@@ -62,6 +87,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, title: string, message: string, onConfirm: () => void, type: 'danger' | 'warning' }>({
         isOpen: false, title: '', message: '', onConfirm: () => { }, type: 'warning'
     });
+    const updateOficioDescription = useUpdateOficioDescription();
 
     const extractOficioNumber = (text: string | undefined) => {
         if (!text) return '---';
@@ -76,7 +102,14 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     const isCompras = activeBlock === 'compras';
     const isLicitacao = activeBlock === 'licitacao';
 
-    const filteredOrders = orders.filter(order => {
+    const getSourceOrders = () => {
+        if (activeBlock === 'oficio') return oficiosData || [];
+        if (activeBlock === 'compras') return purchaseOrdersData || [];
+        if (activeBlock === 'diarias') return serviceRequestsData || [];
+        return orders;
+    };
+
+    const filteredOrders = getSourceOrders().filter(order => {
         const matchesBlock = order.blockType === activeBlock;
         if (!matchesBlock) return false;
 
@@ -310,15 +343,22 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                 Prioridade
                                             </div>
                                         )}
-                                        <div className={`${isCompras ? 'md:col-span-1' : 'md:col-span-2'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
-                                            <HashIcon className="w-3 h-3" /> {isCompras ? 'ID' : 'Protocolo'}
-                                        </div>
-                                        {activeBlock === 'oficio' && (
-                                            <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
-                                                <FileText className="w-3 h-3" /> Número do Ofício
+                                        {activeBlock !== 'oficio' && (
+                                            <div className={`${isCompras ? 'md:col-span-1' : 'md:col-span-2'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
+                                                <HashIcon className="w-3 h-3" /> {isCompras ? 'ID' : 'Protocolo'}
                                             </div>
                                         )}
-                                        <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-4' : 'md:col-span-6'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
+                                        {activeBlock === 'oficio' && (
+                                            <>
+                                                <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
+                                                    <FileText className="w-3 h-3" /> Número do Ofício
+                                                </div>
+                                                <div className="md:col-span-3 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
+                                                    <Edit2 className="w-3 h-3" /> Descrição
+                                                </div>
+                                            </>
+                                        )}
+                                        <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-3' : 'md:col-span-6'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
                                             {isDiarias ? <><FileText className="w-3 h-3" /> Solicitante + Destino</> : isCompras ? <><Network className="w-3 h-3" /> Setor / Solicitante</> : <><FileText className="w-3 h-3" /> Solicitante</>}
                                         </div>
                                         {isDiarias && (
@@ -422,7 +462,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                         </div>
 
                                                         <div className="flex flex-col gap-1 md:col-span-2">
-                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Objeto</span>
+                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Objeto</span>
                                                             <span className="text-xs font-bold text-slate-800 line-clamp-1" title={order.title}>{order.title || 'Sem Título'}</span>
                                                         </div>
 
@@ -565,21 +605,42 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                     </div>
                                                 )}
 
-                                                <div className={`${isCompras ? 'md:col-span-1' : 'md:col-span-2'} flex justify-center`}>
-                                                    <span className="font-mono text-[10px] font-bold text-indigo-600 bg-indigo-50/50 px-2 py-1 rounded border border-indigo-100/50">
-                                                        {order.protocol}
-                                                    </span>
-                                                </div>
-
-                                                {activeBlock === 'oficio' && (
-                                                    <div className="md:col-span-2 text-xs font-bold text-slate-700">
-                                                        {extractOficioNumber(order.documentSnapshot?.content.leftBlockText || order.title)}
+                                                {activeBlock !== 'oficio' && (
+                                                    <div className={`${isCompras ? 'md:col-span-1' : 'md:col-span-2'} flex justify-center`}>
+                                                        <span className="font-mono text-[10px] font-bold text-indigo-600 bg-indigo-50/50 px-2 py-1 rounded border border-indigo-100/50">
+                                                            {order.protocol}
+                                                        </span>
                                                     </div>
                                                 )}
 
-                                                <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-4' : 'md:col-span-6'}`}>
+                                                {activeBlock === 'oficio' && (
+                                                    <>
+                                                        <div className="md:col-span-2 text-xs font-bold text-slate-700">
+                                                            {extractOficioNumber(order.documentSnapshot?.content.leftBlockText || order.title)}
+                                                        </div>
+                                                        <div className="md:col-span-3">
+                                                            <input
+                                                                type="text"
+                                                                defaultValue={order.description || ''}
+                                                                onBlur={(e) => {
+                                                                    if ((order.description || '') !== e.target.value) {
+                                                                        updateOficioDescription.mutate({ id: order.id, description: e.target.value });
+                                                                    }
+                                                                }}
+                                                                placeholder="Adicionar descrição..."
+                                                                className="w-full bg-transparent border-none text-xs text-slate-600 focus:ring-0 focus:bg-slate-50 rounded px-2 py-1 placeholder:text-slate-300 transition-colors"
+                                                            />
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                                <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-3' : 'md:col-span-6'}`}>
                                                     <h3 className="text-sm font-bold text-slate-800 leading-tight">
-                                                        {isDiarias ? (content?.requesterName || '---') : isCompras ? (content?.requesterSector || 'Sem Setor') : order.userName}
+                                                        {isDiarias ? (content?.requesterName || '---') : isCompras ? (content?.requesterSector || 'Sem Setor') : (activeBlock === 'oficio' ? (
+                                                            <span title={`De: ${order.userName}\nSetor: ${content?.requesterSector || content?.signatureSector || 'Não informado'}`} className="cursor-help decoration-dotted underline decoration-slate-300 underline-offset-2">
+                                                                {order.userName.split(' ').slice(0, 2).join(' ')}
+                                                            </span>
+                                                        ) : order.userName)}
                                                     </h3>
                                                     {isDiarias ? (
                                                         <p className="text-[10px] text-slate-400 font-medium">
@@ -833,25 +894,61 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                     )
                 }
 
-                {/* MODAL OFICIO/DOCUMENT PREVIEW */}
+                {/* MODAL OFICIO/DOCUMENT PREVIEW - TRANSPARENT BLURRED OVERLAY */}
                 {previewOrder && (
-                    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
-                        <div className="bg-white rounded-[2.5rem] w-full max-w-4xl h-[80vh] overflow-hidden flex flex-col shadow-2xl">
-                            <div className="p-4 border-b flex justify-between items-center">
-                                <h3 className="font-bold text-slate-700">Visualização</h3>
-                                <button onClick={() => setPreviewOrder(null)} className="p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
-                            </div>
-                            <div className="flex-1 overflow-auto bg-slate-100 p-8 flex justify-center">
-                                {previewOrder.documentSnapshot ? (
+                    <div className="fixed inset-0 z-[1000] flex flex-col bg-black/10 backdrop-blur-xl animate-fade-in">
+
+                        {/* Minimalist Floating Controls */}
+                        <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-[1010] pointer-events-none">
+                            <button
+                                onClick={() => setPreviewOrder(null)}
+                                className="pointer-events-auto group flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white shadow-xl hover:bg-slate-800 border border-slate-700 transition-all active:scale-95"
+                            >
+                                <div className="p-1 bg-white/10 rounded-full group-hover:bg-white/20 transition-colors">
+                                    <X className="w-4 h-4" />
+                                </div>
+                                <span className="text-sm font-medium">Fechar</span>
+                            </button>
+
+                            {(effectivePreviewOrder?.documentSnapshot) && (
+                                <button
+                                    onClick={() => onDownloadPdf(effectivePreviewOrder.documentSnapshot!, activeBlock || undefined)}
+                                    className="pointer-events-auto group flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 text-white hover:bg-emerald-500 shadow-xl shadow-emerald-600/20 transition-all active:scale-95 active:shadow-none font-bold text-sm tracking-wide uppercase border border-emerald-500"
+                                >
+                                    <Download className="w-4 h-4 text-white" />
+                                    <span>Baixar</span>
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Content Area */}
+                        <div
+                            className="flex-1 overflow-y-auto overflow-x-hidden flex items-start justify-center p-8 sm:py-20"
+                            onClick={(e) => {
+                                // Close if clicking on the backdrop (empty space)
+                                if (e.target === e.currentTarget) setPreviewOrder(null);
+                            }}
+                        >
+                            <div className="relative shadow-[0_20px_50px_rgba(0,0,0,0.3)] animate-scale-up origin-top">
+                                {/* Show Loading if fetching full details for Lightweight modules */}
+                                {(((activeBlock === 'compras' || activeBlock === 'diarias' || activeBlock === 'oficio') && previewOrder && !effectivePreviewOrder?.documentSnapshot) || (activeBlock === 'oficio' && previewOrder && !fullOficio)) ? (
+                                    <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+                                        <div className="relative">
+                                            <div className="w-16 h-16 rounded-full border-4 border-slate-900/20 border-t-slate-900 animate-spin"></div>
+                                        </div>
+                                        <p className="text-sm font-bold text-slate-900 tracking-widest uppercase animate-pulse">Carregando...</p>
+                                    </div>
+                                ) : effectivePreviewOrder?.documentSnapshot ? (
                                     <DocumentPreview
-                                        state={previewOrder.documentSnapshot}
-                                        scale={0.8}
+                                        state={effectivePreviewOrder.documentSnapshot}
+                                        scale={1}
                                     />
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center p-8 text-slate-400 h-full">
-                                        <FileText className="w-16 h-16 mb-4 opacity-20" />
-                                        <p className="font-bold text-lg text-slate-500">Documento não disponível</p>
-                                        <p className="text-sm">Os dados deste documento não foram encontrados.</p>
+                                    <div className="flex flex-col items-center justify-center text-slate-400 h-[60vh] gap-4">
+                                        <div className="w-24 h-24 rounded-3xl bg-slate-100 flex items-center justify-center">
+                                            <PackageX className="w-10 h-10" />
+                                        </div>
+                                        <p className="text-lg font-bold text-slate-500">Visualização indisponível</p>
                                     </div>
                                 )}
                             </div>

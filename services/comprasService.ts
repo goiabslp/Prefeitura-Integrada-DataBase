@@ -3,13 +3,21 @@ import { supabase } from './supabaseClient';
 import { Order } from '../types';
 import { notificationService } from './notificationService';
 
-export const getAllPurchaseOrders = async (): Promise<Order[]> => {
-    const { data, error } = await supabase
+export const getAllPurchaseOrders = async (lightweight = false): Promise<Order[]> => {
+    let query = supabase
         .from('purchase_orders')
         .select(`
-            id, protocol, title, status, status_history, created_at, user_id, user_name
-        `) // Excluding document_snapshot and other heavy fields if any
+            id, protocol, title, status, status_history, created_at, user_id, user_name, purchase_status, budget_file_url, completion_forecast, attachments
+            ${lightweight ? '' : ', document_snapshot'}
+        `)
         .order('created_at', { ascending: false });
+
+    // Optional: pagination limits for lightweight fetches could be added here
+    if (lightweight) {
+        query = query.limit(50); // Safe limit for initial load
+    }
+
+    const { data, error } = await query;
 
     if (error) {
         console.error('Error fetching purchase orders:', error);
@@ -27,11 +35,38 @@ export const getAllPurchaseOrders = async (): Promise<Order[]> => {
         userId: item.user_id,
         userName: item.user_name,
         blockType: 'compras',
-        documentSnapshot: item.document_snapshot,
+        documentSnapshot: item.document_snapshot, // Undefined if lightweight is true
         budgetFileUrl: item.budget_file_url,
         attachments: item.attachments,
         completionForecast: item.completion_forecast
     }));
+};
+
+export const getPurchaseOrderById = async (id: string): Promise<Order> => {
+    const { data, error } = await supabase
+        .from('purchase_orders')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (error) throw error;
+
+    return {
+        id: data.id,
+        protocol: data.protocol,
+        title: data.title,
+        status: data.status,
+        purchaseStatus: data.purchase_status,
+        statusHistory: data.status_history,
+        createdAt: data.created_at,
+        userId: data.user_id,
+        userName: data.user_name,
+        blockType: 'compras',
+        documentSnapshot: data.document_snapshot,
+        budgetFileUrl: data.budget_file_url,
+        attachments: data.attachments,
+        completionForecast: data.completion_forecast
+    };
 };
 
 export const savePurchaseOrder = async (order: Order): Promise<void> => {

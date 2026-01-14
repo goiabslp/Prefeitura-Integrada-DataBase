@@ -1,15 +1,27 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useAuth } from './contexts/AuthContext';
-import { createPortal } from 'react-dom';
 import {
-  AppState, User, Order, Signature, BlockType, Person, Sector, Job, StatusMovement, Attachment, Vehicle, VehicleBrand, VehicleSchedule
+  useOficios,
+  useCreateOficio,
+  useUpdateOficio,
+  useDeleteOficio
+} from './hooks/useOficios';
+
+import {
+  User, Order, AppState, BlockType, Attachment, Person, Sector, Job,
+  Vehicle, VehicleBrand, VehicleSchedule, Signature, StatusMovement
 } from './types';
-import { INITIAL_STATE, DEFAULT_USERS, MOCK_SIGNATURES, DEFAULT_SECTORS, DEFAULT_JOBS, DEFAULT_PERSONS } from './constants';
-import * as db from './services/dbService';
 import { supabase } from './services/supabaseClient';
 import * as entityService from './services/entityService';
-import * as settingsService from './services/settingsService';
 import * as oficiosService from './services/oficiosService';
+import * as settingsService from './services/settingsService';
+import * as db from './services/dbService';
+import {
+  INITIAL_STATE,
+  DEFAULT_USERS,
+  DEFAULT_SECTORS,
+  DEFAULT_JOBS
+} from './constants';
+import { FloatingNotification } from './components/FloatingNotification';
+
 import * as comprasService from './services/comprasService';
 import * as diariasService from './services/diariasService';
 import * as counterService from './services/counterService';
@@ -19,6 +31,7 @@ import * as vehicleSchedulingService from './services/vehicleSchedulingService';
 import * as licitacaoService from './services/licitacaoService';
 import { AbastecimentoService } from './services/abastecimentoService';
 import { Send, CheckCircle2, X, Download, Save, FilePlus, Package, History, FileText, Settings, LogOut, ChevronRight, ChevronDown, Search, Filter, Upload, Trash2, Printer, Edit, ArrowLeft, Loader2 } from 'lucide-react';
+
 
 // Components
 import { LoginScreen } from './components/LoginScreen';
@@ -49,7 +62,9 @@ import { AbastecimentoList } from './components/abastecimento/AbastecimentoList'
 import { AbastecimentoDashboard } from './components/abastecimento/AbastecimentoDashboard';
 import { ForcePasswordChangeModal } from './components/ForcePasswordChangeModal';
 import { NotificationProvider } from './contexts/NotificationContext';
-import { FloatingNotification } from './components/FloatingNotification';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useAuth } from './contexts/AuthContext';
+import { createPortal } from 'react-dom';
 import { ChatProvider } from './contexts/ChatContext';
 import { ChatWidget } from './components/chat/ChatWidget';
 import { ChatWindow } from './components/chat/ChatWindow';
@@ -122,6 +137,11 @@ const App: React.FC = () => {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isStepperLocked, setIsStepperLocked] = useState(false);
   const [lastListView, setLastListView] = useState<string>('tracking'); // Default to tracking
+
+  // React Query Mutations for Optimistic Updates
+  const createOficioMutation = useCreateOficio();
+  const updateOficioMutation = useUpdateOficio();
+  const deleteOficioMutation = useDeleteOficio();
 
   const [persons, setPersons] = useState<Person[]>(() => {
     try {
@@ -308,15 +328,14 @@ const App: React.FC = () => {
 
       // Batch 3: Transactional Data (Heaviest)
       const [
-        savedOficios,
-        savedPurchaseOrders,
-        savedServiceRequests,
+        // savedPurchaseOrders,
+        // savedServiceRequests,
         savedLicitacaoProcesses,
         savedSchedules
       ] = await Promise.all([
-        oficiosService.getAllOficios(),
-        comprasService.getAllPurchaseOrders(),
-        diariasService.getAllServiceRequests(),
+        // oficiosService.getAllOficios(), // REMOVED: Managed by React Query
+        // comprasService.getAllPurchaseOrders(), // REMOVED: Managed by React Query
+        // diariasService.getAllServiceRequests(), // REMOVED: Managed by React Query
         licitacaoService.getAllLicitacaoProcesses(),
         vehicleSchedulingService.getSchedules()
       ]);
@@ -348,16 +367,16 @@ const App: React.FC = () => {
         setUsers(DEFAULT_USERS);
       }
 
-      setOficios(savedOficios);
-      setPurchaseOrders(savedPurchaseOrders);
-      setServiceRequests(savedServiceRequests);
+      // setOficios(savedOficios); // REMOVED: Managed by React Query
+      // setPurchaseOrders(savedPurchaseOrders); // REMOVED: Managed by React Query
+      // setServiceRequests(savedServiceRequests); // REMOVED: Managed by React Query
       setLicitacaoProcesses(savedLicitacaoProcesses);
 
       // Update local generic state based on current view/block
       const allOrders = [
-        ...savedOficios,
-        ...savedPurchaseOrders,
-        ...savedServiceRequests,
+        // ...savedOficios, // REMOVED: Managed by React Query
+        // ...savedPurchaseOrders, // REMOVED: Managed by React Query
+        // ...savedServiceRequests, // REMOVED: Managed by React Query
         ...savedLicitacaoProcesses
       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -418,15 +437,38 @@ const App: React.FC = () => {
       )
       .subscribe();
 
-    // Profiles (Drivers/Persons) Channel
+    // Profiles (Drivers/Users/Persons) Channel
     const profileChannel = supabase.channel('public:profiles')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'profiles' },
         async () => {
-          const updated = await entityService.getPersons();
-          setPersons(updated);
-          try { sessionStorage.setItem('cachedPersons', JSON.stringify(updated)); } catch (e) { }
+          // Update Persons (for dropdowns)
+          const updatedPersons = await entityService.getPersons();
+          setPersons(updatedPersons);
+          try { sessionStorage.setItem('cachedPersons', JSON.stringify(updatedPersons)); } catch (e) { }
+
+          // Update Users (for Auth & 2FA) - CRITICAL FOR SESSION SYNC
+          const savedUsers = await entityService.getUsers();
+          const mappedUsers: User[] = savedUsers.map((ru: any) => ({
+            id: ru.id,
+            username: ru.username,
+            name: ru.name,
+            role: ru.role,
+            sector: ru.sector,
+            jobTitle: ru.job_title,
+            email: ru.email,
+            whatsapp: ru.whatsapp,
+            allowedSignatureIds: ru.allowed_signature_ids,
+            permissions: ru.permissions,
+            tempPassword: ru.temp_password,
+            tempPasswordExpiresAt: ru.temp_password_expires_at,
+            twoFactorEnabled: ru.two_factor_enabled,
+            twoFactorSecret: ru.two_factor_secret,
+            twoFactorEnabled2: ru.two_factor_enabled_2,
+            twoFactorSecret2: ru.two_factor_secret_2
+          }));
+          if (mappedUsers.length > 0) setUsers(mappedUsers);
         }
       )
       .subscribe();
@@ -628,10 +670,25 @@ const App: React.FC = () => {
     // 2FA Interception Logic
     if (!skip2FA && appState.content.useDigitalSignature) {
       // Find the selected signature user
+      // Find the selected signature user with NORMALIZED check
+      // Fix: Handle accents, multiple spaces, and case sensitivity
+      const normalize = (s: string | undefined | null) =>
+        s?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, ' ') || '';
+
       const signerName = appState.content.signatureName;
       const signerRole = appState.content.signatureRole;
 
-      const signerUser = users.find(u => u.name === signerName && (u.jobTitle === signerRole || u.role === 'admin')); // simplified match
+      console.log(`[2FA Debug] Looking for signer: "${signerName}" (Norm: "${normalize(signerName)}") with Role: "${signerRole}"`);
+      console.log(`[2FA Debug] Available Users:`, users.map(u => `${u.name} (${u.jobTitle})`));
+
+      const signerUser = users.find(u => {
+        const nameMatch = normalize(u.name) === normalize(signerName);
+        // Allow role match OR admin role OR within allowedSignatureIds if applicable, but strictly name match first
+        const roleMatch = normalize(u.jobTitle) === normalize(signerRole) || u.role === 'admin' || !signerRole;
+        return nameMatch && roleMatch;
+      });
+
+      console.log(`[2FA Debug] Found User:`, signerUser);
 
       if (signerUser && (signerUser.twoFactorEnabled || signerUser.twoFactorEnabled2)) {
         setTwoFASecret(signerUser.twoFactorEnabled ? (signerUser.twoFactorSecret || '') : '');
@@ -642,6 +699,26 @@ const App: React.FC = () => {
         setPendingParams(true);
         setIs2FAModalOpen(true);
         return false;
+      }
+
+      // SAFETY CHECK: If 2FA is meant to be enforced (Digital Signature ON) but signer not found or no 2FA credentials
+      // We should potentially warn or block if the system implies strict 2FA for signatures.
+      // However, for now, if signature is "Manual/External" it might not map to a user.
+      // But if the name LOOKS like a user (matches partly) but failed exact match, we fixed that above.
+      // If we still didn't find them, we proceed with caution OR alert.
+      // Given the requirement "failure in authentication", we should explicit block if we suspect a missing map.
+      if (!signerUser && users.some(u => normalize(u.name) === normalize(signerName))) {
+        // User exists but role mismatch?
+        const matchedNameUser = users.find(u => normalize(u.name) === normalize(signerName));
+        console.warn(`[2FA Debug] Role Mismatch. Doc: "${signerRole}", User: "${matchedNameUser?.jobTitle}"`);
+
+        const proceed = window.confirm(`Atenção: O sistema encontrou o usuário "${signerName}", mas o cargo ("${signerRole}") difere do cadastro ("${matchedNameUser?.jobTitle}").\n\nDeseja prosseguir sem 2FA?`);
+        if (!proceed) return false;
+      }
+      if (!signerUser) {
+        console.warn(`[2FA Debug] Signer "${signerName}" not found in user database.`);
+        const confirmExternal = window.confirm(`O assinante "${signerName}" não foi encontrado na base de usuários para validação 2FA.\n\nDeseja assinar como usuário externo (sem validação)?`);
+        if (!confirmExternal) return false;
       }
     }
 
@@ -715,9 +792,10 @@ const App: React.FC = () => {
         await licitacaoService.saveLicitacaoProcess(finalOrder);
         setLicitacaoProcesses(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
       } else {
-        // Default to Oficio
-        await oficiosService.saveOficio(finalOrder);
-        setOficios(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
+        // Optimistic Update via Mutation
+        await updateOficioMutation.mutateAsync(finalOrder);
+        // Manual state set removed as the hook handles optimistic cache update
+        // setOficios(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
       }
       // Update local generic state for view consistency if needed
       setOrders(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
@@ -843,8 +921,16 @@ const App: React.FC = () => {
         setLicitacaoProcesses(prev => [finalOrder, ...prev]);
         setOrders(prev => [finalOrder, ...prev]);
       } else {
-        await oficiosService.saveOficio(finalOrder);
-        setOficios(prev => [finalOrder, ...prev]);
+        try {
+          console.log("Saving new Oficio via Mutation...", finalOrder);
+          await createOficioMutation.mutateAsync(finalOrder);
+          console.log("Oficio Saved Successfully.");
+        } catch (err) {
+          console.error("Failed to save Oficio:", err);
+          alert("Erro ao salvar o ofício. Verifique o console.");
+          return false;
+        }
+        // Sync local state immediately for visual feedback
         setOrders(prev => [finalOrder, ...prev]);
       }
       setAppState(finalSnapshot);
@@ -1384,9 +1470,13 @@ const App: React.FC = () => {
           } else {
             // Default Oficio and fallback for others
             defaultTitle = `Novo Ofício`;
-            // DELAYED GENERATION: Set placeholder
-            const defaultLeftBlock = INITIAL_STATE.content.leftBlockText; // 'Carregando...\nAssunto: ...'
-            leftBlockContent = defaultLeftBlock;
+            // Replace placeholder with actual number immediately
+            const defaultLeftBlock = INITIAL_STATE.content.leftBlockText;
+            if (defaultLeftBlock.includes("Carregando...")) {
+              leftBlockContent = defaultLeftBlock.replace("Carregando...", `Ofício nº ${formattedNum}/${currentYear}`);
+            } else {
+              leftBlockContent = `Ofício nº ${formattedNum}/${currentYear}\n${defaultLeftBlock}`;
+            }
           }
         }
       }
@@ -1398,9 +1488,13 @@ const App: React.FC = () => {
     }
 
     // Consolidate state update to prevent multiple renders and UI/Branding loss
+    console.log("handleStartEditing: Resetting App State to FRESH content.");
     setAppState(prev => {
+      // Deep clone to ensure no reference pollution from previous edits
+      const freshContent = JSON.parse(JSON.stringify(INITIAL_STATE.content));
+
       const newContent = {
-        ...INITIAL_STATE.content,
+        ...freshContent,
         title: defaultTitle,
         rightBlockText: defaultRightBlock,
         leftBlockText: leftBlockContent,
@@ -2357,18 +2451,12 @@ const App: React.FC = () => {
             {currentView === 'home' && (
               <HomeScreen
                 onNewOrder={(block) => {
-                  setActiveBlock(block || 'oficio');
-                  // If specific block logic needed for new order
-                  if (block === 'licitacao') {
-                    setCurrentView('editor');
-                    setEditingOrder(null);
-                    setIsLicitacaoSettingsOpen(true);
-                  } else if (block === 'abastecimento') {
-                    // Handled by onAbastecimento usually, but just in case
+                  const target = block || 'oficio';
+                  if (target === 'abastecimento') {
+                    setActiveBlock('abastecimento');
                     setCurrentView('abastecimento');
                   } else {
-                    setEditingOrder(null);
-                    setCurrentView('editor');
+                    handleStartEditing(target);
                   }
                 }}
                 onTrackOrder={() => {
@@ -2540,9 +2628,9 @@ const App: React.FC = () => {
                     setLicitacaoProcesses(p => p.filter(o => o.id !== id));
                     setOrders(p => p.filter(o => o.id !== id));
                   } else {
-                    await oficiosService.deleteOficio(id);
-                    setOficios(p => p.filter(o => o.id !== id));
-                    setOrders(p => p.filter(o => o.id !== id));
+                    // Optimistic Update via Mutation
+                    await deleteOficioMutation.mutateAsync(id);
+                    // hooks manage optimistic update of cache
                   }
                 }}
                 onUpdateAttachments={handleUpdateOrderAttachments}
@@ -2607,279 +2695,65 @@ const App: React.FC = () => {
                 }}
               />
             )}
-            <LicitacaoSettingsModal
-              isOpen={isLicitacaoSettingsOpen}
-              onClose={() => setIsLicitacaoSettingsOpen(false)}
-              state={appState}
-              nextProtocolNumber={licitacaoNextProtocol}
-              currentUser={currentUser}
-              persons={persons}
-              sectors={sectors}
-              currentView={currentView}
-              onRefresh={refreshData}
-              isRefreshing={isRefreshing}
-              currentSubView={appState.view}
-              onUpdate={(updates) => {
-                setAppState(prev => ({
-                  ...prev,
-                  content: {
-                    ...prev.content,
-                    ...updates
-                  }
-                }));
-                // Also update editingOrder if exists to keep sync
-                if (editingOrder) {
-                  setLicitacaoProcesses(p => p.map(o => o.id === editingOrder.id ? { ...o, ...updates } : o));
-                }
-                refreshData();
-              }}
-              onCancel={() => {
-                // Close modal
-                setIsLicitacaoSettingsOpen(false);
 
-                // User Request: If process is sent (not pending), Cancel should ONLY close modal.
-                // If it is pending or new, preserve existing behavior (return to home).
-                const isSent = editingOrder && editingOrder.status !== 'pending';
-
-                if (!isSent) {
-                  setEditingOrder(null);
-                  setActiveBlock('licitacao');
-                  setCurrentView('home');
-                }
-              }}
-              orderStatus={editingOrder?.status}
-            />
-            {currentView === 'purchase-management' && currentUser && (
-              <PurchaseManagementScreen
-                onBack={handleBackToModule}
-                currentUser={currentUser}
-                orders={purchaseOrders}
-                sectors={sectors}
-                onDownloadPdf={(snapshot, forcedBlockType) => { const order = purchaseOrders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order, forcedBlockType); }}
-                onUpdateStatus={handleUpdateOrderStatus}
-                onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
-                onUpdateCompletionForecast={handleUpdateCompletionForecast}
-                onUpdateAttachments={handleUpdateOrderAttachments}
-                onDeleteOrder={async (id) => {
-                  await comprasService.deletePurchaseOrder(id);
-                  setPurchaseOrders(p => p.filter(o => o.id !== id));
-                  // Only update 'orders' if it's currently showing purchaseOrders (which it might not be in this view, but harmless)
-                  if (activeBlock === 'compras') setOrders(p => p.filter(o => o.id !== id));
-                }}
-              />
-            )}
-            {currentView === 'vehicle-scheduling' && currentUser && (
-              <VehicleSchedulingScreen
-                state={appState}
-                schedules={schedules}
-                vehicles={vehicles}
-                persons={persons}
-                sectors={sectors}
-                onAddSchedule={async (s) => {
-                  const newSchedule = await vehicleSchedulingService.createSchedule(s);
-                  if (newSchedule) setSchedules(prev => [...prev, newSchedule]);
-                  else alert("Erro ao criar agendamento");
-                }}
-                onUpdateSchedule={async (s) => {
-                  const updated = await vehicleSchedulingService.updateSchedule(s);
-                  if (updated) setSchedules(prev => prev.map(x => x.id === s.id ? updated : x));
-                  else alert("Erro ao atualizar agendamento");
-                }}
-                onDeleteSchedule={async (id) => {
-                  const success = await vehicleSchedulingService.deleteSchedule(id);
-                  if (success) setSchedules(prev => prev.filter(x => x.id !== id));
-                  else alert("Erro ao excluir agendamento");
-                }}
-                onBack={handleGoHome}
-                currentUserId={currentUser.id}
-                currentUserName={currentUser.name}
-                currentUserRole={currentUser.role}
-                currentUserPermissions={currentUser.permissions}
-                requestedView={activeBlock === 'vs_calendar' ? 'calendar' : activeBlock === 'vs_history' ? 'history' : activeBlock === 'vs_approvals' ? 'approvals' : 'menu'}
-                onNavigate={(path) => {
-                  window.history.pushState(null, '', path);
-                  // Manually trigger popstate or update state to reflect change if needed, 
-                  // but usually pushState needs an event dispatch for App.useEffect to catch it? 
-                  // actually App.useEffect uses window.addEventListener('popstate'). pushState does NOT trigger popstate.
-                  // So we must manually update state or assume the child updates its UI and we just sync URL.
-                  // BETTER: Update local state directly here to sync with URL?
-                  // The App's useEffect listens to popstate (browser back/fwd). 
-                  // For internal nav, we should probably just update the state directly if we want consistent internal processing.
-                  // However, to keep it simple and robust with the existing "Router":
-                  const evt = new PopStateEvent('popstate');
-                  window.dispatchEvent(evt); // Trigger App's listener
-                }}
-              />
-            )}
-          </div>
-
-          {
-            confirmModal.isOpen && createPortal(
-              <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl animate-fade-in">
-                <div className="w-full max-w-lg bg-white rounded-[2rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-scale-in">
-                  <div className="p-8 text-center flex flex-col items-center">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 shadow-xl ${confirmModal.type === 'error' ? 'bg-rose-100 text-rose-600 shadow-rose-500/20' :
-                      confirmModal.type === 'warning' ? 'bg-amber-100 text-amber-600 shadow-amber-500/20' :
-                        'bg-blue-100 text-blue-600 shadow-blue-500/20'
-                      }`}>
-                      {confirmModal.type === 'error' ? <X className="w-8 h-8" /> :
-                        confirmModal.type === 'warning' ? <Send className="w-8 h-8" /> :
-                          <CheckCircle2 className="w-8 h-8" />}
-                    </div>
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2 uppercase">{confirmModal.title}</h3>
-                    <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">{confirmModal.message}</p>
-
-                    <div className="flex w-full gap-3">
-                      {!confirmModal.singleButton && (
-                        <button
-                          onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
-                          className="flex-1 py-3 text-slate-400 font-bold text-xs uppercase tracking-widest hover:bg-slate-50 rounded-xl transition-all"
-                        >
-                          Cancelar
-                        </button>
-                      )}
-                      <button
-                        onClick={confirmModal.onConfirm}
-                        className={`flex-1 py-3 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-[0.98] ${confirmModal.type === 'error' ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/20' :
-                          confirmModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20' :
-                            'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
-                          }`}
-                      >
-                        {confirmModal.singleButton ? 'Entendi' : 'Confirmar'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>,
-              document.body
-            )
-          }
-
-          {
-            successOverlay?.show && createPortal(
-              <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl animate-fade-in">
-                <div className="w-full max-w-lg bg-white rounded-[3rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-scale-in">
-                  <div className="p-12 text-center flex flex-col items-center">
-                    <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-8 shadow-2xl shadow-emerald-500/20">
-                      <CheckCircle2 className="w-14 h-14" />
-                    </div>
-                    <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-4 uppercase">Pedido Enviado!</h3>
-                    <p className="text-slate-500 text-base font-medium leading-relaxed mb-10">O seu documento foi processado com sucesso e encaminhado para análise do setor competente.</p>
-                    <div className="w-full bg-slate-50 rounded-3xl p-6 border border-slate-100 flex flex-col items-center mb-10">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Protocolo de Rastreio</span>
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-emerald-600 rounded-lg text-white shadow-lg"><Send className="w-4 h-4" /></div>
-                        <span className="text-2xl font-mono font-bold text-slate-900 tracking-wider">{successOverlay.protocol}</span>
-                      </div>
-                    </div>
-                    <button onClick={() => { setSuccessOverlay(null); handleGoHome(); }} className="w-full py-5 bg-slate-900 text-white font-black text-sm uppercase tracking-[0.2em] rounded-3xl shadow-2xl shadow-slate-900/20 hover:bg-emerald-600 transition-all active:scale-[0.98]">Voltar ao Menu Inicial</button>
-                  </div>
-                </div>
-              </div>,
-              document.body
-            )
-          }
-
-          {/* QUICK SAVE SUCCESS MODAL */}
-          {
-            showSaveSuccess && createPortal(
-              <div className="fixed inset-0 z-[2500] flex items-center justify-center p-4 bg-transparent">
-                <div className="bg-slate-900/90 backdrop-blur-md text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-scale-in border border-white/10">
-                  <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                    <CheckCircle2 className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-bold text-lg leading-tight">Salvo!</span>
-                    <span className="text-xs text-slate-300 font-medium">As alterações foram registradas.</span>
-                  </div>
-                </div>
-              </div>,
-              document.body
-            )
-          }
-
-          <div id="background-pdf-generation-container" style={{ position: 'absolute', left: '-9999px', top: '-9999px', pointerEvents: 'none' }} aria-hidden="true">
-            {snapshotToDownload && (
-              <DocumentPreview
-                ref={backgroundPreviewRef}
-                state={snapshotToDownload}
-                isGenerating={true}
-                blockType={blockTypeToDownload || (snapshotToDownload.content.subType ? 'diarias' : (snapshotToDownload.content.purchaseItems && snapshotToDownload.content.purchaseItems.length > 0 ? 'compras' : (activeBlock || 'oficio')))}
-                customId="background-preview-scaler"
-              />
-            )}
-          </div>
-          {
-            currentUser && (
-              <TwoFactorModal
-                isOpen={is2FAModalOpen}
-                onClose={() => setIs2FAModalOpen(false)}
-                onConfirm={async () => {
-                  setIs2FAModalOpen(false);
-
-                  // Capture Metadata
-                  let ip = 'Não detectado';
-                  try {
-                    const res = await fetch('https://api.ipify.org?format=json');
-                    const data = await res.json();
-                    ip = data.ip;
-                  } catch (e) { console.error("IP fallback", e); }
-
-                  // Generate Unique Signature ID via Supabase
-                  const signatureId = await signatureService.createSignatureLog(currentUser.id, ip, appState.content.title);
-
-                  const metadata = {
-                    enabled: true,
-                    method: 'Autenticador Mobile 2FA',
-                    ip: ip,
-                    date: new Date().toISOString(),
-                    id: signatureId || 'ERR-GEN-ID'
-                  };
-
-                  if (pending2FAAction) {
-                    await pending2FAAction(metadata);
+            {/* 2FA MODAL */}
+            {
+              is2FAModalOpen && (
+                <TwoFactorModal
+                  isOpen={is2FAModalOpen}
+                  onClose={() => {
+                    setIs2FAModalOpen(false);
                     setPending2FAAction(null);
-                  } else {
-                    handleFinish(true, metadata); // Proceed skipping 2FA check with metadata
-                  }
-                }}
-                secret={twoFASecret}
-                secret2={twoFASecret2}
-                signatureName={twoFASignatureName}
-              />
-            )
-          }
+                    setPendingParams(false);
+                  }}
+                  onConfirm={() => {
+                    setIs2FAModalOpen(false);
+                    if (pending2FAAction) {
+                      pending2FAAction(undefined);
+                      setPending2FAAction(null);
+                    } else {
+                      // Resume finish, skipping 2FA check
+                      const digitalSigData = {
+                        enabled: true,
+                        method: '2FA Token (App)',
+                        ip: 'Client-Device',
+                        date: new Date().toISOString(),
+                        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substring(2)
+                      };
+                      handleFinish(true, digitalSigData);
+                    }
+                  }}
+                  secret={twoFASecret}
+                  secret2={twoFASecret2}
+                  signatureName={twoFASignatureName}
+                />
+              )
+            }
 
-          {/* LOADING DETAILS OVERLAY */}
-          {isLoadingDetails && (
-            <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm flex items-center justify-center animate-fade-in">
-              <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4 animate-scale-in">
-                <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-                <span className="text-slate-700 font-medium">Carregando detalhes...</span>
-              </div>
-            </div>
-          )}
+            {/* OFICIO NUMBERING MODAL */}
+            {
+              currentUser && (
+                <OficioNumberingModal
+                  isOpen={isOficioNumberingModalOpen}
+                  onClose={() => setIsOficioNumberingModalOpen(false)}
+                  onConfirm={() => {
+                    setIsOficioNumberingModalOpen(false);
+                    // Pass persisted metadata if available, avoiding second 2FA
+                    handleFinish(true, pendingSignatureMetadata || undefined, true);
+                    setPendingSignatureMetadata(null); // Clear after use
+                  }}
+                  sectorId={(() => {
+                    const s = sectors.find(sec => sec.name === currentUser.sector);
+                    return s ? s.id : null;
+                  })()}
+                  sectorName={currentUser.sector}
+                  title={activeBlock === 'compras' ? "Gerando Pedido" : "Gerando Número"}
+                  label={activeBlock === 'compras' ? "PRÓXIMO PEDIDO COMPRA" : "PRÓXIMO OFÍCIO DO SETOR"}
+                />
+              )
+            }
 
-          {/* OFICIO NUMBERING MODAL */}
-          {currentUser && (
-            <OficioNumberingModal
-              isOpen={isOficioNumberingModalOpen}
-              onClose={() => setIsOficioNumberingModalOpen(false)}
-              onConfirm={() => {
-                setIsOficioNumberingModalOpen(false);
-                // Pass persisted metadata if available, avoiding second 2FA
-                handleFinish(true, pendingSignatureMetadata || undefined, true);
-                setPendingSignatureMetadata(null); // Clear after use
-              }}
-              sectorId={(() => {
-                const s = sectors.find(sec => sec.name === currentUser.sector);
-                return s ? s.id : null;
-              })()}
-              sectorName={currentUser.sector}
-              title={activeBlock === 'compras' ? "Gerando Pedido" : "Gerando Número"}
-              label={activeBlock === 'compras' ? "PRÓXIMO PEDIDO COMPRA" : "PRÓXIMO OFÍCIO DO SETOR"}
-            />
-          )}
+          </div>
         </div >
       </ChatProvider>
     </NotificationProvider >

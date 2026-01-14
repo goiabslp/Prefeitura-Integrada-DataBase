@@ -17,6 +17,7 @@ import { User, UIConfig, BlockType } from '../types';
 import { useNotification } from '../contexts/NotificationContext';
 import { useChat } from '../contexts/ChatContext';
 import { NotificationCenter } from './NotificationCenter';
+import { SyncIndicator } from './SyncIndicator';
 import { useState } from 'react';
 import { getCachedImage, IMAGE_KEYS } from '../services/cacheService';
 
@@ -239,15 +240,18 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
           <div className="h-8 w-px bg-slate-200 mx-1"></div>
 
-          <button
-            onClick={() => onRefresh()}
-            disabled={isRefreshing}
-            className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Atualizar dados do sistema"
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span className="hidden xl:inline">Atualizar</span>
-          </button>
+          <div className="flex flex-col items-center gap-0.5 transform translate-y-1">
+            <button
+              onClick={() => onRefresh()}
+              disabled={isRefreshing}
+              className="flex items-center gap-2 px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Atualizar dados do sistema"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden xl:inline">Atualizar</span>
+            </button>
+            <SyncIndicator />
+          </div>
 
           <div className="h-8 w-px bg-slate-200 mx-1"></div>
 
