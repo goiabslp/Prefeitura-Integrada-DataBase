@@ -129,10 +129,28 @@ export const AbastecimentoService = {
                 if (filters.fuelType && filters.fuelType !== 'all') {
                     query = query.ilike('fuel_type', `%${filters.fuelType}%`);
                 }
-                // Note: Sector filtering is tricky because 'sector' is not on 'abastecimentos' directly in most cases,
-                // it's derived from 'vehicle'. If we want to filter by sector server-side, 
-                // we'd need to join with vehicles/sectors tables or denormalize sector_id onto abastecimentos.
-                // For now, we'll handle sector filtering client-side or assume the vehicle filter covers it if pre-resolved.
+
+                if (filters.sector && filters.sector !== 'all') {
+                    // Fetch vehicles belonging to this sector first
+                    const { data: sectorVehicles } = await supabase
+                        .from('vehicles')
+                        .select('plate, model, brand')
+                        .eq('sector_id', filters.sector);
+
+                    if (sectorVehicles && sectorVehicles.length > 0) {
+                        // Create a list of possible identifiers (Plate AND Model-Brand for legacy)
+                        const identifiers = sectorVehicles.flatMap(v => {
+                            const params = [];
+                            if (v.plate) params.push(v.plate);
+                            params.push(`${v.model} - ${v.brand}`);
+                            return params;
+                        });
+                        query = query.in('vehicle', identifiers);
+                    } else {
+                        // If no vehicles in sector, no supplies to show
+                        return { data: [], count: 0 };
+                    }
+                }
             }
 
             // Pagination

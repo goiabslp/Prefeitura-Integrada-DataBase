@@ -138,7 +138,18 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
 
     // Filter States
     const [filterMode, setFilterMode] = useState<'today' | 'all' | 'date'>('today');
-    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState<string>(() => {
+        const date = new Date();
+        const offset = date.getTimezoneOffset();
+        const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+        return localDate.toISOString().split('T')[0];
+    });
+    const [filterSector, setFilterSector] = useState('all');
+    const [filterFuel, setFilterFuel] = useState('all');
+
+    // Dropdown Data
+    const [sectorsList, setSectorsList] = useState<{ id: string, name: string }[]>([]);
+
     const [isFilterOpen, setIsFilterOpen] = useState(false);
 
     // Debounce Search
@@ -153,7 +164,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
     // Reset pagination when filters change
     useEffect(() => {
         setPage(1);
-    }, [filterMode, selectedDate, refreshTrigger]);
+    }, [filterMode, selectedDate, filterSector, filterFuel, refreshTrigger]);
 
     const loadSupplies = async (currentPage: number, resetList: boolean = false) => {
         setIsLoading(true);
@@ -161,9 +172,14 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
             // Helper to get filter object
             const filters: any = {};
             if (debouncedSearch) filters.search = debouncedSearch;
+            if (filterSector && filterSector !== 'all') filters.sector = filterSector;
+            if (filterFuel && filterFuel !== 'all') filters.fuelType = filterFuel;
 
             if (filterMode === 'today') {
-                filters.date = new Date().toISOString().split('T')[0];
+                const date = new Date();
+                const offset = date.getTimezoneOffset();
+                const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+                filters.date = localDate.toISOString().split('T')[0];
             } else if (filterMode === 'date') {
                 filters.date = selectedDate;
             }
@@ -192,6 +208,11 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
                     acc[s.id] = s.name;
                     return acc;
                 }, {});
+
+                // Update sectors list for dropdown
+                if (sectorsRes.data) {
+                    setSectorsList(sectorsRes.data.sort((a: any, b: any) => a.name.localeCompare(b.name)));
+                }
 
                 const vMap: Record<string, string> = {};
                 const pMap: Record<string, string> = {};
@@ -273,7 +294,12 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
                         </button>
                         <div>
                             <h1 className="text-xl font-black text-slate-900 tracking-tight">Gestão de Abastecimento</h1>
-                            <p className="text-xs text-slate-500 font-medium">Histórico e controle de gastos</p>
+                            <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+                                Histórico e controle
+                                <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-bold border border-slate-200">
+                                    {totalCount} Registros
+                                </span>
+                            </p>
                         </div>
                     </div>
 
@@ -305,46 +331,70 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
                             {isFilterOpen && (
                                 <>
                                     <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
-                                    <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-20 animate-in fade-in zoom-in-95 duration-200">
-                                        <div className="flex flex-col gap-1">
-                                            <button
-                                                onClick={() => { setFilterMode('today'); setIsFilterOpen(false); }}
-                                                className={`flex items-center justify-between w-full px-3 py-2 rounded-xl text-xs font-bold transition-colors ${filterMode === 'today' ? 'bg-cyan-50 text-cyan-700' : 'text-slate-600 hover:bg-slate-50'}`}
-                                            >
-                                                <span>Hoje</span>
-                                                {filterMode === 'today' && <Check className="w-4 h-4" />}
-                                            </button>
-                                            <button
-                                                onClick={() => { setFilterMode('all'); setIsFilterOpen(false); }}
-                                                className={`flex items-center justify-between w-full px-3 py-2 rounded-xl text-xs font-bold transition-colors ${filterMode === 'all' ? 'bg-cyan-50 text-cyan-700' : 'text-slate-600 hover:bg-slate-50'}`}
-                                            >
-                                                <span>Todos</span>
-                                                {filterMode === 'all' && <Check className="w-4 h-4" />}
-                                            </button>
+                                    <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 z-20 animate-in fade-in zoom-in-95 duration-200 flex flex-col gap-4">
 
-                                            <div className="h-px bg-slate-100 my-1"></div>
+                                        <div className="space-y-2">
+                                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Período</span>
+                                            <div className="flex flex-col gap-1">
+                                                <button
+                                                    onClick={() => setFilterMode('today')}
+                                                    className={`flex items-center justify-between w-full px-3 py-2 rounded-xl text-xs font-bold transition-colors ${filterMode === 'today' ? 'bg-cyan-50 text-cyan-700' : 'text-slate-600 hover:bg-slate-50'}`}
+                                                >
+                                                    <span>Hoje</span>
+                                                    {filterMode === 'today' && <Check className="w-4 h-4" />}
+                                                </button>
 
-                                            <div className="px-2 pb-1 flex justify-between items-center">
-                                                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Por Data</span>
+                                                <button
+                                                    onClick={() => setFilterMode('all')}
+                                                    className={`flex items-center justify-between w-full px-3 py-2 rounded-xl text-xs font-bold transition-colors ${filterMode === 'all' ? 'bg-cyan-50 text-cyan-700' : 'text-slate-600 hover:bg-slate-50'}`}
+                                                >
+                                                    <span>Todos</span>
+                                                    {filterMode === 'all' && <Check className="w-4 h-4" />}
+                                                </button>
+
+                                                <div className="relative mt-1">
+                                                    <input
+                                                        type="date"
+                                                        value={selectedDate}
+                                                        onChange={(e) => {
+                                                            setSelectedDate(e.target.value);
+                                                            setFilterMode('date');
+                                                        }}
+                                                        className={`w-full bg-slate-50 border rounded-lg px-2 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all ${filterMode === 'date' ? 'border-cyan-200 bg-cyan-50/30' : 'border-slate-200'}`}
+                                                    />
+                                                </div>
                                             </div>
+                                        </div>
 
-                                            <div className="relative">
-                                                <input
-                                                    type="date"
-                                                    value={selectedDate}
-                                                    onChange={(e) => {
-                                                        setSelectedDate(e.target.value);
-                                                        setFilterMode('date');
-                                                        // Don't close immediately to allow date picking
-                                                    }}
-                                                    className={`w-full bg-slate-50 border rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all ${filterMode === 'date' ? 'border-cyan-200 bg-cyan-50/30' : 'border-slate-200'}`}
-                                                />
-                                                {filterMode === 'date' && (
-                                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                                                        <Check className="w-3.5 h-3.5 text-cyan-600" />
-                                                    </div>
-                                                )}
-                                            </div>
+                                        <div className="h-px bg-slate-100" />
+
+                                        <div className="space-y-2">
+                                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Combustível</span>
+                                            <select
+                                                value={filterFuel}
+                                                onChange={(e) => setFilterFuel(e.target.value)}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-xs font-bold text-slate-700 outline-none focus:border-cyan-500"
+                                            >
+                                                <option value="all">Todos</option>
+                                                <option value="diesel">Diesel</option>
+                                                <option value="gasolina">Gasolina</option>
+                                                <option value="etanol">Etanol</option>
+                                                <option value="arla">Arla</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Setor</span>
+                                            <select
+                                                value={filterSector}
+                                                onChange={(e) => setFilterSector(e.target.value)}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-xs font-bold text-slate-700 outline-none focus:border-cyan-500"
+                                            >
+                                                <option value="all">Todos</option>
+                                                {sectorsList.map(s => (
+                                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     </div>
                                 </>
