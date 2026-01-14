@@ -25,11 +25,13 @@ interface CustomSelectProps {
 const SelectItem = memo(({
     option,
     isSelected,
-    onClick
+    onClick,
+    className
 }: {
     option: Option;
     isSelected: boolean;
-    onClick: (val: string) => void
+    onClick: (val: string) => void;
+    className?: string;
 }) => {
     return (
         <button
@@ -38,7 +40,7 @@ const SelectItem = memo(({
                 e.stopPropagation();
                 onClick(option.value);
             }}
-            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-start sm:items-center justify-between group/item gap-2
+            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-start sm:items-center justify-between group/item gap-2 ${className || ''}
                 ${isSelected
                     ? 'bg-cyan-50 text-cyan-700'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -191,6 +193,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
                                         onChange(val);
                                         setIsOpen(false);
                                     }}
+                                    className="text-base py-4 border-b border-slate-50 last:border-0"
                                 />
                             ))}
                         </div>
