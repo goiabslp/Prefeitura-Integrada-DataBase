@@ -2,11 +2,19 @@
 import { supabase } from './supabaseClient';
 import { Order } from '../types';
 
-export const getAllOficios = async (): Promise<Order[]> => {
-    const { data, error } = await supabase
+export const getAllOficios = async (lightweight = false, page = 0, limit = 50): Promise<Order[]> => {
+    let query = supabase
         .from('oficios')
         .select('*')
         .order('created_at', { ascending: false });
+
+    if (lightweight) {
+        const from = page * limit;
+        const to = from + limit - 1;
+        query = query.range(from, to);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
         console.error('Error fetching oficios:', error.message, error.details, error.hint);

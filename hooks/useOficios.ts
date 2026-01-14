@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import * as oficiosService from '../services/oficiosService';
 import { Order } from '../types';
@@ -38,8 +38,23 @@ export const useOficios = () => {
 
     return useQuery({
         queryKey: oficioKeys.lists(),
-        queryFn: oficiosService.getAllOficios,
+        queryFn: () => oficiosService.getAllOficios(true), // lightweight = true
         staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+};
+
+export const useInfiniteOficios = (pageSize = 20) => {
+    return useInfiniteQuery({
+        queryKey: [...oficioKeys.lists(), 'infinite'],
+        queryFn: async ({ pageParam = 0 }) => {
+            return oficiosService.getAllOficios(true, pageParam as number, pageSize);
+        },
+        getNextPageParam: (lastPage, allPages) => {
+            return lastPage.length === pageSize ? allPages.length : undefined;
+        },
+        initialPageParam: 0,
+        staleTime: 1000 * 60 * 10, // 10 minutes cache
+        refetchOnWindowFocus: false,
     });
 };
 
