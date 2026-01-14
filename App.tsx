@@ -850,8 +850,20 @@ const App: React.FC = () => {
               // Also set protocol string for consistency
               protocolString = `OFC-${formattedNum}/${year}`;
             } else if (activeBlock === 'compras') {
-              // For Compras, we set the protocol string
-              protocolString = `COM-${formattedNum}/${year}`;
+              // For Compras, we set the protocol string AND update the document content
+              const generatedProtocol = `COM-${formattedNum}/${year}`;
+              protocolString = generatedProtocol;
+
+              // Replace placeholder in leftBlockText
+              // Usually initialized as "Carregando...\nAssunto: ..."
+              let currentLeftText = appState.content.leftBlockText || '';
+              if (currentLeftText.includes('Carregando...')) {
+                currentLeftText = currentLeftText.replace('Carregando...', `Pedido nº ${formattedNum}/${year}`);
+              } else if (!currentLeftText.includes('Pedido nº')) {
+                // Fallback if not strictly matching placeholder
+                currentLeftText = `Pedido nº ${formattedNum}/${year}\n${currentLeftText}`;
+              }
+              appState.content.leftBlockText = currentLeftText;
             }
           }
         }
@@ -1079,59 +1091,85 @@ const App: React.FC = () => {
 
   const handleUpdateOrderStatus = async (orderId: string, status: Order['status'], justification?: string) => {
     if (!currentUser) return;
-    const updatedOrders = orders.map(o => {
-      if (o.id === orderId) {
-        if (o.status === status) return o;
-        const newMovement: StatusMovement = { statusLabel: status === 'approved' ? 'Aprovação Administrativa' : 'Rejeição', date: new Date().toISOString(), userName: currentUser.name, justification };
-        const updated = { ...o, status, statusHistory: [...(o.statusHistory || []), newMovement] };
 
-        if (updated.blockType === 'compras') {
-          comprasService.savePurchaseOrder(updated);
-          setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p));
-        } else if (updated.blockType === 'diarias') {
-          diariasService.saveServiceRequest(updated);
-          setServiceRequests(prev => prev.map(p => p.id === updated.id ? updated : p));
-        } else if (updated.blockType === 'licitacao') {
-          licitacaoService.saveLicitacaoProcess(updated);
-          setLicitacaoProcesses(prev => prev.map(p => p.id === updated.id ? updated : p));
-        } else {
-          oficiosService.saveOficio(updated);
-          setOficios(prev => prev.map(p => p.id === updated.id ? updated : p));
-        }
-        return updated;
+    // Find the order first to avoid mapping everything blindly
+    const orderToUpdate = orders.find(o => o.id === orderId);
+    if (!orderToUpdate) return;
+
+    // Optimistic update logic could go here, but for critical status changes, safe wait is better
+    try {
+      const newMovement: StatusMovement = {
+        statusLabel: status === 'approved' ? 'Aprovação Administrativa' : 'Rejeição',
+        date: new Date().toISOString(),
+        userName: currentUser.name,
+        justification
+      };
+
+      const updatedOrder = {
+        ...orderToUpdate,
+        status,
+        statusHistory: [...(orderToUpdate.statusHistory || []), newMovement]
+      };
+
+      if (updatedOrder.blockType === 'compras') {
+        await comprasService.savePurchaseOrder(updatedOrder);
+        setPurchaseOrders(prev => prev.map(p => p.id === updatedOrder.id ? updatedOrder : p));
+      } else if (updatedOrder.blockType === 'diarias') {
+        await diariasService.saveServiceRequest(updatedOrder);
+        setServiceRequests(prev => prev.map(p => p.id === updatedOrder.id ? updatedOrder : p));
+      } else if (updatedOrder.blockType === 'licitacao') {
+        await licitacaoService.saveLicitacaoProcess(updatedOrder);
+        setLicitacaoProcesses(prev => prev.map(p => p.id === updatedOrder.id ? updatedOrder : p));
+      } else {
+        await oficiosService.saveOficio(updatedOrder);
+        setOficios(prev => prev.map(p => p.id === updatedOrder.id ? updatedOrder : p));
       }
-      return o;
-    });
-    setOrders(updatedOrders);
+
+      // Sync main list
+      setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+
+      showToast(status === 'approved' ? "Pedido Aprovado com Sucesso" : "Pedido Rejeitado", status === 'approved' ? "success" : "info");
+
+    } catch (error) {
+      console.error("Failed to update status:", error);
+      showToast("Erro ao atualizar status do pedido", "error");
+    }
   };
 
   const handleUpdatePurchaseStatus = async (orderId: string, purchaseStatus: Order['purchaseStatus'], justification?: string, budgetFileUrl?: string) => {
     if (!currentUser) return;
-    const updatedOrders = orders.map(o => {
-      if (o.id === orderId) {
-        const newMovement: StatusMovement = {
-          statusLabel: `Alteração de Status para ${purchaseStatus}`,
-          date: new Date().toISOString(),
-          userName: currentUser.name,
-          justification: justification || 'Atualização de status do pedido'
-        };
 
-        const updated: Order = {
-          ...o,
-          purchaseStatus,
-          budgetFileUrl: budgetFileUrl || o.budgetFileUrl,
-          statusHistory: [...(o.statusHistory || []), newMovement]
-        };
+    const orderToUpdate = orders.find(o => o.id === orderId);
+    if (!orderToUpdate) return;
 
-        // Call specialized service to administer Audit History
-        comprasService.updatePurchaseStatus(o.id, purchaseStatus as string, newMovement, budgetFileUrl);
+    try {
+      const newMovement: StatusMovement = {
+        statusLabel: `Alteração de Status para ${purchaseStatus}`,
+        date: new Date().toISOString(),
+        userName: currentUser.name,
+        justification: justification || 'Atualização de status do pedido'
+      };
 
-        setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p));
-        return updated;
-      }
-      return o;
-    });
-    setOrders(updatedOrders);
+      const updatedOrder: Order = {
+        ...orderToUpdate,
+        purchaseStatus,
+        budgetFileUrl: budgetFileUrl || orderToUpdate.budgetFileUrl,
+        statusHistory: [...(orderToUpdate.statusHistory || []), newMovement]
+      };
+
+      // Call specialized service to administer Audit History and DB
+      await comprasService.updatePurchaseStatus(orderToUpdate.id, purchaseStatus as string, newMovement, budgetFileUrl);
+
+      // Update Local State strictly after success to avoid desync
+      setPurchaseOrders(prev => prev.map(p => p.id === updatedOrder.id ? updatedOrder : p));
+      setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+
+      showToast("Status atualizado com sucesso!", "success");
+
+    } catch (error) {
+      console.error("Failed to update purchase status:", error);
+      showToast("Erro ao atualizar progresso do pedido", "error");
+    }
   };
 
   const handleUpdateCompletionForecast = async (orderId: string, date: string) => {
