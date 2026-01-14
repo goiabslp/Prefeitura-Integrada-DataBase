@@ -2696,6 +2696,25 @@ const App: React.FC = () => {
               />
             )}
 
+            {currentView === 'purchase-management' && currentUser && (
+              <PurchaseManagementScreen
+                onBack={handleBackToModule}
+                currentUser={currentUser}
+                orders={purchaseOrders}
+                sectors={sectors}
+                onDownloadPdf={(snapshot, forcedBlockType) => { const order = orders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order, forcedBlockType); }}
+                onUpdateStatus={handleUpdateOrderStatus}
+                onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
+                onUpdateCompletionForecast={handleUpdateCompletionForecast}
+                onUpdateAttachments={handleUpdateOrderAttachments}
+                onDeleteOrder={async (id) => {
+                  await comprasService.deletePurchaseOrder(id);
+                  setPurchaseOrders(p => p.filter(o => o.id !== id));
+                  setOrders(p => p.filter(o => o.id !== id));
+                }}
+              />
+            )}
+
             {/* 2FA MODAL */}
             {
               is2FAModalOpen && (

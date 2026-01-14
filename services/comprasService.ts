@@ -7,8 +7,7 @@ export const getAllPurchaseOrders = async (lightweight = false): Promise<Order[]
     let query = supabase
         .from('purchase_orders')
         .select(`
-            id, protocol, title, status, status_history, created_at, user_id, user_name, purchase_status, budget_file_url, completion_forecast, attachments
-            ${lightweight ? '' : ', document_snapshot'}
+            id, protocol, title, status, status_history, created_at, user_id, user_name, purchase_status, budget_file_url, completion_forecast, attachments, document_snapshot
         `)
         .order('created_at', { ascending: false });
 
