@@ -44,6 +44,24 @@ export const usePurchaseOrders = () => {
     });
 };
 
+// Hook for Infinite Scroll History (No Realtime, Optimized)
+import { useInfiniteQuery } from '@tanstack/react-query';
+
+export const useInfinitePurchaseOrders = (pageSize = 20) => {
+    return useInfiniteQuery({
+        queryKey: [...purchaseOrderKeys.lists(), 'infinite'],
+        queryFn: async ({ pageParam = 0 }) => {
+            return comprasService.getAllPurchaseOrders(true, pageParam as number, pageSize);
+        },
+        getNextPageParam: (lastPage, allPages) => {
+            return lastPage.length === pageSize ? allPages.length : undefined;
+        },
+        initialPageParam: 0,
+        staleTime: 1000 * 60 * 10, // 10 minutes cache
+        refetchOnWindowFocus: false,
+    });
+};
+
 // Hook to fetch single full detail
 export const usePurchaseOrder = (id: string | null) => {
     return useQuery({

@@ -5,13 +5,11 @@ import { Order } from '../types';
 export const getAllOficios = async (): Promise<Order[]> => {
     const { data, error } = await supabase
         .from('oficios')
-        .select(`
-            id, protocol, title, status, status_history, created_at, user_id, user_name, document_snapshot, description
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
     if (error) {
-        console.error('Error fetching oficios:', error);
+        console.error('Error fetching oficios:', error.message, error.details, error.hint);
         return [];
     }
 
@@ -25,8 +23,7 @@ export const getAllOficios = async (): Promise<Order[]> => {
         userId: item.user_id,
         userName: item.user_name,
         blockType: 'oficio', // Explicitly set block type
-        documentSnapshot: item.document_snapshot,
-        description: item.description
+        documentSnapshot: item.document_snapshot
     }));
 };
 
@@ -52,8 +49,7 @@ export const getOficioById = async (id: string): Promise<Order | null> => {
         userId: data.user_id,
         userName: data.user_name,
         blockType: 'oficio',
-        documentSnapshot: data.document_snapshot,
-        description: data.description
+        documentSnapshot: data.document_snapshot
     };
 };
 
@@ -67,8 +63,7 @@ export const saveOficio = async (order: Order): Promise<void> => {
         created_at: order.createdAt,
         user_id: order.userId,
         user_name: order.userName,
-        document_snapshot: order.documentSnapshot,
-        description: order.description
+        document_snapshot: order.documentSnapshot
     };
 
     const { error } = await supabase.from('oficios').upsert(dbOrder);

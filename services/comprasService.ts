@@ -3,23 +3,23 @@ import { supabase } from './supabaseClient';
 import { Order } from '../types';
 import { notificationService } from './notificationService';
 
-export const getAllPurchaseOrders = async (lightweight = false): Promise<Order[]> => {
+export const getAllPurchaseOrders = async (lightweight = false, page = 0, limit = 50): Promise<Order[]> => {
     let query = supabase
         .from('purchase_orders')
-        .select(`
-            id, protocol, title, status, status_history, created_at, user_id, user_name, purchase_status, budget_file_url, completion_forecast, attachments, document_snapshot
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-    // Optional: pagination limits for lightweight fetches could be added here
     if (lightweight) {
-        query = query.limit(50); // Safe limit for initial load
+        // Pagination logic
+        const from = page * limit;
+        const to = from + limit - 1;
+        query = query.range(from, to);
     }
 
     const { data, error } = await query;
 
     if (error) {
-        console.error('Error fetching purchase orders:', error);
+        console.error('Error fetching purchase orders:', error.message, error.details, error.hint);
         return [];
     }
 

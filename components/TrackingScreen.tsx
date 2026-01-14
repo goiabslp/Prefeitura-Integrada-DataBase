@@ -11,7 +11,7 @@ import { User as UserType, Order, AppState, BlockType, Attachment } from '../typ
 import { DocumentPreview } from './DocumentPreview';
 import { uploadFile } from '../services/storageService';
 import { useOficios, useOficio, useUpdateOficioDescription } from '../hooks/useOficios';
-import { usePurchaseOrders, usePurchaseOrder } from '../hooks/usePurchaseOrders';
+import { usePurchaseOrders, usePurchaseOrder, useInfinitePurchaseOrders } from '../hooks/usePurchaseOrders';
 import { useServiceRequests, useServiceRequest } from '../hooks/useServiceRequests';
 
 const HashIcon = ({ className }: { className?: string }) => (
@@ -56,7 +56,9 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const { data: oficiosData } = useOficios();
-    const { data: purchaseOrdersData } = usePurchaseOrders();
+    // const { data: purchaseOrdersData } = usePurchaseOrders(); // Deprecated for infinite scroll in this view
+    const { data: infinitePurchaseOrders, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading: isInfiniteLoading } = useInfinitePurchaseOrders(20);
+    const purchaseOrdersData = infinitePurchaseOrders?.pages.flat() || [];
     const { data: serviceRequestsData } = useServiceRequests();
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
     const [previewOrder, setPreviewOrder] = useState<Order | null>(null);
@@ -329,7 +331,12 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                     </div>
 
                     <div className="flex-1 overflow-auto custom-scrollbar">
-                        {filteredOrders.length > 0 ? (
+                        {isInfiniteLoading && activeBlock === 'compras' ? (
+                            <div className="h-full flex flex-col items-center justify-center space-y-4">
+                                <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                                <p className="text-slate-400 font-medium text-sm animate-pulse">Carregando histórico...</p>
+                            </div>
+                        ) : filteredOrders.length > 0 ? (
                             <div className={`min-w-full ${isLicitacao ? 'px-8 py-4 space-y-4' : ''}`}>
                                 {!isLicitacao && (
                                     <div className="border-b border-slate-100 bg-slate-50/50 hidden md:grid md:grid-cols-12 gap-4 px-8 py-4 sticky top-0 z-10">
@@ -842,6 +849,29 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                             </div>
                                         );
                                     })}
+
+                                    {/* Infinite Scroll Trigger */}
+                                    {activeBlock === 'compras' && (
+                                        <div ref={(node) => {
+                                            if (node && hasNextPage && !isFetchingNextPage) {
+                                                const observer = new IntersectionObserver((entries) => {
+                                                    if (entries[0].isIntersecting) fetchNextPage();
+                                                });
+                                                observer.observe(node);
+                                                return () => observer.disconnect();
+                                            }
+                                        }} className="py-4 flex justify-center w-full">
+                                            {isFetchingNextPage ? (
+                                                <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
+                                                    <Loader2 className="w-4 h-4 animate-spin" /> Carregando mais...
+                                                </div>
+                                            ) : hasNextPage ? (
+                                                <span className="text-slate-300 text-[10px] font-bold uppercase tracking-widest">Role para ver mais</span>
+                                            ) : (filteredOrders.length > 0 && (
+                                                <span className="text-slate-300 text-[10px] font-bold uppercase tracking-widest">Todos os registros carregados</span>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ) : (
@@ -1061,7 +1091,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                     document.body
                 )}
 
-            </div>
+            </div >
         </>
     );
 };
