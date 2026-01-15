@@ -297,6 +297,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
     const [allRecords, setAllRecords] = useState<AbastecimentoRecord[]>([]);
     const [showPrintPreview, setShowPrintPreview] = useState(false);
+    const [reportMode, setReportMode] = useState<'simplified' | 'complete'>('complete');
     const [appliedFilters, setAppliedFilters] = useState({
         startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
         endDate: new Date().toISOString().split('T')[0],
@@ -312,6 +313,15 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         return new Intl.NumberFormat('pt-BR', {
             style: 'currency',
             currency: 'BRL',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(value);
+    };
+
+    const formatNumber = (value: number, decimals: number = 2) => {
+        return new Intl.NumberFormat('pt-BR', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
         }).format(value);
     };
 
@@ -762,8 +772,16 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const reportData = useMemo(() => {
         // Pre-process all records to include derived sector/plate once
         const processedRecords = allRecords.map(r => {
-            const veh = vehicles.find(v => `${v.model} - ${v.brand}` === r.vehicle);
+            // Find vehicle check: prioritize Plate (new format) OR "Model - Brand" (legacy format)
+            // Some records might have just the plate or just the model-brand string.
+            const veh = vehicles.find(v =>
+                (v.plate && v.plate === r.vehicle) ||
+                (`${v.model} - ${v.brand}` === r.vehicle) ||
+                (v.plate && r.vehicle.includes(v.plate))
+            );
+
             const s = sectors.find(sec => sec.id === veh?.sectorId);
+
             return {
                 ...r,
                 derivedSector: s?.name || 'Não Identificado',
@@ -792,15 +810,17 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 if (rDate > end) return false;
             }
 
+            // ALWAYS Exclude ARLA from Reports as per user request
+            const fuel = r.fuelType?.toLowerCase() || '';
+            if (fuel.includes('arla')) return false;
+
             if (appliedFilters.station !== 'all' && r.station !== appliedFilters.station) return false;
             if (appliedFilters.sector !== 'all' && !r.derivedSector.toLowerCase().includes(appliedFilters.sector.toLowerCase())) return false;
             if (appliedFilters.vehicle !== 'all' && r.vehicle !== appliedFilters.vehicle) return false;
             if (appliedFilters.fuelType !== 'all') {
-                const fuel = r.fuelType?.toLowerCase() || '';
                 if (appliedFilters.fuelType === 'diesel' && !fuel.includes('diesel')) return false;
                 if (appliedFilters.fuelType === 'gasolina' && !fuel.includes('gasolina')) return false;
                 if (appliedFilters.fuelType === 'etanol' && !fuel.includes('etanol')) return false;
-                if (appliedFilters.fuelType === 'arla' && !fuel.includes('arla')) return false;
             }
 
             return true;
@@ -809,20 +829,73 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         const totalLitersByFuel: Record<string, number> = {};
         const totalValueBySector: Record<string, number> = {};
         const totalValueByFuel: Record<string, number> = {};
+        const sectorFuelBreakdown: Record<string, {
+            dieselLiters: number;
+            dieselValue: number;
+            gasolinaLiters: number;
+            gasolinaValue: number;
+            otherLiters: number;
+            otherValue: number;
+            totalValue: number;
+        }> = {};
+        const plateFuelSummary: Record<string, {
+            plate: string;
+            sector: string;
+            fuelType: string;
+            totalLiters: number;
+            totalValue: number;
+        }> = {};
         let grandTotalLiters = 0;
         let grandTotalValue = 0;
 
         filtered.forEach(r => {
             // Fuel aggregation
             const fuel = r.fuelType.split(' - ')[0];
+            const fuelLower = fuel.toLowerCase();
             totalLitersByFuel[fuel] = (totalLitersByFuel[fuel] || 0) + r.liters;
             totalValueByFuel[fuel] = (totalValueByFuel[fuel] || 0) + r.cost;
             grandTotalLiters += r.liters;
             grandTotalValue += r.cost;
 
-            // Sector aggregation
+            // Plate summary logic
+            const plate = r.derivedPlate;
             const sectorName = r.derivedSector;
+            const plateFuelKey = `${plate}-${fuel}`;
+            if (!plateFuelSummary[plateFuelKey]) {
+                plateFuelSummary[plateFuelKey] = {
+                    plate,
+                    sector: sectorName,
+                    fuelType: fuel,
+                    totalLiters: 0,
+                    totalValue: 0
+                };
+            }
+            plateFuelSummary[plateFuelKey].totalLiters += r.liters;
+            plateFuelSummary[plateFuelKey].totalValue += r.cost;
+
+            // Sector aggregation
             totalValueBySector[sectorName] = (totalValueBySector[sectorName] || 0) + r.cost;
+
+            // Sector + Fuel detailed breakdown
+            if (!sectorFuelBreakdown[sectorName]) {
+                sectorFuelBreakdown[sectorName] = {
+                    dieselLiters: 0, dieselValue: 0,
+                    gasolinaLiters: 0, gasolinaValue: 0,
+                    otherLiters: 0, otherValue: 0,
+                    totalValue: 0
+                };
+            }
+            if (fuelLower.includes('diesel')) {
+                sectorFuelBreakdown[sectorName].dieselLiters += r.liters;
+                sectorFuelBreakdown[sectorName].dieselValue += r.cost;
+            } else if (fuelLower.includes('gasolina')) {
+                sectorFuelBreakdown[sectorName].gasolinaLiters += r.liters;
+                sectorFuelBreakdown[sectorName].gasolinaValue += r.cost;
+            } else {
+                sectorFuelBreakdown[sectorName].otherLiters += r.liters;
+                sectorFuelBreakdown[sectorName].otherValue += r.cost;
+            }
+            sectorFuelBreakdown[sectorName].totalValue += r.cost;
         });
 
         return {
@@ -830,6 +903,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             totalLitersByFuel,
             totalValueBySector,
             totalValueByFuel,
+            sectorFuelBreakdown,
+            plateFuelSummary,
             grandTotalLiters,
             grandTotalValue
         };
@@ -1050,7 +1125,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     </div>
                     <div className="relative z-10">
                         <h3 className="text-3xl font-black text-cyan-900 tracking-tight">
-                            {stats.totalLiters.toFixed(0)} L
+                            {formatNumber(stats.totalLiters)} L
                         </h3>
                         <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${stats.litersDiff > 0 ? 'text-cyan-500' : 'text-slate-400'}`}>
                             <span>{stats.filteredCount} abastecimentos</span>
@@ -1071,7 +1146,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     </div>
                     <div className="relative z-10">
                         <h3 className="text-3xl font-black text-violet-900 tracking-tight">
-                            {stats.avgKmL.toFixed(1)} <span className="text-lg text-slate-400 font-bold">Km/L</span>
+                            {formatNumber(stats.avgKmL, 1)} <span className="text-lg text-slate-400 font-bold">Km/L</span>
                         </h3>
                         <p className="text-xs font-medium text-slate-400 mt-1">Eficiência da frota (S/ Arla)</p>
                     </div>
@@ -1090,7 +1165,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     </div>
                     <div className="relative z-10">
                         <h3 className="text-3xl font-black text-amber-900 tracking-tight">
-                            {stats.totalKmPeriod.toFixed(0)} <span className="text-lg text-slate-400 font-bold">Km</span>
+                            {formatNumber(stats.totalKmPeriod, 0)} <span className="text-lg text-slate-400 font-bold">Km</span>
                         </h3>
                         <p className="text-xs font-medium text-slate-400 mt-1">Estimado no período</p>
                     </div>
@@ -1167,7 +1242,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 </Pie>
                                 <Tooltip
                                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                    formatter={(value: number) => [`${value.toFixed(0)} L`, 'Volume']}
+                                    formatter={(value: number) => [`${formatNumber(value, 2)} L`, 'Volume']}
                                 />
                                 <Legend verticalAlign="bottom" height={36} iconType="circle" />
                             </PieChart>
@@ -1233,7 +1308,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 </div>
                                 <div className="text-right">
                                     <p className="text-sm font-black text-slate-700">{formatCurrency(v.totalCost)}</p>
-                                    <p className="text-[10px] text-slate-400 font-medium">{v.totalLiters.toFixed(0)} Litros</p>
+                                    <p className="text-[10px] text-slate-400 font-medium">{formatNumber(v.totalLiters)} L</p>
                                 </div>
                             </div>
                         ))}
@@ -1399,7 +1474,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             <Droplet className="w-4 h-4 text-blue-500" />
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Consumo Total</span>
                         </div>
-                        <p className="text-2xl font-black text-slate-900">{totalVehicleLiters.toFixed(1)} L</p>
+                        <p className="text-2xl font-black text-slate-900">{formatNumber(totalVehicleLiters, 1)} L</p>
                         <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">{vehicleFuelTypes}</p>
                     </div>
                     {/* New Metric: Avg Consumption */}
@@ -1409,7 +1484,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Consumo Médio</span>
                         </div>
                         <p className="text-2xl font-black text-slate-900">
-                            {avgEfficiency > 0 ? avgEfficiency.toFixed(1) : '--'} <span className="text-sm text-slate-400 font-bold">km/L</span>
+                            {avgEfficiency > 0 ? formatNumber(avgEfficiency, 1) : '--'} <span className="text-sm text-slate-400 font-bold">km/L</span>
                         </p>
                         <p className="text-[10px] font-bold text-emerald-600 uppercase mt-1">
                             {recordsWithEfficiency.length} medições (Mês)
@@ -1443,7 +1518,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                             style={{ height: Math.min((rec.liters / 100) * 100, 100) + '%' }}
                                         ></div>
                                         <div className="absolute inset-0 flex items-end justify-center pb-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <span className="text-[10px] font-bold text-white drop-shadow-md">{rec.liters.toFixed(0)}L</span>
+                                            <span className="text-[10px] font-bold text-white drop-shadow-md">{formatNumber(rec.liters, 0)}L</span>
                                         </div>
                                     </div>
                                     <span className="text-[10px] font-bold text-slate-400">{new Date(rec.date).getDate()}/{new Date(rec.date).getMonth() + 1}</span>
@@ -1502,16 +1577,16 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-700">{r.odometer.toFixed(0)} km</span>
-                                                    {r.distance > 0 && <span className="text-[10px] text-cyan-600 font-bold mt-1">(+{r.distance} km)</span>}
+                                                    <span className="font-bold text-slate-700">{formatNumber(r.odometer, 0)} km</span>
+                                                    {r.distance > 0 && <span className="text-[10px] text-cyan-600 font-bold mt-1">(+{formatNumber(r.distance, 0)} km)</span>}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 font-bold text-cyan-600">{r.fuelType.split(' - ')[0]}</td>
-                                            <td className="px-6 py-4 font-bold text-blue-600">{r.liters.toFixed(1)} L</td>
+                                            <td className="px-6 py-4 font-bold text-blue-600">{formatNumber(r.liters, 1)} L</td>
                                             <td className="px-6 py-4">
                                                 {r.efficiency > 0 ? (
                                                     <div className="flex flex-col">
-                                                        <span className="font-bold text-slate-700">{r.efficiency.toFixed(1)} km/L</span>
+                                                        <span className="font-bold text-slate-700">{formatNumber(r.efficiency, 1)} km/L</span>
                                                         <span className="text-xs text-slate-400">{formatCurrency(r.costPerKm)}/km</span>
                                                     </div>
                                                 ) : (
@@ -1648,7 +1723,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase">Consumo Médio</span>
                                             </div>
                                             <p className="text-lg font-black text-slate-900">
-                                                {v.avgKmL > 0 ? v.avgKmL.toFixed(1) : '--'} <span className="text-xs text-slate-400 font-bold">km/L</span>
+                                                {v.avgKmL > 0 ? formatNumber(v.avgKmL, 1) : '--'} <span className="text-xs text-slate-400 font-bold">km/L</span>
                                             </p>
                                         </div>
                                     </div>
@@ -1752,8 +1827,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 { value: 'all', label: 'Todos' },
                                 { value: 'diesel', label: 'Diesel' },
                                 { value: 'gasolina', label: 'Gasolina' },
-                                { value: 'etanol', label: 'Etanol' },
-                                { value: 'arla', label: 'Arla' }
+                                { value: 'etanol', label: 'Etanol' }
                             ]}
                             icon={Fuel}
                             placeholder="Todos"
@@ -1785,7 +1859,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             <div className="space-y-6">
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Volume Total</p>
-                                    <p className="text-4xl font-black tracking-tighter">{reportData.grandTotalLiters.toFixed(1)} <span className="text-xl text-slate-500">L</span></p>
+                                    <p className="text-4xl font-black tracking-tighter">{formatNumber(reportData.grandTotalLiters)} <span className="text-xl text-slate-500">L</span></p>
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valor Total</p>
@@ -1793,13 +1867,35 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 </div>
                             </div>
                         </div>
-                        <div className="pt-8 border-t border-white/5 mt-8 flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase">{reportData.records.length} registros encontrados</span>
+                        <div className="pt-8 border-t border-white/5 mt-8 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase">{reportData.records.length} registros</span>
+                                <div className="flex bg-white/5 p-1 rounded-xl border border-white/5">
+                                    <button
+                                        onClick={() => setReportMode('simplified')}
+                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${reportMode === 'simplified' ? 'bg-white text-slate-900' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        Simplificado
+                                    </button>
+                                    <button
+                                        onClick={() => setReportMode('complete')}
+                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${reportMode === 'complete' ? 'bg-white text-slate-900' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        Completo
+                                    </button>
+                                </div>
+                            </div>
                             <button
                                 onClick={() => setShowPrintPreview(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-indigo-600 hover:bg-indigo-700 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] group"
                             >
-                                <Download className="w-3.5 h-3.5" /> Exportar PDF
+                                <div className="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors">
+                                    <Download className="w-4 h-4 text-white" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-white leading-none">Exportar PDF</p>
+                                    <p className="text-[8px] text-indigo-200 mt-1 font-bold">{reportMode === 'simplified' ? 'Sem listagem detalhada' : 'Relatório Integral'}</p>
+                                </div>
                             </button>
                         </div>
                     </div>
@@ -1815,7 +1911,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                     <p className="text-xs font-black text-slate-900 uppercase">{fuel}</p>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase">{formatCurrency(reportData.totalValueByFuel[fuel] as number)}</p>
                                 </div>
-                                <p className="font-black text-slate-700">{(liters as number).toFixed(1)} L</p>
+                                <p className="font-black text-slate-700">{formatNumber(liters as number)} L</p>
                             </div>
                         ))}
                         {Object.keys(reportData.totalLitersByFuel).length === 0 && (
@@ -1870,6 +1966,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Protocolo</th>
                                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Data/Hora</th>
                                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Veículo/Motorista</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Setor</th>
                                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Posto/Combustível</th>
                                 <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-wider">Volume/Valor</th>
                             </tr>
@@ -1899,6 +1996,11 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
+                                            <span className="font-bold text-slate-900 text-xs italic">{record.derivedSector}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
                                             <span className="font-bold text-slate-900 text-xs">{record.station || 'N/A'}</span>
                                             <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded-md w-fit mt-1">{record.fuelType}</span>
                                         </div>
@@ -1906,7 +2008,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex flex-col items-end">
                                             <span className="font-black text-emerald-600 text-sm">{formatCurrency(record.cost)}</span>
-                                            <span className="text-[10px] font-bold text-slate-400">{record.liters.toFixed(1)} L</span>
+                                            <span className="text-[10px] font-bold text-slate-400">{formatNumber(record.liters)} L</span>
                                         </div>
                                     </td>
                                 </tr>
@@ -2033,6 +2135,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     data={reportData}
                     filters={appliedFilters}
                     state={state}
+                    mode={reportMode}
                     onClose={() => setShowPrintPreview(false)}
                 />
             )}

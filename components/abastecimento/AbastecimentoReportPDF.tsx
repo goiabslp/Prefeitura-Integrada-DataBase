@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { AppState } from '../../types';
 import { AbastecimentoRecord } from '../../services/abastecimentoService';
 import { PageWrapper } from '../PageWrapper';
-import { Printer, X, FileSpreadsheet, Fuel, Building2, Calendar, LayoutDashboard } from 'lucide-react';
+import { Printer, X, FileSpreadsheet, Fuel, Building2, Calendar, LayoutDashboard, Car } from 'lucide-react';
 
 interface AbastecimentoReportPDFProps {
     data: {
@@ -11,6 +11,22 @@ interface AbastecimentoReportPDFProps {
         totalLitersByFuel: Record<string, number>;
         totalValueBySector: Record<string, number>;
         totalValueByFuel: Record<string, number>;
+        sectorFuelBreakdown: Record<string, {
+            dieselLiters: number;
+            dieselValue: number;
+            gasolinaLiters: number;
+            gasolinaValue: number;
+            otherLiters: number;
+            otherValue: number;
+            totalValue: number;
+        }>;
+        plateFuelSummary: Record<string, {
+            plate: string;
+            sector: string;
+            fuelType: string;
+            totalLiters: number;
+            totalValue: number;
+        }>;
         grandTotalLiters: number;
         grandTotalValue: number;
     };
@@ -24,13 +40,15 @@ interface AbastecimentoReportPDFProps {
     };
     state: AppState;
     onClose: () => void;
+    mode: 'simplified' | 'complete';
 }
 
 export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
     data,
     filters,
     state,
-    onClose
+    onClose,
+    mode
 }) => {
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -60,9 +78,81 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
         }, 300);
     };
 
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(value);
+    };
+
+    const formatNumber = (value: number, decimals: number = 2) => {
+        return new Intl.NumberFormat('pt-BR', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        }).format(value);
+    };
+
     // Pagination Logic
     const ITEMS_PER_PAGE = 14;
-    const totalPages = Math.ceil(data.records.length / ITEMS_PER_PAGE) || 1;
+
+    // 1. Prepare Detailed Items (Records + Headers + Summaries)
+    const sortedRecords = [...data.records].sort((a, b) => {
+        if (a.vehicle < b.vehicle) return -1;
+        if (a.vehicle > b.vehicle) return 1;
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+
+    const detailedItems: Array<any> = [];
+    let currentV = '';
+    let vLiters = 0;
+    let vCost = 0;
+
+    sortedRecords.forEach((r, index) => {
+        if (r.vehicle !== currentV) {
+            if (currentV !== '') {
+                detailedItems.push({ type: 'summary', vehicle: currentV, liters: vLiters, cost: vCost });
+                detailedItems.push({ type: 'spacer' });
+                detailedItems.push({ type: 'header' });
+            }
+            currentV = r.vehicle;
+            vLiters = 0;
+            vCost = 0;
+        }
+        vLiters += r.liters;
+        vCost += r.cost;
+        detailedItems.push({ type: 'record', ...r });
+        if (index === sortedRecords.length - 1) {
+            detailedItems.push({ type: 'summary', vehicle: currentV, liters: vLiters, cost: vCost });
+        }
+    });
+
+    // 2. Prepare Plate Summary Items (Grouped by Sector)
+    const rawPlateItems = (Object.entries(data.plateFuelSummary || {}) as [string, any][])
+        .map(([_, v]) => v)
+        .sort((a, b) => {
+            if (a.sector < b.sector) return -1;
+            if (a.sector > b.sector) return 1;
+            return a.plate.localeCompare(b.plate);
+        });
+
+    const PLATE_ITEMS_PER_PAGE = 22;
+    const plateSummaryItems: Array<any> = [];
+    let currentS = '';
+
+    rawPlateItems.forEach((item) => {
+        if (item.sector !== currentS) {
+            if (currentS !== '') plateSummaryItems.push({ type: 'spacer' });
+            currentS = item.sector;
+            plateSummaryItems.push({ type: 'sectorHeader', sector: currentS });
+        }
+        plateSummaryItems.push({ type: 'item', ...item });
+    });
+
+    const totalPlatePages = Math.ceil(plateSummaryItems.length / PLATE_ITEMS_PER_PAGE) || 1;
+    const totalDetailPages = mode === 'complete' ? (Math.ceil(detailedItems.length / ITEMS_PER_PAGE) || 1) : 0;
+    const globalTotalPages = 1 + totalPlatePages + totalDetailPages; // Summary + Plate Summary Pages + Details Pages
 
     // Create a state copy without watermark for the report
     const reportState = {
@@ -77,7 +167,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
     };
 
     const renderSummaryPage = () => (
-        <PageWrapper state={reportState} pageIndex={0} totalPages={totalPages} isGenerating={isGenerating}>
+        <PageWrapper state={reportState} pageIndex={0} totalPages={globalTotalPages} isGenerating={isGenerating}>
             <div className="flex flex-col gap-6">
                 {/* Main Header */}
                 <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4">
@@ -132,40 +222,40 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                         <FileSpreadsheet className="absolute right-[-10%] top-[-20%] w-32 h-32 opacity-10" />
                         <div className="relative z-10">
                             <p className="text-[8pt] font-black uppercase tracking-[0.2em] text-indigo-400 mb-2">Volume Total (L)</p>
-                            <p className="text-4xl font-black tracking-tighter">{data.grandTotalLiters.toFixed(1)} <span className="text-xl text-slate-500">L</span></p>
+                            <p className="text-4xl font-black tracking-tighter">{formatNumber(data.grandTotalLiters)} <span className="text-xl text-slate-500">L</span></p>
                         </div>
                     </div>
                     <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-900 flex items-center justify-between overflow-hidden relative">
                         <LayoutDashboard className="absolute right-[-10%] top-[-20%] w-32 h-32 opacity-5 text-slate-900" />
                         <div className="relative z-10">
                             <p className="text-[8pt] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Investimento Total</p>
-                            <p className="text-4xl font-black tracking-tighter text-slate-900">R$ {data.grandTotalValue.toFixed(2)}</p>
+                            <p className="text-4xl font-black tracking-tighter text-slate-900">{formatCurrency(data.grandTotalValue)}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Breakdowns Grid */}
-                <div className="grid grid-cols-2 gap-6 items-start">
-                    {/* Fuel Breakdown */}
+                <div className="flex flex-col gap-8">
+                    {/* Fuel Breakdown - Top Small Table */}
                     <div className="space-y-4">
                         <h3 className="text-[10pt] font-black uppercase tracking-[0.15em] text-slate-900 flex items-center gap-2">
-                            <Fuel className="w-4 h-4 text-indigo-600" /> Por Combustível
+                            <Fuel className="w-4 h-4 text-indigo-600" /> Resumo por Combustível
                         </h3>
-                        <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                        <div className="border border-slate-200 rounded-2xl overflow-hidden max-w-2xl">
                             <table className="w-full text-left">
                                 <thead className="bg-slate-50 border-b border-slate-200">
                                     <tr className="text-[7pt] font-black uppercase tracking-widest text-slate-500">
-                                        <th className="px-4 py-2">Tipo</th>
-                                        <th className="px-4 py-2 text-right">Volume (L)</th>
-                                        <th className="px-4 py-2 text-right">Valor (R$)</th>
+                                        <th className="px-6 py-2">Tipo</th>
+                                        <th className="px-6 py-2 text-right">Volume (L)</th>
+                                        <th className="px-6 py-2 text-right">Valor (R$)</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {Object.entries(data.totalLitersByFuel).map(([fuel, liters]) => (
                                         <tr key={fuel} className="text-[8pt] font-bold text-slate-700">
-                                            <td className="px-4 py-3 uppercase">{fuel}</td>
-                                            <td className="px-4 py-3 text-right">{(liters as number).toFixed(1)}</td>
-                                            <td className="px-4 py-3 text-right">R$ {(data.totalValueByFuel[fuel] as number).toFixed(2)}</td>
+                                            <td className="px-6 py-3 uppercase">{fuel}</td>
+                                            <td className="px-6 py-3 text-right">{formatNumber(liters as number)}</td>
+                                            <td className="px-6 py-3 text-right">{formatCurrency(data.totalValueByFuel[fuel] as number)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -173,31 +263,38 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                         </div>
                     </div>
 
-                    {/* Sector Breakdown */}
+                    {/* Sector Breakdown - Full Width Detailed Table */}
                     <div className="space-y-4">
                         <h3 className="text-[10pt] font-black uppercase tracking-[0.15em] text-slate-900 flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-indigo-600" /> Por Secretaria / Setor
+                            <Building2 className="w-4 h-4 text-indigo-600" /> Por Secretaria / Setor (Detalhamento de Combustível)
                         </h3>
                         <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                            <table className="w-full text-left">
-                                <thead className="bg-slate-50 border-b border-slate-200">
-                                    <tr className="text-[7pt] font-black uppercase tracking-widest text-slate-500">
-                                        <th className="px-4 py-2">Setor</th>
-                                        <th className="px-4 py-2 text-right">Gasto Total</th>
-                                        <th className="px-4 py-2 text-right">%</th>
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-slate-50 border-b border-slate-200 text-[6pt] font-black uppercase tracking-widest text-slate-500">
+                                    <tr>
+                                        <th className="px-3 py-3 border-r border-slate-100" rowSpan={2}>Secretaria / Setor</th>
+                                        <th className="px-3 py-1 text-center border-r border-indigo-200 bg-indigo-900 text-white" colSpan={2}>Diesel</th>
+                                        <th className="px-3 py-1 text-center border-r border-sky-100 bg-sky-50 text-sky-900" colSpan={2}>Gasolina</th>
+                                        <th className="px-3 py-3 text-right" rowSpan={2}>Gasto Total</th>
+                                    </tr>
+                                    <tr className="text-[5pt]">
+                                        <th className="px-2 py-1 text-right border-r border-indigo-50 bg-indigo-50/30 text-indigo-900">L (Litros)</th>
+                                        <th className="px-2 py-1 text-right border-r border-indigo-50 bg-indigo-50/30 text-indigo-900">R$ (Valor)</th>
+                                        <th className="px-2 py-1 text-right border-r border-sky-50 bg-sky-50/50 text-sky-700">L (Litros)</th>
+                                        <th className="px-2 py-1 text-right border-r border-sky-50 bg-sky-50/50 text-sky-700">R$ (Valor)</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {Object.entries(data.totalValueBySector)
-                                        .sort((a, b) => (b[1] as number) - (a[1] as number))
-                                        .slice(0, 10) // Top 10 to fit
-                                        .map(([sector, value]) => (
-                                            <tr key={sector} className="text-[8pt] font-bold text-slate-700">
-                                                <td className="px-4 py-2.5 uppercase truncate max-w-[120px]">{sector}</td>
-                                                <td className="px-4 py-2.5 text-right">R$ {(value as number).toFixed(2)}</td>
-                                                <td className="px-4 py-2.5 text-right text-[7pt] text-slate-400">
-                                                    {data.grandTotalValue > 0 ? (((value as number) / data.grandTotalValue) * 100).toFixed(1) : 0}%
-                                                </td>
+                                    {(Object.entries(data.sectorFuelBreakdown || {}) as [string, any][])
+                                        .sort((a, b) => b[1].totalValue - a[1].totalValue)
+                                        .map(([sector, details]) => (
+                                            <tr key={sector} className="text-[7pt] font-bold text-slate-700">
+                                                <td className="px-3 py-2 uppercase border-r border-slate-50 font-black text-slate-900 whitespace-nowrap">{sector}</td>
+                                                <td className="px-2 py-2 text-right border-r border-indigo-50 bg-indigo-50/20 text-indigo-950">{formatNumber(details.dieselLiters)}</td>
+                                                <td className="px-2 py-2 text-right border-r border-indigo-50 bg-indigo-50/20 text-indigo-950">{formatCurrency(details.dieselValue)}</td>
+                                                <td className="px-2 py-2 text-right border-r border-sky-50 bg-sky-50/20 text-sky-600">{formatNumber(details.gasolinaLiters)}</td>
+                                                <td className="px-2 py-2 text-right border-r border-sky-50 bg-sky-50/20 text-sky-600">{formatCurrency(details.gasolinaValue)}</td>
+                                                <td className="px-3 py-2 text-right font-black text-slate-900 bg-slate-100/50">{formatCurrency(details.totalValue)}</td>
                                             </tr>
                                         ))}
                                 </tbody>
@@ -210,84 +307,75 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
         </PageWrapper>
     );
 
+    const renderPlateSummaryPages = () => {
+        const pages = [];
+        for (let i = 0; i < plateSummaryItems.length; i += PLATE_ITEMS_PER_PAGE) {
+            const pageItems = plateSummaryItems.slice(i, i + PLATE_ITEMS_PER_PAGE);
+            const pageIndex = Math.floor(i / PLATE_ITEMS_PER_PAGE) + 1;
+
+            pages.push(
+                <PageWrapper key={`plate-${pageIndex}`} state={reportState} pageIndex={pageIndex} totalPages={globalTotalPages} isGenerating={isGenerating}>
+                    <div className="flex flex-col gap-6 h-full">
+                        <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4">
+                            <h2 className="text-[14pt] font-black uppercase tracking-tighter text-slate-900 flex items-center gap-3">
+                                <Building2 className="w-6 h-6 text-indigo-600" /> Resumo por Secretaria / Setor
+                            </h2>
+                            <p className="text-[8pt] text-slate-500 font-bold uppercase tracking-widest leading-none">Página {pageIndex + 1} de {globalTotalPages}</p>
+                        </div>
+
+                        <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-slate-900 text-white">
+                                    <tr className="text-[7pt] font-black uppercase tracking-widest">
+                                        <th className="px-6 py-4 w-[30%]">Placa / Veículo</th>
+                                        <th className="px-6 py-4 w-[25%]">Combustível</th>
+                                        <th className="px-6 py-4 text-right w-[20%]">Volume (L)</th>
+                                        <th className="px-6 py-4 text-right w-[25%]">Valor Total (R$)</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {pageItems.map((item, idx) => {
+                                        if (item.type === 'spacer') {
+                                            return <tr key={`sp-${idx}`} className="h-2 bg-slate-50/50" />;
+                                        }
+                                        if (item.type === 'sectorHeader') {
+                                            return (
+                                                <tr key={`sh-${idx}`} className="bg-slate-100 border-y-2 border-slate-900">
+                                                    <td colSpan={4} className="px-5 py-1.5 text-[8pt] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap overflow-hidden">
+                                                        <span className="w-1.5 h-4 bg-slate-900 rounded-full" />
+                                                        {item.sector}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        }
+                                        return (
+                                            <tr key={`it-${idx}`} className="text-[7.5pt] font-bold text-slate-700 hover:bg-slate-50/50">
+                                                <td className="px-5 py-1.5 font-black text-slate-900 uppercase">{item.plate}</td>
+                                                <td className="px-5 py-1.5 uppercase text-slate-400 font-mono text-[7pt]">{item.fuelType}</td>
+                                                <td className="px-5 py-1.5 text-right text-indigo-700">{formatNumber(item.totalLiters)} L</td>
+                                                <td className="px-5 py-1.5 text-right font-black text-slate-900 bg-slate-50/30 border-l border-slate-100">{formatCurrency(item.totalValue)}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </PageWrapper>
+            );
+        }
+        return pages;
+    };
+
     const renderRecordPages = () => {
         const pages = [];
 
-        // 1. Sort records by Vehicle then Date
-        const sortedRecords = [...data.records].sort((a, b) => {
-            if (a.vehicle < b.vehicle) return -1;
-            if (a.vehicle > b.vehicle) return 1;
-            // Same vehicle, sort by date desc
-            return new Date(b.date).getTime() - new Date(a.date).getTime();
-        });
-
-        // 2. Process with summary rows
-        const processedItems: Array<any> = [];
-        let currentVehicle = '';
-        let vehicleLiters = 0;
-        let vehicleCost = 0;
-
-        sortedRecords.forEach((r, index) => {
-            // Check if vehicle changed or first record
-            if (r.vehicle !== currentVehicle) {
-                // If not first record, push previous vehicle summary
-                if (currentVehicle !== '') {
-                    processedItems.push({
-                        type: 'summary',
-                        vehicle: currentVehicle,
-                        liters: vehicleLiters,
-                        cost: vehicleCost
-                    });
-                    // Add Spacer between groups and new Header
-                    processedItems.push({ type: 'spacer' });
-                    processedItems.push({ type: 'header' });
-                }
-
-                // Reset for new vehicle
-                currentVehicle = r.vehicle;
-                vehicleLiters = 0;
-                vehicleCost = 0;
-            }
-
-            // Accumulate
-            vehicleLiters += r.liters;
-            vehicleCost += r.cost;
-            processedItems.push({ type: 'record', ...r });
-
-            // If last record, push final summary
-            if (index === sortedRecords.length - 1) {
-                processedItems.push({
-                    type: 'summary',
-                    vehicle: currentVehicle,
-                    liters: vehicleLiters,
-                    cost: vehicleCost
-                });
-            }
-        });
-
-        // Skip first 8 records already shown on summary page (Note: Summary page logic might need adjustment if it blindly takes 8 raw records, but keeping it simple for now as summary is "First Records")
-        // BETTER: Just paginate the processedItems directly. The summary page shows "First Records", maybe we should skip showing them there if we strictly want grouped view? 
-        // User asked for "organized" list. Let's paginate the processed items starting from index 0 for the detailed view if practical, or stick to "pages" logic.
-        // Current logic: Summary page shows raw sliced[0..8]. Detailed pages show sliced[8..end].
-        // Refinement: Showing "First records" on summary page might be confusing if they are not grouped.
-        // Let's assume detail pages are the main list.
-        // Adjust pagination to handling processed items.
-        // However, summary page slices from `data.records`. We should probably hide the "Primeiros Registros" table or update it.
-        // For compliance with "exiba todos...", I will render ALL items in the paginated section.
-        // The summary page's "Primeiros Registros" is a preview. I'll leave it as is for now, but focus on the main list.
-        // Wait, if I change the order in detail pages, it might not match the preview.
-        // Let's rely on `sortedRecords` for consistency if we wanted, but the prompt implies the MAIN list organization.
-
-        // Actually, let's use the processedItems for pagination.
-        // To avoid duplication or gap issues, let's start pagination from item 0 of processedItems.
-        // Pagination loop:
-
-        for (let i = 0; i < processedItems.length; i += ITEMS_PER_PAGE) {
-            const pageItems = processedItems.slice(i, i + ITEMS_PER_PAGE);
-            const pageIndex = Math.floor(i / ITEMS_PER_PAGE) + 1;
+        for (let i = 0; i < detailedItems.length; i += ITEMS_PER_PAGE) {
+            const pageItems = detailedItems.slice(i, i + ITEMS_PER_PAGE);
+            const pageIndex = Math.floor(i / ITEMS_PER_PAGE) + 1 + totalPlatePages;
 
             pages.push(
-                <PageWrapper key={pageIndex} state={reportState} pageIndex={pageIndex} totalPages={Math.ceil(processedItems.length / ITEMS_PER_PAGE)} isGenerating={isGenerating}>
+                <PageWrapper key={`rec-${pageIndex}`} state={reportState} pageIndex={pageIndex} totalPages={globalTotalPages} isGenerating={isGenerating}>
                     <div className="flex flex-col h-full">
                         <div className="pb-4 border-b border-slate-200 mb-6">
                             <h2 className="text-[12pt] font-black uppercase text-slate-900">Listagem de Abastecimentos</h2>
@@ -308,10 +396,10 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                             <thead className="bg-slate-50 border-y border-slate-200">
                                 <tr className="text-[7pt] font-black uppercase tracking-widest text-slate-500">
                                     <th className="px-3 py-2 text-left w-[12%]">Data</th>
-                                    <th className="px-3 py-2 text-left w-[22%]">Nº Nota</th>
-                                    <th className="px-3 py-2 text-left w-[22%]">Veículo</th>
-                                    <th className="px-3 py-2 text-left w-[18%]">Setor</th>
-                                    <th className="px-3 py-2 text-left w-[11%]">Litros</th>
+                                    <th className="px-3 py-2 text-left w-[15%]">Nº Nota</th>
+                                    <th className="px-3 py-2 text-left w-[25%]">Veículo</th>
+                                    <th className="px-3 py-2 text-left w-[25%]">Setor</th>
+                                    <th className="px-3 py-2 text-left w-[8%]">Litros</th>
                                     <th className="px-3 py-2 text-left w-[15%] whitespace-nowrap">Custo (R$)</th>
                                 </tr>
                             </thead>
@@ -330,10 +418,10 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                                         return (
                                             <tr key={`hdr-${idx}`} className="bg-slate-200/50 border-y border-slate-300">
                                                 <th className="px-3 py-2 text-left w-[12%] text-[7pt] font-black uppercase tracking-widest text-slate-600">Data</th>
-                                                <th className="px-3 py-2 text-left w-[22%] text-[7pt] font-black uppercase tracking-widest text-slate-600">Nº Nota</th>
-                                                <th className="px-3 py-2 text-left w-[22%] text-[7pt] font-black uppercase tracking-widest text-slate-600">Veículo</th>
-                                                <th className="px-3 py-2 text-left w-[18%] text-[7pt] font-black uppercase tracking-widest text-slate-600">Setor</th>
-                                                <th className="px-3 py-2 text-left w-[11%] text-[7pt] font-black uppercase tracking-widest text-slate-600">Litros</th>
+                                                <th className="px-3 py-2 text-left w-[15%] text-[7pt] font-black uppercase tracking-widest text-slate-600">Nº Nota</th>
+                                                <th className="px-3 py-2 text-left w-[25%] text-[7pt] font-black uppercase tracking-widest text-slate-600">Veículo</th>
+                                                <th className="px-3 py-2 text-left w-[25%] text-[7pt] font-black uppercase tracking-widest text-slate-600">Setor</th>
+                                                <th className="px-3 py-2 text-left w-[8%] text-[7pt] font-black uppercase tracking-widest text-slate-600">Litros</th>
                                                 <th className="px-3 py-2 text-left w-[15%] text-[7pt] font-black uppercase tracking-widest text-slate-600 whitespace-nowrap">Custo (R$)</th>
                                             </tr>
                                         );
@@ -345,10 +433,10 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                                                     TOTAL
                                                 </td>
                                                 <td className="px-3 py-3 text-[8pt] font-black text-slate-900">
-                                                    {item.liters.toFixed(1)} Litros
+                                                    {formatNumber(item.liters)} L
                                                 </td>
                                                 <td className="px-3 py-3 text-[8pt] font-black text-slate-900">
-                                                    R$ {item.cost.toFixed(2)}
+                                                    {formatCurrency(item.cost)}
                                                 </td>
                                             </tr>
                                         );
@@ -362,9 +450,9 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                                                 <p className="font-bold leading-none">{r.vehicle}</p>
                                                 <p className="text-[5.5pt] text-slate-400 font-bold mt-0.5">{r.derivedPlate}</p>
                                             </td>
-                                            <td className="px-3 py-2 uppercase truncate text-[7pt] font-bold text-slate-500">{r.derivedSector}</td>
-                                            <td className="px-3 py-2 px-3 py-2">{r.liters.toFixed(1)} L</td>
-                                            <td className="px-3 py-2 font-bold text-slate-900">R$ {r.cost.toFixed(2)}</td>
+                                            <td className="px-3 py-2 uppercase whitespace-nowrap text-[7pt] font-bold text-slate-500 leading-tight">{r.derivedSector}</td>
+                                            <td className="px-3 py-2 px-3 py-2">{formatNumber(r.liters)} L</td>
+                                            <td className="px-3 py-2 font-bold text-slate-900">{formatCurrency(r.cost)}</td>
                                         </tr>
                                     );
                                 })}
@@ -408,7 +496,8 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
             <div className={`fixed inset-0 overflow-y-auto flex items-start justify-center p-4 md:p-8 ${isGenerating ? 'p-0' : ''}`}>
                 <div id="report-pdf-content" className={`relative flex flex-col items-center py-12 ${isGenerating ? 'py-0' : ''}`}>
                     {renderSummaryPage()}
-                    {renderRecordPages()}
+                    {renderPlateSummaryPages()}
+                    {mode === 'complete' && renderRecordPages()}
                 </div>
             </div>
         </div>,
