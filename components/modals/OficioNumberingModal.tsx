@@ -18,20 +18,31 @@ export const OficioNumberingModal: React.FC<Props> = ({ isOpen, onClose, onConfi
     const [year, setYear] = useState<number>(new Date().getFullYear());
 
     useEffect(() => {
+        let isMounted = true;
         if (isOpen && sectorId) {
             const fetchNext = async () => {
                 setLoading(true);
-                // Add a small artificial delay for "dynamic" feel if it's too fast
                 const start = Date.now();
-                const num = await counterService.getNextSectorCount(sectorId, new Date().getFullYear());
-                const elapsed = Date.now() - start;
-                if (elapsed < 600) await new Promise(resolve => setTimeout(resolve, 600 - elapsed));
 
-                setNextNumber(num);
-                setLoading(false);
+                try {
+                    const num = await counterService.getNextSectorCount(sectorId, new Date().getFullYear());
+                    if (!isMounted) return;
+
+                    const elapsed = Date.now() - start;
+                    if (elapsed < 600) {
+                        await new Promise(resolve => setTimeout(resolve, 600 - elapsed));
+                    }
+
+                    if (!isMounted) return;
+                    setNextNumber(num);
+                    setLoading(false);
+                } catch (error) {
+                    if (isMounted) setLoading(false);
+                }
             };
             fetchNext();
         }
+        return () => { isMounted = false; };
     }, [isOpen, sectorId]);
 
     if (!isOpen) return null;

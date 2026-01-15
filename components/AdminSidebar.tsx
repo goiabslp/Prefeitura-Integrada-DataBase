@@ -10,6 +10,7 @@ import { OficioForm } from './forms/OficioForm';
 import { DiariaForm } from './forms/DiariaForm';
 import { ComprasForm } from './forms/ComprasForm';
 import { LicitacaoForm } from './forms/LicitacaoForm';
+import { ComprasStepWizard } from './compras/ComprasStepWizard';
 
 interface AdminSidebarProps {
   state: AppState;
@@ -151,12 +152,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           />
         );
       case 'compras':
-        // Fix: Added missing persons, sectors, and jobs props to ComprasForm
         return (
-          <ComprasForm
-            state={state} content={content} docConfig={docConfig}
-            allowedSignatures={allowedSignatures} handleUpdate={handleUpdate} onUpdate={onUpdate}
-            persons={persons} sectors={sectors} jobs={jobs}
+          <ComprasStepWizard
+            state={state}
+            content={content}
+            docConfig={docConfig}
+            allowedSignatures={allowedSignatures}
+            handleUpdate={handleUpdate}
+            onUpdate={onUpdate}
+            persons={persons}
+            sectors={sectors}
+            jobs={jobs}
+            onFinish={onFinish ? handleFinishWithAnimation : () => { }}
+            onBack={onBack}
           />
         );
       case 'licitacao':
@@ -199,38 +207,40 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       {/* Sidebar - relative no desktop para permitir lado-a-lado com o preview */}
       <div className={`
         fixed md:relative inset-y-0 left-0 h-full
-        w-full md:w-[500px] lg:w-[550px] xl:w-[600px] 
+        ${activeBlock === 'compras' ? 'w-full' : 'w-full md:w-[500px] lg:w-[550px] xl:w-[600px]'}
         bg-white shadow-2xl md:shadow-none border-r border-slate-200
         transform transition-all duration-300 ease-in-out z-50 shrink-0
         flex flex-col 
         ${isOpen ? 'translate-x-0 opacity-100 visible' : '-translate-x-full opacity-0 invisible absolute md:w-0'}
       `}>
-        <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white z-10 shrink-0">
-          <div className="flex items-center gap-3">
-            {(mode !== 'admin' && onBack) ? (
-              <button onClick={onBack} className="p-2 -ml-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all" title="Voltar">
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-            ) : (mode === 'admin' && activeTab) ? (
-              <button onClick={() => onTabChange(null)} className="p-2 -ml-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all" title="Voltar ao Menu">
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-            ) : null}
-            <div>
-              <h2 className="text-lg font-black text-slate-900 uppercase tracking-tighter">
-                {mode === 'admin'
-                  ? (activeTab === 'design' ? 'Design do Documento' : 'Painel Administrativo')
-                  : headerInfo.title}
-              </h2>
-              {mode !== 'admin' && (
-                <p className="text-xs text-slate-400 font-medium normal-case tracking-normal">{headerInfo.subtitle}</p>
-              )}
+        {activeBlock !== 'compras' && (
+          <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white z-10 shrink-0">
+            <div className="flex items-center gap-3">
+              {(mode !== 'admin' && onBack) ? (
+                <button onClick={onBack} className="p-2 -ml-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all" title="Voltar">
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+              ) : (mode === 'admin' && activeTab) ? (
+                <button onClick={() => onTabChange(null)} className="p-2 -ml-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all" title="Voltar ao Menu">
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+              ) : null}
+              <div>
+                <h2 className="text-lg font-black text-slate-900 uppercase tracking-tighter">
+                  {mode === 'admin'
+                    ? (activeTab === 'design' ? 'Design do Documento' : 'Painel Administrativo')
+                    : headerInfo.title}
+                </h2>
+                {mode !== 'admin' && (
+                  <p className="text-xs text-slate-400 font-medium normal-case tracking-normal">{headerInfo.subtitle}</p>
+                )}
+              </div>
             </div>
+            {activeTab !== 'design' && (
+              <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"><X className="w-6 h-6" /></button>
+            )}
           </div>
-          {activeTab !== 'design' && (
-            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"><X className="w-6 h-6" /></button>
-          )}
-        </div>
+        )}
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50/50">
 
@@ -296,7 +306,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </div>
         )}
 
-        {mode !== 'admin' && activeTab === 'content' && activeBlock !== 'licitacao' && !isReadOnly && (
+        {mode !== 'admin' && activeTab === 'content' && activeBlock !== 'licitacao' && activeBlock !== 'compras' && !isReadOnly && (
           <div className="p-6 border-t border-gray-200 bg-white/80 backdrop-blur-xl sticky bottom-0 z-20">
             <button onClick={handleFinishWithAnimation} disabled={finishStatus === 'loading' || finishStatus === 'success'} className={`w-full font-black py-4 px-6 rounded-2xl shadow-xl transform transition-all duration-300 flex items-center justify-center gap-3 uppercase tracking-widest text-xs ${finishStatus === 'success' ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white hover:bg-indigo-600 active:scale-95'}`}>
               {finishStatus === 'loading' ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Processando...</span></> : finishStatus === 'success' ? <><Check className="w-4 h-4" /><span>Concluído!</span></> : <><Check className="w-4 h-4" /><span>Finalizar Edição</span></>}

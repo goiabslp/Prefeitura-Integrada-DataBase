@@ -24,7 +24,7 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({ className = '' }) 
             ) : (
                 <>
                     <Cloud className="w-2.5 h-2.5 text-emerald-500" />
-                    <span className="text-emerald-500">Online</span>
+                    <span className="text-emerald-500">Atualizado</span>
                 </>
             )}
         </div>

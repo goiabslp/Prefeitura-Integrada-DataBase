@@ -9,6 +9,8 @@ import {
   User, Order, AppState, BlockType, Attachment, Person, Sector, Job,
   Vehicle, VehicleBrand, VehicleSchedule, Signature, StatusMovement
 } from './types';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { supabase } from './services/supabaseClient';
 import * as entityService from './services/entityService';
 import * as oficiosService from './services/oficiosService';
@@ -328,13 +330,13 @@ const App: React.FC = () => {
 
       // Batch 3: Transactional Data (Heaviest)
       const [
-        // savedPurchaseOrders,
+        savedPurchaseOrders,
         // savedServiceRequests,
         savedLicitacaoProcesses,
         savedSchedules
       ] = await Promise.all([
         // oficiosService.getAllOficios(), // REMOVED: Managed by React Query
-        // comprasService.getAllPurchaseOrders(), // REMOVED: Managed by React Query
+        comprasService.getAllPurchaseOrders(),
         // diariasService.getAllServiceRequests(), // REMOVED: Managed by React Query
         licitacaoService.getAllLicitacaoProcesses(),
         vehicleSchedulingService.getSchedules()
@@ -368,14 +370,14 @@ const App: React.FC = () => {
       }
 
       // setOficios(savedOficios); // REMOVED: Managed by React Query
-      // setPurchaseOrders(savedPurchaseOrders); // REMOVED: Managed by React Query
+      setPurchaseOrders(savedPurchaseOrders);
       // setServiceRequests(savedServiceRequests); // REMOVED: Managed by React Query
       setLicitacaoProcesses(savedLicitacaoProcesses);
 
       // Update local generic state based on current view/block
       const allOrders = [
         // ...savedOficios, // REMOVED: Managed by React Query
-        // ...savedPurchaseOrders, // REMOVED: Managed by React Query
+        ...savedPurchaseOrders,
         // ...savedServiceRequests, // REMOVED: Managed by React Query
         ...savedLicitacaoProcesses
       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -499,6 +501,23 @@ const App: React.FC = () => {
       )
       .subscribe();
 
+    // Purchase Orders Channel (NEW)
+    const purchaseChannel = supabase.channel('public:purchase_orders')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'purchase_orders' },
+        async () => {
+          const updated = await comprasService.getAllPurchaseOrders();
+          setPurchaseOrders(updated);
+          // Also update generic orders list if needed to maintain sort
+          setOrders(prev => {
+            const others = prev.filter(o => o.blockType !== 'compras');
+            return [...others, ...updated].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          });
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(vehicleChannel);
       supabase.removeChannel(profileChannel);
@@ -579,6 +598,22 @@ const App: React.FC = () => {
         } else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(initialState.view)) {
           const newBlock = initialState.sub || null;
           if (newBlock !== activeBlock) setActiveBlock(newBlock);
+
+          // FORCE CLEAN STATE FOR COMPRAS
+          if (newBlock === 'compras' && initialState.view === 'editor') {
+            setAppState(prev => ({
+              ...prev,
+              content: {
+                ...prev.content,
+                // Reset body to empty to prevent default text flash
+                body: '',
+                // Also ensure signatures are ready or clean
+                signatureName: '',
+                signatureRole: '',
+                useDigitalSignature: true
+              }
+            }));
+          }
         }
       }
       // Refresh handled by effect dependency
@@ -668,7 +703,8 @@ const App: React.FC = () => {
     if (!currentUser || !activeBlock) return false;
 
     // 2FA Interception Logic
-    if (!skip2FA && appState.content.useDigitalSignature) {
+    // Skip 2FA if we already have a valid digital signature stored (e.g. from ComprasForm Step 5)
+    if (!skip2FA && appState.content.useDigitalSignature && !appState.content.digitalSignature?.enabled) {
       // Find the selected signature user
       // Find the selected signature user with NORMALIZED check
       // Fix: Handle accents, multiple spaces, and case sensitivity
@@ -863,6 +899,7 @@ const App: React.FC = () => {
                 // Fallback if not strictly matching placeholder
                 currentLeftText = `Pedido nº ${formattedNum}/${year}\n${currentLeftText}`;
               }
+              // CRITICAL: Ensure this update is actually reflected in the snapshot we are about to save
               appState.content.leftBlockText = currentLeftText;
             }
           }
@@ -917,10 +954,59 @@ const App: React.FC = () => {
         documentSnapshot: finalSnapshot,
         paymentStatus: activeBlock === 'diarias' ? 'pending' : undefined,
         statusHistory: activeBlock === 'compras' ? [{ statusLabel: 'Criação do Pedido', date: new Date().toISOString(), userName: currentUser.name }] : [],
-        attachments: []
+        attachments: appState.content.attachments || []
       };
 
       if (activeBlock === 'compras') {
+        // PDF GENERATION & UPLOAD
+        setIsDownloading(true);
+        // Wait for render
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        try {
+          if (componentRef.current) {
+            // Force light mode for capture if needed, or rely on preview styles
+            const canvas = await html2canvas(componentRef.current, {
+              scale: 2,
+              logging: false,
+              useCORS: true,
+              backgroundColor: '#ffffff'
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = canvas.width;
+            const imgHeight = canvas.height;
+            const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+            const imgX = (pdfWidth - imgWidth * ratio) / 2;
+            const imgY = 0; // Top align
+
+            pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+            const pdfBlob = pdf.output('blob');
+
+            const fileName = `pedido_${protocolString.replace(/\//g, '-')}_${Date.now()}.pdf`;
+            const publicUrl = await comprasService.uploadPurchaseAttachment(pdfBlob, fileName);
+
+            const attachment: Attachment = {
+              id: Date.now().toString(),
+              name: fileName,
+              url: publicUrl,
+              type: 'application/pdf',
+              date: new Date().toISOString()
+            };
+
+            finalOrder.attachments = [...(appState.content.attachments || []), attachment]; // Append logic
+          }
+        } catch (pdfErr) {
+          console.error("Error generating/uploading PDF for Compras:", pdfErr);
+          // Non-fatal? Or should we alert? Let's log and proceed but maybe without attachment
+          showToast("Erro ao gerar PDF do pedido. O pedido será salvo sem o anexo.", "error");
+        } finally {
+          setIsDownloading(false);
+        }
+
         await comprasService.savePurchaseOrder(finalOrder);
         setPurchaseOrders(prev => [finalOrder, ...prev]);
         setOrders(prev => [finalOrder, ...prev]); // Keep synced if view uses this
@@ -1130,9 +1216,9 @@ const App: React.FC = () => {
 
       showToast(status === 'approved' ? "Pedido Aprovado com Sucesso" : "Pedido Rejeitado", status === 'approved' ? "success" : "info");
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to update status:", error);
-      showToast("Erro ao atualizar status do pedido", "error");
+      showToast("Erro ao atualizar status do pedido: " + (error.message || "Erro desconhecido"), "error");
     }
   };
 
@@ -1142,33 +1228,32 @@ const App: React.FC = () => {
     const orderToUpdate = orders.find(o => o.id === orderId);
     if (!orderToUpdate) return;
 
+    const newMovement: StatusMovement = {
+      statusLabel: `Alteração de Status para ${purchaseStatus}`,
+      date: new Date().toISOString(),
+      userName: currentUser.name,
+      justification: justification || 'Atualização de status do pedido'
+    };
+
     try {
-      const newMovement: StatusMovement = {
-        statusLabel: `Alteração de Status para ${purchaseStatus}`,
-        date: new Date().toISOString(),
-        userName: currentUser.name,
-        justification: justification || 'Atualização de status do pedido'
-      };
+      await comprasService.updatePurchaseStatus(orderId, purchaseStatus as string, newMovement, budgetFileUrl);
 
-      const updatedOrder: Order = {
+      // Update local state ONLY after success
+      const updatedOrder = {
         ...orderToUpdate,
-        purchaseStatus,
-        budgetFileUrl: budgetFileUrl || orderToUpdate.budgetFileUrl,
-        statusHistory: [...(orderToUpdate.statusHistory || []), newMovement]
+        purchaseStatus: purchaseStatus,
+        statusHistory: newMovement ? [...(orderToUpdate.statusHistory || []), newMovement] : orderToUpdate.statusHistory,
+        budgetFileUrl: budgetFileUrl || orderToUpdate.budgetFileUrl
       };
 
-      // Call specialized service to administer Audit History and DB
-      await comprasService.updatePurchaseStatus(orderToUpdate.id, purchaseStatus as string, newMovement, budgetFileUrl);
+      setPurchaseOrders(prev => prev.map(p => p.id === orderId ? updatedOrder : p));
+      setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
 
-      // Update Local State strictly after success to avoid desync
-      setPurchaseOrders(prev => prev.map(p => p.id === updatedOrder.id ? updatedOrder : p));
-      setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+      showToast("Status de compra atualizado!", "success");
 
-      showToast("Status atualizado com sucesso!", "success");
-
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to update purchase status:", error);
-      showToast("Erro ao atualizar progresso do pedido", "error");
+      showToast("Erro ao atualizar status de compra: " + (error.message || "Unknown"), "error");
     }
   };
 
@@ -2388,7 +2473,9 @@ const App: React.FC = () => {
                     ) : currentView === 'admin' && adminTab === 'design' ? (
                       <AdminDocumentPreview state={appState} />
                     ) : (
-                      <DocumentPreview ref={componentRef} state={appState} isGenerating={isDownloading} mode={currentView === 'admin' ? 'admin' : 'editor'} blockType={activeBlock} />
+                      <div className={activeBlock === 'compras' && currentView === 'editor' ? 'fixed left-[-9999px] top-0 pointer-events-none opacity-0' : 'w-full h-full'}>
+                        <DocumentPreview ref={componentRef} state={appState} isGenerating={isDownloading} mode={currentView === 'admin' ? 'admin' : 'editor'} blockType={activeBlock} />
+                      </div>
                     )}
 
                     {/* COMPACT FLOATING STAGE DOWNLOAD BUTTON FOR LICITACAO */}

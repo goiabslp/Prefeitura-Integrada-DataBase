@@ -4,6 +4,7 @@ import { Order } from '../types';
 import { notificationService } from './notificationService';
 
 export const getAllPurchaseOrders = async (lightweight = false, page = 0, limit = 50): Promise<Order[]> => {
+    console.log(`[comprasService] Fetching orders (lightweight: ${lightweight}, page: ${page})`);
     let query = supabase
         .from('purchase_orders')
         .select('*')
@@ -19,10 +20,11 @@ export const getAllPurchaseOrders = async (lightweight = false, page = 0, limit 
     const { data, error } = await query;
 
     if (error) {
-        console.error('Error fetching purchase orders:', error.message, error.details, error.hint);
+        console.error('[comprasService] Error fetching purchase orders:', error.message, error.details, error.hint);
         return [];
     }
 
+    console.log(`[comprasService] Fetched ${data?.length || 0} orders.`);
     return data.map((item: any) => ({
         id: item.id,
         protocol: item.protocol,
@@ -92,6 +94,25 @@ export const savePurchaseOrder = async (order: Order): Promise<void> => {
 export const deletePurchaseOrder = async (id: string): Promise<void> => {
     const { error } = await supabase.from('purchase_orders').delete().eq('id', id);
     if (error) throw error;
+};
+
+export const uploadPurchaseAttachment = async (blob: Blob, fileName: string): Promise<string> => {
+    // 1. Upload file
+    const { data, error } = await supabase.storage
+        .from('chat-attachments') // Reusing existing bucket or create 'documents'
+        .upload(`compras/${fileName}`, blob, {
+            contentType: 'application/pdf',
+            upsert: true
+        });
+
+    if (error) throw error;
+
+    // 2. Get Public URL
+    const { data: { publicUrl } } = supabase.storage
+        .from('chat-attachments')
+        .getPublicUrl(`compras/${fileName}`);
+
+    return publicUrl;
 };
 
 export const updateAttachments = async (id: string, attachments: any[]): Promise<void> => {

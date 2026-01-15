@@ -67,6 +67,9 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
 
   const purchaseOrders = orders.filter(order => order.blockType === 'compras');
 
+  // Debug Logs
+  console.log(`[PurchaseManagementScreen] Rendering. Total Orders: ${purchaseOrders.length}, Status Filter: ${statusFilter}, User: ${currentUser?.name} (${currentUser?.role})`);
+
   const filteredOrders = purchaseOrders.filter(order => {
     const sector = order.documentSnapshot?.content.requesterSector || '';
     const matchesSearch = order.protocol.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -76,12 +79,25 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
 
     if (isComprasUser) {
-      const isFinalized = order.status === 'approved' || order.status === 'rejected';
-      return matchesSearch && matchesStatus && isFinalized;
+      // Compras user sees all finalized orders (approved/rejected) + In Progress + Pending + Awaiting Approval
+      const isFinalized =
+        order.status === 'approved' ||
+        order.status === 'rejected' ||
+        order.status === 'in_progress' ||
+        order.status === 'completed' ||
+        order.status === 'pending' ||
+        order.status === 'awaiting_approval';
+
+      const isAprovacaoOrcamento = order.purchaseStatus === 'aprovacao_orcamento';
+
+      // Also include if they are the handler
+      return matchesSearch && matchesStatus && (isFinalized || isAprovacaoOrcamento);
     }
 
     return matchesSearch && matchesStatus;
   });
+
+  console.log(`[PurchaseManagementScreen] Filtered Orders: ${filteredOrders.length}`);
 
   const handleDownload = (order: Order) => {
     setDownloadingId(order.id);
