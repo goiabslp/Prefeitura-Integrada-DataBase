@@ -165,6 +165,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             jobs={jobs}
             onFinish={onFinish ? handleFinishWithAnimation : () => { }}
             onBack={onBack}
+            isLoading={isDownloading || finishStatus === 'loading'}
           />
         );
       case 'licitacao':

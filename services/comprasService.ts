@@ -3,15 +3,21 @@ import { supabase } from './supabaseClient';
 import { Order } from '../types';
 import { notificationService } from './notificationService';
 
+import { handleSupabaseError } from '../utils/errorUtils';
+
 export const getAllPurchaseOrders = async (lightweight = false, page = 0, limit = 50): Promise<Order[]> => {
-    console.log(`[comprasService] Fetching orders (lightweight: ${lightweight}, page: ${page})`);
+    // Select specific columns to reduce payload
+    // We join with profiles using user_id foreign key to get the sector name
+    const columns = lightweight
+        ? 'id, protocol, title, status, purchase_status, status_history, created_at, user_id, user_name, completion_forecast, budget_file_url, profiles:user_id(sector)'
+        : '*, profiles:user_id(sector)';
+
     let query = supabase
         .from('purchase_orders')
-        .select('*')
+        .select(columns)
         .order('created_at', { ascending: false });
 
     if (lightweight) {
-        // Pagination logic
         const from = page * limit;
         const to = from + limit - 1;
         query = query.range(from, to);
@@ -20,11 +26,11 @@ export const getAllPurchaseOrders = async (lightweight = false, page = 0, limit 
     const { data, error } = await query;
 
     if (error) {
-        console.error('[comprasService] Error fetching purchase orders:', error.message, error.details, error.hint);
-        return [];
+        const appError = handleSupabaseError(error);
+        console.error('[comprasService] Error:', appError.message);
+        throw appError; // Throw so useQuery can handle isError
     }
 
-    console.log(`[comprasService] Fetched ${data?.length || 0} orders.`);
     return data.map((item: any) => ({
         id: item.id,
         protocol: item.protocol,
@@ -36,10 +42,13 @@ export const getAllPurchaseOrders = async (lightweight = false, page = 0, limit 
         userId: item.user_id,
         userName: item.user_name,
         blockType: 'compras',
-        documentSnapshot: item.document_snapshot, // Undefined if lightweight is true
+        documentSnapshot: item.document_snapshot, // Will be undefined if lightweight
         budgetFileUrl: item.budget_file_url,
         attachments: item.attachments,
-        completionForecast: item.completion_forecast
+        completionForecast: item.completion_forecast,
+        // Map the joined sector. Supabase returns it as an object or array depending on relation.
+        // Since user_id is FK to profiles.id (1:1 from order's perspective to user), it should be a single object.
+        requestingSector: item.profiles?.sector
     }));
 };
 

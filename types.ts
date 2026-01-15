@@ -149,7 +149,9 @@ export interface User {
   name: string;
   role: UserRole;
   sector?: string;
+  sectorId?: string;
   jobTitle?: string;
+  jobId?: string;
   allowedSignatureIds?: string[];
   permissions: AppPermission[];
   twoFactorEnabled?: boolean;

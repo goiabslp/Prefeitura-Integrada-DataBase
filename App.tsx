@@ -1004,12 +1004,20 @@ const App: React.FC = () => {
           // Non-fatal? Or should we alert? Let's log and proceed but maybe without attachment
           showToast("Erro ao gerar PDF do pedido. O pedido será salvo sem o anexo.", "error");
         } finally {
-          setIsDownloading(false);
+          // Keep loading for DB save
         }
 
         await comprasService.savePurchaseOrder(finalOrder);
         setPurchaseOrders(prev => [finalOrder, ...prev]);
         setOrders(prev => [finalOrder, ...prev]); // Keep synced if view uses this
+
+        // REDIRECT COMPRAS TO HISTORY IMMEDIATELY
+        setAppState(finalSnapshot);
+        clearDraft();
+        setCurrentView('tracking');
+        setIsDownloading(false);
+        setIsAdminSidebarOpen(false);
+        return true;
       } else if (activeBlock === 'diarias') {
         await diariasService.saveServiceRequest(finalOrder);
         setServiceRequests(prev => [finalOrder, ...prev]);
@@ -1069,6 +1077,31 @@ const App: React.FC = () => {
       } catch (err) {
         console.error("Error fetching details", err);
         alert("Erro de conexão ao carregar ofício.");
+        setIsLoadingDetails(false);
+        return;
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    }
+
+    // LAZY LOAD DETAILS (Optimized Compras)
+    if (order.blockType === 'compras' && (!order.documentSnapshot || Object.keys(order.documentSnapshot).length === 0)) {
+      setIsLoadingDetails(true);
+      try {
+        const fetched = await comprasService.getPurchaseOrderById(order.id);
+        if (fetched) {
+          fullOrder = fetched;
+          // Update local cache so we don't fetch again
+          setPurchaseOrders(prev => prev.map(p => p.id === fullOrder.id ? fullOrder : p));
+          setOrders(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+        } else {
+          alert("Erro ao carregar os detalhes do pedido. Tente novamente.");
+          setIsLoadingDetails(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Error fetching purchase details", err);
+        alert("Erro de conexão ao carregar pedido.");
         setIsLoadingDetails(false);
         return;
       } finally {
@@ -2838,6 +2871,16 @@ const App: React.FC = () => {
                   setOrders(p => p.filter(o => o.id !== id));
                 }}
               />
+            )}
+
+            {/* LOADING OVERLAY */}
+            {isLoadingDetails && (
+              <div className="fixed inset-0 z-[150] bg-white/80 backdrop-blur-sm flex items-center justify-center animate-fade-in">
+                <div className="flex flex-col items-center gap-4">
+                  <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                  <p className="text-slate-600 font-bold animate-pulse">Carregando detalhes...</p>
+                </div>
+              </div>
             )}
 
             {/* 2FA MODAL */}

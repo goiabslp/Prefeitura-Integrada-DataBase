@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { handleSupabaseError } from '../utils/errorUtils';
 
 export interface FuelConfig {
     diesel: number;
@@ -109,7 +110,6 @@ export const AbastecimentoService = {
                     query = query.or(`vehicle.ilike.%${s}%,driver.ilike.%${s}%,fiscal.ilike.%${s}%,invoice_number.ilike.%${s}%`);
                 }
                 if (filters.date) {
-                    // Exact date match (assuming YYYY-MM-DD input, filtering whole day)
                     const start = `${filters.date}T00:00:00`;
                     const end = `${filters.date}T23:59:59`;
                     query = query.gte('date', start).lte('date', end);
@@ -131,14 +131,14 @@ export const AbastecimentoService = {
                 }
 
                 if (filters.sector && filters.sector !== 'all') {
-                    // Fetch vehicles belonging to this sector first
-                    const { data: sectorVehicles } = await supabase
+                    const { data: sectorVehicles, error: secError } = await supabase
                         .from('vehicles')
                         .select('plate, model, brand')
                         .eq('sector_id', filters.sector);
 
+                    if (secError) throw secError;
+
                     if (sectorVehicles && sectorVehicles.length > 0) {
-                        // Create a list of possible identifiers (Plate AND Model-Brand for legacy)
                         const identifiers = sectorVehicles.flatMap(v => {
                             const params = [];
                             if (v.plate) params.push(v.plate);
@@ -147,13 +147,11 @@ export const AbastecimentoService = {
                         });
                         query = query.in('vehicle', identifiers);
                     } else {
-                        // If no vehicles in sector, no supplies to show
                         return { data: [], count: 0 };
                     }
                 }
             }
 
-            // Pagination
             const from = (page - 1) * limit;
             const to = from + limit - 1;
 
@@ -183,7 +181,8 @@ export const AbastecimentoService = {
 
             return { data: mappedData, count: count || 0 };
         } catch (error) {
-            console.error('Error loading records:', error);
+            const appError = handleSupabaseError(error);
+            console.error('[AbastecimentoService] getAbastecimentos Error:', appError.message);
             return { data: [], count: 0 };
         }
     },
@@ -202,9 +201,10 @@ export const AbastecimentoService = {
             const { data, error } = await query;
 
             if (error) throw error;
-            return data && data.length > 0;
+            return !!(data && data.length > 0);
         } catch (error) {
-            console.error('Error checking invoice:', error);
+            const appError = handleSupabaseError(error);
+            console.error('[AbastecimentoService] checkInvoiceExists Error:', appError.message);
             return false;
         }
     },
@@ -234,7 +234,9 @@ export const AbastecimentoService = {
 
             if (error) throw error;
         } catch (error) {
-            console.error('Error saving record:', error);
+            const appError = handleSupabaseError(error);
+            console.error('[AbastecimentoService] saveAbastecimento Error:', appError.message);
+            throw appError; // Re-throw to be handled by UI
         }
     },
 
@@ -247,7 +249,9 @@ export const AbastecimentoService = {
 
             if (error) throw error;
         } catch (error) {
-            console.error('Error deleting record:', error);
+            const appError = handleSupabaseError(error);
+            console.error('[AbastecimentoService] deleteAbastecimento Error:', appError.message);
+            throw appError;
         }
     },
 

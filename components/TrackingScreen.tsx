@@ -59,7 +59,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     const { data: infiniteOficios, fetchNextPage: fetchNextOficios, hasNextPage: hasNextOficios, isFetchingNextPage: isFetchingStrictOficios, isLoading: isOficiosLoading } = useInfiniteOficios(20);
     const oficiosData = infiniteOficios?.pages.flat() || [];
     // const { data: purchaseOrdersData } = usePurchaseOrders(); // Deprecated for infinite scroll in this view
-    const { data: infinitePurchaseOrders, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading: isInfiniteLoading } = useInfinitePurchaseOrders(20);
+    const { data: infinitePurchaseOrders, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading: isInfiniteLoading, isError: isPurchaseError } = useInfinitePurchaseOrders(20);
     const purchaseOrdersData = infinitePurchaseOrders?.pages.flat() || [];
     const { data: serviceRequestsData } = useServiceRequests();
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -395,6 +395,22 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                 )}
 
                                 <div className={`${isLicitacao ? 'space-y-4' : 'divide-y divide-slate-100'}`}>
+                                    {isCompras && isPurchaseError && (
+                                        <div className="p-12 flex flex-col items-center justify-center text-center animate-fade-in col-span-full">
+                                            <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mb-4 border border-rose-100 shadow-sm animate-pulse">
+                                                <AlertTriangle className="w-8 h-8 text-rose-500" />
+                                            </div>
+                                            <h3 className="text-lg font-black text-slate-800 mb-2 uppercase tracking-tight">Erro ao carregar pedidos</h3>
+                                            <p className="text-sm text-slate-500 font-medium max-w-sm mb-6 leading-relaxed">
+                                                Não foi possível carregar a lista de compras. Uma atualização de banco de dados é necessária para corrigir as permissões.
+                                            </p>
+                                            <div className="text-[10px] bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono text-slate-500 mb-6 w-full max-w-md text-left">
+                                                <span className="font-bold text-rose-500 block mb-1">Diagnóstico:</span>
+                                                Possible missing Foreign Key: purchase_orders &rarr; profiles.<br />
+                                                Error Code: PGRST200 / 400
+                                            </div>
+                                        </div>
+                                    )}
                                     {filteredOrders.map((order) => {
                                         const content = order.documentSnapshot?.content;
                                         const isPaid = order.paymentStatus === 'paid';
@@ -563,8 +579,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                                                                 <Network className="w-3 h-3 text-slate-300" /> Setor Solicitante
                                                             </span>
-                                                            <span className="text-xs font-medium text-slate-600 truncate" title={content?.requesterSector}>
-                                                                {content?.requesterSector || '---'}
+                                                            <span className="text-xs font-medium text-slate-600 truncate" title={content?.requesterSector || order.requestingSector}>
+                                                                {content?.requesterSector || order.requestingSector || '---'}
                                                             </span>
                                                         </div>
 
@@ -645,17 +661,13 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
                                                 <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-3' : 'md:col-span-6'}`}>
                                                     <h3 className="text-sm font-bold text-slate-800 leading-tight">
-                                                        {isDiarias ? (content?.requesterName || '---') : isCompras ? (content?.requesterSector || 'Sem Setor') : (activeBlock === 'oficio' ? (
+                                                        {isDiarias ? (content?.requesterName || '---') : isCompras ? (content?.requesterSector || order.requestingSector || 'Sem Setor') : (activeBlock === 'oficio' ? (
                                                             <span title={`De: ${order.userName}\nSetor: ${content?.requesterSector || content?.signatureSector || 'Não informado'}`} className="cursor-help decoration-dotted underline decoration-slate-300 underline-offset-2">
                                                                 {order.userName.split(' ').slice(0, 2).join(' ')}
                                                             </span>
                                                         ) : order.userName)}
                                                     </h3>
-                                                    {isDiarias ? (
-                                                        <p className="text-[10px] text-slate-400 font-medium">
-                                                            {content?.destination || '---'}
-                                                        </p>
-                                                    ) : isCompras ? (
+                                                    {isCompras ? (
                                                         <p className="text-[10px] text-slate-400 font-medium">
                                                             {order.userName}
                                                         </p>

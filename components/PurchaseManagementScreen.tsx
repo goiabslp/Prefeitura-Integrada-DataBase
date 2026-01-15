@@ -39,7 +39,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
   onDeleteOrder
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<Order['status'] | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<Order['status'] | 'all'>('pending');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [previewOrder, setPreviewOrder] = useState<Order | null>(null);
   const [statusSelectionOrder, setStatusSelectionOrder] = useState<Order | null>(null);
@@ -315,7 +315,6 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
 
             <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-200 w-fit">
               {['all', 'pending', 'approved', 'rejected']
-                .filter(s => !isComprasUser || s !== 'pending')
                 .map((s) => (
                   <button
                     key={s}

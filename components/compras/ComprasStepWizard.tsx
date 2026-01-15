@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ComprasStepper, StepStatus } from './ComprasStepper';
 import { AppState, ContentData, DocumentConfig, Signature, Person, Sector, Job } from '../../types';
 import { ComprasForm } from '../forms/ComprasForm';
-import { ChevronRight, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 
 interface ComprasStepWizardProps {
     state: AppState;
@@ -16,10 +16,11 @@ interface ComprasStepWizardProps {
     jobs: Job[];
     onFinish: () => Promise<boolean | void>;
     onBack?: () => void;
+    isLoading?: boolean;
 }
 
 export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
-    state, content, docConfig, allowedSignatures, handleUpdate, onUpdate, persons, sectors, jobs, onFinish, onBack
+    state, content, docConfig, allowedSignatures, handleUpdate, onUpdate, persons, sectors, jobs, onFinish, onBack, isLoading = false
 }) => {
     const [currentStep, setCurrentStep] = useState(1);
 
@@ -97,6 +98,7 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
     };
 
     const handleStepClick = (step: number) => {
+        if (isLoading) return;
         setCurrentStep(step);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -109,7 +111,8 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
                 {/* 1. Voltar (Padrão) */}
                 <button
                     onClick={onBack}
-                    className="flex items-center gap-2 group px-3 py-2 text-slate-400 hover:text-slate-900 transition-all font-black uppercase tracking-tighter text-[11px]"
+                    disabled={isLoading}
+                    className={`flex items-center gap-2 group px-3 py-2 transition-all font-black uppercase tracking-tighter text-[11px] ${isLoading ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-slate-900'}`}
                     title="Voltar para Compras"
                 >
                     <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
@@ -130,7 +133,8 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
                         !isAllMandatoryCompleted ? (
                             <button
                                 onClick={nextStep}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 shadow-lg shadow-slate-900/20 active:scale-95 transition-all text-sm"
+                                disabled={isLoading}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 shadow-lg shadow-slate-900/20 active:scale-95 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Avançar
                                 <ChevronRight className="w-4 h-4" />
@@ -138,10 +142,11 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
                         ) : (
                             <button
                                 onClick={onFinish}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all text-sm animate-pulse"
+                                disabled={isLoading}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all text-sm animate-pulse disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <CheckCircle2 className="w-4 h-4" />
-                                Finalizar
+                                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                {isLoading ? 'Salvando...' : 'Finalizar'}
                             </button>
                         )
                     )}
@@ -166,6 +171,7 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
                         currentStep={currentStep}
                         onFinish={onFinish}
                         canFinish={isAllMandatoryCompleted}
+                        isLoading={isLoading}
                     />
 
                 </div>

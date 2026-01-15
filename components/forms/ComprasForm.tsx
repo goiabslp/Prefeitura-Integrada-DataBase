@@ -21,6 +21,7 @@ interface ComprasFormProps {
   currentStep?: number; // Added for Stepper Control
   onFinish?: () => Promise<boolean | void>; // Updated to handle loading/interception flow
   canFinish?: boolean; // Added to validate mandatory steps before finishing
+  isLoading?: boolean;
 }
 
 const UNIT_OPTIONS = [
@@ -50,7 +51,8 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
   jobs,
   currentStep = 1,
   onFinish,
-  canFinish = true
+  canFinish = true,
+  isLoading = false
 }) => {
   // ORDENAÇÃO ALFABÉTICA DAS ASSINATURAS
   const sortedSignatures = useMemo(() => {
@@ -704,7 +706,7 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
               {/* FINALIZATION BUTTON - Only visible after signing */}
               <div className="mt-8 flex justify-center">
                 <button
-                  disabled={isSubmitting || !canFinish}
+                  disabled={isSubmitting || isLoading || !canFinish}
                   onClick={async () => {
                     if (!isSubmitting && canFinish && onFinish) {
                       setIsSubmitting(true);
