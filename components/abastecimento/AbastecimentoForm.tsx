@@ -19,13 +19,17 @@ interface AbastecimentoFormProps {
 }
 
 import { useCachedVehicles } from '../../hooks/useCachedVehicles';
+import { useCachedPersons } from '../../hooks/useCachedPersons';
+import { useCachedFuelTypes } from '../../hooks/useCachedFuelTypes';
 
-export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, onSave, vehicles: initialVehicles, persons, gasStations, fuelTypes, initialData }) => {
+export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, onSave, vehicles: initialVehicles, persons: initialPersons, gasStations, fuelTypes: initialFuelTypes, initialData }) => {
     const { user: authUser } = useAuth();
-    // Use cached vehicles for optimized loading, falling back to props if cache empty/loading
+    // Use cached data for optimized loading
     const vehicles = useCachedVehicles(initialVehicles);
+    const persons = useCachedPersons(initialPersons);
+    const fuelTypes = useCachedFuelTypes(initialFuelTypes);
 
-    // Derived prices from props
+    // Derived prices from props (now from cached fuelTypes)
     const [fuelPrices, setFuelPrices] = useState<{ [key: string]: number }>({});
 
     const [date, setDate] = useState(() => {
@@ -243,8 +247,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     const vehicleOptions: Option[] = useMemo(() => vehicles
         .map(v => ({
             value: v.plate, // Store PLATE as the unique identifier
-            label: `${v.plate} - ${v.model} (${v.brand})`, // Display Plate first
-            subtext: v.type.toUpperCase(),
+            label: v.plate, // Display ONLY Plate
+            subtext: undefined, // Remove any extra info
             key: v.id
         }))
         .sort((a, b) => a.label.localeCompare(b.label)), [vehicles]);

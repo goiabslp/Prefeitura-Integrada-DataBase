@@ -1555,6 +1555,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-xs tracking-wider">
                                     <tr>
                                         <th className="px-6 py-4">Data</th>
+                                        <th className="px-6 py-4">Nº Nota</th>
                                         <th className="px-6 py-4">Motorista</th>
                                         <th className="px-6 py-4">KM</th>
                                         <th className="px-6 py-4">Combustível</th>
@@ -1571,6 +1572,9 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                                 <span className="block text-[10px] text-slate-400 font-normal">
                                                     {new Date(r.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
+                                            </td>
+                                            <td className="px-6 py-4 font-bold text-slate-600">
+                                                {r.invoiceNumber || '-'}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className="font-bold text-slate-600 uppercase">{r.driver}</span>
