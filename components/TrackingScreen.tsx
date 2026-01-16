@@ -58,9 +58,11 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     // const { data: oficiosData } = useOficios(); // Deprecated for infinite scroll
     const { data: infiniteOficios, fetchNextPage: fetchNextOficios, hasNextPage: hasNextOficios, isFetchingNextPage: isFetchingStrictOficios, isLoading: isOficiosLoading } = useInfiniteOficios(20);
     const oficiosData = infiniteOficios?.pages.flat() || [];
-    // const { data: purchaseOrdersData } = usePurchaseOrders(); // Deprecated for infinite scroll in this view
-    const { data: infinitePurchaseOrders, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading: isInfiniteLoading, isError: isPurchaseError } = useInfinitePurchaseOrders(20);
-    const purchaseOrdersData = infinitePurchaseOrders?.pages.flat() || [];
+
+    // REMOVED local purchase fetching to enforce Single Source of Truth from App.tsx
+    const isPurchaseError = false;
+    const isInfiniteLoading = false;
+
     const { data: serviceRequestsData } = useServiceRequests();
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
     const [previewOrder, setPreviewOrder] = useState<Order | null>(null);
@@ -108,7 +110,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
     const getSourceOrders = () => {
         if (activeBlock === 'oficio') return oficiosData || [];
-        if (activeBlock === 'compras') return purchaseOrdersData || [];
+        if (activeBlock === 'compras') return orders.filter(o => o.blockType === 'compras'); // Use Global Prop
         if (activeBlock === 'diarias') return serviceRequestsData || [];
         return orders;
     };
@@ -865,27 +867,9 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                     })}
 
                                     {/* Infinite Scroll Trigger */}
-                                    {activeBlock === 'compras' && (
-                                        <div ref={(node) => {
-                                            if (node && hasNextPage && !isFetchingNextPage) {
-                                                const observer = new IntersectionObserver((entries) => {
-                                                    if (entries[0].isIntersecting) fetchNextPage();
-                                                });
-                                                observer.observe(node);
-                                                return () => observer.disconnect();
-                                            }
-                                        }} className="py-4 flex justify-center w-full">
-                                            {isFetchingNextPage ? (
-                                                <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
-                                                    <Loader2 className="w-4 h-4 animate-spin" /> Carregando mais...
-                                                </div>
-                                            ) : hasNextPage ? (
-                                                <span className="text-slate-300 text-[10px] font-bold uppercase tracking-widest">Role para ver mais</span>
-                                            ) : (filteredOrders.length > 0 && (
-                                                <span className="text-slate-300 text-[10px] font-bold uppercase tracking-widest">Todos os registros carregados</span>
-                                            ))}
-                                        </div>
-                                    )}
+                                    {/* Infinite Scroll Trigger for Compras (DISABLED for Global Sync) */}
+                                    {/* activeBlock === 'compras' logic removed to rely on global store passed via props */}
+
 
                                     {/* Infinite Scroll Trigger for Oficios */}
                                     {activeBlock === 'oficio' && (

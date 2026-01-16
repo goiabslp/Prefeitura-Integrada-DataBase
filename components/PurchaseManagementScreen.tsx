@@ -76,7 +76,16 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
       sector.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.userName || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    let matchesStatus = false;
+    if (statusFilter === 'all') {
+      matchesStatus = true;
+    } else if (statusFilter === 'pending') {
+      matchesStatus = order.status === 'pending' || order.purchaseStatus === 'aprovacao_orcamento';
+    } else if (statusFilter === 'approved') {
+      matchesStatus = order.status === 'approved' && order.purchaseStatus !== 'aprovacao_orcamento';
+    } else {
+      matchesStatus = order.status === statusFilter;
+    }
 
     if (isComprasUser) {
       // Compras user sees all finalized orders (approved/rejected) + In Progress + Pending + Awaiting Approval

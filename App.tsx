@@ -57,6 +57,7 @@ import { TwoFactorModal } from './components/TwoFactorModal';
 import { OficioNumberingModal } from './components/modals/OficioNumberingModal';
 import { ProcessStepper } from './components/common/ProcessStepper';
 import { LicitacaoScreeningScreen } from './components/LicitacaoScreeningScreen';
+import { LoadingModal } from './components/modals/LoadingModal';
 import { LicitacaoSettingsModal } from './components/LicitacaoSettingsModal';
 import { ToastNotification, ToastType } from './components/common/ToastNotification';
 import { AbastecimentoForm } from './components/abastecimento/AbastecimentoForm';
@@ -126,12 +127,14 @@ const App: React.FC = () => {
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
   const [appState, setAppState] = useState<AppState>(INITIAL_STATE);
   const [activeBlock, setActiveBlock] = useState<BlockType | null>(null);
-  const [oficios, setOficios] = useState<Order[]>([]);
-  const [purchaseOrders, setPurchaseOrders] = useState<Order[]>([]);
+  // purchaseOrders is now derived to enforce single source of truth
+  const [orders, setOrders] = useState<Order[]>([]);
+  const purchaseOrders = React.useMemo(() => orders.filter(o => o.blockType === 'compras'), [orders]);
 
+  const [oficios, setOficios] = useState<Order[]>([]);
   const [serviceRequests, setServiceRequests] = useState<Order[]>([]);
   const [licitacaoProcesses, setLicitacaoProcesses] = useState<Order[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+
   const [users, setUsers] = useState<User[]>(DEFAULT_USERS);
   // const [signatures, setSignatures] = useState<Signature[]>([]); // DEPRECATED: Signatures are now derived from Users
   const [globalCounter, setGlobalCounter] = useState(0);
@@ -139,6 +142,7 @@ const App: React.FC = () => {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isStepperLocked, setIsStepperLocked] = useState(false);
   const [lastListView, setLastListView] = useState<string>('tracking'); // Default to tracking
+  const [isDeleting, setIsDeleting] = useState<string | null>(null); // Track item being deleted prevents duplicates
 
   // React Query Mutations for Optimistic Updates
   const createOficioMutation = useCreateOficio();
@@ -208,6 +212,11 @@ const App: React.FC = () => {
 
 
   const [isDownloading, setIsDownloading] = useState(false);
+  const [purchaseLoadingState, setPurchaseLoadingState] = useState<{ isLoading: boolean; title: string; message: string }>({
+    isLoading: false,
+    title: '',
+    message: ''
+  });
   const [isAdminSidebarOpen, setIsAdminSidebarOpen] = useState(false);
   const [adminTab, setAdminTab] = useState<string | null>(null);
   const [isFinalizedView, setIsFinalizedView] = useState(false);
@@ -370,7 +379,7 @@ const App: React.FC = () => {
       }
 
       // setOficios(savedOficios); // REMOVED: Managed by React Query
-      setPurchaseOrders(savedPurchaseOrders);
+      // setPurchaseOrders(savedPurchaseOrders); // REMOVED: Derived
       // setServiceRequests(savedServiceRequests); // REMOVED: Managed by React Query
       setLicitacaoProcesses(savedLicitacaoProcesses);
 
@@ -507,13 +516,7 @@ const App: React.FC = () => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'purchase_orders' },
         async () => {
-          const updated = await comprasService.getAllPurchaseOrders();
-          setPurchaseOrders(updated);
-          // Also update generic orders list if needed to maintain sort
-          setOrders(prev => {
-            const others = prev.filter(o => o.blockType !== 'compras');
-            return [...others, ...updated].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          });
+          syncOrders('compras');
         }
       )
       .subscribe();
@@ -820,7 +823,7 @@ const App: React.FC = () => {
       // Route save based on blockType
       if (finalOrder.blockType === 'compras') {
         await comprasService.savePurchaseOrder(finalOrder);
-        setPurchaseOrders(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
+        // setPurchaseOrders(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o)); // Derived
       } else if (finalOrder.blockType === 'diarias') {
         await diariasService.saveServiceRequest(finalOrder);
         setServiceRequests(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
@@ -852,7 +855,7 @@ const App: React.FC = () => {
         // Increment the server counter regardless of block type (except Diarias)
         // EXCEPTION: Oficio is now generated dynamically below, so we skip it here if it's 'oficio'
 
-        if (activeBlock !== 'oficio' && activeBlock !== 'diarias') {
+        if (activeBlock !== 'oficio' && activeBlock !== 'diarias' && activeBlock !== 'compras') {
           await counterService.incrementSectorCount(userSector.id, year);
         }
       }
@@ -958,10 +961,20 @@ const App: React.FC = () => {
       };
 
       if (activeBlock === 'compras') {
+        // ACTIVATE LOADING MODAL - STEP 1: VALIDATION/PREP
+        setPurchaseLoadingState({
+          isLoading: true,
+          title: 'Finalizando Pedido',
+          message: 'Validando dados e preparando documento...'
+        });
+
         // PDF GENERATION & UPLOAD
         setIsDownloading(true);
         // Wait for render
         await new Promise(resolve => setTimeout(resolve, 500));
+
+        // STEP 2: PDF GENERATION
+        setPurchaseLoadingState(prev => ({ ...prev, message: 'Gerando arquivo PDF do pedido...' }));
 
         try {
           if (componentRef.current) {
@@ -986,6 +999,9 @@ const App: React.FC = () => {
             pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
             const pdfBlob = pdf.output('blob');
 
+            // STEP 3: UPLOAD
+            setPurchaseLoadingState(prev => ({ ...prev, message: 'Enviando anexos para o servidor...' }));
+
             const fileName = `pedido_${protocolString.replace(/\//g, '-')}_${Date.now()}.pdf`;
             const publicUrl = await comprasService.uploadPurchaseAttachment(pdfBlob, fileName);
 
@@ -1007,17 +1023,33 @@ const App: React.FC = () => {
           // Keep loading for DB save
         }
 
-        await comprasService.savePurchaseOrder(finalOrder);
-        setPurchaseOrders(prev => [finalOrder, ...prev]);
-        setOrders(prev => [finalOrder, ...prev]); // Keep synced if view uses this
+        try {
+          // STEP 4: SAVING TO DB
+          setPurchaseLoadingState(prev => ({ ...prev, message: 'Registrando pedido no banco de dados...' }));
 
-        // REDIRECT COMPRAS TO HISTORY IMMEDIATELY
-        setAppState(finalSnapshot);
-        clearDraft();
-        setCurrentView('tracking');
-        setIsDownloading(false);
-        setIsAdminSidebarOpen(false);
-        return true;
+          await comprasService.savePurchaseOrder(finalOrder);
+
+          // STEP 5: SUCCESS/REDIRECT
+          setPurchaseLoadingState(prev => ({ ...prev, title: 'Sucesso!', message: 'Pedido registrado. Redirecionando...' }));
+          await new Promise(resolve => setTimeout(resolve, 800)); // Small delay to let user see success
+
+          setOrders(prev => [finalOrder, ...prev]); // Keep synced if view uses this
+          setOrders(prev => [finalOrder, ...prev]); // Keep synced if view uses this
+
+          // REDIRECT COMPRAS TO HISTORY IMMEDIATELY
+          setAppState(finalSnapshot);
+          clearDraft();
+          setCurrentView('tracking');
+          setIsDownloading(false);
+          setIsAdminSidebarOpen(false);
+          return true;
+        } catch (error) {
+          console.error("Error saving purchase order:", error);
+          showToast("Erro ao salvar o pedido. Tente novamente.", "error");
+          return false;
+        } finally {
+          setPurchaseLoadingState(prev => ({ ...prev, isLoading: false })); // Stop Loading Modal
+        }
       } else if (activeBlock === 'diarias') {
         await diariasService.saveServiceRequest(finalOrder);
         setServiceRequests(prev => [finalOrder, ...prev]);
@@ -1045,6 +1077,100 @@ const App: React.FC = () => {
     setIsFinalizedView(true);
     setIsAdminSidebarOpen(false);
     return true;
+  };
+
+  // Helper for Realtime Sync & Fallback Refetching
+  const syncOrders = useCallback(async (targetBlock: string) => {
+    try {
+      let updatedList: Order[] = [];
+      if (targetBlock === 'compras') {
+        updatedList = await comprasService.getAllPurchaseOrders();
+        // setPurchaseOrders(updatedList); // REMOVED: Derived from orders
+      } else if (targetBlock === 'diarias') {
+        updatedList = await diariasService.getAllServiceRequests();
+        setServiceRequests(updatedList);
+      } else if (targetBlock === 'licitacao') {
+        updatedList = await licitacaoService.getAllLicitacaoProcesses();
+        setLicitacaoProcesses(updatedList);
+      } else {
+        updatedList = await oficiosService.getAllOficios();
+        setOficios(updatedList);
+      }
+
+      setOrders(prev => {
+        const others = prev.filter(o => o.blockType !== targetBlock);
+        return [...others, ...updatedList].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      });
+    } catch (err) {
+      console.error(`Sync failed for ${targetBlock}:`, err);
+    }
+  }, []);
+
+  // Realtime Listener for Purchase Orders (Single Store Sync)
+  useEffect(() => {
+    const channel = supabase
+      .channel('purchase-updates')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'purchase_orders' },
+        (payload) => {
+          console.log('Realtime UPDATE detected for purchase_orders:', payload);
+          syncOrders('compras');
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [syncOrders]);
+
+  // OPTIMISTIC DELETE HANDLER
+  const handleDeleteOrder = async (id: string) => {
+    if (isDeleting === id) return; // Prevent duplicate actions
+    setIsDeleting(id);
+
+    // 1. Snapshot previous state for rollback
+    const prevOrders = orders;
+    const prevServiceRequests = serviceRequests;
+    const prevLicitacaoProcesses = licitacaoProcesses;
+    const prevOficios = oficios;
+
+    // 2. Optimistic Update
+    setOrders(p => p.filter(o => o.id !== id));
+    if (activeBlock === 'compras') {
+      // Derived state updates automatically
+    }
+    else if (activeBlock === 'diarias') setServiceRequests(p => p.filter(o => o.id !== id));
+    else if (activeBlock === 'licitacao') setLicitacaoProcesses(p => p.filter(o => o.id !== id));
+    else setOficios(p => p.filter(o => o.id !== id));
+
+    try {
+      // 3. API Call
+      if (activeBlock === 'compras') {
+        await comprasService.deletePurchaseOrder(id);
+      } else if (activeBlock === 'diarias') {
+        await diariasService.deleteServiceRequest(id);
+      } else if (activeBlock === 'licitacao') {
+        await licitacaoService.deleteLicitacaoProcess(id);
+      } else {
+        await deleteOficioMutation.mutateAsync(id);
+      }
+      showToast("Item excluído com sucesso", "success");
+      syncOrders(activeBlock || 'oficio');
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      // 4. Rollback on Error
+      setOrders(prevOrders);
+      if (activeBlock === 'compras') { /* Derived rollback */ }
+      else if (activeBlock === 'diarias') setServiceRequests(prevServiceRequests);
+      else if (activeBlock === 'licitacao') setLicitacaoProcesses(prevLicitacaoProcesses);
+      else setOficios(prevOficios);
+
+      showToast("Erro ao excluir item. As alterações foram desfeitas.", "error");
+    } finally {
+      setIsDeleting(null);
+    }
   };
 
   const handleSendOrder = async () => {
@@ -1092,7 +1218,7 @@ const App: React.FC = () => {
         if (fetched) {
           fullOrder = fetched;
           // Update local cache so we don't fetch again
-          setPurchaseOrders(prev => prev.map(p => p.id === fullOrder.id ? fullOrder : p));
+          // setPurchaseOrders removal: Derived state
           setOrders(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
         } else {
           alert("Erro ao carregar os detalhes do pedido. Tente novamente.");
@@ -1211,47 +1337,62 @@ const App: React.FC = () => {
   const handleUpdateOrderStatus = async (orderId: string, status: Order['status'], justification?: string) => {
     if (!currentUser) return;
 
-    // Find the order first to avoid mapping everything blindly
     const orderToUpdate = orders.find(o => o.id === orderId);
     if (!orderToUpdate) return;
 
-    // Optimistic update logic could go here, but for critical status changes, safe wait is better
+    // 1. Snapshot previous state
+    const prevOrders = orders;
+    const prevSpecificList = orderToUpdate.blockType === 'compras' ? purchaseOrders :
+      orderToUpdate.blockType === 'diarias' ? serviceRequests :
+        orderToUpdate.blockType === 'licitacao' ? licitacaoProcesses : oficios;
+
+    // 2. Prepare new data
+    const newMovement: StatusMovement = {
+      statusLabel: status === 'approved' ? 'Aprovação Administrativa' : 'Rejeição',
+      date: new Date().toISOString(),
+      userName: currentUser.name,
+      justification
+    };
+
+    const updatedOrder = {
+      ...orderToUpdate,
+      status,
+      statusHistory: [...(orderToUpdate.statusHistory || []), newMovement]
+    };
+
+    // 3. Optimistic Update (Immediate UI Refresh)
+    const updateList = (list: Order[]) => list.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+
+    setOrders(updateList);
+    if (updatedOrder.blockType === 'compras') { /* Derived */ }
+    else if (updatedOrder.blockType === 'diarias') setServiceRequests(updateList);
+    else if (updatedOrder.blockType === 'licitacao') setLicitacaoProcesses(updateList);
+    else setOficios(updateList);
+
     try {
-      const newMovement: StatusMovement = {
-        statusLabel: status === 'approved' ? 'Aprovação Administrativa' : 'Rejeição',
-        date: new Date().toISOString(),
-        userName: currentUser.name,
-        justification
-      };
-
-      const updatedOrder = {
-        ...orderToUpdate,
-        status,
-        statusHistory: [...(orderToUpdate.statusHistory || []), newMovement]
-      };
-
+      // 4. API Sync
       if (updatedOrder.blockType === 'compras') {
         await comprasService.savePurchaseOrder(updatedOrder);
-        setPurchaseOrders(prev => prev.map(p => p.id === updatedOrder.id ? updatedOrder : p));
       } else if (updatedOrder.blockType === 'diarias') {
         await diariasService.saveServiceRequest(updatedOrder);
-        setServiceRequests(prev => prev.map(p => p.id === updatedOrder.id ? updatedOrder : p));
       } else if (updatedOrder.blockType === 'licitacao') {
         await licitacaoService.saveLicitacaoProcess(updatedOrder);
-        setLicitacaoProcesses(prev => prev.map(p => p.id === updatedOrder.id ? updatedOrder : p));
       } else {
         await oficiosService.saveOficio(updatedOrder);
-        setOficios(prev => prev.map(p => p.id === updatedOrder.id ? updatedOrder : p));
       }
-
-      // Sync main list
-      setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-
-      showToast(status === 'approved' ? "Pedido Aprovado com Sucesso" : "Pedido Rejeitado", status === 'approved' ? "success" : "info");
-
+      showToast(status === 'approved' ? "Pedido Aprovado" : "Pedido Rejeitado", "success");
+      syncOrders(updatedOrder.blockType);
     } catch (error: any) {
+      // 5. Rollback
       console.error("Failed to update status:", error);
-      showToast("Erro ao atualizar status do pedido: " + (error.message || "Erro desconhecido"), "error");
+      console.error("Failed to update status:", error);
+      setOrders(prevOrders);
+      if (updatedOrder.blockType === 'compras') { /* Derived */ }
+      else if (updatedOrder.blockType === 'diarias') setServiceRequests(prevSpecificList);
+      else if (updatedOrder.blockType === 'licitacao') setLicitacaoProcesses(prevSpecificList);
+      else setOficios(prevSpecificList);
+
+      showToast("Erro ao atualizar status. As alterações foram desfeitas.", "error");
     }
   };
 
@@ -1261,6 +1402,11 @@ const App: React.FC = () => {
     const orderToUpdate = orders.find(o => o.id === orderId);
     if (!orderToUpdate) return;
 
+    // 1. Snapshot
+    const prevOrders = orders;
+    // const prevPurchaseOrders = purchaseOrders; // Derived
+
+    // 2. Prepare new data
     const newMovement: StatusMovement = {
       statusLabel: `Alteração de Status para ${purchaseStatus}`,
       date: new Date().toISOString(),
@@ -1268,24 +1414,28 @@ const App: React.FC = () => {
       justification: justification || 'Atualização de status do pedido'
     };
 
+    const updatedOrder = {
+      ...orderToUpdate,
+      purchaseStatus,
+      budgetFile: budgetFileUrl || orderToUpdate.budgetFileUrl, // Use correct field name budgetFileUrl or budgetFile? Check type. Order type usually has budgetFile? Previous code had budgetFileUrl || orderToUpdate.budgetFileUrl
+      statusHistory: [...(orderToUpdate.statusHistory || []), newMovement]
+    };
+
+    // 3. Optimistic Update
+    const updateList = (list: Order[]) => list.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+    setOrders(updateList);
+    // setPurchaseOrders(updateList); // Removed derived setter
+
     try {
+      // 4. API Sync
       await comprasService.updatePurchaseStatus(orderId, purchaseStatus as string, newMovement, budgetFileUrl);
-
-      // Update local state ONLY after success
-      const updatedOrder = {
-        ...orderToUpdate,
-        purchaseStatus: purchaseStatus,
-        statusHistory: newMovement ? [...(orderToUpdate.statusHistory || []), newMovement] : orderToUpdate.statusHistory,
-        budgetFileUrl: budgetFileUrl || orderToUpdate.budgetFileUrl
-      };
-
-      setPurchaseOrders(prev => prev.map(p => p.id === orderId ? updatedOrder : p));
-      setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
-
       showToast("Status de compra atualizado!", "success");
-
+      syncOrders('compras');
     } catch (error: any) {
+      // 5. Rollback
       console.error("Failed to update purchase status:", error);
+      setOrders(prevOrders);
+      // setPurchaseOrders(prevPurchaseOrders); // Removed derived rollback
       showToast("Erro ao atualizar status de compra: " + (error.message || "Unknown"), "error");
     }
   };
@@ -1295,7 +1445,7 @@ const App: React.FC = () => {
       if (o.id === orderId) {
         const updated = { ...o, completionForecast: date };
         comprasService.savePurchaseOrder(updated);
-        setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p));
+        // setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p)); // Derived
         return updated;
       }
       return o;
@@ -1309,7 +1459,7 @@ const App: React.FC = () => {
         const updated = { ...o, attachments };
         if (updated.blockType === 'compras') {
           comprasService.updateAttachments(updated.id, updated.attachments || []);
-          setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p));
+          // setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p)); // Derived
         } else {
           // For now assume others can have attachments or just ignore if not supported by service yet, 
           // but strictly only purchase had explicit attachment field table support in my plan.
@@ -2772,43 +2922,11 @@ const App: React.FC = () => {
                 onDownloadPdf={(snapshot, forcedBlockType) => { const order = orders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order, forcedBlockType); }}
                 onClearAll={() => setOrders([])}
                 onEditOrder={handleEditOrder}
-                onDeleteOrder={async (id) => {
-                  if (activeBlock === 'compras') {
-                    await comprasService.deletePurchaseOrder(id);
-                    setPurchaseOrders(p => p.filter(o => o.id !== id));
-                    setOrders(p => p.filter(o => o.id !== id));
-                  } else if (activeBlock === 'diarias') {
-                    await diariasService.deleteServiceRequest(id);
-                    setServiceRequests(p => p.filter(o => o.id !== id));
-                    setOrders(p => p.filter(o => o.id !== id));
-                  } else if (activeBlock === 'licitacao') {
-                    await licitacaoService.deleteLicitacaoProcess(id);
-                    setLicitacaoProcesses(p => p.filter(o => o.id !== id));
-                    setOrders(p => p.filter(o => o.id !== id));
-                  } else {
-                    // Optimistic Update via Mutation
-                    await deleteOficioMutation.mutateAsync(id);
-                    // hooks manage optimistic update of cache
-                  }
-                }}
+                onDeleteOrder={handleDeleteOrder}
                 onUpdateAttachments={handleUpdateOrderAttachments}
                 totalCounter={globalCounter}
                 onUpdatePaymentStatus={handleUpdatePaymentStatus}
-                onUpdateOrderStatus={async (id, status) => {
-                  if (activeBlock === 'licitacao') {
-                    // Optimistic update
-                    setLicitacaoProcesses(p => p.map(o => o.id === id ? { ...o, status } : o));
-                    setOrders(p => p.map(o => o.id === id ? { ...o, status } : o));
-
-                    // Persist
-                    // We need to implement updateStatus in licitacaoService if not exists, or update the whole object
-                    // Let's assume we can update the whole object for now or find the object
-                    const order = licitacaoProcesses.find(o => o.id === id);
-                    if (order) {
-                      await licitacaoService.saveLicitacaoProcess({ ...order, status });
-                    }
-                  }
-                }}
+                onUpdateOrderStatus={handleUpdateOrderStatus}
               />
             )}
             {currentView === 'licitacao-all' && currentUser && (
@@ -2821,11 +2939,7 @@ const App: React.FC = () => {
                 onDownloadPdf={(snapshot, forcedBlockType) => { const order = orders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order, forcedBlockType); }}
                 onClearAll={() => setOrders([])}
                 onEditOrder={handleEditOrder}
-                onDeleteOrder={async (id) => {
-                  await licitacaoService.deleteLicitacaoProcess(id);
-                  setLicitacaoProcesses(p => p.filter(o => o.id !== id));
-                  setOrders(p => p.filter(o => o.id !== id));
-                }}
+                onDeleteOrder={handleDeleteOrder}
                 onUpdateAttachments={handleUpdateOrderAttachments}
                 totalCounter={globalCounter}
                 onUpdatePaymentStatus={handleUpdatePaymentStatus}
@@ -2838,19 +2952,8 @@ const App: React.FC = () => {
                 currentUser={currentUser}
                 orders={licitacaoProcesses}
                 onEditOrder={handleEditOrder}
-                onDeleteOrder={async (id) => {
-                  await licitacaoService.deleteLicitacaoProcess(id);
-                  setLicitacaoProcesses(p => p.filter(o => o.id !== id));
-                  setOrders(p => p.filter(o => o.id !== id));
-                }}
-                onUpdateOrderStatus={async (id, status) => {
-                  setLicitacaoProcesses(p => p.map(o => o.id === id ? { ...o, status } : o));
-                  setOrders(p => p.map(o => o.id === id ? { ...o, status } : o));
-                  const order = licitacaoProcesses.find(o => o.id === id);
-                  if (order) {
-                    await licitacaoService.saveLicitacaoProcess({ ...order, status });
-                  }
-                }}
+                onDeleteOrder={handleDeleteOrder}
+                onUpdateOrderStatus={handleUpdateOrderStatus}
               />
             )}
 
@@ -2865,11 +2968,7 @@ const App: React.FC = () => {
                 onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
                 onUpdateCompletionForecast={handleUpdateCompletionForecast}
                 onUpdateAttachments={handleUpdateOrderAttachments}
-                onDeleteOrder={async (id) => {
-                  await comprasService.deletePurchaseOrder(id);
-                  setPurchaseOrders(p => p.filter(o => o.id !== id));
-                  setOrders(p => p.filter(o => o.id !== id));
-                }}
+                onDeleteOrder={handleDeleteOrder}
               />
             )}
 
@@ -2943,6 +3042,12 @@ const App: React.FC = () => {
           </div>
         </div >
       </ChatProvider>
+      {/* GLOBAL LOADING MODAL FOR PURCHASE ORDERS */}
+      <LoadingModal
+        isOpen={purchaseLoadingState.isLoading}
+        title={purchaseLoadingState.title}
+        message={purchaseLoadingState.message}
+      />
     </NotificationProvider >
   );
 };
