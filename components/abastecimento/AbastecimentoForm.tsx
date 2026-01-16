@@ -349,7 +349,6 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 placeholder="Selecione o veículo"
                                 icon={Truck}
                                 required
-                                enableMobileModal
                             />
                         </div>
                         <div className="col-span-12 md:col-span-6">
@@ -361,7 +360,6 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 placeholder="Selecione o motorista"
                                 icon={User}
                                 required
-                                enableMobileModal
                             />
                         </div>
 
@@ -394,7 +392,6 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                     placeholder="Tipo"
                                     icon={Fuel}
                                     required
-                                    enableMobileModal
                                 />
                             </div>
 
@@ -428,7 +425,6 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                     placeholder="Selecione o posto..."
                                     icon={MapPin}
                                     required
-                                    enableMobileModal
                                 />
                                 {gasStations.length === 0 && (
                                     <p className="text-[10px] text-amber-600 mt-1 ml-1 flex items-center gap-1">

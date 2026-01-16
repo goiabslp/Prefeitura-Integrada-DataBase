@@ -74,7 +74,6 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [dropPosition, setDropPosition] = useState<'down' | 'up'>('down');
     const containerRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [isMobile, setIsMobile] = useState(false);
@@ -110,20 +109,77 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
         };
     }, [isOpen, isMobile, enableMobileModal]);
 
-    useEffect(() => {
-        if (isOpen && containerRef.current) {
-            // Auto-position logic only for desktop
-            if (!isMobile || !enableMobileModal) {
-                const rect = containerRef.current.getBoundingClientRect();
-                const spaceBelow = window.innerHeight - rect.bottom;
-                const spaceNeeded = 300;
-                setDropPosition(spaceBelow < spaceNeeded && rect.top > spaceNeeded ? 'up' : 'down');
-            }
+    const [dropdownStyle, setDropdownStyle] = useState<{ position: 'down' | 'up', maxHeight: number }>({ position: 'down', maxHeight: 300 });
 
-            if ((!isMobile || enableMobileModal) && searchInputRef.current) {
-                // Focus search input after a short delay to allow transition
-                setTimeout(() => searchInputRef.current?.focus(), 100);
-            }
+    // Use layout effect to measure DOM before paint avoiding flicker
+    const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+
+    useIsomorphicLayoutEffect(() => {
+        if (isOpen && containerRef.current) {
+            const updatePosition = () => {
+                if (!containerRef.current) return;
+
+                const rect = containerRef.current.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+
+                // Margins
+                const MARGIN = 10;
+
+                // Available space
+                const spaceBelow = viewportHeight - rect.bottom - MARGIN;
+                const spaceAbove = rect.top - MARGIN;
+
+                // Logic:
+                // 1. Prefer DOWN if it fits (needs ~200px or at least more than 150)
+                // 2. Else if UP has significantly more space, flip UP.
+
+                const MIN_HEIGHT = 120; // Minimum usable height
+                const DESIRED_HEIGHT = 300; // Target max height
+
+                let newPos: 'down' | 'up' = 'down';
+                let maxH = DESIRED_HEIGHT;
+
+                // If enough space below, usage down (default limits)
+                if (spaceBelow >= DESIRED_HEIGHT) {
+                    newPos = 'down';
+                    maxH = DESIRED_HEIGHT;
+                }
+                // If not enough below, check above
+                else if (spaceAbove > spaceBelow && spaceAbove > MIN_HEIGHT) {
+                    newPos = 'up';
+                    // Use all available space up to DESIRED
+                    maxH = Math.min(spaceAbove, DESIRED_HEIGHT);
+                }
+                // If neither is great, pick the largest one
+                else {
+                    if (spaceBelow >= spaceAbove) {
+                        newPos = 'down';
+                        maxH = Math.max(spaceBelow, MIN_HEIGHT);
+                    } else {
+                        newPos = 'up';
+                        maxH = Math.max(spaceAbove, MIN_HEIGHT);
+                    }
+                }
+
+                setDropdownStyle({ position: newPos, maxHeight: maxH });
+            };
+
+            updatePosition();
+            // Optional: update on scroll/resize could be expensive, sticking to open-time calc + window resize
+            window.addEventListener('resize', updatePosition);
+            window.addEventListener('scroll', updatePosition, true); // Capture scroll to reposition
+
+            return () => {
+                window.removeEventListener('resize', updatePosition);
+                window.removeEventListener('scroll', updatePosition, true);
+            };
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (isOpen && (!isMobile || !enableMobileModal) && searchInputRef.current) {
+            // Focus search input after a short delay to allow transition
+            setTimeout(() => searchInputRef.current?.focus(), 50);
         }
         if (!isOpen) {
             setSearchTerm('');
@@ -234,7 +290,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
 
                 {isOpen && (
                     (isMobile && enableMobileModal) ? renderMobileModal() : (
-                        <div className={`absolute z-50 left-0 right-0 bg-white rounded-xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in duration-200 ${dropPosition === 'up'
+                        <div className={`absolute z-50 left-0 right-0 bg-white rounded-xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in duration-200 ${dropdownStyle.position === 'up'
                             ? 'bottom-full mb-2 slide-in-from-bottom-2'
                             : 'mt-2 slide-in-from-top-2'
                             }`}>
@@ -253,7 +309,10 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
                                 </div>
                             </div>
 
-                            <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
+                            <div
+                                className="overflow-y-auto custom-scrollbar p-1"
+                                style={{ maxHeight: `${dropdownStyle.maxHeight}px` }}
+                            >
                                 {displayOptions.length > 0 ? (
                                     displayOptions.map((option) => (
                                         <SelectItem
