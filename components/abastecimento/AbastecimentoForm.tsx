@@ -67,7 +67,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
 
     const handleOdometerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         // Odometer: 1 decimal place
-        const formatted = formatNumberInput(e.target.value, 1);
+        const formatted = formatNumberInput(e.target.value, 2);
         setOdometer(formatted);
     };
 
@@ -117,7 +117,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             setVehicle(matchedVehicle ? matchedVehicle.plate : savedVehicle);
             setDriver(initialData.driver);
             setLiters(initialData.liters.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
-            setOdometer(initialData.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 1 }));
+            setOdometer(initialData.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
             // Extract fuel key from "type - price" string "gasolina - R$ 5.00" -> "gasolina" or just use full string if needed?
             // The record stores "gasolina - R$ 5.89". We need to find the key.
             // Actually record.fuelType stores "gasolina - R$ 5.89".
@@ -370,7 +370,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                         type="text"
                                         inputMode="numeric"
                                         required
-                                        placeholder="00.000,0"
+                                        placeholder="00.000,00"
                                         value={odometer}
                                         onChange={handleOdometerChange}
                                         className="w-full font-bold text-slate-800 bg-white border border-slate-200 rounded-xl px-3 py-2.5 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all outline-none"
