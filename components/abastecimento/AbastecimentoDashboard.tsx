@@ -976,7 +976,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         <MapPin className="w-24 h-24" />
                     </div>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total Percorrido</p>
-                    <p className="text-2xl font-black text-slate-900">{sectorStats.totalKmSector.toLocaleString('pt-BR')} km</p>
+                    <p className="text-2xl font-black text-slate-900">{sectorStats.totalKmSector.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km</p>
                     <div className={`text-xs font-bold mt-2 flex items-center gap-1 ${sectorStats.kmDiff > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                         {sectorStats.kmDiff > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
                         {Math.abs(sectorStats.kmDiff).toFixed(1)}% vs anterior
@@ -1165,7 +1165,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     </div>
                     <div className="relative z-10">
                         <h3 className="text-3xl font-black text-amber-900 tracking-tight">
-                            {formatNumber(stats.totalKmPeriod, 0)} <span className="text-lg text-slate-400 font-bold">Km</span>
+                            {formatNumber(stats.totalKmPeriod, 2)} <span className="text-lg text-slate-400 font-bold">Km</span>
                         </h3>
                         <p className="text-xs font-medium text-slate-400 mt-1">Estimado no período</p>
                     </div>
@@ -1581,8 +1581,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-700">{formatNumber(r.odometer, 0)} km</span>
-                                                    {r.distance > 0 && <span className="text-[10px] text-cyan-600 font-bold mt-1">(+{formatNumber(r.distance, 0)} km)</span>}
+                                                    <span className="font-bold text-slate-700">{formatNumber(r.odometer, 2)} km</span>
+                                                    {r.distance > 0 && <span className="text-[10px] text-cyan-600 font-bold mt-1">(+{formatNumber(r.distance, 2)} km)</span>}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 font-bold text-cyan-600">{r.fuelType.split(' - ')[0]}</td>

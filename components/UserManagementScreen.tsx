@@ -285,9 +285,21 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
       (!editingUser || u.id !== editingUser.id)
     );
 
+    let finalUsername = formData.username;
+
     if (usernameExists) {
-      showToast("Este nome de usuário já está em uso.", 'error');
-      return;
+      if (editingUser) {
+        showToast("Este nome de usuário já está em uso.", 'error');
+        return;
+      } else {
+        // Auto-generate for new user
+        let counter = 1;
+        while (users.some(u => u.username.toLowerCase() === `${finalUsername}${counter}`.toLowerCase())) {
+          counter++;
+        }
+        finalUsername = `${finalUsername}${counter}`;
+        showToast(`Sigla ajustada para "${finalUsername}" para garantir unicidade.`, 'success');
+      }
     }
 
     // Injetando agendamento caso tenha sido removido por algum erro
@@ -295,6 +307,7 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
 
     const userData = {
       ...formData,
+      username: finalUsername, // Use the potentially modified username
       permissions: perms,
       id: editingUser ? editingUser.id : Date.now().toString(),
     } as User;
