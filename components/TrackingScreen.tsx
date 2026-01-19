@@ -37,6 +37,7 @@ interface TrackingScreenProps {
     onUpdatePaymentStatus?: (orderId: string, status: 'pending' | 'paid') => void;
     onUpdateOrderStatus?: (orderId: string, status: Order['status']) => Promise<void>;
     showAllProcesses?: boolean;
+    onViewOrder?: (order: Order) => void;
 }
 
 export const TrackingScreen: React.FC<TrackingScreenProps> = ({
@@ -52,7 +53,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     totalCounter,
     onUpdatePaymentStatus,
     onUpdateOrderStatus,
-    showAllProcesses = false
+    showAllProcesses = false,
+    onViewOrder
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     // const { data: oficiosData } = useOficios(); // Deprecated for infinite scroll
@@ -830,7 +832,17 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                         </button>
                                                     )}
 
-                                                    {activeBlock !== 'oficio' && !(activeBlock === 'compras' && order.status === 'approved') && (
+                                                    {activeBlock !== 'oficio' && (
+                                                        <button
+                                                            onClick={() => onViewOrder?.(order)}
+                                                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                                            title="Visualizar Pedido Completo"
+                                                        >
+                                                            <Eye className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+
+                                                    {activeBlock !== 'oficio' && (!isCompras || order.status === 'pending') && (
                                                         <button onClick={() => onEditOrder(order)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title={order.status === 'pending' ? "Editar" : "Visualizar"}>
                                                             {order.status === 'pending' ? <Edit3 className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                                         </button>
@@ -944,6 +956,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                         document.body
                     )
                 }
+
+
 
                 {/* MODAL OFICIO/DOCUMENT PREVIEW - TRANSPARENT BLURRED OVERLAY */}
                 {previewOrder && (

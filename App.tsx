@@ -74,6 +74,7 @@ import { ChatWindow } from './components/chat/ChatWindow';
 import { ChatNotificationPopup } from './components/chat/ChatNotificationPopup';
 import { AgricultureModule } from './components/agriculture/AgricultureModule';
 import { ObrasModule } from './components/obras/ObrasModule';
+import { OrderDetailsScreen } from './components/OrderDetailsScreen';
 
 const VIEW_TO_PATH: Record<string, string> = {
   'login': '/Login',
@@ -112,7 +113,8 @@ const VIEW_TO_PATH: Record<string, string> = {
   'abastecimento:dashboard': '/Abastecimento/DashboardAbastecimento',
   'abastecimento': '/Abastecimento',
   'agricultura': '/Agricultura',
-  'obras': '/Obras'
+  'obras': '/Obras',
+  'order-details': '/Historico/Compras/Visualizar'
 };
 
 const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
@@ -123,10 +125,11 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 );
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras'>('login');
+  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details'>('login');
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
   const [appState, setAppState] = useState<AppState>(INITIAL_STATE);
   const [activeBlock, setActiveBlock] = useState<BlockType | null>(null);
+  const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
   // purchaseOrders is now derived to enforce single source of truth
   const [orders, setOrders] = useState<Order[]>([]);
   const purchaseOrders = React.useMemo(() => orders.filter(o => o.blockType === 'compras'), [orders]);
@@ -651,6 +654,8 @@ const App: React.FC = () => {
         stateKey = 'admin:dashboard';
       } else if ((currentView === 'tracking' || currentView === 'editor') && !activeBlock) {
         stateKey = `${currentView}:oficio`;
+      } else if (currentView === 'order-details' && viewingOrder) {
+        stateKey = 'order-details';
       } else if (currentView === 'home' && !activeBlock) {
         stateKey = 'home';
       }
@@ -1608,6 +1613,17 @@ const App: React.FC = () => {
     setActiveBlock(null);
     setIsFinalizedView(false);
     setEditingOrder(null);
+  };
+
+  const handleViewOrder = (order: Order) => {
+    setViewingOrder(order);
+    setCurrentView('order-details');
+  };
+
+  const handleBackToTracking = () => {
+    setViewingOrder(null);
+    setCurrentView('tracking');
+    setActiveBlock('compras');
   };
 
   const handleGoHome = () => {
@@ -2927,6 +2943,7 @@ const App: React.FC = () => {
                 totalCounter={globalCounter}
                 onUpdatePaymentStatus={handleUpdatePaymentStatus}
                 onUpdateOrderStatus={handleUpdateOrderStatus}
+                onViewOrder={handleViewOrder}
               />
             )}
             {currentView === 'licitacao-all' && currentUser && (
@@ -2944,6 +2961,7 @@ const App: React.FC = () => {
                 totalCounter={globalCounter}
                 onUpdatePaymentStatus={handleUpdatePaymentStatus}
                 onUpdateOrderStatus={handleUpdateOrderStatus}
+                onViewOrder={handleViewOrder}
               />
             )}
             {currentView === 'licitacao-screening' && currentUser && (
@@ -2954,6 +2972,14 @@ const App: React.FC = () => {
                 onEditOrder={handleEditOrder}
                 onDeleteOrder={handleDeleteOrder}
                 onUpdateOrderStatus={handleUpdateOrderStatus}
+              />
+            )}
+
+            {currentView === 'order-details' && viewingOrder && currentUser && (
+              <OrderDetailsScreen
+                order={viewingOrder}
+                onBack={handleBackToTracking}
+                onDownloadPdf={(snapshot, blockType) => handleDownloadFromHistory({ ...viewingOrder, documentSnapshot: snapshot }, blockType)}
               />
             )}
 
