@@ -204,6 +204,8 @@ export interface Order {
   stage?: string;
   requestingSector?: string;
   description?: string;
+  is_public?: boolean;
+  assigned_user_id?: string;
 }
 
 export interface Person {

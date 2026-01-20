@@ -2856,6 +2856,7 @@ const App: React.FC = () => {
                 setActiveBlock={setActiveBlock}
                 userRole={currentUser?.role || 'collaborator'}
                 userName={currentUser?.name || 'Usuário'}
+                userId={currentUser?.id || ''}
                 userJobTitle={currentUser?.jobTitle}
                 uiConfig={appState.ui}
                 permissions={currentUser?.permissions || []}

@@ -18,6 +18,7 @@ interface HomeScreenProps {
     onObras?: () => void;
     userRole: UserRole;
     userName: string;
+    userId: string;
     userJobTitle?: string;
     uiConfig?: UIConfig;
     permissions: AppPermission[];
@@ -40,6 +41,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     onOpenAdmin,
     userRole,
     userName,
+    userId,
     permissions = [],
     activeBlock,
     setActiveBlock,
@@ -376,6 +378,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             orders={orders}
                             userRole={userRole}
                             userName={userName}
+                            userId={userId}
                             onViewOrder={(order) => {
                                 onViewOrder?.(order);
                                 setIsTasksDrawerOpen(false); // Close drawer on selection
