@@ -114,11 +114,20 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Função de normalização de texto (remove acentos, pontuação e lowercase)
+  const normalizeText = (text: string) => {
+    return text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+      .replace(/[^\w\s]|_/g, "") // Remove pontuação
+      .toLowerCase();
+  };
+
   const filteredCities = useMemo(() => {
     let list = [...cities];
     if (citySearch) {
-      const term = citySearch.toLowerCase();
-      list = list.filter(city => city.toLowerCase().includes(term));
+      const term = normalizeText(citySearch);
+      list = list.filter(city => normalizeText(city).includes(term));
     }
     return list.sort((a, b) => a.localeCompare(b));
   }, [cities, citySearch]);
