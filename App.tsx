@@ -307,123 +307,135 @@ const App: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Initial Data Fetch
-  const refreshData = useCallback(async (silent = false) => {
+  const refreshData = useCallback(async (silent = false, scope?: string) => {
     setIsRefreshing(true);
     if (!silent) showToast("Atualizando dados...", "info");
     try {
-      // Parallelize fetches for speed
+      // Determines which batches to run based on scope
+      const fetchMetadata = !scope || scope === 'metadata';
+      const fetchEntities = !scope || scope === 'entities';
+      const fetchTransactions = !scope || scope === 'transactions'; // Generic transactions
+      const fetchVehicleSchedules = !scope || scope === 'vehicle-scheduling';
+      const fetchAbastecimento = !scope || scope === 'abastecimento';
+      const fetchLicitacao = !scope || scope === 'licitacao';
+      const fetchCompras = !scope || scope === 'compras';
+      const fetchDiarias = !scope || scope === 'diarias';
+      const fetchOficios = !scope || scope === 'oficio';
+
       // Batch 1: Metadata & Config (Fast)
-      const [
-        savedSectors,
-        savedJobs,
-        savedBrands,
-        savedGasStations,
-        savedFuelTypes,
-        savedUsers,
-        counterValue
-      ] = await Promise.all([
-        entityService.getSectors(),
-        entityService.getJobs(),
-        entityService.getBrands(),
-        AbastecimentoService.getGasStations(),
-        AbastecimentoService.getFuelTypes(),
-        entityService.getUsers(),
-        db.getGlobalCounter(),
-      ]);
+      if (fetchMetadata || fetchAbastecimento) {
+        const [
+          savedSectors,
+          savedJobs,
+          savedBrands,
+          savedGasStations,
+          savedFuelTypes,
+          savedUsers,
+          counterValue
+        ] = await Promise.all([
+          entityService.getSectors(),
+          entityService.getJobs(),
+          entityService.getBrands(),
+          AbastecimentoService.getGasStations(),
+          AbastecimentoService.getFuelTypes(),
+          entityService.getUsers(),
+          db.getGlobalCounter(),
+        ]);
+
+        const mappedUsers: User[] = savedUsers.map((ru: any) => ({
+          id: ru.id,
+          username: ru.username,
+          name: ru.name,
+          role: ru.role,
+          sector: ru.sector,
+          jobTitle: ru.job_title,
+          email: ru.email,
+          whatsapp: ru.whatsapp,
+          allowedSignatureIds: ru.allowed_signature_ids,
+          permissions: ru.permissions,
+          tempPassword: ru.temp_password,
+          tempPasswordExpiresAt: ru.temp_password_expires_at,
+          twoFactorEnabled: ru.two_factor_enabled,
+          twoFactorSecret: ru.two_factor_secret,
+          twoFactorEnabled2: ru.two_factor_enabled_2,
+          twoFactorSecret2: ru.two_factor_secret_2
+        }));
+
+        if (mappedUsers.length > 0) setUsers(mappedUsers);
+        else setUsers(DEFAULT_USERS);
+
+        setSectors(savedSectors);
+        setJobs(savedJobs);
+        setBrands(savedBrands);
+        setGasStations(savedGasStations);
+        setFuelTypes(savedFuelTypes);
+        setGlobalCounter(counterValue);
+
+        // Fetch Licitacao Specific Counter
+        if (fetchLicitacao) {
+          const licitacaoSector = savedSectors.find(s => s.name === 'Departamento de Licitação');
+          const licitacaoSectorId = licitacaoSector?.id || '23c6fa21-f998-4f54-b865-b94212f630ef';
+          const currentYear = new Date().getFullYear();
+          if (licitacaoSectorId) {
+            const nextLicParams = await counterService.getNextSectorCount(licitacaoSectorId, currentYear);
+            if (nextLicParams) setLicitacaoNextProtocol(nextLicParams);
+          }
+        }
+      }
 
       // Batch 2: Heavy Entities
-      const [
-        savedPersons,
-        savedVehicles
-      ] = await Promise.all([
-        entityService.getPersons(),
-        entityService.getVehicles()
-      ]);
-
-      // Batch 3: Transactional Data (Heaviest)
-      const [
-        savedPurchaseOrders,
-        // savedServiceRequests,
-        savedLicitacaoProcesses,
-        savedSchedules
-      ] = await Promise.all([
-        // oficiosService.getAllOficios(), // REMOVED: Managed by React Query
-        comprasService.getAllPurchaseOrders(),
-        // diariasService.getAllServiceRequests(), // REMOVED: Managed by React Query
-        licitacaoService.getAllLicitacaoProcesses(),
-        vehicleSchedulingService.getSchedules()
-      ]);
-
-      const mappedUsers: User[] = savedUsers.map((ru: any) => ({
-        id: ru.id,
-        username: ru.username,
-        name: ru.name,
-        role: ru.role,
-        sector: ru.sector,
-        jobTitle: ru.job_title,
-        email: ru.email,
-        whatsapp: ru.whatsapp,
-        allowedSignatureIds: ru.allowed_signature_ids,
-        permissions: ru.permissions,
-        tempPassword: ru.temp_password,
-        tempPasswordExpiresAt: ru.temp_password_expires_at,
-        twoFactorEnabled: ru.two_factor_enabled,
-        twoFactorSecret: ru.two_factor_secret,
-        twoFactorEnabled2: ru.two_factor_enabled_2,
-        twoFactorSecret2: ru.two_factor_secret_2
-      }));
-
-      // Use DB users if available; otherwise fallback to Mock users (e.g. first run)
-      // This prevents duplicate users (Mock vs Real) and ensures we edit the real UUID users that affect permissions.
-      if (mappedUsers.length > 0) {
-        setUsers(mappedUsers);
-      } else {
-        setUsers(DEFAULT_USERS);
+      if (fetchEntities || fetchVehicleSchedules || fetchAbastecimento) {
+        const [
+          savedPersons,
+          savedVehicles
+        ] = await Promise.all([
+          entityService.getPersons(),
+          entityService.getVehicles()
+        ]);
+        setPersons(savedPersons);
+        setVehicles(savedVehicles);
+        try {
+          sessionStorage.setItem('cachedPersons', JSON.stringify(savedPersons));
+          sessionStorage.setItem('cachedVehicles', JSON.stringify(savedVehicles));
+        } catch (e) { }
       }
 
-      // setOficios(savedOficios); // REMOVED: Managed by React Query
-      // setPurchaseOrders(savedPurchaseOrders); // REMOVED: Derived
-      // setServiceRequests(savedServiceRequests); // REMOVED: Managed by React Query
-      setLicitacaoProcesses(savedLicitacaoProcesses);
+      // Batch 3: Transactional Data
+      let savedPurchaseOrders = purchaseOrders; // Preserve existing
+      let savedLicitacaoProcesses = licitacaoProcesses;
+      let savedSchedules = schedules;
 
-      // Update local generic state based on current view/block
-      const allOrders = [
-        // ...savedOficios, // REMOVED: Managed by React Query
-        ...savedPurchaseOrders,
-        // ...savedServiceRequests, // REMOVED: Managed by React Query
-        ...savedLicitacaoProcesses
-      ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const promises: Promise<any>[] = [];
 
-      setOrders(allOrders);
-
-      setPersons(savedPersons);
-      setVehicles(savedVehicles);
-      setGasStations(savedGasStations);
-      setFuelTypes(savedFuelTypes);
-
-      // Persistence to Session Storage
-      try {
-        sessionStorage.setItem('cachedPersons', JSON.stringify(savedPersons));
-        sessionStorage.setItem('cachedVehicles', JSON.stringify(savedVehicles));
-        sessionStorage.setItem('cachedGasStations', JSON.stringify(savedGasStations));
-        sessionStorage.setItem('cachedFuelTypes', JSON.stringify(savedFuelTypes));
-      } catch (e) {
-        console.error("Failed to update sessionStorage", e);
+      if (fetchCompras || fetchTransactions) {
+        promises.push(comprasService.getAllPurchaseOrders().then(d => { savedPurchaseOrders = d; }));
+      }
+      if (fetchLicitacao || fetchTransactions) {
+        promises.push(licitacaoService.getAllLicitacaoProcesses().then(d => { savedLicitacaoProcesses = d; }));
+      }
+      if (fetchVehicleSchedules || fetchTransactions) {
+        promises.push(vehicleSchedulingService.getSchedules().then(d => { savedSchedules = d; }));
       }
 
-      setSectors(savedSectors);
-      setJobs(savedJobs);
-      setBrands(savedBrands);
-      setSchedules(savedSchedules);
-      setGlobalCounter(counterValue);
+      await Promise.all(promises);
 
-      // Fetch Licitacao Specific Counter
-      const licitacaoSector = savedSectors.find(s => s.name === 'Departamento de Licitação');
-      const licitacaoSectorId = licitacaoSector?.id || '23c6fa21-f998-4f54-b865-b94212f630ef';
-      const currentYear = new Date().getFullYear();
-      if (licitacaoSectorId) {
-        const nextLicParams = await counterService.getNextSectorCount(licitacaoSectorId, currentYear);
-        if (nextLicParams) setLicitacaoNextProtocol(nextLicParams);
+      // Update States based on what was fetched
+      if (fetchCompras || fetchTransactions) {
+        // setPurchaseOrders(savedPurchaseOrders); // Derived
+      }
+      if (fetchLicitacao || fetchTransactions) setLicitacaoProcesses(savedLicitacaoProcesses);
+      if (fetchVehicleSchedules || fetchTransactions) setSchedules(savedSchedules);
+
+      // Update Consolidated Orders only if meaningful changes could have happened
+      if (fetchCompras || fetchLicitacao || fetchOficios || fetchDiarias || fetchTransactions) {
+        // Note: Generic Transactions covers all.
+        // Re-merging with existing state for components not fetched
+        const allOrders = [
+          ...savedPurchaseOrders,
+          ...savedLicitacaoProcesses
+          // ... others (managed by RQ or not fetched here)
+        ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setOrders(allOrders);
       }
 
       if (!silent) showToast("Dados atualizados com sucesso!", "success");
@@ -434,7 +446,7 @@ const App: React.FC = () => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [activeBlock]);
+  }, [purchaseOrders, licitacaoProcesses, schedules]);
 
   // Realtime Listeners for Abastecimento Entities
   useEffect(() => {
@@ -1651,6 +1663,41 @@ const App: React.FC = () => {
 
 
 
+
+  // --- REALTIME SYNC FOR VEHICLE SCHEDULES ---
+  useEffect(() => {
+    // Only subscribe if user is logged in
+    if (!currentUser) return;
+
+    const channel = supabase
+      .channel('vehicle_schedules_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'vehicle_schedules' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newSchedule = payload.new as VehicleSchedule;
+            // Prevent duplicated insertion if we already added it via optimistic/local update
+            setSchedules((prev) => {
+              if (prev.some(s => s.id === newSchedule.id)) return prev;
+              return [newSchedule, ...prev];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedSchedule = payload.new as VehicleSchedule;
+            setSchedules((prev) => prev.map((s) => (s.id === updatedSchedule.id ? updatedSchedule : s)));
+          } else if (payload.eventType === 'DELETE') {
+            const deletedId = (payload.old as any).id;
+            setSchedules((prev) => prev.filter((s) => s.id !== deletedId));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser]);
+
   // --- PERSISTENCE LOGIC START ---
   // Save draft to localStorage whenever content changes in editor mode
   useEffect(() => {
@@ -2829,6 +2876,61 @@ const App: React.FC = () => {
                     setCurrentView('editor');
                   }
                 }}
+              />
+            )}
+            {currentView === 'vehicle-scheduling' && (
+              <VehicleSchedulingScreen
+                schedules={schedules}
+                vehicles={vehicles}
+                persons={persons}
+                sectors={sectors}
+                onAddSchedule={async (s) => {
+                  // Optimistic Update handled by Realtime for consistency?
+                  // Or we can add temporary. For now, we trust the DB return is fast enough, but effectively 'Realtime' handles the broadcast.
+                  // However, strict optimistic means we update LOCAL before remote.
+                  // Since generateProtocol relies on DB or Service logic, we'll let service return the object.
+                  // But to prevent UI flicker until Realtime event arrives, we update local state with the returned object immediately.
+                  const newS = await vehicleSchedulingService.createSchedule(s);
+                  if (newS) setSchedules(prev => {
+                    // Prevent duplicate if Realtime arrived first (unlikely but possible)
+                    if (prev.find(x => x.id === newS.id)) return prev;
+                    return [newS, ...prev];
+                  });
+                }}
+                onUpdateSchedule={async (s) => {
+                  // Optimistic Update
+                  setSchedules(prev => prev.map(old => old.id === s.id ? s : old));
+                  await vehicleSchedulingService.updateSchedule(s);
+                  // No need to handle error/revert for this sprint unless requested
+                }}
+                onDeleteSchedule={async (id) => {
+                  // Optimistic Delete
+                  setSchedules(prev => prev.filter(s => s.id !== id));
+                  await vehicleSchedulingService.deleteSchedule(id);
+                }}
+                onBack={() => {
+                  setCurrentView('home');
+                  setActiveBlock(null);
+                  window.history.pushState({}, '', '/PaginaInicial');
+                }}
+                currentUserId={currentUser?.id || ''}
+                currentUserName={currentUser?.name}
+                currentUserRole={currentUser?.role || 'collaborator'}
+                currentUserPermissions={currentUser?.permissions || []}
+                requestedView={(() => {
+                  if (activeBlock === 'vs_calendar') return 'calendar';
+                  if (activeBlock === 'vs_history') return 'history';
+                  if (activeBlock === 'vs_approvals') return 'approvals';
+                  return 'menu';
+                })()}
+                onNavigate={(path) => {
+                  if (path === '/AgendamentoVeiculos/Agendar') setActiveBlock('vs_calendar');
+                  else if (path === '/AgendamentoVeiculos/Historico') setActiveBlock('vs_history');
+                  else if (path === '/AgendamentoVeiculos/Aprovacoes') setActiveBlock('vs_approvals');
+                  else setActiveBlock(null); // Menu
+                  window.history.pushState({}, '', path);
+                }}
+                state={appState}
               />
             )}
             {/* Abastecimento Module */}

@@ -48,15 +48,15 @@ export const OficioPreview: React.FC<OficioPreviewProps> = ({ state, isGeneratin
       const limit = getLimit();
 
       if ((currentLinesUsed + linesInParagraph) <= limit) {
-        currentPageText += text + '\n\n';
-        currentLinesUsed += linesInParagraph + 1;
+        currentPageText += text + '\n';
+        currentLinesUsed += linesInParagraph;
       } else {
         const availableLines = limit - currentLinesUsed;
 
         if (availableLines <= 2) {
           resultPages.push(currentPageText.trim());
-          currentPageText = text + '\n\n';
-          currentLinesUsed = linesInParagraph + 1;
+          currentPageText = text + '\n';
+          currentLinesUsed = linesInParagraph;
           isFirstPage = false;
         } else {
           const charsFit = availableLines * CHARS_PER_LINE;
@@ -66,8 +66,8 @@ export const OficioPreview: React.FC<OficioPreviewProps> = ({ state, isGeneratin
           currentPageText += part1;
           resultPages.push(currentPageText.trim());
 
-          currentPageText = part2 + '\n\n';
-          currentLinesUsed = Math.ceil(part2.length / CHARS_PER_LINE) + 1;
+          currentPageText = part2 + '\n';
+          currentLinesUsed = Math.ceil(part2.length / CHARS_PER_LINE);
           isFirstPage = false;
         }
       }

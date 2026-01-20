@@ -29,7 +29,7 @@ interface AppHeaderProps {
   onOpenAdmin: (tab?: string | null) => void;
   onGoHome: () => void;
   currentView: string;
-  onRefresh: () => void;
+  onRefresh: (silent?: boolean, scope?: string) => void;
   isRefreshing: boolean;
   currentSubView?: string;
 }
@@ -48,6 +48,27 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   const isAdmin = currentUser.role === 'admin';
   const isNotHome = currentView !== 'home';
+
+  const handleSmartRefresh = () => {
+    let scope = 'transactions'; // Default fallback
+
+    if (currentView === 'tracking') {
+      if (activeBlock === 'compras') scope = 'compras';
+      else if (activeBlock === 'licitacao') scope = 'licitacao';
+      else if (activeBlock === 'diarias') scope = 'diarias';
+      else if (activeBlock === 'oficio') scope = 'oficio';
+    } else if (currentView === 'vehicle-scheduling') {
+      scope = 'vehicle-scheduling';
+    } else if (currentView === 'abastecimento') {
+      scope = 'abastecimento';
+    } else if (currentView === 'admin' || currentView === 'purchase-management') {
+      scope = 'transactions';
+    } else if (currentView === 'home') {
+      scope = 'metadata'; // Or 'transactions' depending on what home shows
+    }
+
+    onRefresh(false, scope);
+  };
 
   const getModuleTitle = () => {
     if (currentView === 'admin') return "Painel Administrativo";
@@ -83,6 +104,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       case 'compras': return "Módulo de Compras";
       case 'licitacao': return "Módulo de Licitação";
       case 'diarias': return "Módulo de Diárias";
+      case 'abastecimento': return "Módulo de Abastecimento";
       default: return "Página Inicial";
     }
   };
@@ -215,6 +237,20 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
         {/* Lado Direito: Ações e Perfil */}
         < div className="flex items-center gap-2 md:gap-4" >
+
+          {/* REFRESH BUTTON */}
+          <button
+            onClick={handleSmartRefresh}
+            disabled={isRefreshing}
+            className={`p-2 rounded-xl transition-all active:scale-95 group relative
+              ${isRefreshing ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 hover:text-indigo-600'}
+            `}
+            title="Atualizar Dados"
+          >
+            <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+
+          <div className="h-8 w-px bg-slate-200 mx-1"></div>
 
           {isNotHome && (
             <button
