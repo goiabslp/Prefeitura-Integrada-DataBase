@@ -2,7 +2,8 @@ import React from 'react';
 import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange, FileSearch, Droplet, Fuel, BarChart3, TrendingUp, LogOut, Sprout, HardHat, Activity, Car, ChevronDown } from 'lucide-react';
 import { UserRole, UIConfig, AppPermission, BlockType } from '../types';
 import { TasksDashboard } from './dashboard/TasksDashboard';
-import { Order } from '../types';
+import { QuickTaskCreation } from './dashboard/QuickTaskCreation';
+import { Order, User } from '../types';
 
 interface HomeScreenProps {
     onNewOrder: (block?: BlockType) => void;
@@ -31,6 +32,8 @@ interface HomeScreenProps {
     };
     orders?: Order[];
     onViewOrder?: (order: Order) => void;
+    allUsers?: User[];
+    onTaskCreated?: (task: Order) => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -53,7 +56,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     onObras,
     onLogout,
     orders = [], // Receive orders for Tasks Dashboard
-    onViewOrder // Callback to view order details
+    onViewOrder, // Callback to view order details
+    allUsers = [] // Add access to users for task assignment (Need to add to Props interface first, but for now assuming it flows via spreading or defined explicitly if strict)
 }) => {
     // Permission Checks
     const canAccessOficio = permissions.includes('parent_criar_oficio');
@@ -87,6 +91,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     };
 
     const [isTasksDrawerOpen, setIsTasksDrawerOpen] = React.useState(false);
+    const [isTaskCreationOpen, setIsTaskCreationOpen] = React.useState(false);
 
     // --- Render Module Button ---
     const renderModuleButton = (
@@ -326,6 +331,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             {canAccessLicitacao && renderModuleButton(() => setActiveBlock('licitacao'), 'blue', Gavel, 'Licitação', 'Processos e editais', '200ms', true)}
 
                             {/* Management Modules */}
+                            {renderModuleButton(() => setIsTaskCreationOpen(true), 'pink', Activity, 'Tarefas', 'Gestão de atividades', '225ms', true)}
+
                             {canAccessScheduling && renderModuleButton(() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }, 'violet', CalendarRange, 'Veículos', 'Agendamento de frota', '250ms', true)}
                             {canAccessAbastecimento && renderModuleButton(() => setActiveBlock('abastecimento'), 'cyan', Droplet, 'Abastecimento', 'Controle de combustível', '300ms', false)}
 
@@ -392,6 +399,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </div>
                 </div>
             )}
+            {/* TASK CREATION MODAL */}
+            <QuickTaskCreation
+                isOpen={isTaskCreationOpen}
+                onClose={() => setIsTaskCreationOpen(false)}
+                currentUserId={userId}
+                currentUserName={userName}
+                users={allUsers || []}
+                onTaskCreated={(task) => {
+                    // Optional: Trigger any immediate UI update if needed, 
+                    // though App.tsx should handle the state update via prop callback if we wired it there 
+                    // or simply rely on Realtime/Refresh.
+                    // Ideally we call a prop method to inject it into local state for instant feedback.
+                    // Assuming App.tsx passes a handler or we rely on the refresh cycle triggered by the parent.
+                    // For now, let's close.
+                }}
+            />
         </div>
     );
 };

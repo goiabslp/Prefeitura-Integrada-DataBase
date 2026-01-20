@@ -32,6 +32,7 @@ import * as signatureService from './services/signatureService';
 import * as vehicleSchedulingService from './services/vehicleSchedulingService';
 import * as licitacaoService from './services/licitacaoService';
 import { AbastecimentoService } from './services/abastecimentoService';
+import * as taskService from './services/taskService';
 import { Send, CheckCircle2, X, Download, Save, FilePlus, Package, History, FileText, Settings, LogOut, ChevronRight, ChevronDown, Search, Filter, Upload, Trash2, Printer, Edit, ArrowLeft, Loader2 } from 'lucide-react';
 
 
@@ -137,6 +138,7 @@ const App: React.FC = () => {
   const [oficios, setOficios] = useState<Order[]>([]);
   const [serviceRequests, setServiceRequests] = useState<Order[]>([]);
   const [licitacaoProcesses, setLicitacaoProcesses] = useState<Order[]>([]);
+  const [tasks, setTasks] = useState<Order[]>([]);
 
   const [users, setUsers] = useState<User[]>(DEFAULT_USERS);
   // const [signatures, setSignatures] = useState<Signature[]>([]); // DEPRECATED: Signatures are now derived from Users
@@ -321,6 +323,7 @@ const App: React.FC = () => {
       const fetchCompras = !scope || scope === 'compras';
       const fetchDiarias = !scope || scope === 'diarias';
       const fetchOficios = !scope || scope === 'oficio';
+      const fetchTasks = true; // Always fetch tasks for now or optimize later
 
       // Batch 1: Metadata & Config (Fast)
       if (fetchMetadata || fetchAbastecimento) {
@@ -404,6 +407,7 @@ const App: React.FC = () => {
       let savedPurchaseOrders = purchaseOrders; // Preserve existing
       let savedLicitacaoProcesses = licitacaoProcesses;
       let savedSchedules = schedules;
+      let savedTasks = tasks;
 
       const promises: Promise<any>[] = [];
 
@@ -416,6 +420,9 @@ const App: React.FC = () => {
       if (fetchVehicleSchedules || fetchTransactions) {
         promises.push(vehicleSchedulingService.getSchedules().then(d => { savedSchedules = d; }));
       }
+      if (fetchTasks || fetchTransactions) {
+        promises.push(taskService.getTasks().then(d => { savedTasks = d; }));
+      }
 
       await Promise.all(promises);
 
@@ -425,6 +432,7 @@ const App: React.FC = () => {
       }
       if (fetchLicitacao || fetchTransactions) setLicitacaoProcesses(savedLicitacaoProcesses);
       if (fetchVehicleSchedules || fetchTransactions) setSchedules(savedSchedules);
+      if (fetchTasks || fetchTransactions) setTasks(savedTasks);
 
       // Update Consolidated Orders only if meaningful changes could have happened
       if (fetchCompras || fetchLicitacao || fetchOficios || fetchDiarias || fetchTransactions) {
@@ -432,7 +440,8 @@ const App: React.FC = () => {
         // Re-merging with existing state for components not fetched
         const allOrders = [
           ...savedPurchaseOrders,
-          ...savedLicitacaoProcesses
+          ...savedLicitacaoProcesses,
+          ...savedTasks
           // ... others (managed by RQ or not fetched here)
         ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setOrders(allOrders);
@@ -446,7 +455,7 @@ const App: React.FC = () => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [purchaseOrders, licitacaoProcesses, schedules]);
+  }, [purchaseOrders, licitacaoProcesses, schedules, tasks]);
 
   // Realtime Listeners for Abastecimento Entities
   useEffect(() => {
@@ -536,11 +545,31 @@ const App: React.FC = () => {
       )
       .subscribe();
 
+    // TASKS Realtime Channel
+    const tasksChannel = supabase.channel('public:tasks_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks' },
+        async () => {
+          refreshData(true, 'transactions');
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'task_assignments' },
+        async () => {
+          refreshData(true, 'transactions');
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(vehicleChannel);
       supabase.removeChannel(profileChannel);
       supabase.removeChannel(stationChannel);
       supabase.removeChannel(configChannel);
+      supabase.removeChannel(purchaseChannel);
+      supabase.removeChannel(tasksChannel);
     };
   }, []);
 
@@ -2827,7 +2856,8 @@ const App: React.FC = () => {
                     setActiveBlock('abastecimento');
                     setCurrentView('abastecimento');
                   } else {
-                    handleStartEditing(target);
+                    setActiveBlock(target);
+                    setCurrentView('editor');
                   }
                 }}
                 onTrackOrder={() => {
@@ -2867,14 +2897,20 @@ const App: React.FC = () => {
                 }}
                 onLogout={() => signOut()}
                 orders={orders}
+                allUsers={users}
                 onViewOrder={(order) => {
-                  setEditingOrder(order);
+                  setViewingOrder(order);
                   setActiveBlock(order.blockType);
                   // Determine appropriate view based on block type
                   if (order.blockType === 'licitacao') {
-                    setCurrentView('editor'); // Or tracking? Usually editor for details/edit
+                    setCurrentView('order-details');
+                  } else if (order.blockType === 'tarefas') {
+                    // Tasks might be viewable in a specific view or just sidebar?
+                    // For now, reuse order details or just ignore if handled by sidebar
+                    setViewingOrder(order);
+                    setCurrentView('order-details');
                   } else {
-                    setCurrentView('editor');
+                    setCurrentView('order-details');
                   }
                 }}
               />
@@ -3038,6 +3074,7 @@ const App: React.FC = () => {
                 currentUser={currentUser}
                 activeBlock={activeBlock}
                 orders={orders}
+                allUsers={users}
                 onDownloadPdf={(snapshot, forcedBlockType) => { const order = orders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order, forcedBlockType); }}
                 onClearAll={() => setOrders([])}
                 onEditOrder={handleEditOrder}
