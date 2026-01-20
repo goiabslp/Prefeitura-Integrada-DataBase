@@ -340,7 +340,8 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
     { id: 'parent_licitacao_processos', label: 'Licitação: Processos' },
     { id: 'parent_compras_pedidos', label: 'Gestão de Pedidos (Compras)' },
     { id: 'parent_agricultura', label: 'Módulo: Agricultura' },
-    { id: 'parent_obras', label: 'Módulo: Obras' }
+    { id: 'parent_obras', label: 'Módulo: Obras' },
+    { id: 'parent_tarefas', label: 'Módulo: Tarefas' }
   ];
 
   return (
@@ -947,6 +948,11 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                           { id: 'parent_obras', label: 'Obras' }
                         ],
                         color: 'teal'
+                      },
+                      {
+                        title: 'Gestão de Tarefas',
+                        permissions: [{ id: 'parent_tarefas', label: 'Módulo: Tarefas' }],
+                        color: 'pink'
                       }
                     ].map((category) => (
                       <div key={category.title} className="bg-slate-50/50 rounded-2xl p-5 border border-slate-100/60">

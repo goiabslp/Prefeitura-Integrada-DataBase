@@ -12,7 +12,7 @@ interface AbastecimentoConfirmationModalProps {
         fuelType: string;
         liters: number;
         cost: number;
-        odometer?: number;
+        odometer?: number | string;
     } | null;
     isSaving?: boolean;
 }
@@ -84,7 +84,11 @@ export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationM
                         </div>
                         <div className="flex flex-col flex-1 border-b border-slate-100 pb-4">
                             <span className="text-xs uppercase font-bold text-slate-400 tracking-wider mb-0.5">Odômetro</span>
-                            <span className="text-lg font-bold text-slate-800">{data.odometer?.toLocaleString('pt-BR', { minimumFractionDigits: 1 })} KM</span>
+                            <span className="text-lg font-bold text-slate-800">
+                                {typeof data.odometer === 'number'
+                                    ? data.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+                                    : data.odometer || '0,00'} KM
+                            </span>
                         </div>
                     </div>
 

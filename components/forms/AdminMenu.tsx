@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Users, User as UserIcon, PenTool, Home, Palette, Briefcase, Network, Truck, ShieldCheck } from 'lucide-react';
+import { Users, User as UserIcon, PenTool, Home, Palette, Briefcase, Network, Truck, ShieldCheck, Shield } from 'lucide-react';
 import { User } from '../../types';
 
 interface AdminMenuProps {
@@ -42,6 +42,14 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({ currentUser, onTabChange }
       icon: <ShieldCheck className="w-6 h-6 text-emerald-600" />,
       colorClass: 'bg-emerald-50 border-emerald-100 hover:border-emerald-300 shadow-sm',
       adminOnly: false // All users should be able to configure their own 2FA
+    },
+    {
+      id: 'access_control',
+      title: 'Controle de Acesso',
+      description: 'Ativar/Desativar módulos globalmente',
+      icon: <Shield className="w-6 h-6 text-red-600" />,
+      colorClass: 'bg-red-50 border-red-100 hover:border-red-300 shadow-sm',
+      adminOnly: true
     },
 
     {

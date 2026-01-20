@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Lock, ArrowRight, FileText, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { User, Lock, ArrowRight, FileText, ShieldCheck, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { UIConfig } from '../types';
 import { getCachedImage, IMAGE_KEYS } from '../services/cacheService';
 
@@ -16,6 +16,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, uiConfig }) =
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Carrega credenciais salvas ao montar o componente
   useEffect(() => {
@@ -164,13 +165,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, uiConfig }) =
               </div>
               <div className="relative group">
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-slate-600 focus:bg-white/[0.08] focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all duration-300"
+                  className="w-full pl-12 pr-12 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-slate-600 focus:bg-white/[0.08] focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all duration-300"
                   placeholder="••••••••"
                 />
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-400 transition-colors focus:outline-none"
+                  tabIndex={-1} // Prevent tabbing to this button before submit
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
 

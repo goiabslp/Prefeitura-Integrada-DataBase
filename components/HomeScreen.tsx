@@ -3,6 +3,7 @@ import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCa
 import { UserRole, UIConfig, AppPermission, BlockType } from '../types';
 import { TasksDashboard } from './dashboard/TasksDashboard';
 import { QuickTaskCreation } from './dashboard/QuickTaskCreation';
+import { useSystemSettings } from '../contexts/SystemSettingsContext';
 import { Order, User } from '../types';
 
 interface HomeScreenProps {
@@ -60,19 +61,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     allUsers = [] // Add access to users for task assignment (Need to add to Props interface first, but for now assuming it flows via spreading or defined explicitly if strict)
 }) => {
     // Permission Checks
-    const canAccessOficio = permissions.includes('parent_criar_oficio');
-    const canAccessCompras = permissions.includes('parent_compras');
-    const canAccessLicitacao = permissions.includes('parent_licitacao');
-    const canAccessDiarias = permissions.includes('parent_diarias');
-    const canManagePurchaseOrders = permissions.includes('parent_compras_pedidos');
-    const canAccessScheduling = permissions.includes('parent_agendamento_veiculo');
-    const canAccessFleet = permissions.includes('parent_frotas');
+    const { moduleStatus } = useSystemSettings();
+
+    // Permission Checks (AND Global Status)
+    const isModuleActive = (key: string) => moduleStatus[key] !== false; // Default true if missing
+
+    const canAccessOficio = permissions.includes('parent_criar_oficio') && isModuleActive('parent_criar_oficio');
+    const canAccessCompras = permissions.includes('parent_compras') && isModuleActive('parent_compras');
+    const canAccessLicitacao = permissions.includes('parent_licitacao') && isModuleActive('parent_licitacao');
+    const canAccessDiarias = permissions.includes('parent_diarias') && isModuleActive('parent_diarias');
+    const canManagePurchaseOrders = permissions.includes('parent_compras_pedidos'); // Sub-feature, dependent on Compras usually
+    const canAccessScheduling = permissions.includes('parent_agendamento_veiculo') && isModuleActive('parent_agendamento_veiculo');
+    const canAccessFleet = permissions.includes('parent_frotas') && isModuleActive('parent_frotas');
     const canAccessLicitacaoTriagem = permissions.includes('parent_licitacao_triagem');
     const canAccessLicitacaoProcessos = permissions.includes('parent_licitacao_processos');
-    const canAccessAbastecimento = permissions.includes('parent_abastecimento');
-    const canAccessAgricultura = permissions.includes('parent_agricultura');
-    const canAccessObras = permissions.includes('parent_obras');
-
+    const canAccessAbastecimento = permissions.includes('parent_abastecimento') && isModuleActive('parent_abastecimento');
+    const canAccessAgricultura = (permissions.includes('parent_agricultura') || userRole === 'admin') && isModuleActive('parent_agricultura');
+    const canAccessObras = (permissions.includes('parent_obras') || userRole === 'admin') && isModuleActive('parent_obras');
+    const canAccessTarefas = permissions.includes('parent_tarefas') && isModuleActive('parent_tarefas');
     const firstName = userName.split(' ')[0];
 
     // --- Helper Functions for Card Styling ---
@@ -331,7 +337,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             {canAccessLicitacao && renderModuleButton(() => setActiveBlock('licitacao'), 'blue', Gavel, 'Licitação', 'Processos e editais', '200ms', true)}
 
                             {/* Management Modules */}
-                            {renderModuleButton(() => setIsTaskCreationOpen(true), 'pink', Activity, 'Tarefas', 'Gestão de atividades', '225ms', true)}
+                            {canAccessTarefas && renderModuleButton(() => setIsTaskCreationOpen(true), 'pink', Activity, 'Tarefas', 'Gestão de atividades', '225ms', true)}
 
                             {canAccessScheduling && renderModuleButton(() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }, 'violet', CalendarRange, 'Veículos', 'Agendamento de frota', '250ms', true)}
                             {canAccessAbastecimento && renderModuleButton(() => setActiveBlock('abastecimento'), 'cyan', Droplet, 'Abastecimento', 'Controle de combustível', '300ms', false)}

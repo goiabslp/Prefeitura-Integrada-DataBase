@@ -478,7 +478,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                     fuelType: pendingData.fuelType,
                     liters: pendingData.liters,
                     cost: pendingData.cost,
-                    odometer: pendingData.odometer
+                    odometer: odometer // Passing formatted string directly
                 } : null}
                 isSaving={isSaving}
             />

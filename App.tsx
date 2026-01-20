@@ -58,14 +58,16 @@ import { TwoFactorModal } from './components/TwoFactorModal';
 import { OficioNumberingModal } from './components/modals/OficioNumberingModal';
 import { ProcessStepper } from './components/common/ProcessStepper';
 import { LicitacaoScreeningScreen } from './components/LicitacaoScreeningScreen';
-import { LoadingModal } from './components/modals/LoadingModal';
+import { SystemAccessControl } from './components/admin/SystemAccessControl';
+import { GlobalLoading } from './components/common/GlobalLoading';
 import { LicitacaoSettingsModal } from './components/LicitacaoSettingsModal';
 import { ToastNotification, ToastType } from './components/common/ToastNotification';
 import { AbastecimentoForm } from './components/abastecimento/AbastecimentoForm';
 import { AbastecimentoList } from './components/abastecimento/AbastecimentoList';
 import { AbastecimentoDashboard } from './components/abastecimento/AbastecimentoDashboard';
 import { ForcePasswordChangeModal } from './components/ForcePasswordChangeModal';
-import { NotificationProvider } from './contexts/NotificationContext';
+import { NotificationProvider, useNotification } from './contexts/NotificationContext';
+import { SystemSettingsProvider } from './contexts/SystemSettingsContext';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -737,6 +739,8 @@ const App: React.FC = () => {
       setCurrentView('login');
     }
   }, [currentUser, currentView]);
+
+
 
 
 
@@ -2747,6 +2751,8 @@ const App: React.FC = () => {
                       <UIPreviewScreen ui={appState.ui} />
                     ) : currentView === 'admin' && adminTab === 'design' ? (
                       <AdminDocumentPreview state={appState} />
+                    ) : currentView === 'admin' && adminTab === 'access_control' ? (
+                      <SystemAccessControl />
                     ) : (
                       <div className={activeBlock === 'compras' && currentView === 'editor' ? 'fixed left-[-9999px] top-0 pointer-events-none opacity-0' : 'w-full h-full'}>
                         <DocumentPreview ref={componentRef} state={appState} isGenerating={isDownloading} mode={currentView === 'admin' ? 'admin' : 'editor'} blockType={activeBlock} />
@@ -3208,11 +3214,12 @@ const App: React.FC = () => {
           </div>
         </div >
       </ChatProvider>
-      {/* GLOBAL LOADING MODAL FOR PURCHASE ORDERS */}
-      <LoadingModal
+      {/* GLOBAL LOADING MODAL */}
+      <GlobalLoading
+        type="overlay"
         isOpen={purchaseLoadingState.isLoading}
-        title={purchaseLoadingState.title}
-        message={purchaseLoadingState.message}
+        message={purchaseLoadingState.title}
+        description={purchaseLoadingState.message}
       />
     </NotificationProvider >
   );
