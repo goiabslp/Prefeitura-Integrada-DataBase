@@ -832,11 +832,21 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                         </button>
                                                     )}
 
-                                                    {activeBlock !== 'oficio' && (
+                                                    {activeBlock !== 'oficio' && (activeBlock !== 'diarias') && (
                                                         <button
                                                             onClick={() => onViewOrder?.(order)}
                                                             className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                                                             title="Visualizar Pedido Completo"
+                                                        >
+                                                            <Eye className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+
+                                                    {activeBlock === 'diarias' && (
+                                                        <button
+                                                            onClick={() => setPreviewOrder(order)}
+                                                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                                            title="Visualizar Diária"
                                                         >
                                                             <Eye className="w-5 h-5" />
                                                         </button>

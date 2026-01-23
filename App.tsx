@@ -1285,6 +1285,30 @@ const App: React.FC = () => {
       }
     }
 
+    // LAZY LOAD DETAILS (Optimized Diarias)
+    if (order.blockType === 'diarias' && (!order.documentSnapshot?.content || Object.keys(order.documentSnapshot.content).length === 0)) {
+      setIsLoadingDetails(true);
+      try {
+        const fetched = await diariasService.getServiceRequestById(order.id);
+        if (fetched) {
+          fullOrder = fetched;
+          // Update local cache
+          setServiceRequests(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+        } else {
+          alert("Erro ao carregar os detalhes da diária. Tente novamente.");
+          setIsLoadingDetails(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Error fetching diaria details", err);
+        alert("Erro de conexão ao carregar diária.");
+        setIsLoadingDetails(false);
+        return;
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    }
+
     let snapshotToUse = fullOrder.documentSnapshot;
 
     // STRICT NAVIGATION GUARD: Licitacao logic
