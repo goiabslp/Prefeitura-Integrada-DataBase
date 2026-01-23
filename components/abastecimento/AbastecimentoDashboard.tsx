@@ -299,8 +299,19 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const [showPrintPreview, setShowPrintPreview] = useState(false);
     const [reportMode, setReportMode] = useState<'simplified' | 'complete'>('complete');
     const [appliedFilters, setAppliedFilters] = useState({
-        startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0],
+        startDate: (() => {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            return `${year}-${month}-01`;
+        })(),
+        endDate: (() => {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        })(),
         station: 'all',
         sector: 'all',
         vehicle: 'all',

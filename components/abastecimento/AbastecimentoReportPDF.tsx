@@ -152,7 +152,13 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
 
     const totalPlatePages = Math.ceil(plateSummaryItems.length / PLATE_ITEMS_PER_PAGE) || 1;
     const totalDetailPages = mode === 'complete' ? (Math.ceil(detailedItems.length / ITEMS_PER_PAGE) || 1) : 0;
-    const globalTotalPages = 1 + totalPlatePages + totalDetailPages; // Summary + Plate Summary Pages + Details Pages
+
+    // 3. Prepare Consolidated Items
+    const CONSOLIDATED_ITEMS_PER_PAGE = 26;
+    const consolidatedItems = [...data.records].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const totalConsolidatedPages = Math.ceil(consolidatedItems.length / CONSOLIDATED_ITEMS_PER_PAGE) || 1;
+
+    const globalTotalPages = 1 + totalPlatePages + totalDetailPages + totalConsolidatedPages; // Summary + Plate Summary + Details (if complete) + Consolidated
 
     // Create a state copy without watermark for the report
     const reportState = {
@@ -193,9 +199,9 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                     <div>
                         <p className="text-[7pt] font-black text-slate-400 uppercase">Período</p>
                         <p className="text-[9pt] font-bold text-slate-700">
-                            {filters.startDate ? new Date(filters.startDate).toLocaleDateString('pt-BR') : 'Início'}
+                            {filters.startDate ? new Date(filters.startDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'Início'}
                             <span className="mx-2 opacity-30">até</span>
-                            {filters.endDate ? new Date(filters.endDate).toLocaleDateString('pt-BR') : 'Hoje'}
+                            {filters.endDate ? new Date(filters.endDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'Hoje'}
                         </p>
                     </div>
                     <div>
@@ -254,8 +260,8 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                                     {Object.entries(data.totalLitersByFuel).map(([fuel, liters]) => (
                                         <tr key={fuel} className="text-[8pt] font-bold text-slate-700">
                                             <td className="px-6 py-3 uppercase">{fuel}</td>
-                                            <td className="px-6 py-3 text-right">{formatNumber(liters as number)}</td>
-                                            <td className="px-6 py-3 text-right">{formatCurrency(data.totalValueByFuel[fuel] as number)}</td>
+                                            <td className="px-6 py-3 text-right whitespace-nowrap">{formatNumber(liters as number)}</td>
+                                            <td className="px-6 py-3 text-right whitespace-nowrap">{formatCurrency(data.totalValueByFuel[fuel] as number)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -290,11 +296,11 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                                         .map(([sector, details]) => (
                                             <tr key={sector} className="text-[7pt] font-bold text-slate-700">
                                                 <td className="px-3 py-2 uppercase border-r border-slate-50 font-black text-slate-900 whitespace-nowrap">{sector}</td>
-                                                <td className="px-2 py-2 text-right border-r border-indigo-50 bg-indigo-50/20 text-indigo-950">{formatNumber(details.dieselLiters)}</td>
-                                                <td className="px-2 py-2 text-right border-r border-indigo-50 bg-indigo-50/20 text-indigo-950">{formatCurrency(details.dieselValue)}</td>
-                                                <td className="px-2 py-2 text-right border-r border-sky-50 bg-sky-50/20 text-sky-600">{formatNumber(details.gasolinaLiters)}</td>
-                                                <td className="px-2 py-2 text-right border-r border-sky-50 bg-sky-50/20 text-sky-600">{formatCurrency(details.gasolinaValue)}</td>
-                                                <td className="px-3 py-2 text-right font-black text-slate-900 bg-slate-100/50">{formatCurrency(details.totalValue)}</td>
+                                                <td className="px-2 py-2 text-right border-r border-indigo-50 bg-indigo-50/20 text-indigo-950 whitespace-nowrap">{formatNumber(details.dieselLiters)}</td>
+                                                <td className="px-2 py-2 text-right border-r border-indigo-50 bg-indigo-50/20 text-indigo-950 whitespace-nowrap">{formatCurrency(details.dieselValue)}</td>
+                                                <td className="px-2 py-2 text-right border-r border-sky-50 bg-sky-50/20 text-sky-600 whitespace-nowrap">{formatNumber(details.gasolinaLiters)}</td>
+                                                <td className="px-2 py-2 text-right border-r border-sky-50 bg-sky-50/20 text-sky-600 whitespace-nowrap">{formatCurrency(details.gasolinaValue)}</td>
+                                                <td className="px-3 py-2 text-right font-black text-slate-900 bg-slate-100/50 whitespace-nowrap">{formatCurrency(details.totalValue)}</td>
                                             </tr>
                                         ))}
                                 </tbody>
@@ -352,8 +358,8 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                                             <tr key={`it-${idx}`} className="text-[7.5pt] font-bold text-slate-700 hover:bg-slate-50/50">
                                                 <td className="px-5 py-1.5 font-black text-slate-900 uppercase">{item.plate}</td>
                                                 <td className="px-5 py-1.5 uppercase text-slate-400 font-mono text-[7pt]">{item.fuelType}</td>
-                                                <td className="px-5 py-1.5 text-right text-indigo-700">{formatNumber(item.totalLiters)} L</td>
-                                                <td className="px-5 py-1.5 text-right font-black text-slate-900 bg-slate-50/30 border-l border-slate-100">{formatCurrency(item.totalValue)}</td>
+                                                <td className="px-5 py-1.5 text-right text-indigo-700 whitespace-nowrap">{formatNumber(item.totalLiters)} L</td>
+                                                <td className="px-5 py-1.5 text-right font-black text-slate-900 bg-slate-50/30 border-l border-slate-100 whitespace-nowrap">{formatCurrency(item.totalValue)}</td>
                                             </tr>
                                         );
                                     })}
@@ -435,7 +441,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                                                 <td className="px-3 py-3 text-[8pt] font-black text-slate-900">
                                                     {formatNumber(item.liters)} L
                                                 </td>
-                                                <td className="px-3 py-3 text-[8pt] font-black text-slate-900">
+                                                <td className="px-3 py-3 text-[8pt] font-black text-slate-900 whitespace-nowrap">
                                                     {formatCurrency(item.cost)}
                                                 </td>
                                             </tr>
@@ -451,13 +457,64 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                                                 <p className="text-[5.5pt] text-slate-400 font-bold mt-0.5">{r.derivedPlate}</p>
                                             </td>
                                             <td className="px-3 py-2 uppercase whitespace-nowrap text-[7pt] font-bold text-slate-500 leading-tight">{r.derivedSector}</td>
-                                            <td className="px-3 py-2 px-3 py-2">{formatNumber(r.liters)} L</td>
-                                            <td className="px-3 py-2 font-bold text-slate-900">{formatCurrency(r.cost)}</td>
+                                            <td className="px-3 py-2 px-3 py-2 whitespace-nowrap">{formatNumber(r.liters)} L</td>
+                                            <td className="px-3 py-2 font-bold text-slate-900 whitespace-nowrap">{formatCurrency(r.cost)}</td>
                                         </tr>
                                     );
                                 })}
                             </tbody>
                         </table>
+                    </div>
+                </PageWrapper>
+            );
+        }
+        return pages;
+    };
+
+    const renderConsolidatedPages = () => {
+        const pages = [];
+        for (let i = 0; i < consolidatedItems.length; i += CONSOLIDATED_ITEMS_PER_PAGE) {
+            const pageItems = consolidatedItems.slice(i, i + CONSOLIDATED_ITEMS_PER_PAGE);
+            const pageIndex = Math.floor(i / CONSOLIDATED_ITEMS_PER_PAGE) + 1 + totalPlatePages + totalDetailPages;
+
+            pages.push(
+                <PageWrapper key={`cons-${pageIndex}`} state={reportState} pageIndex={pageIndex} totalPages={globalTotalPages} isGenerating={isGenerating}>
+                    <div className="flex flex-col h-full">
+                        <div className="pb-4 border-b border-slate-200 mb-6">
+                            <h2 className="text-[12pt] font-black uppercase text-slate-900">Consolidado Geral</h2>
+                            <p className="text-[8pt] text-slate-500 font-bold uppercase tracking-widest leading-none">Página {pageIndex}</p>
+                        </div>
+
+                        <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                    <tr className="text-[7pt] font-black uppercase tracking-widest text-slate-500">
+                                        <th className="px-4 py-3 w-[20%]">Data / Nota</th>
+                                        <th className="px-4 py-3 w-[40%]">Veículo / Placa</th>
+                                        <th className="px-4 py-3 text-right w-[15%]">Litros</th>
+                                        <th className="px-4 py-3 text-right w-[25%]">Valor Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {pageItems.map((r, idx) => (
+                                        <tr key={idx} className="text-[7.5pt] font-medium text-slate-700 hover:bg-slate-50/50">
+                                            <td className="px-4 py-2">
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-slate-900">{new Date(r.date).toLocaleDateString('pt-BR')}</span>
+                                                    <span className="text-[9px] font-mono text-slate-400 uppercase">{r.invoiceNumber || '-'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-2 uppercase">
+                                                <span className="font-bold text-slate-800">{r.vehicle}</span>
+                                                <span className="block text-[6pt] text-slate-400 font-bold tracking-wider">{r.derivedPlate}</span>
+                                            </td>
+                                            <td className="px-4 py-2 text-right text-indigo-700 font-bold whitespace-nowrap">{formatNumber(r.liters)} L</td>
+                                            <td className="px-4 py-2 text-right font-black text-slate-900 whitespace-nowrap">{formatCurrency(r.cost)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </PageWrapper>
             );
@@ -498,6 +555,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                     {renderSummaryPage()}
                     {renderPlateSummaryPages()}
                     {mode === 'complete' && renderRecordPages()}
+                    {renderConsolidatedPages()}
                 </div>
             </div>
         </div>,

@@ -110,15 +110,15 @@ export const AbastecimentoService = {
                     query = query.or(`vehicle.ilike.%${s}%,driver.ilike.%${s}%,fiscal.ilike.%${s}%,invoice_number.ilike.%${s}%`);
                 }
                 if (filters.date) {
-                    const start = `${filters.date}T00:00:00`;
-                    const end = `${filters.date}T23:59:59`;
+                    const start = `${filters.date}T00:00:00-03:00`;
+                    const end = `${filters.date}T23:59:59-03:00`;
                     query = query.gte('date', start).lte('date', end);
                 }
                 if (filters.startDate) {
-                    query = query.gte('date', `${filters.startDate}T00:00:00`);
+                    query = query.gte('date', `${filters.startDate}T00:00:00-03:00`);
                 }
                 if (filters.endDate) {
-                    query = query.lte('date', `${filters.endDate}T23:59:59`);
+                    query = query.lte('date', `${filters.endDate}T23:59:59-03:00`);
                 }
                 if (filters.station && filters.station !== 'all') {
                     query = query.eq('station', filters.station);
