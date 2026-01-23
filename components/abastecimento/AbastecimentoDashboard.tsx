@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { ArrowLeft, TrendingUp, Droplet, DollarSign, Truck, Settings, LayoutDashboard, Building2, MapPin, CreditCard, Fuel, Save, Plus, Calendar, ChevronDown, History, BarChart3, Search, ChevronRight, FileText, Filter, FileSpreadsheet, Download, CalendarDays, Factory, Car } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Droplet, DollarSign, Truck, Settings, LayoutDashboard, Building2, MapPin, CreditCard, Fuel, Save, Plus, Calendar, ChevronDown, History, BarChart3, Search, ChevronRight, FileText, Filter, FileSpreadsheet, Download, CalendarDays, Factory, Car, AlertTriangle } from 'lucide-react';
 import { ModernSelect } from '../common/ModernSelect';
 import { ModernDateInput } from '../common/ModernDateInput';
 import { AbastecimentoService, AbastecimentoRecord } from '../../services/abastecimentoService';
@@ -573,10 +573,28 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         // without re-running the logic. Let's stick to consumption (R$/km) if possible or just total cost.
         // Let's add 'totalKm' to vehicleStats to compute R$/km
 
-        // 5. Alerts
-        // e.g. Vehicles with efficiency < 3km/L (if we had it) or just High Cost outliers
-        const avgCost = totalCost / (activeVehicles || 1);
-        const costAlerts = vehicleStats.filter(v => v.totalCost > avgCost * 1.5); // 50% above average
+        // 5. Alerts - Efficiency Check
+        // Filter: Only vehicles with minKml/maxKml defined AND violating the range
+        const costAlerts = vehicleStats.reduce((acc, v) => {
+            // Find full vehicle object
+            const fullVehicle = vehicles.find(veh =>
+                (veh.plate && veh.plate === v.id) ||
+                (`${veh.model} - ${veh.brand}` === v.id) ||
+                (veh.plate && v.id.includes(veh.plate))
+            );
+
+            if (fullVehicle && v.avgKmL > 0) {
+                const min = fullVehicle.minKml;
+                const max = fullVehicle.maxKml;
+
+                if (min && v.avgKmL < min) {
+                    acc.push({ ...v, alertType: 'low', target: min });
+                } else if (max && v.avgKmL > max) {
+                    acc.push({ ...v, alertType: 'high', target: max });
+                }
+            }
+            return acc;
+        }, [] as (VehicleStat & { alertType: 'low' | 'high', target: number })[]);
 
         // Total KM (for filtered period)
         // We need to sum the distance of intervals in this period.
@@ -1336,19 +1354,41 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         </div>
                         <div>
                             <h3 className="text-lg font-black text-rose-700">Alertas de Consumo</h3>
-                            <p className="text-sm text-rose-400 font-medium">Veículos com gasto 50% acima da média</p>
+                            <p className="text-sm text-rose-400 font-medium">
+                                {stats.costAlerts.length} veículos fora da faixa de consumo esperada
+                            </p>
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {stats.costAlerts.slice(0, 6).map((v, idx) => (
-                            <div key={idx} className="bg-white p-3 rounded-2xl shadow-sm border border-rose-100 flex justify-between items-center">
-                                <div>
-                                    <p className="text-xs font-bold text-slate-800 uppercase">{v.name}</p>
-                                    <p className="text-[10px] text-rose-500 font-bold">{formatCurrency(v.totalCost)}</p>
+                        {stats.costAlerts.map((v, idx) => {
+                            const isLow = v.alertType === 'low';
+                            // Calculate deviation %
+                            // Low: (Target - Actual) / Target
+                            // High: (Actual - Target) / Target
+                            const diff = v.target ? Math.abs((v.avgKmL - v.target) / v.target) * 100 : 0;
+
+                            return (
+                                <div key={idx} className={`p-3 rounded-2xl shadow-sm border flex justify-between items-center ${isLow ? 'bg-white border-rose-100' : 'bg-amber-50 border-amber-100'}`}>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-xl text-white shadow-sm ${isLow ? 'bg-rose-500' : 'bg-amber-500'}`}>
+                                            <AlertTriangle className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-xs font-black text-slate-700 uppercase">{v.name}</h4>
+                                            <p className={`text-[10px] font-bold mt-0.5 ${isLow ? 'text-rose-500' : 'text-amber-600'}`}>
+                                                {isLow ? 'Abaixo do Mínimo' : 'Acima do Teto'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-sm font-black text-slate-900">{formatNumber(v.avgKmL, 1)} <span className="text-[9px] text-slate-400 font-bold">KM/L</span></p>
+                                        <p className="text-[9px] font-bold text-slate-400">
+                                            Meta: {isLow ? '>' : '<'} {formatNumber(v.target, 1)} <span className={`ml-1 ${isLow ? 'text-rose-500' : 'text-amber-500'}`}>({Math.round(diff)}%)</span>
+                                        </p>
+                                    </div>
                                 </div>
-                                <span className="text-[10px] font-bold bg-rose-100 text-rose-600 px-2 py-1 rounded-lg">Alto Gasto</span>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}

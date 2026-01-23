@@ -257,6 +257,8 @@ export interface Vehicle {
   maintenanceStatus: MaintenanceStatus;
   fuelTypes?: string[];
   requestManagerIds?: string[];
+  maxKml?: number;
+  minKml?: number;
 }
 
 export type ScheduleStatus = 'pendente' | 'confirmado' | 'em_curso' | 'concluido' | 'cancelado';

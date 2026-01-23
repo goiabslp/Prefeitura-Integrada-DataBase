@@ -73,7 +73,10 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   const [responsibleSearch, setResponsibleSearch] = useState('');
   const [requestManagerSearch, setRequestManagerSearch] = useState('');
   const [brandSearch, setBrandSearch] = useState('');
+
   const [newBrandName, setNewBrandName] = useState('');
+  const [maxKmlInput, setMaxKmlInput] = useState('');
+  const [minKmlInput, setMinKmlInput] = useState('');
 
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const maintDropdownRef = useRef<HTMLDivElement>(null);
@@ -101,7 +104,9 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
     status: 'operacional',
     maintenanceStatus: 'em_dia',
     fuelTypes: [],
-    requestManagerIds: []
+    requestManagerIds: [],
+    maxKml: undefined,
+    minKml: undefined
   });
 
   useEffect(() => {
@@ -137,8 +142,12 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
       setFormData({
         ...fullVehicle,
         fuelTypes: fullVehicle.fuelTypes || [],
-        requestManagerIds: fullVehicle.requestManagerIds || []
+        requestManagerIds: fullVehicle.requestManagerIds || [],
+        maxKml: fullVehicle.maxKml,
+        minKml: fullVehicle.minKml
       });
+      setMaxKmlInput(fullVehicle.maxKml ? fullVehicle.maxKml.toString().replace('.', ',') : '');
+      setMinKmlInput(fullVehicle.minKml ? fullVehicle.minKml.toString().replace('.', ',') : '');
     } else {
       setEditingVehicle(null);
       setFormData({
@@ -158,8 +167,12 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
         status: 'operacional',
         maintenanceStatus: 'em_dia',
         fuelTypes: [],
-        requestManagerIds: []
+        requestManagerIds: [],
+        maxKml: undefined,
+        minKml: undefined
       });
+      setMaxKmlInput('');
+      setMinKmlInput('');
     }
     setSectorSearch('');
     setResponsibleSearch('');
@@ -711,6 +724,45 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                     <div>
                       <label className={labelClass}><Calendar className="w-4 h-4 inline mr-2 text-indigo-500" /> Ano Fabricação/Modelo</label>
                       <input value={formData.year} onChange={e => setFormData({ ...formData, year: e.target.value })} className={inputClass} placeholder="2023/2024" />
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <label className={labelClass}><Gauge className="w-4 h-4 inline mr-2 text-indigo-500" /> KM/L Mínimo (Referência)</label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={minKmlInput}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (/^[\d.,]*$/.test(val)) {
+                              setMinKmlInput(val);
+                              const numVal = parseFloat(val.replace(',', '.'));
+                              setFormData({ ...formData, minKml: isNaN(numVal) ? undefined : numVal });
+                            }
+                          }}
+                          className={inputClass}
+                          placeholder="Ex: 8,0"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className={labelClass}><Gauge className="w-4 h-4 inline mr-2 text-indigo-500" /> KM/L Máximo (Teto)</label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={maxKmlInput}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (/^[\d.,]*$/.test(val)) {
+                              setMaxKmlInput(val);
+                              const numVal = parseFloat(val.replace(',', '.'));
+                              setFormData({ ...formData, maxKml: isNaN(numVal) ? undefined : numVal });
+                            }
+                          }}
+                          className={inputClass}
+                          placeholder="Ex: 12,5"
+                        />
+                      </div>
                     </div>
 
                     <div>

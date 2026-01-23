@@ -207,7 +207,9 @@ export const getVehicles = async (): Promise<Vehicle[]> => {
         status: v.status,
         maintenanceStatus: v.maintenance_status,
         fuelTypes: v.fuel_types,
-        requestManagerIds: v.request_manager_ids || []
+        requestManagerIds: v.request_manager_ids || [],
+        maxKml: v.max_kml,
+        minKml: v.min_kml
     })) || [];
 };
 
@@ -241,7 +243,9 @@ export const getVehicleById = async (id: string): Promise<Vehicle | null> => {
         status: data.status,
         maintenanceStatus: data.maintenance_status,
         fuelTypes: data.fuel_types,
-        requestManagerIds: data.request_manager_ids || []
+        requestManagerIds: data.request_manager_ids || [],
+        maxKml: data.max_kml,
+        minKml: data.min_kml
     };
 };
 
@@ -270,7 +274,9 @@ export const createVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         status: vehicle.status,
         maintenance_status: vehicle.maintenanceStatus,
         fuel_types: vehicle.fuelTypes,
-        request_manager_ids: vehicle.requestManagerIds || []
+        request_manager_ids: vehicle.requestManagerIds || [],
+        max_kml: vehicle.maxKml,
+        min_kml: vehicle.minKml
     };
 
     const { data, error } = await supabase
@@ -302,7 +308,9 @@ export const createVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         status: data.status,
         maintenanceStatus: data.maintenance_status,
         fuelTypes: data.fuel_types,
-        requestManagerIds: data.request_manager_ids || []
+        requestManagerIds: data.request_manager_ids || [],
+        maxKml: data.max_kml,
+        minKml: data.min_kml
     };
 };
 
@@ -324,7 +332,9 @@ export const updateVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         status: vehicle.status,
         maintenance_status: vehicle.maintenanceStatus,
         fuel_types: vehicle.fuelTypes,
-        request_manager_ids: vehicle.requestManagerIds || []
+        request_manager_ids: vehicle.requestManagerIds || [],
+        max_kml: vehicle.maxKml,
+        min_kml: vehicle.minKml
     };
 
     const { data, error } = await supabase
@@ -357,7 +367,9 @@ export const updateVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         status: data.status,
         maintenanceStatus: data.maintenance_status,
         fuelTypes: data.fuel_types,
-        requestManagerIds: data.request_manager_ids || []
+        requestManagerIds: data.request_manager_ids || [],
+        maxKml: data.max_kml,
+        minKml: data.min_kml
     };
 };
 
