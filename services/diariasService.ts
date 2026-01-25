@@ -7,7 +7,9 @@ export const getAllServiceRequests = async (lightweight = false): Promise<Order[
         .from('service_requests')
         .select(`
             id, protocol, title, status, status_history, created_at, user_id, user_name, payment_status, payment_date
-            ${lightweight ? '' : ', document_snapshot'}
+            ${lightweight
+                ? ', requester_name:document_snapshot->content->>requesterName, destination:document_snapshot->content->>destination, departure_date:document_snapshot->content->>departureDateTime, return_date:document_snapshot->content->>returnDateTime, requester_sector:document_snapshot->content->>requesterSector'
+                : ', document_snapshot'}
         `)
         .order('created_at', { ascending: false });
 
@@ -34,7 +36,25 @@ export const getAllServiceRequests = async (lightweight = false): Promise<Order[
         userId: item.user_id,
         userName: item.user_name,
         blockType: 'diarias',
-        documentSnapshot: item.document_snapshot // Undefined if lightweight
+        documentSnapshot: lightweight ? {
+            branding: {} as any,
+            document: {} as any,
+            ui: {} as any,
+            content: {
+                title: item.title,
+                body: '',
+                signatureName: '',
+                signatureRole: '',
+                signatureSector: '',
+                leftBlockText: '',
+                rightBlockText: '',
+                requesterName: item.requester_name,
+                destination: item.destination,
+                departureDateTime: item.departure_date,
+                returnDateTime: item.return_date,
+                requesterSector: item.requester_sector
+            }
+        } : item.document_snapshot
     }));
 };
 

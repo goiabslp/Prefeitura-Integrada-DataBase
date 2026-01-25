@@ -5,7 +5,7 @@ import {
     FileDown, Calendar, Edit3, TrendingUp, Loader2,
     CheckCircle2, AlertCircle, CalendarCheck, Check, RotateCcw,
     Paperclip, PackageCheck, FileSearch, Scale, Landmark, ShoppingCart, CheckCircle, XCircle,
-    Eye, History, X, Lock, User, MessageCircle, Sparkles, Plus, Upload, Download, AlertTriangle, ShieldAlert, Zap, Info, Network, Trash, ArrowRight, Edit2
+    Eye, History, X, Lock, User, MessageCircle, Sparkles, Plus, Upload, Download, AlertTriangle, ShieldAlert, Zap, Info, Network, Trash, ArrowRight, Edit2, MapPin
 } from 'lucide-react';
 import { User as UserType, Order, AppState, BlockType, Attachment } from '../types';
 import { DocumentPreview } from './DocumentPreview';
@@ -665,7 +665,14 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
                                                 <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : activeBlock === 'oficio' ? 'md:col-span-3' : 'md:col-span-6'}`}>
                                                     <h3 className="text-sm font-bold text-slate-800 leading-tight">
-                                                        {isDiarias ? (content?.requesterName || '---') : isCompras ? (content?.requesterSector || order.requestingSector || 'Sem Setor') : (activeBlock === 'oficio' ? (
+                                                        {isDiarias ? (
+                                                            <div className="flex flex-col">
+                                                                <span>{content?.requesterName || '---'}</span>
+                                                                <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wide flex items-center gap-1">
+                                                                    <MapPin className="w-3 h-3" /> {content?.destination || 'Destino n/a'}
+                                                                </span>
+                                                            </div>
+                                                        ) : isCompras ? (content?.requesterSector || order.requestingSector || 'Sem Setor') : (activeBlock === 'oficio' ? (
                                                             <span title={`De: ${order.userName}\nSetor: ${content?.requesterSector || content?.signatureSector || 'Não informado'}`} className="cursor-help decoration-dotted underline decoration-slate-300 underline-offset-2">
                                                                 {order.userName.split(' ').slice(0, 2).join(' ')}
                                                             </span>
@@ -679,8 +686,11 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                 </div>
 
                                                 {isDiarias && (
-                                                    <div className="md:col-span-2 text-slate-600 text-xs font-bold">
-                                                        {getDepartureDate(order)}
+                                                    <div className="md:col-span-2 text-slate-600 text-xs font-bold flex flex-col">
+                                                        <span>{getDepartureDate(order)}</span>
+                                                        {content?.returnDateTime && (
+                                                            <span className="text-[9px] text-slate-400 font-medium">Volta: {new Date(content.returnDateTime).toLocaleDateString('pt-BR')}</span>
+                                                        )}
                                                     </div>
                                                 )}
 
