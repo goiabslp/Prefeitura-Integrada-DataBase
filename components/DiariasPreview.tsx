@@ -13,9 +13,9 @@ export const DiariasPreview: React.FC<DiariasPreviewProps> = ({ state, isGenerat
   const stateNoWatermark = {
     ...state,
     branding: {
-      ...state.branding,
+      ...(state.branding || {}),
       watermark: {
-        ...state.branding.watermark,
+        ...(state.branding?.watermark || {}),
         enabled: false
       }
     }
