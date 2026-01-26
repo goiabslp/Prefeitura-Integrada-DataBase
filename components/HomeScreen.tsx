@@ -314,109 +314,105 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         );
     };
 
-    if (activeBlock) {
-        return (
-            <div className="fixed inset-0 w-full h-full bg-[#FAFAFA] font-sans flex flex-col overflow-hidden z-50">
-                {renderActiveBlock()}
-            </div>
-        );
-    }
-
-
     return (
         <div className="fixed inset-0 w-full h-full bg-[#F8FAFC] font-sans flex flex-col overflow-hidden relative">
 
-            {/* Main Content Area (Full Width) */}
-            <main className="flex-1 flex flex-col overflow-hidden relative">
+            {activeBlock ? (
+                <div className="flex-1 flex flex-col overflow-hidden bg-[#FAFAFA] relative">
+                    {renderActiveBlock()}
+                </div>
+            ) : (
+                <main className="flex-1 flex flex-col overflow-hidden relative">
 
-                {/* Header Actions (Tasks Trigger) */}
-                <div className="absolute top-8 right-8 z-20 hidden md:block">
-                    <button
-                        onClick={() => setIsTasksDrawerOpen(true)}
-                        className="group flex items-center gap-3 bg-white/80 backdrop-blur-md p-2 pr-5 rounded-full shadow-lg border border-white/50 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
-                    >
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                            <Activity className="w-5 h-5" />
-                        </div>
-                        <div className="flex flex-col items-start">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-0.5">Minhas</span>
-                            <span className="text-sm font-black text-slate-800 leading-none">Tarefas</span>
-                        </div>
-                        {/* Badge removed per user request for clean state
+                    {/* Header Actions (Tasks Trigger) */}
+                    <div className="absolute top-8 right-8 z-20 hidden md:block">
+                        <button
+                            onClick={() => setIsTasksDrawerOpen(true)}
+                            className="group flex items-center gap-3 bg-white/80 backdrop-blur-md p-2 pr-5 rounded-full shadow-lg border border-white/50 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                                <Activity className="w-5 h-5" />
+                            </div>
+                            <div className="flex flex-col items-start">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-0.5">Minhas</span>
+                                <span className="text-sm font-black text-slate-800 leading-none">Tarefas</span>
+                            </div>
+                            {/* Badge removed per user request for clean state
                         {orders.length > 0 && orders.filter(o => o.status === 'pending').length > 0 && (
                             <div className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ml-1 animate-pulse">
                                 {orders.filter(o => o.status === 'pending').length}
                             </div>
                         )}
                         */}
-                    </button>
-                </div>
-
-                {/* Scrollable Modules Grid */}
-                <div
-                    ref={scrollContainerRef}
-                    onScroll={handleScroll}
-                    className="flex-1 overflow-y-auto custom-scrollbar scroll-smooth"
-                >
-                    <div className="p-8 lg:p-12 pb-40 md:pb-32 max-w-7xl mx-auto w-full pt-12 md:pt-16">
-
-                        {/* ... content ... */}
-
-                        {/* Welcome Header */}
-                        <div className="mb-12">
-                            <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tighter mb-3">
-                                Olá, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">{firstName}</span>.
-                            </h1>
-                            <p className="text-slate-500 text-lg font-medium max-w-2xl">
-                                Selecione um módulo para iniciar suas atividades.
-                            </p>
-                        </div>
-
-                        {/* Modules Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
-                            {/* Operational Modules */}
-                            {canAccessOficio && renderModuleButton(() => setActiveBlock('oficio'), 'indigo', FileText, 'Ofícios', 'Geração e trâmite', '50ms', true)}
-                            {canAccessCompras && renderModuleButton(() => setActiveBlock('compras'), 'emerald', ShoppingCart, 'Compras', 'Pedidos e requisições', '100ms', true)}
-                            {canAccessDiarias && renderModuleButton(() => setActiveBlock('diarias'), 'amber', Wallet, 'Diárias', 'Gestão de despesas', '150ms', true)}
-                            {canAccessLicitacao && renderModuleButton(() => setActiveBlock('licitacao'), 'blue', Gavel, 'Licitação', 'Processos e editais', '200ms', true)}
-
-                            {/* Management Modules */}
-                            {canAccessTarefas && renderModuleButton(() => setActiveBlock('tarefas'), 'pink', Activity, 'Tarefas', 'Gestão de atividades', '225ms', true)}
-
-                            {canAccessScheduling && renderModuleButton(() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }, 'violet', CalendarRange, 'Veículos', 'Agendamento de frota', '250ms', true)}
-                            {canAccessAbastecimento && renderModuleButton(() => setActiveBlock('abastecimento'), 'cyan', Droplet, 'Abastecimento', 'Controle de combustível', '300ms', false)}
-
-                            {/* Field Modules */}
-                            {canAccessAgricultura && renderModuleButton(() => onAgricultura?.(), 'emerald', Sprout, 'Agricultura', 'Gestão rural', '350ms', true)}
-                            {canAccessObras && renderModuleButton(() => onObras?.(), 'orange', HardHat, 'Obras', 'Gestão de obras', '400ms', true)}
-
-                            {/* Admin Shortcut */}
-                            {canAccessFleet && renderModuleButton(() => onOpenAdmin('fleet'), 'slate', Car, 'Gestão de Frotas', 'Veículos e Marcas', '450ms', true)}
-                        </div>
-
-                        {/* Mobile-only Logout */}
-                        <button
-                            onClick={onLogout}
-                            className="mt-12 w-full py-4 rounded-2xl border border-rose-200 bg-white text-rose-500 font-bold uppercase tracking-widest text-xs flex md:hidden items-center justify-center gap-2 hover:bg-rose-50 transition-all shadow-sm"
-                        >
-                            <LogOut className="w-4 h-4" /> Sair do Sistema
                         </button>
                     </div>
-                </div>
 
-                {/* Scroll Indicator */}
-                <div
-                    className={`absolute bottom-8 left-1/2 -translate-x-1/2 transition-all duration-700 pointer-events-none z-30 ${showScrollIndicator ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-                >
-                    <div className="flex flex-col items-center gap-2 animate-bounce">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Ver Mais</span>
-                        <div className="w-10 h-10 rounded-full bg-white/50 backdrop-blur-sm border border-white/60 shadow-lg flex items-center justify-center text-indigo-600">
-                            <ChevronDown className="w-5 h-5" />
+                    {/* Scrollable Modules Grid */}
+                    <div
+                        ref={scrollContainerRef}
+                        onScroll={handleScroll}
+                        className="flex-1 overflow-y-auto custom-scrollbar scroll-smooth"
+                    >
+                        <div className="p-8 lg:p-12 pb-40 md:pb-32 max-w-7xl mx-auto w-full pt-12 md:pt-16">
+
+                            {/* ... content ... */}
+
+                            {/* Welcome Header */}
+                            <div className="mb-12">
+                                <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tighter mb-3">
+                                    Olá, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">{firstName}</span>.
+                                </h1>
+                                <p className="text-slate-500 text-lg font-medium max-w-2xl">
+                                    Selecione um módulo para iniciar suas atividades.
+                                </p>
+                            </div>
+
+                            {/* Modules Grid */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
+                                {/* Operational Modules */}
+                                {canAccessOficio && renderModuleButton(() => setActiveBlock('oficio'), 'indigo', FileText, 'Ofícios', 'Geração e trâmite', '50ms', true)}
+                                {canAccessCompras && renderModuleButton(() => setActiveBlock('compras'), 'emerald', ShoppingCart, 'Compras', 'Pedidos e requisições', '100ms', true)}
+                                {canAccessDiarias && renderModuleButton(() => setActiveBlock('diarias'), 'amber', Wallet, 'Diárias', 'Gestão de despesas', '150ms', true)}
+                                {canAccessLicitacao && renderModuleButton(() => setActiveBlock('licitacao'), 'blue', Gavel, 'Licitação', 'Processos e editais', '200ms', true)}
+
+                                {/* Management Modules */}
+                                {canAccessTarefas && renderModuleButton(() => setActiveBlock('tarefas'), 'pink', Activity, 'Tarefas', 'Gestão de atividades', '225ms', true)}
+
+                                {canAccessScheduling && renderModuleButton(() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }, 'violet', CalendarRange, 'Veículos', 'Agendamento de frota', '250ms', true)}
+                                {canAccessAbastecimento && renderModuleButton(() => setActiveBlock('abastecimento'), 'cyan', Droplet, 'Abastecimento', 'Controle de combustível', '300ms', false)}
+
+                                {/* Field Modules */}
+                                {canAccessAgricultura && renderModuleButton(() => onAgricultura?.(), 'emerald', Sprout, 'Agricultura', 'Gestão rural', '350ms', true)}
+                                {canAccessObras && renderModuleButton(() => onObras?.(), 'orange', HardHat, 'Obras', 'Gestão de obras', '400ms', true)}
+
+                                {/* Admin Shortcut */}
+                                {canAccessFleet && renderModuleButton(() => onOpenAdmin('fleet'), 'slate', Car, 'Gestão de Frotas', 'Veículos e Marcas', '450ms', true)}
+                            </div>
+
+                            {/* Mobile-only Logout */}
+                            <button
+                                onClick={onLogout}
+                                className="mt-12 w-full py-4 rounded-2xl border border-rose-200 bg-white text-rose-500 font-bold uppercase tracking-widest text-xs flex md:hidden items-center justify-center gap-2 hover:bg-rose-50 transition-all shadow-sm"
+                            >
+                                <LogOut className="w-4 h-4" /> Sair do Sistema
+                            </button>
                         </div>
                     </div>
-                </div>
 
-            </main>
+                    {/* Scroll Indicator */}
+                    <div
+                        className={`absolute bottom-8 left-1/2 -translate-x-1/2 transition-all duration-700 pointer-events-none z-30 ${showScrollIndicator ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+                    >
+                        <div className="flex flex-col items-center gap-2 animate-bounce">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Ver Mais</span>
+                            <div className="w-10 h-10 rounded-full bg-white/50 backdrop-blur-sm border border-white/60 shadow-lg flex items-center justify-center text-indigo-600">
+                                <ChevronDown className="w-5 h-5" />
+                            </div>
+                        </div>
+                    </div>
+
+                </main>
+            )}
 
 
 
