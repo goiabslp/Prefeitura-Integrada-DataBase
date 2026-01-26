@@ -187,6 +187,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             }
         }
 
+        const matchedVehicle = vehicles.find(v => v.plate === vehicle);
+
         const newRecord: AbastecimentoRecord = {
             id: recordId,
             protocol: protocolId,
@@ -202,6 +204,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             invoiceNumber,
             userId: initialData?.userId || authUser?.id,
             userName: initialData?.userName || authUser?.name,
+            sectorId: matchedVehicle?.sectorId || initialData?.sectorId,
             created_at: initialData?.created_at
         };
 

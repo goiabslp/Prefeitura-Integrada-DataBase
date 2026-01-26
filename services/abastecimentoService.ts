@@ -23,6 +23,7 @@ export interface AbastecimentoRecord {
     invoiceNumber?: string;
     userId?: string;
     userName?: string;
+    sectorId?: string;
     created_at?: string;
 }
 
@@ -176,6 +177,7 @@ export const AbastecimentoService = {
                 invoiceNumber: item.invoice_number,
                 userId: item.user_id,
                 userName: item.user_name,
+                sectorId: item.sector_id,
                 created_at: item.created_at
             })) || [];
 
@@ -225,7 +227,8 @@ export const AbastecimentoService = {
                 invoice_number: record.invoiceNumber,
                 fiscal: record.fiscal,
                 user_id: record.userId,
-                user_name: record.userName
+                user_name: record.userName,
+                sector_id: record.sectorId
             };
 
             const { error } = await supabase

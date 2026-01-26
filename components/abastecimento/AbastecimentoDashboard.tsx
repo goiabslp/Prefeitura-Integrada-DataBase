@@ -313,12 +313,25 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             return `${year}-${month}-${day}`;
         })(),
         station: 'all',
-        sector: 'all',
+        sector: user?.role === 'admin' ? 'all' : (sectors.find(s => s.id === user?.sectorId)?.name || 'all'),
         vehicle: 'all',
         fuelType: 'all'
     });
     const [pendingFilters, setPendingFilters] = useState({ ...appliedFilters });
-    const [selectedSector, setSelectedSector] = useState<string>('all');
+    const [selectedSector, setSelectedSector] = useState<string>(() => {
+        if (user?.role === 'admin') return 'all';
+        const userSector = sectors.find(s => s.id === user?.sectorId);
+        return userSector?.name || 'all';
+    });
+
+    const isAdmin = user?.role === 'admin';
+    const userSectorName = sectors.find(s => s.id === user?.sectorId)?.name;
+
+    // Filter available sectors for non-admins
+    const availableSectors = useMemo(() => {
+        if (isAdmin) return sectors;
+        return sectors.filter(s => s.id === user?.sectorId);
+    }, [sectors, isAdmin, user?.sectorId]);
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('pt-BR', {
@@ -960,8 +973,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             value={selectedSector}
                             onChange={setSelectedSector}
                             options={[
-                                { value: 'all', label: 'Todos os Setores (Global)' },
-                                ...sectors.map(s => ({ value: s.name, label: s.name }))
+                                ...(isAdmin ? [{ value: 'all', label: 'Todos os Setores (Global)' }] : []),
+                                ...availableSectors.map(s => ({ value: s.name, label: s.name }))
                             ]}
                             icon={Factory}
                             placeholder="Todos os Setores"
@@ -1851,8 +1864,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             value={pendingFilters.sector}
                             onChange={(val) => setPendingFilters({ ...pendingFilters, sector: val })}
                             options={[
-                                { value: 'all', label: 'Todos os Setores' },
-                                ...sectors.map(s => ({ value: s.name, label: s.name }))
+                                ...(isAdmin ? [{ value: 'all', label: 'Todos os Setores' }] : []),
+                                ...availableSectors.map(s => ({ value: s.name, label: s.name }))
                             ]}
                             icon={Factory}
                             placeholder="Todos os Setores"
