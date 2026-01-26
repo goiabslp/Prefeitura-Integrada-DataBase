@@ -18,6 +18,7 @@ interface HomeScreenProps {
     onAbastecimento?: (sub: string) => void;
     onAgricultura?: () => void;
     onObras?: () => void;
+    onViewTasksDashboard?: () => void;
     userRole: UserRole;
     userName: string;
     userId: string;
@@ -57,6 +58,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     onAgricultura,
     onObras,
     onLogout,
+    onViewTasksDashboard,
     orders = [], // Receive orders for Tasks Dashboard
     onViewOrder, // Callback to view order details
     allUsers = [], // Add access to users for task assignment (Need to add to Props interface first, but for now assuming it flows via spreading or defined explicitly if strict)
@@ -193,6 +195,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         const config = getBlockConfig();
 
+
         // Define Action Buttons for Active Block
         const actionButtons = [];
 
@@ -230,12 +233,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             actionButtons.push({
                 label: 'Minhas Tarefas',
                 desc: "Dashboard de Atividades",
-                icon: Activity,
-                onClick: () => {
-                    window.history.pushState({}, '', '/Tarefas/MinhasTarefas');
-                    setIsTasksDrawerOpen(true);
-                },
-                color: 'indigo'
+                icon: History,
+                onClick: onViewTasksDashboard,
+                color: 'purple'
             });
         }
 
@@ -324,28 +324,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             ) : (
                 <main className="flex-1 flex flex-col overflow-hidden relative">
 
-                    {/* Header Actions (Tasks Trigger) */}
-                    <div className="absolute top-8 right-8 z-20 hidden md:block">
-                        <button
-                            onClick={() => setIsTasksDrawerOpen(true)}
-                            className="group flex items-center gap-3 bg-white/80 backdrop-blur-md p-2 pr-5 rounded-full shadow-lg border border-white/50 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
-                        >
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                                <Activity className="w-5 h-5" />
-                            </div>
-                            <div className="flex flex-col items-start">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-0.5">Minhas</span>
-                                <span className="text-sm font-black text-slate-800 leading-none">Tarefas</span>
-                            </div>
-                            {/* Badge removed per user request for clean state
-                        {orders.length > 0 && orders.filter(o => o.status === 'pending').length > 0 && (
-                            <div className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ml-1 animate-pulse">
-                                {orders.filter(o => o.status === 'pending').length}
-                            </div>
-                        )}
-                        */}
-                        </button>
-                    </div>
 
                     {/* Scrollable Modules Grid */}
                     <div
@@ -417,7 +395,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
 
             {/* TASKS DRAWER OVERLAY */}
-            {isTasksDrawerOpen && (
+            {isTasksDrawerOpen && subView !== 'dashboard' && (
                 <div className="fixed inset-0 z-[100] flex justify-end">
                     {/* Backdrop */}
                     <div

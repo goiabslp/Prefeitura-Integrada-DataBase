@@ -78,6 +78,7 @@ import { ChatNotificationPopup } from './components/chat/ChatNotificationPopup';
 import { AgricultureModule } from './components/agriculture/AgricultureModule';
 import { ObrasModule } from './components/obras/ObrasModule';
 import { OrderDetailsScreen } from './components/OrderDetailsScreen';
+import { TasksDashboard } from './components/dashboard/TasksDashboard';
 
 const VIEW_TO_PATH: Record<string, string> = {
   'login': '/Login',
@@ -99,7 +100,8 @@ const VIEW_TO_PATH: Record<string, string> = {
   'admin:2fa': '/Admin/autenticador',
   'admin:ui': '/Admin/Interface',
   'admin:design': '/Admin/Design',
-  'admin:access_control': '/Admin/controle',
+  'admin:access_control': '/Admin/ControleAcesso',
+  'tasks-dashboard': '/Tarefas/MinhasTarefas',
   'tracking:oficio': '/Historico/Oficio',
   'tracking:compras': '/Historico/Compras',
   'tracking:diarias': '/Historico/Diarias',
@@ -602,9 +604,14 @@ const App: React.FC = () => {
           setCurrentView('licitacao-screening');
           setActiveBlock('licitacao');
         } else if (state.view === 'tarefas') {
-          setActiveBlock('tarefas');
-          setCurrentView('home');
-          setAppState(prev => ({ ...prev, view: state.sub || '' }));
+          if (state.sub === 'dashboard') {
+            setCurrentView('tasks-dashboard');
+            setActiveBlock('tarefas');
+          } else {
+            setActiveBlock('tarefas');
+            setCurrentView('home');
+            setAppState(prev => ({ ...prev, view: state.sub || '' }));
+          }
         } else if (state.view === 'abastecimento') {
           setCurrentView('abastecimento');
           setActiveBlock('abastecimento');
@@ -2979,6 +2986,11 @@ const App: React.FC = () => {
                 onViewAllLicitacao={() => setCurrentView('licitacao-all')}
                 onManageLicitacaoScreening={() => setCurrentView('licitacao-screening')}
                 onVehicleScheduling={() => setCurrentView('vehicle-scheduling')}
+                onViewTasksDashboard={() => {
+                  setCurrentView('tasks-dashboard');
+                  setActiveBlock('tarefas');
+                  window.history.pushState({ view: 'tarefas', sub: 'dashboard' }, '', '/Tarefas/MinhasTarefas');
+                }}
                 onOpenAdmin={(tab) => {
                   setCurrentView('admin');
                   setAdminTab(tab || 'users');
@@ -3251,6 +3263,29 @@ const App: React.FC = () => {
                 onUpdateAttachments={handleUpdateOrderAttachments}
                 onDeleteOrder={handleDeleteOrder}
               />
+            )}
+
+            {currentView === 'tasks-dashboard' && (
+              <div className="fixed inset-0 z-[100] bg-white">
+                <TasksDashboard
+                  orders={orders}
+                  userRole={currentUser?.role || 'collaborator'}
+                  userName={currentUser?.name || ''}
+                  userId={currentUser?.id || ''}
+                  onViewOrder={(order) => {
+                    setViewingOrder(order);
+                    setActiveBlock(order.blockType);
+                    setCurrentView('order-details');
+                  }}
+                  onViewAll={handleTrackOrder}
+                  onClose={() => {
+                    setCurrentView('home');
+                    setActiveBlock('tarefas');
+                    window.history.pushState({ view: 'tarefas' }, '', '/Tarefas');
+                  }}
+                  fullScreen={true}
+                />
+              </div>
             )}
 
             {/* LOADING OVERLAY */}
