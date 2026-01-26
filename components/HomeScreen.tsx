@@ -35,6 +35,7 @@ interface HomeScreenProps {
     onViewOrder?: (order: Order) => void;
     allUsers?: User[];
     onTaskCreated?: (task: Order) => void;
+    subView?: string;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -58,7 +59,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     onLogout,
     orders = [], // Receive orders for Tasks Dashboard
     onViewOrder, // Callback to view order details
-    allUsers = [] // Add access to users for task assignment (Need to add to Props interface first, but for now assuming it flows via spreading or defined explicitly if strict)
+    allUsers = [], // Add access to users for task assignment (Need to add to Props interface first, but for now assuming it flows via spreading or defined explicitly if strict)
+    subView = ''
 }) => {
     // Permission Checks
     const { moduleStatus } = useSystemSettings();
@@ -98,6 +100,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
     const [isTasksDrawerOpen, setIsTasksDrawerOpen] = React.useState(false);
     const [isTaskCreationOpen, setIsTaskCreationOpen] = React.useState(false);
+
+    React.useEffect(() => {
+        if (activeBlock === 'tarefas') {
+            if (subView === 'new') setIsTaskCreationOpen(true);
+            else if (subView === 'dashboard') setIsTasksDrawerOpen(true);
+            else {
+                setIsTaskCreationOpen(false);
+                setIsTasksDrawerOpen(false);
+            }
+        }
+    }, [activeBlock, subView]);
 
     // --- Render Module Button ---
     const renderModuleButton = (
@@ -208,14 +221,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 label: 'Nova Tarefa',
                 desc: "Criar nova atividade",
                 icon: FilePlus,
-                onClick: () => setIsTaskCreationOpen(true),
+                onClick: () => {
+                    window.history.pushState({}, '', '/Tarefas/NovaTarefa');
+                    setIsTaskCreationOpen(true);
+                },
                 color: 'pink'
             });
             actionButtons.push({
                 label: 'Minhas Tarefas',
                 desc: "Dashboard de Atividades",
                 icon: Activity,
-                onClick: () => setIsTasksDrawerOpen(true),
+                onClick: () => {
+                    window.history.pushState({}, '', '/Tarefas/MinhasTarefas');
+                    setIsTasksDrawerOpen(true);
+                },
                 color: 'indigo'
             });
         }
@@ -425,7 +444,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                 onTrackOrder();
                                 setIsTasksDrawerOpen(false);
                             }}
-                            onClose={() => setIsTasksDrawerOpen(false)}
+                            onClose={() => {
+                                setIsTasksDrawerOpen(false);
+                                if (activeBlock === 'tarefas') window.history.pushState({}, '', '/Tarefas');
+                            }}
                         />
                     </div>
                 </div>
@@ -433,7 +455,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {/* TASK CREATION MODAL */}
             <QuickTaskCreation
                 isOpen={isTaskCreationOpen}
-                onClose={() => setIsTaskCreationOpen(false)}
+                onClose={() => {
+                    setIsTaskCreationOpen(false);
+                    if (activeBlock === 'tarefas') window.history.pushState({}, '', '/Tarefas');
+                }}
                 currentUserId={userId}
                 currentUserName={userName}
                 users={allUsers || []}

@@ -118,7 +118,10 @@ const VIEW_TO_PATH: Record<string, string> = {
   'abastecimento': '/Abastecimento',
   'agricultura': '/Agricultura',
   'obras': '/Obras',
-  'order-details': '/Historico/Compras/Visualizar'
+  'order-details': '/Historico/Compras/Visualizar',
+  'tarefas': '/Tarefas',
+  'tarefas:new': '/Tarefas/NovaTarefa',
+  'tarefas:dashboard': '/Tarefas/MinhasTarefas'
 };
 
 const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
@@ -598,6 +601,10 @@ const App: React.FC = () => {
         } else if (state.view === 'licitacao-screening') {
           setCurrentView('licitacao-screening');
           setActiveBlock('licitacao');
+        } else if (state.view === 'tarefas') {
+          setActiveBlock('tarefas');
+          setCurrentView('home');
+          setAppState(prev => ({ ...prev, view: state.sub || '' }));
         } else if (state.view === 'abastecimento') {
           setCurrentView('abastecimento');
           setActiveBlock('abastecimento');
@@ -2169,7 +2176,7 @@ const App: React.FC = () => {
           )}
 
           <div className="hidden md:block">
-            {currentUser && <AppHeader currentUser={currentUser} uiConfig={appState.ui} activeBlock={activeBlock} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} onGoHome={handleGoHome} currentView={currentView} isRefreshing={isRefreshing} onRefresh={refreshData} />}
+            {currentUser && <AppHeader currentUser={currentUser} uiConfig={appState.ui} activeBlock={activeBlock} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} onGoHome={handleGoHome} currentView={currentView} isRefreshing={isRefreshing} onRefresh={refreshData} currentSubView={appState.view} />}
           </div>
           {/* ... rest of the app structure ... */}
           <div className="flex-1 flex relative overflow-hidden">
@@ -2984,7 +2991,16 @@ const App: React.FC = () => {
                 onAgricultura={() => setCurrentView('agricultura')}
                 onObras={() => setCurrentView('obras')}
                 activeBlock={activeBlock}
-                setActiveBlock={setActiveBlock}
+                setActiveBlock={(block) => {
+                  setActiveBlock(block);
+                  if (block === 'tarefas') {
+                    window.history.pushState({}, '', '/Tarefas');
+                    setAppState(prev => ({ ...prev, view: '' }));
+                  } else if (block === null) {
+                    window.history.pushState({}, '', '/PaginaInicial');
+                  }
+                }}
+                subView={appState.view}
                 userRole={currentUser?.role || 'collaborator'}
                 userName={currentUser?.name || 'Usuário'}
                 userId={currentUser?.id || ''}
