@@ -871,23 +871,50 @@ const App: React.FC = () => {
       }
 
       // Route save based on blockType
-      if (finalOrder.blockType === 'compras') {
-        await comprasService.savePurchaseOrder(finalOrder);
-        // setPurchaseOrders(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o)); // Derived
-      } else if (finalOrder.blockType === 'diarias') {
-        await diariasService.saveServiceRequest(finalOrder);
-        setServiceRequests(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
-      } else if (finalOrder.blockType === 'licitacao') {
-        await licitacaoService.saveLicitacaoProcess(finalOrder);
-        setLicitacaoProcesses(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
-      } else {
-        // Optimistic Update via Mutation
-        await updateOficioMutation.mutateAsync(finalOrder);
-        // Manual state set removed as the hook handles optimistic cache update
-        // setOficios(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
-      }
-      // Update local generic state for view consistency if needed
+      // Route save based on blockType
+      // Optimistic Update First
       setOrders(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
+
+      if (finalOrder.blockType === 'compras') {
+        try {
+          await comprasService.savePurchaseOrder(finalOrder);
+        } catch (e) {
+          console.error("Failed to save Compras edit:", e);
+          setOrders(prev => prev.map(o => o.id === finalOrder.id ? editingOrder : o)); // Revert
+          showToast("Erro ao salvar edição. Revertendo...", "error");
+        }
+      } else if (finalOrder.blockType === 'diarias') {
+        setServiceRequests(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
+        try {
+          await diariasService.saveServiceRequest(finalOrder);
+        } catch (e) {
+          setServiceRequests(prev => prev.map(o => o.id === finalOrder.id ? editingOrder : o));
+          setOrders(prev => prev.map(o => o.id === finalOrder.id ? editingOrder : o));
+          showToast("Erro ao salvar diária.", "error");
+        }
+      } else if (finalOrder.blockType === 'licitacao') {
+        setLicitacaoProcesses(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o));
+        try {
+          await licitacaoService.saveLicitacaoProcess(finalOrder);
+        } catch (e) {
+          setLicitacaoProcesses(prev => prev.map(o => o.id === finalOrder.id ? editingOrder : o));
+          setOrders(prev => prev.map(o => o.id === finalOrder.id ? editingOrder : o));
+          showToast("Erro ao salvar processo.", "error");
+        }
+      } else {
+        // Optimistic Update Oficio
+        // We already updated orders above.
+        // We typically update Oficios Store too or rely on orders.
+        setOficios(prev => prev.map(o => o.id === finalOrder.id ? finalOrder : o)); // Explicit optimistic
+        try {
+          await updateOficioMutation.mutateAsync(finalOrder);
+        } catch (e) {
+          console.error("Failed to update Oficio", e);
+          setOficios(prev => prev.map(o => o.id === finalOrder.id ? editingOrder : o));
+          setOrders(prev => prev.map(o => o.id === finalOrder.id ? editingOrder : o));
+          showToast("Erro ao salvar ofício.", "error");
+        }
+      }
     } else {
       let protocolString = '';
       let uniqueProtocolId = ''; // Secondary unique tracking ID
@@ -1101,25 +1128,45 @@ const App: React.FC = () => {
           setPurchaseLoadingState(prev => ({ ...prev, isLoading: false })); // Stop Loading Modal
         }
       } else if (activeBlock === 'diarias') {
-        await diariasService.saveServiceRequest(finalOrder);
+        // Optimistic Update
         setServiceRequests(prev => [finalOrder, ...prev]);
         setOrders(prev => [finalOrder, ...prev]);
+        try {
+          await diariasService.saveServiceRequest(finalOrder);
+        } catch (err) {
+          setServiceRequests(prev => prev.filter(o => o.id !== finalOrder.id));
+          setOrders(prev => prev.filter(o => o.id !== finalOrder.id));
+          showToast("Erro ao salvar diária.", "error");
+          return false;
+        }
       } else if (activeBlock === 'licitacao') {
-        await licitacaoService.saveLicitacaoProcess(finalOrder);
+        // Optimistic Update Before API
         setLicitacaoProcesses(prev => [finalOrder, ...prev]);
         setOrders(prev => [finalOrder, ...prev]);
+
+        try {
+          await licitacaoService.saveLicitacaoProcess(finalOrder);
+        } catch (err) {
+          console.error("Failed to save Licitacao:", err);
+          // Rollback
+          setLicitacaoProcesses(prev => prev.filter(o => o.id !== finalOrder.id));
+          setOrders(prev => prev.filter(o => o.id !== finalOrder.id));
+          showToast("Erro ao salvar processo. Revertendo...", "error");
+          return false;
+        }
       } else {
+        // OFICIO Optimistic Update
+        setOrders(prev => [finalOrder, ...prev]);
         try {
           console.log("Saving new Oficio via Mutation...", finalOrder);
           await createOficioMutation.mutateAsync(finalOrder);
           console.log("Oficio Saved Successfully.");
         } catch (err) {
           console.error("Failed to save Oficio:", err);
+          setOrders(prev => prev.filter(o => o.id !== finalOrder.id));
           alert("Erro ao salvar o ofício. Verifique o console.");
           return false;
         }
-        // Sync local state immediately for visual feedback
-        setOrders(prev => [finalOrder, ...prev]);
       }
       setAppState(finalSnapshot);
       clearDraft(); // CLEAR DRAFT ON SUCCESS
@@ -1550,16 +1597,36 @@ const App: React.FC = () => {
   };
 
   const handleUpdatePaymentStatus = async (orderId: string, status: 'pending' | 'paid') => {
-    const updatedOrders = orders.map(o => {
-      if (o.id === orderId) {
-        const updated = { ...o, paymentStatus: status, paymentDate: status === 'paid' ? new Date().toISOString() : undefined };
-        diariasService.saveServiceRequest(updated);
-        setServiceRequests(prev => prev.map(p => p.id === updated.id ? updated : p));
-        return updated;
-      }
-      return o;
-    });
-    setOrders(updatedOrders);
+    const orderToUpdate = orders.find(o => o.id === orderId);
+    if (!orderToUpdate) return;
+
+    // 1. Snapshot
+    const prevOrders = orders;
+    const prevServiceRequests = serviceRequests;
+
+    // 2. Prepare Data
+    const updatedOrder = {
+      ...orderToUpdate,
+      paymentStatus: status,
+      paymentDate: status === 'paid' ? new Date().toISOString() : undefined
+    };
+
+    // 3. Optimistic Update
+    const updateList = (list: Order[]) => list.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+    setOrders(updateList);
+    setServiceRequests(updateList);
+
+    try {
+      // 4. API Sync
+      await diariasService.saveServiceRequest(updatedOrder);
+      showToast("Pagamento atualizado!", "success");
+    } catch (e) {
+      // 5. Rollback
+      console.error("Failed to update payment status:", e);
+      setOrders(prevOrders);
+      setServiceRequests(prevServiceRequests);
+      showToast("Erro ao atualizar pagamento. Revertendo...", "error");
+    }
   };
 
   const handleDownloadPdf = () => {
@@ -2954,17 +3021,15 @@ const App: React.FC = () => {
                 persons={persons}
                 sectors={sectors}
                 onAddSchedule={async (s) => {
-                  // Optimistic Update handled by Realtime for consistency?
-                  // Or we can add temporary. For now, we trust the DB return is fast enough, but effectively 'Realtime' handles the broadcast.
-                  // However, strict optimistic means we update LOCAL before remote.
-                  // Since generateProtocol relies on DB or Service logic, we'll let service return the object.
-                  // But to prevent UI flicker until Realtime event arrives, we update local state with the returned object immediately.
-                  const newS = await vehicleSchedulingService.createSchedule(s);
-                  if (newS) setSchedules(prev => {
-                    // Prevent duplicate if Realtime arrived first (unlikely but possible)
-                    if (prev.find(x => x.id === newS.id)) return prev;
-                    return [newS, ...prev];
-                  });
+                  // Optimistic Update
+                  setSchedules(prev => [s, ...prev]);
+                  try {
+                    await vehicleSchedulingService.createSchedule(s);
+                  } catch (e) {
+                    console.error("Failed to create schedule", e);
+                    setSchedules(prev => prev.filter(x => x.id !== s.id));
+                    showToast("Erro ao agendar veículo.", "error");
+                  }
                 }}
                 onUpdateSchedule={async (s) => {
                   // Optimistic Update
