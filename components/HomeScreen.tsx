@@ -173,6 +173,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 case 'abastecimento': return { name: "Abastecimento", color: 'cyan', icon: Fuel };
                 case 'agricultura': return { name: "Agricultura", color: 'emerald', icon: Sprout };
                 case 'obras': return { name: "Obras", color: 'orange', icon: HardHat };
+                case 'tarefas': return { name: "Gestão de Tarefas", color: 'pink', icon: Activity };
                 default: return { name: "", color: 'slate', icon: Package };
             }
         };
@@ -183,7 +184,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         const actionButtons = [];
 
         // "New" Button
-        if (activeBlock !== 'abastecimento') {
+        if (activeBlock !== 'abastecimento' && activeBlock !== 'tarefas') {
             actionButtons.push({
                 label: activeBlock === 'compras' ? 'Novo Pedido' : activeBlock === 'oficio' ? 'Novo Ofício' : activeBlock === 'diarias' ? 'Nova Solicitação' : activeBlock === 'licitacao' ? 'Novo Processo' : 'Novo Registro',
                 desc: "Criar novo registro",
@@ -198,6 +199,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 icon: History,
                 onClick: onTrackOrder,
                 color: 'purple' // Use distinct color for history? Or theme color? Let's use theme color but slightly diff shading if needed, or stick to purple for history globally. Stick to purple for consistency.
+            });
+        }
+
+        // Tarefas Specific Buttons
+        if (activeBlock === 'tarefas') {
+            actionButtons.push({
+                label: 'Nova Tarefa',
+                desc: "Criar nova atividade",
+                icon: FilePlus,
+                onClick: () => setIsTaskCreationOpen(true),
+                color: 'pink'
+            });
+            actionButtons.push({
+                label: 'Minhas Tarefas',
+                desc: "Dashboard de Atividades",
+                icon: Activity,
+                onClick: () => setIsTasksDrawerOpen(true),
+                color: 'indigo'
             });
         }
 
@@ -343,7 +362,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             {canAccessLicitacao && renderModuleButton(() => setActiveBlock('licitacao'), 'blue', Gavel, 'Licitação', 'Processos e editais', '200ms', true)}
 
                             {/* Management Modules */}
-                            {canAccessTarefas && renderModuleButton(() => setIsTaskCreationOpen(true), 'pink', Activity, 'Tarefas', 'Gestão de atividades', '225ms', true)}
+                            {canAccessTarefas && renderModuleButton(() => setActiveBlock('tarefas'), 'pink', Activity, 'Tarefas', 'Gestão de atividades', '225ms', true)}
 
                             {canAccessScheduling && renderModuleButton(() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }, 'violet', CalendarRange, 'Veículos', 'Agendamento de frota', '250ms', true)}
                             {canAccessAbastecimento && renderModuleButton(() => setActiveBlock('abastecimento'), 'cyan', Droplet, 'Abastecimento', 'Controle de combustível', '300ms', false)}
