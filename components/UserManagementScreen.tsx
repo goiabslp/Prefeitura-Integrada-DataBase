@@ -334,7 +334,10 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
     { id: 'parent_diarias', label: 'Módulo: Diárias e Custeio' },
     { id: 'parent_agendamento_veiculo', label: 'Agendamento de Veículos' },
     { id: 'parent_frotas', label: 'Gestão de Frotas' },
-    { id: 'parent_abastecimento', label: 'Gestão de Abastecimento' }, // New Item
+    { id: 'parent_abastecimento', label: 'Gestão de Abastecimento (Geral)' },
+    { id: 'parent_abastecimento_novo', label: 'Novo Abastecimento' },
+    { id: 'parent_abastecimento_gestao', label: 'Gestão / Histórico Abastecimento' },
+    { id: 'parent_abastecimento_dashboard', label: 'Asbastecimento: Dashboard' },
     { id: 'parent_admin', label: 'Administrativo' },
     { id: 'parent_licitacao_triagem', label: 'Licitação: Triagem' },
     { id: 'parent_licitacao_processos', label: 'Licitação: Processos' },
@@ -916,7 +919,12 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                       },
                       {
                         title: 'Gestão de Abastecimento',
-                        permissions: [{ id: 'parent_abastecimento', label: 'Gestão de Abastecimento' }],
+                        permissions: [
+                          { id: 'parent_abastecimento', label: 'Módulo Geral' },
+                          { id: 'parent_abastecimento_novo', label: 'Novo Abastecimento' },
+                          { id: 'parent_abastecimento_gestao', label: 'Gestão / Histórico' },
+                          { id: 'parent_abastecimento_dashboard', label: 'Dashboard' }
+                        ],
                         color: 'cyan'
                       },
                       {
