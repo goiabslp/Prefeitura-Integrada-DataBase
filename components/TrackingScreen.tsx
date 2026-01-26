@@ -880,7 +880,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                         </button>
                                                     )}
 
-                                                    {activeBlock !== 'oficio' && (
+                                                    {activeBlock !== 'oficio' && activeBlock !== 'diarias' && (
                                                         <button
                                                             onClick={() => handleDownload(order)}
                                                             disabled={downloadingId === order.id}

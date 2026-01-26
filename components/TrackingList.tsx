@@ -738,7 +738,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                         {order.status === 'approved' || order.status === 'completed' || order.status === 'awaiting_approval' ? <Eye className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
                                                     </button>
 
-                                                    {activeBlock !== 'oficio' && (
+                                                    {activeBlock !== 'oficio' && activeBlock !== 'diarias' && (
                                                         <button
                                                             onClick={() => handleDownload(order)}
                                                             disabled={downloadingId === order.id}
