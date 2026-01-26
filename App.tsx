@@ -663,20 +663,9 @@ const App: React.FC = () => {
           const newBlock = initialState.sub || null;
           if (newBlock !== activeBlock) setActiveBlock(newBlock);
 
-          // FORCE CLEAN STATE FOR COMPRAS
-          if (newBlock === 'compras' && initialState.view === 'editor') {
-            setAppState(prev => ({
-              ...prev,
-              content: {
-                ...prev.content,
-                // Reset body to empty to prevent default text flash
-                body: '',
-                // Also ensure signatures are ready or clean
-                signatureName: '',
-                signatureRole: '',
-                useDigitalSignature: true
-              }
-            }));
+          // FORCE CLEAN STATE FOR ALL DOCUMENT TYPES
+          if (initialState.view === 'editor' && !editingOrder) {
+            handleStartEditing(newBlock || 'oficio');
           }
         }
       }
@@ -2049,8 +2038,16 @@ const App: React.FC = () => {
 
   // Effect to initialize editor if accessed directly via URL
   useEffect(() => {
-    if (currentView === 'editor' && !editingOrder && !appState.content.protocol && currentUser && sectors.length > 0) {
-      if (activeBlock) {
+    // Only trigger if we are in editor view, don't have an editing order,
+    // AND the current state either belongs to another block or doesn't have a protocol yet.
+    // However, handleStartEditing already does a lot of this.
+    // To fix the "stuck status" issue, we check if we're entering a "new" state.
+    if (currentView === 'editor' && !editingOrder && currentUser && sectors.length > 0) {
+      const draftKey = `draft_${activeBlock}`;
+      const hasDraft = localStorage.getItem(draftKey);
+      
+      // If no protocol and no draft, or if we just want to be sure:
+      if (!appState.content.protocol && !hasDraft && activeBlock) {
         handleStartEditing(activeBlock);
       }
     }
@@ -2971,8 +2968,7 @@ const App: React.FC = () => {
                     setActiveBlock('abastecimento');
                     setCurrentView('abastecimento');
                   } else {
-                    setActiveBlock(target);
-                    setCurrentView('editor');
+                    handleStartEditing(target);
                   }
                 }}
                 onTrackOrder={() => {
