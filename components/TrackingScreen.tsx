@@ -28,7 +28,7 @@ interface TrackingScreenProps {
     currentUser: UserType;
     activeBlock: BlockType | null;
     orders: Order[];
-    onDownloadPdf: (snapshot: AppState, blockType?: BlockType) => void;
+    onDownloadPdf: (snapshot: AppState, blockType?: BlockType, order?: Order) => void;
     onClearAll: () => void;
     onEditOrder: (order: Order) => void;
     onDeleteOrder: (id: string) => void;
@@ -206,7 +206,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
             };
         }
 
-        onDownloadPdf(snapshotToDownload!, order.blockType);
+        onDownloadPdf(snapshotToDownload!, order.blockType, order);
         setTimeout(() => setDownloadingId(null), 2000);
     };
 
@@ -997,7 +997,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
                             {(effectivePreviewOrder?.documentSnapshot) && (
                                 <button
-                                    onClick={() => onDownloadPdf(effectivePreviewOrder.documentSnapshot!, activeBlock || undefined)}
+                                    onClick={() => onDownloadPdf(effectivePreviewOrder.documentSnapshot!, activeBlock || undefined, effectivePreviewOrder || undefined)}
                                     className="pointer-events-auto group flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 text-white hover:bg-emerald-500 shadow-xl shadow-emerald-600/20 transition-all active:scale-95 active:shadow-none font-bold text-sm tracking-wide uppercase border border-emerald-500"
                                 >
                                     <Download className="w-4 h-4 text-white" />

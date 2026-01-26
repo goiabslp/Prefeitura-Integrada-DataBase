@@ -1571,7 +1571,7 @@ const App: React.FC = () => {
     window.html2pdf().from(element).set(opt).save().finally(() => setIsDownloading(false));
   };
 
-  const handleDownloadFromHistory = async (order: Order, forcedBlockType?: BlockType) => {
+  const handleDownloadFromHistory = async (order: Order, forcedBlockType?: BlockType, forcedSnapshot?: AppState) => {
     // Lazy load details if missing
     let fullOrder = order;
     if (order.blockType === 'oficio' && (!order.documentSnapshot?.content || Object.keys(order.documentSnapshot.content).length === 0)) {
@@ -1595,9 +1595,11 @@ const App: React.FC = () => {
       }
     }
 
-    if (!fullOrder.documentSnapshot) return;
+    const snapshot = forcedSnapshot || fullOrder.documentSnapshot;
+    if (!snapshot) return;
+
     setIsDownloading(true);
-    setSnapshotToDownload(fullOrder.documentSnapshot);
+    setSnapshotToDownload(snapshot);
     setBlockTypeToDownload(forcedBlockType || fullOrder.blockType);
     setTimeout(async () => {
       const element = document.getElementById('background-preview-scaler');
@@ -3105,7 +3107,7 @@ const App: React.FC = () => {
                 activeBlock={activeBlock}
                 orders={orders}
                 allUsers={users}
-                onDownloadPdf={(snapshot, forcedBlockType) => { const order = orders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order, forcedBlockType); }}
+                onDownloadPdf={(snapshot, forcedBlockType, order) => { const target = order || orders.find(o => o.documentSnapshot === snapshot); if (target) handleDownloadFromHistory(target, forcedBlockType, snapshot); }}
                 onClearAll={() => setOrders([])}
                 onEditOrder={handleEditOrder}
                 onDeleteOrder={handleDeleteOrder}
@@ -3123,7 +3125,7 @@ const App: React.FC = () => {
                 activeBlock={activeBlock}
                 orders={orders}
                 showAllProcesses={true}
-                onDownloadPdf={(snapshot, forcedBlockType) => { const order = orders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order, forcedBlockType); }}
+                onDownloadPdf={(snapshot, forcedBlockType, order) => { const target = order || orders.find(o => o.documentSnapshot === snapshot); if (target) handleDownloadFromHistory(target, forcedBlockType, snapshot); }}
                 onClearAll={() => setOrders([])}
                 onEditOrder={handleEditOrder}
                 onDeleteOrder={handleDeleteOrder}
@@ -3238,6 +3240,21 @@ const App: React.FC = () => {
           </div>
         </div >
       </ChatProvider>
+
+      {/* HIDDEN PREVIEW SCALER FOR PDF GENERATION */}
+      {snapshotToDownload && (
+        <div style={{ position: 'fixed', top: -10000, left: -10000, pointerEvents: 'none', visibility: 'hidden' }}>
+          <div id="background-preview-scaler" style={{ width: '210mm', minHeight: '297mm', background: 'white' }}>
+            <DocumentPreview
+              state={snapshotToDownload}
+              isGenerating={true}
+              mode="editor" // Force editor/clean mode
+              blockType={blockTypeToDownload || undefined}
+            />
+          </div>
+        </div>
+      )}
+
       {/* GLOBAL LOADING MODAL */}
       <GlobalLoading
         type="overlay"
