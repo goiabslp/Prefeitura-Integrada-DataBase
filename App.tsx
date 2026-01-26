@@ -752,7 +752,7 @@ const App: React.FC = () => {
     return { error };
   };
 
-  const handleFinish = async (skip2FA = false, digitalSignatureData?: { enabled: boolean, method: string, ip: string, date: string }, forceOficio = false): Promise<boolean> => {
+  const handleFinish = async (skip2FA = false, digitalSignatureData?: { enabled: boolean, method: string, ip: string, date: string }, forceOficio = false, customDescription?: string): Promise<boolean> => {
     if (!currentUser || !activeBlock) return false;
 
     // 2FA Interception Logic
@@ -1034,7 +1034,8 @@ const App: React.FC = () => {
         documentSnapshot: finalSnapshot,
         paymentStatus: activeBlock === 'diarias' ? 'pending' : undefined,
         statusHistory: activeBlock === 'compras' ? [{ statusLabel: 'Criação do Pedido', date: new Date().toISOString(), userName: currentUser.name }] : [],
-        attachments: appState.content.attachments || []
+        attachments: appState.content.attachments || [],
+        description: customDescription || appState.content.description
       };
 
       if (activeBlock === 'compras') {
@@ -3285,10 +3286,10 @@ const App: React.FC = () => {
                 <OficioNumberingModal
                   isOpen={isOficioNumberingModalOpen}
                   onClose={() => setIsOficioNumberingModalOpen(false)}
-                  onConfirm={() => {
+                  onConfirm={(summary?: string) => {
                     setIsOficioNumberingModalOpen(false);
                     // Pass persisted metadata if available, avoiding second 2FA
-                    handleFinish(true, pendingSignatureMetadata || undefined, true);
+                    handleFinish(true, pendingSignatureMetadata || undefined, true, summary);
                     setPendingSignatureMetadata(null); // Clear after use
                   }}
                   sectorId={(() => {

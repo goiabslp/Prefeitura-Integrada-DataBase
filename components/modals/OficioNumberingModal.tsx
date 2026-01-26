@@ -17,8 +17,13 @@ export const OficioNumberingModal: React.FC<Props> = ({ isOpen, onClose, onConfi
     const [nextNumber, setNextNumber] = useState<number | null>(null);
     const [year, setYear] = useState<number>(new Date().getFullYear());
 
+    const [summary, setSummary] = useState('');
+
     useEffect(() => {
         let isMounted = true;
+        // Reset summary when opening
+        if (isOpen) setSummary('');
+
         if (isOpen && sectorId) {
             const fetchNext = async () => {
                 setLoading(true);
@@ -90,6 +95,20 @@ export const OficioNumberingModal: React.FC<Props> = ({ isOpen, onClose, onConfi
                         )}
                     </div>
 
+                    {/* Summary Input */}
+                    <div className="w-full mb-6">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block text-left pl-1">
+                            Resumo do Pedido (Opcional)
+                        </label>
+                        <textarea
+                            value={summary}
+                            onChange={(e) => setSummary(e.target.value)}
+                            placeholder="Descreva brevemente o assunto deste ofício..."
+                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none h-20"
+                            maxLength={200}
+                        />
+                    </div>
+
                     <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8 max-w-[280px]">
                         O sistema identificou o próximo número sequencial para o seu setor. Deseja confirmar e salvar o documento?
                     </p>
@@ -102,7 +121,7 @@ export const OficioNumberingModal: React.FC<Props> = ({ isOpen, onClose, onConfi
                             Cancelar
                         </button>
                         <button
-                            onClick={onConfirm}
+                            onClick={() => onConfirm(summary)}
                             disabled={loading || !nextNumber}
                             className="flex-1 py-3.5 bg-indigo-600 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 hover:shadow-indigo-600/40 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
                         >

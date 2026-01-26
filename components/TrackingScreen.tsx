@@ -132,6 +132,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                 const userSector = currentUser.sector || '';
                 hasPermission = userSector !== '' && orderSector.trim().toLowerCase() === userSector.trim().toLowerCase();
             }
+        } else if (activeBlock === 'oficio') {
+            hasPermission = true; // Oficios are visible to all users
         } else {
             hasPermission = isAdmin || currentUser.role === 'licitacao' || order.userId === currentUser.id;
         }

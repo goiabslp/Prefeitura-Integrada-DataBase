@@ -31,7 +31,8 @@ export const getAllOficios = async (lightweight = false, page = 0, limit = 50): 
         userId: item.user_id,
         userName: item.user_name,
         blockType: 'oficio', // Explicitly set block type
-        documentSnapshot: item.document_snapshot
+        documentSnapshot: item.document_snapshot,
+        description: item.description
     }));
 };
 
@@ -57,7 +58,8 @@ export const getOficioById = async (id: string): Promise<Order | null> => {
         userId: data.user_id,
         userName: data.user_name,
         blockType: 'oficio',
-        documentSnapshot: data.document_snapshot
+        documentSnapshot: data.document_snapshot,
+        description: data.description
     };
 };
 
@@ -71,7 +73,8 @@ export const saveOficio = async (order: Order): Promise<void> => {
         created_at: order.createdAt,
         user_id: order.userId,
         user_name: order.userName,
-        document_snapshot: order.documentSnapshot
+        document_snapshot: order.documentSnapshot,
+        description: order.description
     };
 
     const { error } = await supabase.from('oficios').upsert(dbOrder);
