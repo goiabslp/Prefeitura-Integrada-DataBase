@@ -6,6 +6,9 @@ interface ModuleSetting {
     module_key: string;
     label: string;
     is_enabled: boolean;
+    parent_key: string | null;
+    order_index: number;
+    description?: string;
 }
 
 interface SystemSettingsContextType {
@@ -33,7 +36,7 @@ export const SystemSettingsProvider: React.FC<{ children: React.ReactNode }> = (
             const { data, error } = await supabase
                 .from('global_module_settings')
                 .select('*')
-                .order('label');
+                .order('order_index');
 
             if (error) {
                 console.error('Error fetching global settings:', error);
@@ -43,12 +46,15 @@ export const SystemSettingsProvider: React.FC<{ children: React.ReactNode }> = (
             }
 
             if (data) {
-                setSettings(data);
+                setSettings(data || []);
                 const statusMap: Record<string, boolean> = {};
-                data.forEach(s => {
+                (data || []).forEach(s => {
                     statusMap[s.module_key] = s.is_enabled;
                 });
                 setModuleStatus(statusMap);
+            } else {
+                setSettings([]);
+                setModuleStatus({});
             }
         } catch (err) {
             console.error('Unexpected error fetching settings:', err);

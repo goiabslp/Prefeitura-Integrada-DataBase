@@ -99,6 +99,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   'admin:2fa': '/Admin/autenticador',
   'admin:ui': '/Admin/Interface',
   'admin:design': '/Admin/Design',
+  'admin:access_control': '/Admin/controle',
   'tracking:oficio': '/Historico/Oficio',
   'tracking:compras': '/Historico/Compras',
   'tracking:diarias': '/Historico/Diarias',
@@ -2654,7 +2655,7 @@ const App: React.FC = () => {
 
                     if ((isLicitacaoCompleted && !isReopeningStage) || isStage0Sent) return null;
 
-                    return !isFinalizedView && adminTab !== 'fleet' && adminTab !== '2fa' && adminTab !== 'users' && adminTab !== 'entities' && (currentView !== 'admin' || adminTab !== null) && (
+                    return !isFinalizedView && adminTab !== 'fleet' && adminTab !== '2fa' && adminTab !== 'users' && adminTab !== 'entities' && adminTab !== 'access_control' && (currentView !== 'admin' || adminTab !== null) && (
                       <AdminSidebar
                         state={appState}
                         onUpdate={setAppState}
@@ -2846,7 +2847,7 @@ const App: React.FC = () => {
                     ) : currentView === 'admin' && adminTab === 'design' ? (
                       <AdminDocumentPreview state={appState} />
                     ) : currentView === 'admin' && adminTab === 'access_control' ? (
-                      <SystemAccessControl />
+                      <SystemAccessControl onBack={() => setAdminTab(null)} />
                     ) : (
                       <div className={activeBlock === 'compras' && currentView === 'editor' ? 'fixed left-[-9999px] top-0 pointer-events-none opacity-0' : 'w-full h-full'}>
                         <DocumentPreview ref={componentRef} state={appState} isGenerating={isDownloading} mode={currentView === 'admin' ? 'admin' : 'editor'} blockType={activeBlock} />

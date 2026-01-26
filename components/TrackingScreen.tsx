@@ -278,63 +278,73 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
             <div className="min-h-screen w-full bg-slate-100/50 backdrop-blur-sm font-sans flex items-center justify-center p-4 md:p-8 overflow-hidden animate-fade-in">
                 <div className="w-full max-w-6xl bg-white rounded-[2.5rem] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.15)] border border-slate-200 overflow-hidden animate-slide-up flex flex-col h-full max-h-[90vh]">
 
-                    <div className="p-8 border-b border-slate-100 shrink-0 bg-white">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                            <div>
-                                <button
-                                    onClick={() => {
-                                        if (activeBlock === 'oficio' && onBack) {
-                                            onBack();
-                                        } else {
-                                            onBack();
-                                        }
-                                    }}
-                                    className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors text-xs font-bold uppercase tracking-widest mb-4 group"
-                                >
-                                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                                    {activeBlock === 'oficio' ? 'Voltar para Oficios' : 'Voltar ao Menu'}
-                                </button>
-                                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
-                                        <FileText className="w-6 h-6 text-white" />
-                                    </div>
-                                    {activeBlock === 'oficio' ? 'Histórico de Ofícios' : (activeBlock === 'licitacao' && !showAllProcesses) ? 'Meus Processos' : (activeBlock === 'licitacao' && showAllProcesses) ? 'Processos' : `Histórico: ${activeBlock?.toUpperCase()}`}
-                                </h2>
-                                <p className="text-slate-500 text-sm mt-1 font-medium">
-                                    {isAdmin ? 'Gerenciamento global de registros.' : isCompras ? 'Pedidos de compra autorizados para seu setor.' : 'Seus documentos gerados neste módulo.'}
-                                </p>
-                            </div>
-                        </div>
+                    <div className={`${(isDiarias || isCompras || activeBlock === 'oficio') ? 'p-4' : 'p-8'} border-b border-slate-100 shrink-0 bg-white transition-all`}>
+                        <div className={`flex flex-col md:flex-row md:items-center justify-between ${(isDiarias || isCompras || activeBlock === 'oficio') ? 'gap-4' : 'gap-6'}`}>
+                            <div className={`${(isDiarias || isCompras || activeBlock === 'oficio') ? 'flex items-center gap-4 flex-1 min-w-0' : ''}`}>
+                                <div className={(isDiarias || isCompras || activeBlock === 'oficio') ? "contents" : "block"}>
+                                    <button
+                                        onClick={() => {
+                                            if (activeBlock === 'oficio' && onBack) {
+                                                onBack();
+                                            } else {
+                                                onBack();
+                                            }
+                                        }}
+                                        className={`flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors font-bold uppercase tracking-widest group ${(isDiarias || isCompras || activeBlock === 'oficio') ? 'text-[10px] p-2 hover:bg-slate-50 rounded-lg -ml-2' : 'text-xs mb-4'}`}
+                                        title="Voltar"
+                                    >
+                                        <ArrowLeft className={`transition-transform ${(isDiarias || isCompras || activeBlock === 'oficio') ? 'w-3 h-3' : 'w-4 h-4 group-hover:-translate-x-1'}`} />
+                                        {!(isDiarias || isCompras || activeBlock === 'oficio') && (activeBlock === 'oficio' ? 'Voltar para Oficios' : 'Voltar ao Menu')}
+                                    </button>
 
-                        <div className="mt-8 flex items-center gap-3 w-full">
-                            <div className="relative flex-1 group">
-                                <input
-                                    type="text"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    placeholder="Buscar por Setor, Solicitante, Protocolo..."
-                                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
-                                />
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                                    <h2 className={`${(isDiarias || isCompras || activeBlock === 'oficio') ? 'text-xl' : 'text-3xl'} font-extrabold text-slate-900 tracking-tight flex items-center gap-3 shrink-0`}>
+                                        <div className={`${(isDiarias || isCompras || activeBlock === 'oficio') ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30`}>
+                                            <FileText className={`${(isDiarias || isCompras || activeBlock === 'oficio') ? 'w-4 h-4' : 'w-6 h-6'} text-white`} />
+                                        </div>
+                                        <span className="truncate">
+                                            {activeBlock === 'oficio' ? 'Histórico de Ofícios' : (activeBlock === 'licitacao' && !showAllProcesses) ? 'Meus Processos' : (activeBlock === 'licitacao' && showAllProcesses) ? 'Processos' : `Histórico: ${activeBlock?.toUpperCase()}`}
+                                        </span>
+                                    </h2>
+                                </div>
+
+                                {!(isDiarias || isCompras || activeBlock === 'oficio') && (
+                                    <p className="text-slate-500 text-sm mt-1 font-medium">
+                                        {isAdmin ? 'Gerenciamento global de registros.' : isCompras ? 'Pedidos de compra autorizados para seu setor.' : 'Seus documentos gerados neste módulo.'}
+                                    </p>
+                                )}
                             </div>
-                            {isAdmin && filteredOrders.length > 0 && (
-                                <button
-                                    onClick={() => setConfirmModal({
-                                        isOpen: true,
-                                        title: "Limpar Histórico",
-                                        message: "Deseja realmente apagar TODOS os registros deste bloco? Esta ação removerá os dados permanentemente.",
-                                        type: 'danger',
-                                        onConfirm: () => {
-                                            onClearAll();
-                                            setConfirmModal({ ...confirmModal, isOpen: false });
-                                        }
-                                    })}
-                                    className="p-3.5 bg-red-50 text-red-500 border border-red-100 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center gap-2 font-bold text-xs uppercase"
-                                >
-                                    <Trash2 className="w-5 h-5" />
-                                    <span className="hidden lg:inline">Limpar Bloco</span>
-                                </button>
-                            )}
+
+                            <div className={`${(isDiarias || isCompras || activeBlock === 'oficio') ? 'flex-1 max-w-lg flex items-center gap-2' : 'mt-8 flex items-center gap-3 w-full'}`}>
+                                <div className="relative flex-1 group">
+                                    <input
+                                        type="text"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        placeholder={(isDiarias || isCompras || activeBlock === 'oficio') ? "Buscar..." : "Buscar por Setor, Solicitante, Protocolo..."}
+                                        className={`w-full bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all ${(isDiarias || isCompras || activeBlock === 'oficio') ? 'pl-9 pr-3 py-2 text-xs' : 'pl-11 pr-4 py-3.5 text-sm'}`}
+                                    />
+                                    <Search className={`absolute top-1/2 -translate-y-1/2 text-slate-400 ${(isDiarias || isCompras || activeBlock === 'oficio') ? 'left-3 w-3.5 h-3.5' : 'left-4 w-5 h-5'}`} />
+                                </div>
+                                {isAdmin && filteredOrders.length > 0 && (
+                                    <button
+                                        onClick={() => setConfirmModal({
+                                            isOpen: true,
+                                            title: "Limpar Histórico",
+                                            message: "Deseja realmente apagar TODOS os registros deste bloco? Esta ação removerá os dados permanentemente.",
+                                            type: 'danger',
+                                            onConfirm: () => {
+                                                onClearAll();
+                                                setConfirmModal({ ...confirmModal, isOpen: false });
+                                            }
+                                        })}
+                                        className={`${(isDiarias || isCompras || activeBlock === 'oficio') ? 'p-2' : 'p-3.5'} bg-red-50 text-red-500 border border-red-100 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center gap-2 font-bold text-xs uppercase`}
+                                        title="Limpar Histórico"
+                                    >
+                                        <Trash2 className={(isDiarias || isCompras || activeBlock === 'oficio') ? 'w-3.5 h-3.5' : 'w-5 h-5'} />
+                                        {!(isDiarias || isCompras || activeBlock === 'oficio') && <span className="hidden lg:inline">Limpar Bloco</span>}
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
 

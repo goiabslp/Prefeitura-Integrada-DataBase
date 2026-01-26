@@ -3,6 +3,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
+import { SystemSettingsProvider } from './contexts/SystemSettingsContext';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { queryClient } from './services/queryClient';
@@ -20,15 +21,17 @@ const root = createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <AuthProvider>
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={{
-          persister,
-          maxAge: 1000 * 60 * 60 * 24, // 24 hours persistence
-        }}
-      >
-        <App />
-      </PersistQueryClientProvider>
+      <SystemSettingsProvider>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{
+            persister,
+            maxAge: 1000 * 60 * 60 * 24, // 24 hours persistence
+          }}
+        >
+          <App />
+        </PersistQueryClientProvider>
+      </SystemSettingsProvider>
     </AuthProvider>
   </React.StrictMode>
 );
