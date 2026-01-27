@@ -6,7 +6,8 @@ import {
   Minus, ChevronDown, Package, Archive, Scale, Briefcase, Box, Lock, Key,
   AlertTriangle, ShieldAlert, Zap, Info, User, Search, Check, UserCheck, Paperclip, Upload, ShieldCheck, QrCode
 } from 'lucide-react';
-import { AppState, ContentData, DocumentConfig, Signature, PurchaseItem, Person, Sector, Job } from '../../types';
+import { AppState, ContentData, DocumentConfig, Signature, PurchaseItem, Person, Sector, Job, Attachment } from '../../types';
+import { uploadFile } from '../../services/storageService';
 
 interface ComprasFormProps {
   state: AppState;
@@ -72,6 +73,7 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
   const [showTwoFactor, setShowTwoFactor] = useState(false);
   const [isSigned, setIsSigned] = useState(!!content.digitalSignature?.enabled);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // ENFORCE EMPTY JUSTIFICATIVA
   // Prevents residual default text from INITIAL_STATE
@@ -593,28 +595,51 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
                 type="file"
                 multiple
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const files = Array.from(e.target.files || []) as File[];
                   if (files.length === 0) return;
 
-                  // Mock upload - in real app would upload to Storage
-                  const newAttachments = files.map(file => ({
-                    id: Math.random().toString(36).substr(2, 9),
-                    name: file.name,
-                    url: URL.createObjectURL(file), // Preview only
-                    type: file.type,
-                    date: new Date().toISOString()
-                  }));
+                  setIsUploading(true);
+                  try {
+                    const uploadedAttachments: Attachment[] = [];
+                    for (const file of files) {
+                      const publicUrl = await uploadFile(file, 'attachments', `purchase_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`);
+                      if (publicUrl) {
+                        uploadedAttachments.push({
+                          id: Math.random().toString(36).substr(2, 9),
+                          name: file.name,
+                          url: publicUrl,
+                          type: file.type,
+                          date: new Date().toISOString()
+                        });
+                      }
+                    }
 
-                  handleUpdate('content', 'attachments', [...(content.attachments || []), ...newAttachments]);
+                    if (uploadedAttachments.length > 0) {
+                      handleUpdate('content', 'attachments', [...(content.attachments || []), ...uploadedAttachments]);
+                    }
+                  } catch (error) {
+                    console.error("Upload error:", error);
+                    alert("Erro ao enviar um ou mais arquivos.");
+                  } finally {
+                    setIsUploading(false);
+                    // Reset input
+                    e.target.value = '';
+                  }
                 }}
               />
               <div className="flex flex-col items-center justify-center gap-3">
-                <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
-                  <Upload className="w-6 h-6 text-emerald-600" />
+                <div className={`w-12 h-12 ${isUploading ? 'bg-slate-100' : 'bg-emerald-100'} rounded-full flex items-center justify-center transition-colors`}>
+                  {isUploading ? (
+                    <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Upload className="w-6 h-6 text-emerald-600" />
+                  )}
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-slate-900">Clique para selecionar arquivos</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    {isUploading ? 'Enviando arquivos...' : 'Clique para selecionar arquivos'}
+                  </p>
                   <p className="text-xs text-slate-500">Imagens, PDFs ou Planilhas (máx. 10MB)</p>
                 </div>
               </div>
