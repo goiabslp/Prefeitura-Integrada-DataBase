@@ -56,11 +56,32 @@ export interface EvidenceItem {
   imageUrl: string;
 }
 
+export type InventoryCategory = 'Construção' | 'Limpeza' | 'Alimentação' | 'Material de Uso' | 'Ferramentas' | 'Serviços';
+
 export interface PurchaseItem {
   id: string;
   name: string;
   quantity: number;
   unit: 'Pacote' | 'Caixa' | 'Kg' | 'Unidade' | 'Serviço';
+  brand?: string;
+  details?: string;
+  isTendered?: boolean; // false = Não Licitado (Item de Inventário)
+  originalProtocol?: string;
+  category?: InventoryCategory;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  brand?: string;
+  details?: string;
+  quantity: number;
+  unit: string;
+  category: InventoryCategory;
+  is_tendered: boolean;
+  original_order_protocol?: string;
+  original_item_id?: string;
+  created_at?: string;
 }
 
 export interface ContentData {

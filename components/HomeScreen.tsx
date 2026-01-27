@@ -36,6 +36,7 @@ interface HomeScreenProps {
     onViewOrder?: (order: Order) => void;
     allUsers?: User[];
     onTaskCreated?: (task: Order) => void;
+    onManageInventory?: () => void;
     subView?: string;
 }
 
@@ -61,6 +62,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     onViewTasksDashboard,
     orders = [], // Receive orders for Tasks Dashboard
     onViewOrder, // Callback to view order details
+    onManageInventory,
     allUsers = [], // Add access to users for task assignment (Need to add to Props interface first, but for now assuming it flows via spreading or defined explicitly if strict)
     subView = ''
 }) => {
@@ -93,7 +95,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         const hoverBorder = `hover:border-${color}-200`;
         const hoverBg = `hover:from-white hover:to-${color}-50`;
 
-        return `group relative w-full h-40 md:h-48 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] ${hoverShadow} hover:-translate-y-1.5 ${hoverBorder} ${hoverBg} active:scale-95 transition-all duration-300 ease-out ${hideOnMobile ? 'hidden md:flex' : 'flex'} flex-col items-center justify-center overflow-hidden shrink-0`;
+        return `group relative w-full h-auto min-h-[140px] md:min-h-[180px] py-6 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] ${hoverShadow} hover:-translate-y-1.5 ${hoverBorder} ${hoverBg} active:scale-95 transition-all duration-300 ease-out ${hideOnMobile ? 'hidden md:flex' : 'flex'} flex-col items-center justify-center overflow-hidden shrink-0`;
     };
 
     const getIconContainerClass = (color: string) => {
@@ -242,6 +244,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         // Specific Extra Buttons
         if (activeBlock === 'compras' && canManagePurchaseOrders) {
             actionButtons.push({ label: 'Pedidos', desc: 'Gestão Administrativa', icon: Inbox, onClick: onManagePurchaseOrders, color: 'emerald' });
+            actionButtons.push({ label: 'Itens', desc: 'Catálogo e Inventário', icon: Package, onClick: onManageInventory, color: 'amber' });
         }
         if (activeBlock === 'licitacao') {
             if (canAccessLicitacaoTriagem) actionButtons.push({ label: 'Triagem', desc: 'Triagem de Processos', icon: Inbox, onClick: onManageLicitacaoScreening, color: 'amber' });
@@ -273,10 +276,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     <span className="text-[10px] uppercase tracking-widest font-extrabold group-hover:text-indigo-700">Voltar</span>
                 </button>
 
-                <div className="w-full h-full flex flex-col relative animate-fade-in z-0">
+                <div className="w-full h-full flex flex-col relative animate-fade-in z-0 overflow-hidden">
                     {/* Centered Content Container */}
-                    <div className="flex-1 flex flex-col items-center justify-center w-full h-full p-4 md:p-8 pt-36 md:pt-40 min-h-0 container mx-auto">
-                        <div className="w-full flex-1 flex flex-col items-center justify-center max-h-full">
+                    <div className="flex-1 w-full h-full p-4 md:p-8 pt-20 md:pt-24">
+                        <div className="w-full min-h-full flex flex-col items-center justify-center container mx-auto">
 
                             {/* Header */}
                             <div className="flex flex-col items-center mb-8 shrink-0 animation-delay-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -287,12 +290,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             </div>
 
                             {/* Actions Grid */}
-                            <div className="w-full flex flex-wrap justify-center items-stretch gap-4 md:gap-6 max-w-6xl animate-in zoom-in duration-500 fill-mode-backwards p-2">
+                            <div className="w-full flex flex-wrap justify-center items-stretch gap-3 md:gap-4 max-w-6xl animate-in zoom-in duration-500 fill-mode-backwards p-2">
                                 {actionButtons.map((btn, idx) => (
                                     <button
                                         key={idx}
                                         onClick={btn.onClick}
-                                        className={`group relative flex-1 min-w-[260px] md:min-w-[280px] max-w-[380px] min-h-[160px] rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50/50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_25px_60px_rgb(0,0,0,0.12)] hover:shadow-${btn.color}-500/30 hover:border-${btn.color}-200 hover:from-white hover:to-${btn.color}-50/30 transition-all duration-300 ease-spring hover:-translate-y-2 active:scale-95 flex flex-col items-center justify-center overflow-hidden shrink-0 basis-0 grow ${btn.hideOnMobile ? 'hidden md:flex' : 'flex'}`}
+                                        className={`group relative flex-1 min-w-[240px] md:min-w-[260px] max-w-[360px] min-h-[120px] md:min-h-[130px] h-auto py-6 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50/50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_25px_60px_rgb(0,0,0,0.12)] hover:shadow-${btn.color}-500/30 hover:border-${btn.color}-200 hover:from-white hover:to-${btn.color}-50/30 transition-all duration-300 ease-spring hover:-translate-y-2 active:scale-95 flex flex-col items-center justify-center overflow-hidden shrink-0 basis-0 grow ${btn.hideOnMobile ? 'hidden md:flex' : 'flex'}`}
                                         style={{ animationDelay: `${idx * 100}ms` }}
                                     >
                                         <div className={`absolute top-0 right-0 w-32 h-32 bg-${btn.color}-500/5 rounded-bl-[100%] -mr-10 -mt-10 transition-transform duration-700 ease-out group-hover:scale-150`}></div>

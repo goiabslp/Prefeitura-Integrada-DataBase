@@ -79,6 +79,7 @@ import { AgricultureModule } from './components/agriculture/AgricultureModule';
 import { ObrasModule } from './components/obras/ObrasModule';
 import { OrderDetailsScreen } from './components/OrderDetailsScreen';
 import { TasksDashboard } from './components/dashboard/TasksDashboard';
+import { PurchaseItemsScreen } from './components/PurchaseItemsScreen';
 
 const VIEW_TO_PATH: Record<string, string> = {
   'login': '/Login',
@@ -109,6 +110,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   'editor:compras': '/Editor/Compras',
   'editor:diarias': '/Editor/Diarias',
   'purchase-management': '/GestaoCompras',
+  'purchase-inventory': '/Compras/Itens',
   'vehicle-scheduling': '/AgendamentoVeiculos',
   'vehicle-scheduling:agendamento': '/AgendamentoVeiculos',
   'vehicle-scheduling:vs_calendar': '/AgendamentoVeiculos/Agendar',
@@ -2045,7 +2047,7 @@ const App: React.FC = () => {
     if (currentView === 'editor' && !editingOrder && currentUser && sectors.length > 0) {
       const draftKey = `draft_${activeBlock}`;
       const hasDraft = localStorage.getItem(draftKey);
-      
+
       // If no protocol and no draft, or if we just want to be sure:
       if (!appState.content.protocol && !hasDraft && activeBlock) {
         handleStartEditing(activeBlock);
@@ -2986,6 +2988,11 @@ const App: React.FC = () => {
                   setCurrentView('tasks-dashboard');
                   setActiveBlock('tarefas');
                   window.history.pushState({ view: 'tarefas', sub: 'dashboard' }, '', '/Tarefas/MinhasTarefas');
+                  window.history.pushState({ view: 'tarefas', sub: 'dashboard' }, '', '/Tarefas/MinhasTarefas');
+                }}
+                onManageInventory={() => {
+                  setActiveBlock('compras');
+                  setCurrentView('purchase-inventory');
                 }}
                 onOpenAdmin={(tab) => {
                   setCurrentView('admin');
@@ -3038,6 +3045,17 @@ const App: React.FC = () => {
                     setCurrentView('order-details');
                   }
                 }}
+              />
+            )}
+            {/* Purchase Items Screen */}
+            {currentView === 'purchase-inventory' && (
+              <PurchaseItemsScreen
+                onBack={() => {
+                  setCurrentView('home');
+                  setActiveBlock('compras'); // Keep block active
+                  window.history.pushState({}, '', '/Compras');
+                }}
+                userRole={currentUser?.role || 'collaborator'}
               />
             )}
             {currentView === 'vehicle-scheduling' && (

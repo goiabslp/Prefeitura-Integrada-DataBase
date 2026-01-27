@@ -116,10 +116,12 @@ export const AbastecimentoService = {
                     query = query.gte('date', start).lte('date', end);
                 }
                 if (filters.startDate) {
-                    query = query.gte('date', `${filters.startDate}T00:00:00-03:00`);
+                    const val = filters.startDate.includes('T') ? filters.startDate : `${filters.startDate}T00:00:00-03:00`;
+                    query = query.gte('date', val);
                 }
                 if (filters.endDate) {
-                    query = query.lte('date', `${filters.endDate}T23:59:59-03:00`);
+                    const val = filters.endDate.includes('T') ? filters.endDate : `${filters.endDate}T23:59:59-03:00`;
+                    query = query.lte('date', val);
                 }
                 if (filters.station && filters.station !== 'all') {
                     query = query.eq('station', filters.station);

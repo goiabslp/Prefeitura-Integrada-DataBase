@@ -37,7 +37,7 @@ export const ComprasPreview: React.FC<ComprasPreviewProps> = ({ state, isGenerat
     // Limite para páginas normais (A partir da 2)
     const LIMIT_NORMAL = TOTAL_LINES_CAPACITY - SECURITY_MARGIN_LINES;
 
-    const items = [...(content.purchaseItems || [])];
+    const items = [...(content.purchaseItems || []).filter(item => item.isTendered !== false)];
 
     // SEMPRE começamos com a Página 1 vazia de itens (reservada para justificativas e dados do solicitante)
     const resultPages: PurchaseItem[][] = [[]];

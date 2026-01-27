@@ -299,54 +299,54 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
     <div className="min-h-screen w-full bg-slate-100/50 backdrop-blur-sm font-sans flex items-center justify-center p-4 md:p-8 overflow-hidden animate-fade-in">
       <div className="w-full max-w-7xl bg-white rounded-[2.5rem] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.15)] border border-slate-200 overflow-hidden animate-slide-up flex flex-col h-full max-h-[90vh]">
 
-        <div className="p-8 border-b border-slate-100 shrink-0 bg-white">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
+        <div className="px-6 py-4 border-b border-slate-100 shrink-0 bg-white">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
               <button
                 onClick={onBack}
-                className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 transition-colors text-xs font-bold uppercase tracking-widest mb-4 group"
+                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all group"
+                title="Voltar ao Menu"
               >
-                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                Voltar ao Menu
+                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
               </button>
-              <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-600/30">
-                  <Inbox className="w-6 h-6 text-white" />
+
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-600/20 shrink-0">
+                  <Inbox className="w-5 h-5 text-white" />
                 </div>
-                {isComprasUser ? 'Atendimento de Pedidos' : 'Gestão de Pedidos de Compras'}
-              </h2>
-              <p className="text-slate-500 text-sm mt-1 font-medium">
-                {isComprasUser
-                  ? 'Acompanhe e atualize o status de atendimento das requisições autorizadas.'
-                  : 'Somente administradores podem aprovar ou rejeitar requisições.'}
-              </p>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 tracking-tight leading-none">
+                    {isComprasUser ? 'Atendimento de Pedidos' : 'Gestão de Compras'}
+                  </h2>
+                </div>
+              </div>
+
+              <div className="relative w-64 group ml-2">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar..."
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              </div>
             </div>
 
-            <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-200 w-fit">
-              {['all', 'pending', 'approved', 'rejected']
-                .map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setStatusFilter(s as any)}
-                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === s ? 'bg-white shadow-sm text-emerald-600 border border-emerald-100' : 'text-slate-400 hover:bg-white/50'
-                      }`}
-                  >
-                    {s === 'all' ? 'Todos' : s === 'pending' ? 'Pendentes' : s === 'approved' ? 'Aprovados' : 'Rejeitados'}
-                  </button>
-                ))}
-            </div>
-          </div>
-
-          <div className="mt-8 flex items-center gap-3 w-full">
-            <div className="relative flex-1 group">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por Protocolo, Setor ou Solicitante..."
-                className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
-              />
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <div className="flex items-center gap-3">
+              <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-200">
+                {['all', 'pending', 'approved', 'rejected']
+                  .map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setStatusFilter(s as any)}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${statusFilter === s ? 'bg-white shadow-sm text-emerald-600 border border-emerald-100' : 'text-slate-400 hover:bg-white/30'
+                        }`}
+                    >
+                      {s === 'all' ? 'Todos' : s === 'pending' ? 'Pendentes' : s === 'approved' ? 'Aprovados' : 'Rejeitados'}
+                    </button>
+                  ))}
+              </div>
             </div>
           </div>
         </div>
@@ -355,7 +355,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
           {filteredOrders.length > 0 ? (
             <div className="min-w-[1000px]">
               {/* Table Header */}
-              <div className="flex items-center px-6 py-4 border-b border-slate-200 bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest gap-6 sticky top-0 backdrop-blur-md z-10">
+              <div className="flex items-center px-6 py-2.5 border-b border-slate-200 bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest gap-6 sticky top-0 backdrop-blur-md z-10">
                 <div className="w-20 flex items-center justify-center gap-2"><Calendar className="w-3.5 h-3.5" /> Emissão</div>
                 <div className="w-24 text-center">Prioridade</div>
                 <div className="w-32 text-center">#ID</div>
@@ -368,7 +368,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
               <div className="divide-y divide-slate-100">
                 {filteredOrders.map((order) => (
                   <div key={order.id} className="relative group bg-white hover:bg-slate-50 transition-colors duration-200">
-                    <div className="flex items-center px-6 py-4 gap-6">
+                    <div className="flex items-center px-6 py-2.5 gap-6">
 
                       {/* Emissão */}
                       <div className="w-20 shrink-0">

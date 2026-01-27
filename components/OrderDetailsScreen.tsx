@@ -7,7 +7,8 @@ import {
     CheckCircle, AlertTriangle, Eye, ShieldCheck, MapPin,
     Building2, Briefcase, FileSignature, DollarSign
 } from 'lucide-react';
-import { Order, AppState, BlockType, Attachment } from '../types';
+import { Order, AppState, BlockType, Attachment, InventoryCategory } from '../types';
+import { addToInventory, savePurchaseOrder } from '../services/comprasService';
 
 interface OrderDetailsScreenProps {
     order: Order;
@@ -24,7 +25,69 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState<TabType>('details');
     const [showJustification, setShowJustification] = useState(false);
+    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+    const [targetItemIndex, setTargetItemIndex] = useState<number | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<InventoryCategory | ''>('');
+    const [isProcessing, setIsProcessing] = useState(false);
     const content = order.documentSnapshot?.content;
+
+    const handleMarkAsUntendered = (index: number) => {
+        setTargetItemIndex(index);
+        setIsCategoryModalOpen(true);
+    };
+
+    const confirmUntendered = async () => {
+        if (targetItemIndex === null || !selectedCategory || !content?.purchaseItems) return;
+        setIsProcessing(true);
+        try {
+            const item = content.purchaseItems[targetItemIndex];
+
+            // 1. Add to Inventory
+            await addToInventory({
+                name: item.name,
+                brand: item.brand,
+                details: item.details,
+                quantity: item.quantity,
+                unit: item.unit,
+                category: selectedCategory as InventoryCategory,
+                is_tendered: false,
+                original_order_protocol: order.protocol,
+                original_item_id: item.id
+            });
+
+            // 2. Update Order content locally
+            const updatedItems = [...content.purchaseItems];
+            updatedItems[targetItemIndex] = {
+                ...item,
+                isTendered: false,
+                category: selectedCategory as InventoryCategory
+            };
+
+            // 3. Save Order
+            const updatedOrder: Order = {
+                ...order,
+                documentSnapshot: {
+                    ...order.documentSnapshot!,
+                    content: {
+                        ...order.documentSnapshot!.content,
+                        purchaseItems: updatedItems
+                    }
+                }
+            };
+
+            await savePurchaseOrder(updatedOrder);
+
+            setIsCategoryModalOpen(false);
+            setTargetItemIndex(null);
+            setSelectedCategory('');
+        } catch (error) {
+            console.error("Error marking item as untendered:", error);
+            alert('Ocorreu um erro ao processar o item. Tente novamente.');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
 
     // Helper to render History Tab Content
     const renderHistory = () => (
@@ -194,6 +257,64 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
         )
     );
 
+    const renderCategoryModal = () => (
+        isCategoryModalOpen && createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+                <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl relative animate-scale-up border border-white/20">
+                    <button
+                        onClick={() => setIsCategoryModalOpen(false)}
+                        className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-800"
+                    >
+                        <XCircle className="w-6 h-6" />
+                    </button>
+
+                    <div className="text-center mb-6">
+                        <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 mx-auto mb-4 shadow-sm">
+                            <PackageCheck className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-1">Marcar Não Licitado</h3>
+                        <p className="text-sm text-slate-500 font-medium">Selecione a categoria para este item</p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Categoria</label>
+                            <select
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value as InventoryCategory)}
+                                className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all appearance-none"
+                            >
+                                <option value="">Selecione...</option>
+                                <option value="Construção">Construção</option>
+                                <option value="Limpeza">Limpeza</option>
+                                <option value="Alimentação">Alimentação</option>
+                                <option value="Material de Uso">Material de Uso</option>
+                                <option value="Ferramentas">Ferramentas</option>
+                                <option value="Serviços">Serviços</option>
+                            </select>
+                        </div>
+
+                        <button
+                            onClick={confirmUntendered}
+                            disabled={!selectedCategory || isProcessing}
+                            className={`w-full py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg transition-all flex items-center justify-center gap-2 ${!selectedCategory || isProcessing
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : 'bg-rose-500 text-white hover:bg-rose-600 shadow-rose-500/20 active:scale-95'
+                                }`}
+                        >
+                            {isProcessing ? (
+                                <><Clock className="w-4 h-4 animate-spin" /> Processando...</>
+                            ) : (
+                                <><CheckCircle2 className="w-4 h-4" /> Confirmar</>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>,
+            document.body
+        )
+    );
+
     // Native UI for Details Tab
     const renderDetails = () => (
         <div className="p-4 space-y-4 animate-fade-in w-full">
@@ -247,22 +368,37 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                             {content?.purchaseItems && content.purchaseItems.length > 0 ? (
                                 <div className="divide-y divide-slate-100">
                                     {content.purchaseItems.map((item, i) => (
-                                        <div key={i} className="p-6 hover:bg-slate-50 transition-colors flex items-center gap-6 group">
-                                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-lg shrink-0 border border-emerald-100 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm">
+                                        <div key={i} className={`p-6 transition-colors flex items-center gap-6 group relative ${item.isTendered === false ? 'bg-rose-50/50 hover:bg-rose-50' : 'hover:bg-slate-50'}`}>
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shrink-0 border transition-all shadow-sm ${item.isTendered === false ? 'bg-rose-100 text-rose-600 border-rose-200' : 'bg-emerald-50 text-emerald-600 border-emerald-100 group-hover:bg-emerald-500 group-hover:text-white'}`}>
                                                 {i + 1}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-slate-800 text-lg mb-1 group-hover:text-indigo-600 transition-colors">{item.name}</p>
+                                                <p className={`font-bold text-lg mb-1 transition-colors ${item.isTendered === false ? 'text-rose-800' : 'text-slate-800 group-hover:text-indigo-600'}`}>
+                                                    {item.name}
+                                                    {item.isTendered === false && <span className="ml-2 text-[10px] bg-rose-200/50 text-rose-700 px-2 py-0.5 rounded border border-rose-200 uppercase tracking-wide">Não Licitado</span>}
+                                                </p>
                                                 <div className="flex items-center gap-2">
                                                     <span className="bg-slate-100 px-2 py-1 rounded-md text-[10px] uppercase font-bold text-slate-500 border border-slate-200">{item.brand || 'Marca n/a'}</span>
                                                     {item.details && <span className="text-slate-400 text-xs truncate max-w-[300px]">({item.details})</span>}
+                                                    {item.category && <span className="bg-slate-100 px-2 py-1 rounded-md text-[10px] uppercase font-bold text-slate-500 border border-slate-200">{item.category}</span>}
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Quantidade</p>
-                                                <div className="inline-flex items-center px-4 py-1.5 bg-slate-100 text-slate-700 font-mono font-bold rounded-lg border border-slate-200 text-sm">
-                                                    {item.quantity} <span className="text-slate-400 ml-1 text-xs">{item.unit}</span>
+                                            <div className="text-right flex flex-col items-end gap-2">
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Quantidade</p>
+                                                    <div className="inline-flex items-center px-4 py-1.5 bg-slate-100 text-slate-700 font-mono font-bold rounded-lg border border-slate-200 text-sm">
+                                                        {item.quantity} <span className="text-slate-400 ml-1 text-xs">{item.unit}</span>
+                                                    </div>
                                                 </div>
+                                                {/* Only show button if user has permission (assuming Compras role view here) AND item is not marked yet */}
+                                                {item.isTendered !== false && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleMarkAsUntendered(i); }}
+                                                        className="px-3 py-1.5 bg-white text-rose-500 border border-rose-100 hover:bg-rose-50 hover:border-rose-200 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100 translate-x-2 group-hover:translate-x-0"
+                                                    >
+                                                        Não Licitado
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
@@ -351,6 +487,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                 </div>
             </div>
             {renderJustificationModal()}
+            {renderCategoryModal()}
         </div>
     );
 

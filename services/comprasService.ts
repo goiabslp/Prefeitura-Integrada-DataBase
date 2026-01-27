@@ -1,6 +1,6 @@
 
 import { supabase } from './supabaseClient';
-import { Order } from '../types';
+import { Order, InventoryItem, InventoryCategory } from '../types';
 import { notificationService } from './notificationService';
 
 import { handleSupabaseError } from '../utils/errorUtils';
@@ -178,5 +178,118 @@ export const updatePurchaseStatus = async (id: string, status: string, historyEn
             type: type as any,
             link: '/Compras' // or specific link
         });
+    }
+};
+
+export const getInventoryItems = async (isTendered?: boolean, category?: string): Promise<InventoryItem[]> => {
+    let query = supabase
+        .from('procurement_inventory')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (isTendered !== undefined) {
+        query = query.eq('is_tendered', isTendered);
+    }
+
+    if (category) {
+        query = query.eq('category', category);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+        throw error;
+    }
+    return data as InventoryItem[];
+};
+
+export const addToInventory = async (item: Omit<InventoryItem, 'id' | 'created_at' | 'updated_at'>): Promise<InventoryItem> => {
+    const { data, error } = await supabase
+        .from('procurement_inventory')
+        .insert(item)
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data as InventoryItem;
+};
+
+export const updateInventoryItem = async (id: string, updates: Partial<InventoryItem>): Promise<InventoryItem> => {
+    const { data, error } = await supabase
+        .from('procurement_inventory')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw error;
+    return data as InventoryItem;
+};
+
+export const deleteInventoryItem = async (id: string): Promise<void> => {
+    const { error } = await supabase
+        .from('procurement_inventory')
+        .delete()
+        .eq('id', id);
+    if (error) throw error;
+};
+
+export const restoreItemToTendered = async (inventoryItemId: string): Promise<void> => {
+    // 1. Get Inventory Item
+    const { data: inventoryItem, error: invError } = await supabase
+        .from('procurement_inventory')
+        .select('*')
+        .eq('id', inventoryItemId)
+        .single();
+
+    if (invError) throw invError;
+
+    // 2. Update Inventory Status
+    const { error: updateError } = await supabase
+        .from('procurement_inventory')
+        .update({ is_tendered: true })
+        .eq('id', inventoryItemId);
+
+    if (updateError) throw updateError;
+
+    // 3. If linked to an order, restore it there too
+    if (inventoryItem.original_order_protocol && inventoryItem.original_item_id) {
+        // Fetch order
+        const { data: order, error: orderError } = await supabase
+            .from('purchase_orders')
+            .select('*')
+            .eq('protocol', inventoryItem.original_order_protocol)
+            .single();
+
+        if (order && !orderError && order.document_snapshot?.content?.purchaseItems) {
+            const content = order.document_snapshot.content;
+            const updatedItems = content.purchaseItems.map((item: any) => {
+                if (item.id === inventoryItem.original_item_id) {
+                    // Remove isTendered flag or set to true (removing false)
+                    // We remove the flag so it returns to "default" state
+                    const { isTendered, category, ...rest } = item;
+                    return rest;
+                }
+                return item;
+            });
+
+            // Save updated order
+            const updatedSnapshot = {
+                ...order.document_snapshot,
+                content: {
+                    ...content,
+                    purchaseItems: updatedItems
+                }
+            };
+
+            const { error: saveError } = await supabase
+                .from('purchase_orders')
+                .update({ document_snapshot: updatedSnapshot })
+                .eq('id', order.id);
+
+            if (saveError) {
+                console.error("Error updating original order on restore:", saveError);
+                // We don't throw here to avoid rolling back the inventory change, 
+                // but ideally we should confirm both. For now, best effort sync.
+            }
+        }
     }
 };

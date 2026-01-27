@@ -180,13 +180,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
                     ? new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD in local time
                     : selectedDate;
 
-                // Create start and end of day in LOCAL time, then convert to ISO (UTC)
-                // This ensures we capture the full day regardless of timezone offset
-                const startLocal = new Date(`${baseDateStr}T00:00:00`);
-                const endLocal = new Date(`${baseDateStr}T23:59:59.999`);
-
-                filters.startDate = startLocal.toISOString();
-                filters.endDate = endLocal.toISOString();
+                filters.date = baseDateStr;
             }
 
             const [dataRes, vehiclesRes, sectorsRes] = await Promise.all([
@@ -317,7 +311,10 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
                                     }`}
                             >
                                 <Filter className="w-4 h-4" />
-                                {filterMode === 'today' ? `Hoje` : filterMode === 'date' ? `${new Date(selectedDate).toLocaleDateString('pt-BR')}` : `Todos`}
+                                {filterMode === 'today' ? `Hoje` : filterMode === 'date' ? (() => {
+                                    const [y, m, d] = selectedDate.split('-');
+                                    return `${d}/${m}/${y}`;
+                                })() : `Todos`}
                                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
                             </button>
 
