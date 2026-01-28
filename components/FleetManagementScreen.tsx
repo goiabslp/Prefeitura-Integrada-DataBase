@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Vehicle, VehicleType, Sector, VehicleStatus, MaintenanceStatus, Person, Job, VehicleBrand } from '../types';
+import { fleetService } from '../services/fleetService';
 import {
   Plus, Search, Edit2, Trash2, Save, X,
   Car, Truck, Wrench, CheckCircle2, Trash, Info,
@@ -55,7 +56,7 @@ const FUEL_OPTIONS = ['ALCOOL', 'GASOLINA', 'DIESEL'] as const;
 export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   vehicles, sectors, persons, jobs, brands, onAddVehicle, onUpdateVehicle, onDeleteVehicle, onAddBrand, onBack, onFetchDetails
 }) => {
-  const [activeTab, setActiveTab] = useState<VehicleType>('leve');
+  const [activeTab, setActiveTab] = useState<VehicleType | 'dashboard'>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
@@ -68,6 +69,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [isMaintDropdownOpen, setIsMaintDropdownOpen] = useState(false);
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
+  const [isOilBaseDropdownOpen, setIsOilBaseDropdownOpen] = useState(false);
 
   const [sectorSearch, setSectorSearch] = useState('');
   const [responsibleSearch, setResponsibleSearch] = useState('');
@@ -81,11 +83,20 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const maintDropdownRef = useRef<HTMLDivElement>(null);
   const brandDropdownRef = useRef<HTMLDivElement>(null);
+  const oilBaseDropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, title: string, message: string, onConfirm: () => void }>({
-    isOpen: false, title: '', message: '', onConfirm: () => { }
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    type?: 'destructive' | 'positive';
+    confirmLabel?: string;
+    cancelLabel?: string;
+  }>({
+    isOpen: false, title: '', message: '', onConfirm: () => { }, type: 'destructive'
   });
 
   const [formData, setFormData] = useState<Partial<Vehicle>>({
@@ -106,7 +117,11 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
     fuelTypes: [],
     requestManagerIds: [],
     maxKml: undefined,
-    minKml: undefined
+    minKml: undefined,
+    currentKm: undefined,
+    oilLastChange: undefined,
+    oilNextChange: undefined,
+    oilCalculationBase: 5000
   });
 
   useEffect(() => {
@@ -116,6 +131,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
       if (statusDropdownRef.current && !statusDropdownRef.current.contains(target)) setIsStatusDropdownOpen(false);
       if (maintDropdownRef.current && !maintDropdownRef.current.contains(target)) setIsMaintDropdownOpen(false);
       if (brandDropdownRef.current && !brandDropdownRef.current.contains(target)) setIsBrandDropdownOpen(false);
+      if (oilBaseDropdownRef.current && !oilBaseDropdownRef.current.contains(target)) setIsOilBaseDropdownOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -151,7 +167,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
     } else {
       setEditingVehicle(null);
       setFormData({
-        type: activeTab,
+        type: activeTab === 'dashboard' ? 'leve' : activeTab,
         model: '',
         plate: '',
         brand: '',
@@ -169,7 +185,11 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
         fuelTypes: [],
         requestManagerIds: [],
         maxKml: undefined,
-        minKml: undefined
+        minKml: undefined,
+        currentKm: undefined,
+        oilLastChange: undefined,
+        oilNextChange: undefined,
+        oilCalculationBase: 5000
       });
       setMaxKmlInput('');
       setMinKmlInput('');
@@ -257,7 +277,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
     const vehicleData = {
       ...formData,
       id: editingVehicle ? editingVehicle.id : Date.now().toString(),
-      type: formData.type || activeTab
+      type: formData.type || (activeTab === 'dashboard' ? 'leve' : activeTab)
     } as Vehicle;
 
     editingVehicle ? onUpdateVehicle(vehicleData) : onAddVehicle(vehicleData);
@@ -291,10 +311,18 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   }, [persons, requestManagerSearch]);
 
   const filteredBrands = useMemo(() => {
+    const category = activeTab === 'dashboard' ? 'leve' : activeTab;
     return brands
-      .filter(b => b.category === activeTab && b.name.toLowerCase().includes(brandSearch.toLowerCase()))
+      .filter(b => b.category === category && b.name.toLowerCase().includes(brandSearch.toLowerCase()))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [brands, activeTab, brandSearch]);
+
+  const oilStats = useMemo(() => {
+    const inDay = vehicles.filter(v => v.oilNextChange && v.currentKm && (v.oilNextChange - v.currentKm > 500)).length;
+    const near = vehicles.filter(v => v.oilNextChange && v.currentKm && (v.oilNextChange - v.currentKm <= 500 && v.oilNextChange - v.currentKm > 0)).length;
+    const expired = vehicles.filter(v => v.oilNextChange && v.currentKm && (v.oilNextChange - v.currentKm <= 0)).length;
+    return { inDay, near, expired };
+  }, [vehicles]);
 
   const selectedSectorName = sectors.find(s => s.id === formData.sectorId)?.name || 'Selecione o Setor';
   const selectedResponsibleName = persons.find(p => p.id === formData.responsiblePersonId)?.name || 'Selecione o Responsável';
@@ -351,20 +379,40 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
 
       {/* Área de Filtros e Categorias */}
       <div className="bg-white/50 backdrop-blur-md px-6 py-4 border-b border-slate-200 shrink-0 flex flex-col md:flex-row gap-4 items-center justify-between sticky top-0 z-10">
-        <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm w-fit gap-1">
-          {[
-            { id: 'leve', label: 'Leves', icon: Car },
-            { id: 'pesado', label: 'Pesados', icon: Truck },
-            { id: 'acessorio', label: 'Acessórios', icon: Wrench },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => { setActiveTab(tab.id as VehicleType); setSearchTerm(''); }}
-              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              <tab.icon className="w-3.5 h-3.5" /> {tab.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-4">
+          <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm w-fit gap-1">
+            {[
+              { id: 'dashboard', label: 'Dashboard', icon: Activity },
+              { id: 'leve', label: 'Leves', icon: Car },
+              { id: 'pesado', label: 'Pesados', icon: Truck },
+              { id: 'acessorio', label: 'Acessórios', icon: Wrench },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id as any); setSearchTerm(''); }}
+                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                <tab.icon className="w-3.5 h-3.5" /> {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === 'dashboard' && (
+            <div className="flex items-center gap-2 animate-fade-in pl-4 border-l border-slate-200 ml-4">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-xl border border-emerald-200">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-black uppercase tracking-widest">{oilStats.inDay} EM DIA</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-xl border border-amber-200">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-black uppercase tracking-widest">{oilStats.near} PRÓXIMO</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-100 text-rose-700 rounded-xl border border-rose-200">
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-black uppercase tracking-widest">{oilStats.expired} VENCIDO</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -384,108 +432,182 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
       {/* Conteúdo de Grade 100% */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 bg-slate-50">
         <div className="max-w-[1920px] mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-            {filteredVehicles.map(v => {
-              const statusCfg = getStatusConfig(v.status || 'operacional');
-              const responsibleName = persons.find(p => p.id === v.responsiblePersonId)?.name || 'Responsável não definido';
-              return (
-                <div key={v.id} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all flex flex-col group overflow-hidden animate-fade-in">
-                  <div className="relative h-48 w-full bg-slate-100 overflow-hidden">
-                    {v.vehicleImageUrl ? (
-                      <img src={v.vehicleImageUrl} alt={v.model} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
-                        {v.type === 'leve' ? <Car className="w-16 h-16 mb-2" /> : v.type === 'pesado' ? <Truck className="w-16 h-16 mb-2" /> : <Wrench className="w-16 h-16 mb-2" />}
-                        <span className="text-[10px] font-black uppercase tracking-widest">Sem Foto</span>
-                      </div>
-                    )}
+          {activeTab === 'dashboard' ? (
+            <div className="animate-fade-in">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+                {vehicles
+                  .filter(v => v.model.toLowerCase().includes(searchTerm.toLowerCase()) || v.plate.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .sort((a, b) => {
+                    const diffA = (a.oilNextChange && a.currentKm) ? (a.oilNextChange - a.currentKm) : 1000000;
+                    const diffB = (b.oilNextChange && b.currentKm) ? (b.oilNextChange - b.currentKm) : 1000000;
+                    return diffA - diffB;
+                  })
+                  .map(v => {
+                    const kmRemaining = (v.oilNextChange && v.currentKm) ? (v.oilNextChange - v.currentKm) : null;
+                    const alertColor = kmRemaining === null ? 'slate' : kmRemaining <= 0 ? 'rose' : kmRemaining <= 2000 ? 'amber' : 'emerald';
+                    const progress = kmRemaining === null ? 0 : Math.max(0, Math.min(100, (kmRemaining / (v.oilCalculationBase || 5000)) * 100));
 
-                    <div className={`absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border backdrop-blur-md bg-white/90 text-${statusCfg.color}-700 border-${statusCfg.color}-200 shadow-lg`}>
-                      <statusCfg.icon className="w-3 h-3" />
-                      {statusCfg.label}
-                    </div>
-
-                    <div className="absolute top-4 right-4 flex items-center gap-2">
-                      <button
-                        onClick={() => handleOpenModal(v)}
-                        className="p-2.5 bg-white/90 backdrop-blur-sm text-slate-600 hover:text-indigo-600 rounded-xl shadow-lg transition-all active:scale-90"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {v.documentUrl && (
-                      <button
-                        onClick={() => setViewingDocumentUrl({ url: v.documentUrl!, name: v.documentName || 'documento', type: 'doc' })}
-                        className="absolute bottom-4 right-4 p-2.5 bg-emerald-600 text-white rounded-xl shadow-lg transition-all active:scale-90 hover:bg-emerald-500"
-                        title="Ver Documento"
-                      >
-                        <FileText className="w-4 h-4" />
-                      </button>
-                    )}
-
-                    {v.vehicleImageUrl && (
-                      <button
-                        onClick={() => setViewingDocumentUrl({ url: v.vehicleImageUrl!, name: v.model, type: 'photo' })}
-                        className="absolute bottom-4 left-4 p-2.5 bg-indigo-600/90 backdrop-blur-sm text-white rounded-xl shadow-lg transition-all active:scale-90 hover:bg-indigo-500"
-                        title="Ampliar Foto"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="p-6 flex flex-col gap-4">
-                    <div className="min-w-0">
-                      <h3 className="text-lg font-black text-slate-900 leading-tight uppercase tracking-tight truncate">{v.model}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="bg-slate-900 text-white font-mono text-[9px] px-2 py-0.5 rounded border border-white/10 shadow-sm tracking-[0.15em] shrink-0">{v.plate}</span>
-                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest truncate">{v.brand} • {v.year}</span>
-                      </div>
-                      {v.fuelTypes && v.fuelTypes.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {v.fuelTypes.map(f => (
-                            <span key={f} className="text-[8px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded uppercase tracking-tighter">{f}</span>
-                          ))}
+                    return (
+                      <div key={v.id} className={`group relative bg-white rounded-3xl border-2 border-${alertColor}-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col`}>
+                        <div className={`p-4 flex items-center justify-between border-b border-${alertColor}-100 bg-${alertColor}-50/30`}>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl bg-${alertColor}-100 text-${alertColor}-600 flex items-center justify-center shadow-inner shrink-0 leading-none`}>
+                              <Car className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight truncate leading-tight">{v.model}</h3>
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em]">{v.plate}</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleOpenModal(v)}
+                            className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
+
+                        <div className="p-4 flex-1 flex flex-col justify-between gap-4">
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                              <span className="text-slate-400">KM Atual</span>
+                              <span className="text-slate-900">{v.currentKm?.toLocaleString('pt-BR') || '---'}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                              <span className="text-slate-400">Próxima</span>
+                              <span className={`text-${alertColor}-600`}>{v.oilNextChange?.toLocaleString('pt-BR') || '---'}</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="h-3 bg-slate-50 rounded-full overflow-hidden p-0.5 border border-slate-100 shadow-inner">
+                              <div
+                                className={`h-full rounded-full bg-${alertColor}-500 shadow-lg shadow-${alertColor}-500/20 transition-all duration-1000 relative`}
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            <div className="text-center">
+                              {kmRemaining !== null ? (
+                                <p className={`text-[9px] font-black ${kmRemaining <= 0 ? 'text-rose-600 animate-pulse' : 'text-slate-500'} uppercase tracking-tight`}>
+                                  {kmRemaining <= 0 ? `${Math.abs(kmRemaining).toLocaleString('pt-BR')} KM Vencidos` : `${kmRemaining.toLocaleString('pt-BR')} KM p/ Troca`}
+                                </p>
+                              ) : (
+                                <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Não Configurado</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+              {filteredVehicles.map(v => {
+                const statusCfg = getStatusConfig(v.status || 'operacional');
+                const responsibleName = persons.find(p => p.id === v.responsiblePersonId)?.name || 'Responsável não definido';
+                return (
+                  <div key={v.id} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all flex flex-col group overflow-hidden animate-fade-in">
+                    <div className="relative h-48 w-full bg-slate-100 overflow-hidden">
+                      {v.vehicleImageUrl ? (
+                        <img src={v.vehicleImageUrl} alt={v.model} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
+                          {v.type === 'leve' ? <Car className="w-16 h-16 mb-2" /> : v.type === 'pesado' ? <Truck className="w-16 h-16 mb-2" /> : <Wrench className="w-16 h-16 mb-2" />}
+                          <span className="text-[10px] font-black uppercase tracking-widest">Sem Foto</span>
+                        </div>
+                      )}
+
+                      <div className={`absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border backdrop-blur-md bg-white/90 text-${statusCfg.color}-700 border-${statusCfg.color}-200 shadow-lg`}>
+                        <statusCfg.icon className="w-3 h-3" />
+                        {statusCfg.label}
+                      </div>
+
+                      <div className="absolute top-4 right-4 flex items-center gap-2">
+                        <button
+                          onClick={() => handleOpenModal(v)}
+                          className="p-2.5 bg-white/90 backdrop-blur-sm text-slate-600 hover:text-indigo-600 rounded-xl shadow-lg transition-all active:scale-90"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {v.documentUrl && (
+                        <button
+                          onClick={() => setViewingDocumentUrl({ url: v.documentUrl!, name: v.documentName || 'documento', type: 'doc' })}
+                          className="absolute bottom-4 right-4 p-2.5 bg-emerald-600 text-white rounded-xl shadow-lg transition-all active:scale-90 hover:bg-emerald-500"
+                          title="Ver Documento"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {v.vehicleImageUrl && (
+                        <button
+                          onClick={() => setViewingDocumentUrl({ url: v.vehicleImageUrl!, name: v.model, type: 'photo' })}
+                          className="absolute bottom-4 left-4 p-2.5 bg-indigo-600/90 backdrop-blur-sm text-white rounded-xl shadow-lg transition-all active:scale-90 hover:bg-indigo-500"
+                          title="Ampliar Foto"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                       )}
                     </div>
 
-                    <div className="pt-4 border-t border-slate-50 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-slate-50 rounded-lg text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                          <Network className="w-3.5 h-3.5" />
+                    <div className="p-6 flex flex-col gap-4">
+                      <div className="min-w-0">
+                        <h3 className="text-lg font-black text-slate-900 leading-tight uppercase tracking-tight truncate">{v.model}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="bg-slate-900 text-white font-mono text-[9px] px-2 py-0.5 rounded border border-white/10 shadow-sm tracking-[0.15em] shrink-0">{v.plate}</span>
+                          <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest truncate">{v.brand} • {v.year}</span>
                         </div>
-                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider leading-tight">
-                          {sectors.find(s => s.id === v.sectorId)?.name || 'Sem Setor'}
-                        </span>
+                        {v.fuelTypes && v.fuelTypes.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {v.fuelTypes.map(f => (
+                              <span key={f} className="text-[8px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded uppercase tracking-tighter">{f}</span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-slate-50 rounded-lg text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                          <User className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider leading-tight truncate">
-                          {responsibleName}
-                        </span>
-                      </div>
-                    </div>
 
-                    <button
-                      onClick={() => setConfirmModal({
-                        isOpen: true,
-                        title: "Remover Registro",
-                        message: `Deseja realmente excluir o veículo ${v.model} (${v.plate})?`,
-                        onConfirm: () => { onDeleteVehicle(v.id); setConfirmModal({ ...confirmModal, isOpen: false }); }
-                      })}
-                      className="mt-2 w-full py-2 bg-slate-50 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
-                    >
-                      <Trash2 className="w-3 h-3" /> Excluir
-                    </button>
+                      <div className="pt-4 border-t border-slate-50 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 bg-slate-50 rounded-lg text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                            <Network className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider leading-tight">
+                            {sectors.find(s => s.id === v.sectorId)?.name || 'Sem Setor'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 bg-slate-50 rounded-lg text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                            <User className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider leading-tight truncate">
+                            {responsibleName}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setConfirmModal({
+                          isOpen: true,
+                          title: "Remover Registro",
+                          message: `Deseja realmente excluir o veículo ${v.model} (${v.plate})?`,
+                          type: 'destructive',
+                          confirmLabel: 'Sim, Remover Registro',
+                          onConfirm: () => { onDeleteVehicle(v.id); setConfirmModal({ ...confirmModal, isOpen: false }); }
+                        })}
+                        className="mt-2 w-full py-2 bg-slate-50 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+                      >
+                        <Trash2 className="w-3 h-3" /> Excluir
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           {filteredVehicles.length === 0 && (
             <div className="py-32 flex flex-col items-center justify-center text-center space-y-4">
@@ -854,6 +976,110 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                       </button>
                     </div>
 
+                    <div className="md:col-span-2 bg-indigo-50/30 border border-indigo-100 rounded-[2rem] p-6 space-y-6">
+                      <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <PenTool className="w-3.5 h-3.5" /> Controle de Troca de Óleo
+                      </h4>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                          <label className={labelClass}>KM Atual</label>
+                          <div className={`${inputClass} bg-slate-100/50 cursor-not-allowed flex items-center gap-2`}>
+                            <Gauge className="w-4 h-4 text-slate-400" />
+                            {formData.currentKm?.toLocaleString('pt-BR') || '---'} KM
+                          </div>
+                        </div>
+
+                        <div className="relative" ref={oilBaseDropdownRef}>
+                          <label className={labelClass}>Base de Cálculo (KM)</label>
+                          <button
+                            type="button"
+                            onClick={() => setIsOilBaseDropdownOpen(!isOilBaseDropdownOpen)}
+                            className={`${inputClass} flex items-center justify-between cursor-pointer active:scale-95`}
+                          >
+                            <span className="text-sm font-bold text-slate-900">
+                              {formData.oilCalculationBase ? `${formData.oilCalculationBase.toLocaleString('pt-BR')} KM` : '5.000 KM'}
+                            </span>
+                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isOilBaseDropdownOpen ? 'rotate-180' : ''}`} />
+                          </button>
+
+                          {isOilBaseDropdownOpen && (
+                            <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-slide-up flex flex-col">
+                              {[5000, 7000, 10000].map((base) => (
+                                <button
+                                  key={base}
+                                  type="button"
+                                  onClick={() => {
+                                    const next = (formData.oilLastChange || 0) + base;
+                                    setFormData({ ...formData, oilCalculationBase: base as any, oilNextChange: next });
+                                    setIsOilBaseDropdownOpen(false);
+                                  }}
+                                  className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors group ${formData.oilCalculationBase === base ? 'bg-indigo-50/50' : ''}`}
+                                >
+                                  <span className={`text-xs font-bold ${formData.oilCalculationBase === base ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                    {base.toLocaleString('pt-BR')} KM
+                                  </span>
+                                  {formData.oilCalculationBase === base && <Check className="w-4 h-4 text-indigo-600" />}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={labelClass}>Próxima Troca (KM)</label>
+                          <div className={`${inputClass} bg-indigo-100/50 font-black text-indigo-700 flex items-center`}>
+                            {formData.oilNextChange?.toLocaleString('pt-BR') || '---'} KM
+                          </div>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className={labelClass}>Última Troca de Óleo (KM)</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              value={formData.oilLastChange || ''}
+                              readOnly
+                              className={`${inputClass} bg-slate-100/50 cursor-not-allowed`}
+                              placeholder="KM da última troca"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConfirmModal({
+                                  isOpen: true,
+                                  title: "Confirmar Troca de Óleo",
+                                  message: `Confirma a troca de óleo do veículo ${formData.model} (Placa: ${formData.plate}) no KM atual de ${formData.currentKm?.toLocaleString('pt-BR') || '0'}?`,
+                                  type: 'positive',
+                                  confirmLabel: 'Sim, Confirmar Troca',
+                                  onConfirm: async () => {
+                                    const last = formData.currentKm || 0;
+                                    const next = last + (formData.oilCalculationBase || 5000);
+
+                                    try {
+                                      if (editingVehicle?.id) {
+                                        await fleetService.addOilChangeRecord(editingVehicle.id, last);
+                                      }
+
+                                      setFormData(prev => ({ ...prev, oilLastChange: last, oilNextChange: next }));
+                                      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                                      alert("Troca de óleo registrada com sucesso!");
+                                    } catch (error) {
+                                      console.error("Erro ao registrar troca de óleo", error);
+                                      alert("Erro ao registrar troca de óleo. Verifique o console.");
+                                    }
+                                  }
+                                });
+                              }}
+                              className="px-6 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 shrink-0 shadow-lg shadow-indigo-600/20"
+                            >
+                              Óleo Trocado
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <div>
                       <label className={labelClass}><Fuel className="w-4 h-4 inline mr-2 text-indigo-500" /> Código Renavam</label>
                       <input value={formData.renavam} onChange={e => setFormData({ ...formData, renavam: e.target.value })} className={`${inputClass} font-mono`} placeholder="01332550344" />
@@ -1183,17 +1409,27 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
       )}
 
       {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
+      {/* MODAL DE CONFIRMAÇÃO DE AÇÃO */}
       {confirmModal.isOpen && createPortal(
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20">
             <div className="p-12 text-center">
-              <div className="w-24 h-24 bg-rose-50 text-rose-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-rose-500/10 rotate-3"><Trash className="w-12 h-12" /></div>
-              <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-4 uppercase">Excluir Item?</h3>
+              <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl rotate-3 ${confirmModal.type === 'positive' ? 'bg-indigo-50 text-indigo-600 shadow-indigo-500/10' : 'bg-rose-50 text-rose-600 shadow-rose-500/10'}`}>
+                {confirmModal.type === 'positive' ? <CheckCircle2 className="w-12 h-12" /> : <Trash className="w-12 h-12" />}
+              </div>
+              <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-4 uppercase">{confirmModal.title}</h3>
               <p className="text-slate-500 text-sm font-medium leading-relaxed px-4">{confirmModal.message}</p>
             </div>
             <div className="p-8 bg-slate-50 border-t border-slate-100 flex flex-col gap-4">
-              <button onClick={confirmModal.onConfirm} className="w-full py-5 bg-rose-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-[1.5rem] shadow-2xl shadow-rose-600/20 hover:bg-rose-700 transition-all active:scale-95">Sim, Remover Registro</button>
-              <button onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })} className="w-full py-5 bg-white text-slate-400 font-black text-xs uppercase tracking-[0.2em] rounded-[1.5rem] border border-slate-200 hover:bg-white hover:text-slate-600 transition-all shadow-sm">Voltar / Cancelar</button>
+              <button
+                onClick={confirmModal.onConfirm}
+                className={`w-full py-5 text-white font-black text-xs uppercase tracking-[0.2em] rounded-[1.5rem] shadow-2xl transition-all active:scale-95 ${confirmModal.type === 'positive' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'}`}
+              >
+                {confirmModal.confirmLabel || 'Confirmar'}
+              </button>
+              <button onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })} className="w-full py-5 bg-white text-slate-400 font-black text-xs uppercase tracking-[0.2em] rounded-[1.5rem] border border-slate-200 hover:bg-white hover:text-slate-600 transition-all shadow-sm">
+                {confirmModal.cancelLabel || 'Voltar / Cancelar'}
+              </button>
             </div>
           </div>
         </div>,

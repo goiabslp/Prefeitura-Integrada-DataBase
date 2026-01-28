@@ -400,16 +400,24 @@ const App: React.FC = () => {
       if (fetchEntities || fetchVehicleSchedules || fetchAbastecimento) {
         const [
           savedPersons,
-          savedVehicles
+          savedVehicles,
+          latestOdometers
         ] = await Promise.all([
           entityService.getPersons(),
-          entityService.getVehicles()
+          entityService.getVehicles(),
+          AbastecimentoService.getAllLatestOdometers()
         ]);
+
+        const vehiclesWithKm = savedVehicles.map(v => ({
+          ...v,
+          currentKm: latestOdometers[v.plate] || 0
+        }));
+
         setPersons(savedPersons);
-        setVehicles(savedVehicles);
+        setVehicles(vehiclesWithKm);
         try {
           sessionStorage.setItem('cachedPersons', JSON.stringify(savedPersons));
-          sessionStorage.setItem('cachedVehicles', JSON.stringify(savedVehicles));
+          sessionStorage.setItem('cachedVehicles', JSON.stringify(vehiclesWithKm));
         } catch (e) { }
       }
 

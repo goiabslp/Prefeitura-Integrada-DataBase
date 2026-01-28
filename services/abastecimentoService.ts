@@ -51,7 +51,6 @@ export const AbastecimentoService = {
                 .single();
 
             if (error) {
-                // If not found, return default
                 if (error.code === 'PGRST116') return DEFAULT_CONFIG;
                 console.error('Error loading fuel config:', error);
                 return DEFAULT_CONFIG;
@@ -104,7 +103,6 @@ export const AbastecimentoService = {
                 .from('abastecimentos')
                 .select('*', { count: 'exact' });
 
-            // Apply Filters
             if (filters) {
                 if (filters.search) {
                     const s = filters.search.toLowerCase();
@@ -132,7 +130,6 @@ export const AbastecimentoService = {
                 if (filters.fuelType && filters.fuelType !== 'all') {
                     query = query.ilike('fuel_type', `%${filters.fuelType}%`);
                 }
-
                 if (filters.sector && filters.sector !== 'all') {
                     const { data: sectorVehicles, error: secError } = await supabase
                         .from('vehicles')
@@ -221,7 +218,7 @@ export const AbastecimentoService = {
                 date: record.date,
                 vehicle: record.vehicle,
                 driver: record.driver,
-                fuel_type: record.fuelType, // Map camelCase to snake_case
+                fuel_type: record.fuelType,
                 liters: record.liters,
                 odometer: record.odometer,
                 cost: record.cost,
@@ -241,7 +238,7 @@ export const AbastecimentoService = {
         } catch (error) {
             const appError = handleSupabaseError(error);
             console.error('[AbastecimentoService] saveAbastecimento Error:', appError.message);
-            throw appError; // Re-throw to be handled by UI
+            throw appError;
         }
     },
 
@@ -260,7 +257,6 @@ export const AbastecimentoService = {
         }
     },
 
-    // Gas Station Methods
     getGasStations: async (): Promise<GasStation[]> => {
         try {
             const { data, error } = await supabase
@@ -298,6 +294,52 @@ export const AbastecimentoService = {
             if (error) throw error;
         } catch (error) {
             console.error('Error deleting gas station:', error);
+        }
+    },
+
+    getLatestOdometerByVehicle: async (vehiclePlate: string): Promise<number | null> => {
+        try {
+            const { data, error } = await supabase
+                .from('abastecimentos')
+                .select('odometer')
+                .eq('vehicle', vehiclePlate)
+                .order('date', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (error) {
+                if (error.code !== 'PGRST116') console.error('Error fetching latest odometer:', error);
+                return null;
+            }
+            return data?.odometer || null;
+        } catch (error) {
+            console.error('Error fetching latest odometer:', error);
+            return null;
+        }
+    },
+
+    getAllLatestOdometers: async (): Promise<Record<string, number>> => {
+        try {
+            const { data, error } = await supabase
+                .from('abastecimentos')
+                .select('vehicle, odometer, date')
+                .order('date', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching all latest odometers:', error);
+                return {};
+            }
+
+            const latest: Record<string, number> = {};
+            data?.forEach(row => {
+                if (!latest[row.vehicle]) {
+                    latest[row.vehicle] = row.odometer;
+                }
+            });
+            return latest;
+        } catch (error) {
+            console.error('Error fetching all latest odometers:', error);
+            return {};
         }
     }
 };

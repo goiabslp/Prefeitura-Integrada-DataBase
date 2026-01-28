@@ -280,6 +280,10 @@ export interface Vehicle {
   requestManagerIds?: string[];
   maxKml?: number;
   minKml?: number;
+  currentKm?: number;
+  oilLastChange?: number;
+  oilNextChange?: number;
+  oilCalculationBase?: 5000 | 7000 | 10000;
 }
 
 export type ScheduleStatus = 'pendente' | 'confirmado' | 'em_curso' | 'concluido' | 'cancelado';
