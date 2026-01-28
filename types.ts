@@ -287,6 +287,17 @@ export interface Vehicle {
   timingBeltLastChange?: number;
   timingBeltNextChange?: number;
   timingBeltCalculationBase?: 10000 | 20000 | 40000 | 50000 | 60000 | 80000 | 100000;
+
+}
+
+export interface VehicleDocument {
+  id: string;
+  vehicle_id: string;
+  name: string;
+  description?: string;
+  file_url: string;
+  file_type?: string;
+  created_at?: string;
 }
 
 export type ScheduleStatus = 'pendente' | 'confirmado' | 'em_curso' | 'concluido' | 'cancelado';

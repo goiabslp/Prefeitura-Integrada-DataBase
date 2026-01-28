@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Vehicle, VehicleType, Sector, VehicleStatus, MaintenanceStatus, Person, Job, VehicleBrand } from '../types';
+import { Vehicle, VehicleType, Sector, VehicleStatus, MaintenanceStatus, Person, Job, VehicleBrand, VehicleDocument } from '../types';
 import { fleetService } from '../services/fleetService';
 import {
   Plus, Search, Edit2, Trash2, Save, X,
@@ -63,6 +63,10 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [viewingVehicleStatus, setViewingVehicleStatus] = useState<Vehicle | null>(null);
   const [viewingDocumentUrl, setViewingDocumentUrl] = useState<{ url: string, name: string, type: 'doc' | 'photo' } | null>(null);
+  const [vehicleDocuments, setVehicleDocuments] = useState<VehicleDocument[]>([]);
+  const [isUploadingDocument, setIsUploadingDocument] = useState(false);
+  const [newDocumentDescription, setNewDocumentDescription] = useState('');
+  const [newDocumentFile, setNewDocumentFile] = useState<File | null>(null);
 
   const [isSectorModalOpen, setIsSectorModalOpen] = useState(false);
   const [isResponsibleModalOpen, setIsResponsibleModalOpen] = useState(false);
@@ -89,6 +93,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   const timingBeltBaseDropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
 
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -327,27 +332,26 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
     let expired = 0;
 
     vehicles.forEach(v => {
-      const currentKm = v.currentKm || 0;
-      let isExpired = false;
-      let isNear = false;
-
-      // Check Oil Status
-      if (v.oilNextChange) {
-        const diff = v.oilNextChange - currentKm;
-        if (diff <= 0) isExpired = true;
-        else if (diff <= 500) isNear = true;
+      // Calculate Oil Status
+      const oilRemaining = (v.oilNextChange && v.currentKm) ? (v.oilNextChange - v.currentKm) : null;
+      let oilStatus: 'inDay' | 'near' | 'expired' = 'inDay';
+      if (oilRemaining !== null) {
+        if (oilRemaining <= 0) oilStatus = 'expired';
+        else if (oilRemaining <= 1000) oilStatus = 'near';
       }
 
-      // Check Timing Belt Status
-      if (v.timingBeltNextChange) {
-        const diff = v.timingBeltNextChange - currentKm;
-        if (diff <= 0) isExpired = true; // Overall expired if EITHER is expired
-        else if (diff <= 1000) isNear = true;
+      // Calculate Belt Status
+      const beltRemaining = (v.timingBeltNextChange && v.currentKm) ? (v.timingBeltNextChange - v.currentKm) : null;
+      let beltStatus: 'inDay' | 'near' | 'expired' = 'inDay';
+      if (beltRemaining !== null) {
+        if (beltRemaining <= 0) beltStatus = 'expired';
+        else if (beltRemaining <= 1000) beltStatus = 'near';
       }
 
-      if (isExpired) {
+      // Determine Vehicle Overall Status (Worst Case)
+      if (oilStatus === 'expired' || beltStatus === 'expired') {
         expired++;
-      } else if (isNear) {
+      } else if (oilStatus === 'near' || beltStatus === 'near') {
         near++;
       } else {
         inDay++;
@@ -373,6 +377,41 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
 
   const getMaintConfig = (maint: MaintenanceStatus) => {
     return MAINTENANCE_OPTIONS.find(opt => opt.value === maint) || MAINTENANCE_OPTIONS[0];
+  };
+
+  const handleDocumentUpload = async () => {
+    if (!editingVehicle?.id || !newDocumentFile || !newDocumentDescription) return;
+
+    setIsUploadingDocument(true);
+    try {
+      await fleetService.uploadVehicleDocument(editingVehicle.id, newDocumentFile, newDocumentDescription);
+      const docs = await fleetService.getVehicleDocuments(editingVehicle.id);
+      setVehicleDocuments(docs);
+      setNewDocumentFile(null);
+      setNewDocumentDescription('');
+      if (documentInputRef.current) documentInputRef.current.value = '';
+      alert('Documento anexado com sucesso!');
+    } catch (error) {
+      console.error("Erro ao anexar documento:", error);
+      alert('Erro ao anexar documento.');
+    } finally {
+      setIsUploadingDocument(false);
+    }
+  };
+
+  const handleDocumentDelete = async (doc: VehicleDocument) => {
+    if (!confirm(`Deseja realmente excluir o documento "${doc.name}"?`)) return;
+
+    try {
+      await fleetService.deleteVehicleDocument(doc.id, doc.file_url);
+      if (editingVehicle?.id) {
+        const docs = await fleetService.getVehicleDocuments(editingVehicle.id);
+        setVehicleDocuments(docs);
+      }
+    } catch (error) {
+      console.error("Erro ao excluir documento:", error);
+      alert('Erro ao excluir documento.');
+    }
   };
 
   return (
@@ -473,14 +512,43 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                   {vehicles
                     .filter(v => v.model.toLowerCase().includes(searchTerm.toLowerCase()) || v.plate.toLowerCase().includes(searchTerm.toLowerCase()))
                     .sort((a, b) => {
-                      const diffA = (a.oilNextChange && a.currentKm) ? (a.oilNextChange - a.currentKm) : 1000000;
-                      const diffB = (b.oilNextChange && b.currentKm) ? (b.oilNextChange - b.currentKm) : 1000000;
-                      return diffA - diffB;
+                      const getDiff = (v: Vehicle) => {
+                        const oilDiff = (v.oilNextChange && v.currentKm) ? (v.oilNextChange - v.currentKm) : 1000000;
+                        const beltDiff = (v.timingBeltNextChange && v.currentKm) ? (v.timingBeltNextChange - v.currentKm) : 1000000;
+                        return Math.min(oilDiff, beltDiff);
+                      };
+                      return getDiff(a) - getDiff(b);
                     })
                     .map(v => {
-                      const kmRemaining = (v.oilNextChange && v.currentKm) ? (v.oilNextChange - v.currentKm) : null;
-                      const alertColor = kmRemaining === null ? 'slate' : kmRemaining <= 0 ? 'rose' : kmRemaining <= 2000 ? 'amber' : 'emerald';
-                      const progress = kmRemaining === null ? 0 : Math.max(0, Math.min(100, (kmRemaining / (v.oilCalculationBase || 5000)) * 100));
+                      const oilRemaining = (v.oilNextChange && v.currentKm) ? (v.oilNextChange - v.currentKm) : null;
+                      const beltRemaining = (v.timingBeltNextChange && v.currentKm) ? (v.timingBeltNextChange - v.currentKm) : null;
+
+                      // Determine worst status
+                      const getStatus = (remaining: number | null) => {
+                        if (remaining === null) return 'slate';
+                        if (remaining <= 0) return 'rose';
+                        if (remaining <= 1000) return 'amber'; // Stricter for dashboard visual
+                        return 'emerald';
+                      };
+
+                      const oilStatus = getStatus(oilRemaining);
+                      const beltStatus = getStatus(beltRemaining);
+
+                      // Overall card color based on worst status
+                      let alertColor = 'emerald';
+                      if (oilStatus === 'slate' && beltStatus === 'slate') alertColor = 'slate';
+                      else if (oilStatus === 'rose' || beltStatus === 'rose') alertColor = 'rose';
+                      else if (oilStatus === 'amber' || beltStatus === 'amber') alertColor = 'amber';
+
+                      // Progress for visual bar (taking the one closest to expiry)
+                      const getProgress = (remaining: number | null, base: number = 5000) => {
+                        if (remaining === null) return 0;
+                        return Math.max(0, Math.min(100, (remaining / base) * 100)); // This logic is inverted visually usually? remaining/base * 100 decreases as we drive. 
+                        // Actually let's just show a simple bar for the worst one.
+                      };
+
+                      // Better visualization: Two mini bars or just the most critical one text?
+                      // Let's list both in the card body.
 
                       return (
                         <div key={v.id}
@@ -505,33 +573,36 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                             </button>
                           </div>
 
-                          <div className="p-4 flex-1 flex flex-col justify-between gap-4">
-                            <div className="space-y-3">
-                              <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
-                                <span className="text-slate-400">KM Atual</span>
-                                <span className="text-slate-900">{v.currentKm?.toLocaleString('pt-BR') || '---'}</span>
+                          <div className="p-4 flex-1 flex flex-col gap-3">
+                            {/* KM Atual */}
+                            <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest pb-2 border-b border-slate-50">
+                              <span className="text-slate-400">KM Atual</span>
+                              <span className="text-slate-900">{v.currentKm?.toLocaleString('pt-BR') || '---'}</span>
+                            </div>
+
+                            {/* Oil Status */}
+                            <div className="space-y-1">
+                              <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest">
+                                <span className="text-slate-400 flex items-center gap-1"><Droplets className="w-3 h-3" /> Óleo</span>
+                                <span className={`text-${oilStatus === 'slate' ? 'slate-300' : oilStatus + '-600'}`}>
+                                  {oilRemaining !== null ? (oilRemaining <= 0 ? 'Vencido' : `${oilRemaining} km`) : 'N/A'}
+                                </span>
                               </div>
-                              <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
-                                <span className="text-slate-400">Próxima</span>
-                                <span className={`text-${alertColor}-600`}>{v.oilNextChange?.toLocaleString('pt-BR') || '---'}</span>
+                              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full bg-${oilStatus}-500 transition-all`} style={{ width: `${oilRemaining !== null ? Math.max(0, Math.min(100, (oilRemaining / (v.oilCalculationBase || 5000)) * 100)) : 0}%` }} />
                               </div>
                             </div>
 
-                            <div className="space-y-2">
-                              <div className="h-3 bg-slate-50 rounded-full overflow-hidden p-0.5 border border-slate-100 shadow-inner">
-                                <div
-                                  className={`h-full rounded-full bg-${alertColor}-500 shadow-lg shadow-${alertColor}-500/20 transition-all duration-1000 relative`}
-                                  style={{ width: `${progress}%` }}
-                                />
+                            {/* Timing Belt Status */}
+                            <div className="space-y-1">
+                              <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest">
+                                <span className="text-slate-400 flex items-center gap-1"><Activity className="w-3 h-3" /> Correia</span>
+                                <span className={`text-${beltStatus === 'slate' ? 'slate-300' : beltStatus + '-600'}`}>
+                                  {beltRemaining !== null ? (beltRemaining <= 0 ? 'Vencido' : `${beltRemaining} km`) : 'N/A'}
+                                </span>
                               </div>
-                              <div className="text-center">
-                                {kmRemaining !== null ? (
-                                  <p className={`text-[9px] font-black ${kmRemaining <= 0 ? 'text-rose-600 animate-pulse' : 'text-slate-500'} uppercase tracking-tight`}>
-                                    {kmRemaining <= 0 ? `${Math.abs(kmRemaining).toLocaleString('pt-BR')} KM Vencidos` : `${kmRemaining.toLocaleString('pt-BR')} KM p/ Troca`}
-                                  </p>
-                                ) : (
-                                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Não Configurado</p>
-                                )}
+                              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full bg-${beltStatus}-500 transition-all`} style={{ width: `${beltRemaining !== null ? Math.max(0, Math.min(100, (beltRemaining / (v.timingBeltCalculationBase || 50000)) * 100)) : 0}%` }} />
                               </div>
                             </div>
                           </div>
@@ -1098,6 +1169,17 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                                         try {
                                           if (editingVehicle?.id) {
                                             await fleetService.addOilChangeRecord(editingVehicle.id, last);
+
+                                            // Update Parent State to refresh Dashboard immediately
+                                            const updatedVehicle: Vehicle = {
+                                              ...editingVehicle,
+                                              ...formData, // Merge current form state
+                                              oilLastChange: last,
+                                              oilNextChange: next,
+                                              oilCalculationBase: formData.oilCalculationBase,
+                                              currentKm: last // Sync KM
+                                            } as Vehicle;
+                                            onUpdateVehicle(updatedVehicle);
                                           }
 
                                           setFormData(prev => ({ ...prev, oilLastChange: last, oilNextChange: next }));
@@ -1202,6 +1284,17 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                                         try {
                                           if (editingVehicle?.id) {
                                             await fleetService.addTimingBeltRecord(editingVehicle.id, last);
+
+                                            // Update Parent State
+                                            const updatedVehicle: Vehicle = {
+                                              ...editingVehicle,
+                                              ...formData, // Merge current form state
+                                              timingBeltLastChange: last,
+                                              timingBeltNextChange: next,
+                                              timingBeltCalculationBase: formData.timingBeltCalculationBase,
+                                              currentKm: last // Sync KM
+                                            } as Vehicle;
+                                            onUpdateVehicle(updatedVehicle);
                                           }
 
                                           setFormData(prev => ({ ...prev, timingBeltLastChange: last, timingBeltNextChange: next }));
@@ -1227,9 +1320,95 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                           <label className={labelClass}><Fuel className="w-4 h-4 inline mr-2 text-indigo-500" /> Código Renavam</label>
                           <input value={formData.renavam} onChange={e => setFormData({ ...formData, renavam: e.target.value })} className={`${inputClass} font-mono`} placeholder="01332550344" />
                         </div>
-                        <div>
-                          <label className={labelClass}><ShieldCheck className="w-4 h-4 inline mr-2 text-indigo-500" /> Número do Chassi (VIN)</label>
-                          <input value={formData.chassis} onChange={e => setFormData({ ...formData, chassis: e.target.value.toUpperCase() })} className={`${inputClass} font-mono uppercase`} placeholder="8AP..." />
+                      </div>
+                      <div>
+                        <label className={labelClass}><ShieldCheck className="w-4 h-4 inline mr-2 text-indigo-500" /> Número do Chassi (VIN)</label>
+                        <input value={formData.chassis} onChange={e => setFormData({ ...formData, chassis: e.target.value.toUpperCase() })} className={`${inputClass} font-mono uppercase`} placeholder="8AP..." />
+                      </div>
+
+                      <div className="md:col-span-2 bg-slate-50 border border-slate-200 rounded-[2rem] p-6 space-y-6">
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                          <FileText className="w-3.5 h-3.5" /> Documentos do Veículo
+                        </h4>
+
+                        {/* Upload Section */}
+                        <div className="flex flex-col gap-4 bg-white p-4 rounded-xl border border-dashed border-slate-300">
+                          <div className="flex flex-col md:flex-row gap-4 items-end">
+                            <div className="flex-1 w-full">
+                              <label className={labelClass}>Descrição do Documento</label>
+                              <input
+                                value={newDocumentDescription}
+                                onChange={(e) => setNewDocumentDescription(e.target.value)}
+                                className={inputClass}
+                                placeholder="Ex: CRLV 2024, Seguro, Manual..."
+                              />
+                            </div>
+                            <div className="flex-1 w-full">
+                              <label className={labelClass}>Arquivo</label>
+                              <div className="relative">
+                                <input
+                                  type="file"
+                                  ref={documentInputRef}
+                                  onChange={(e) => setNewDocumentFile(e.target.files?.[0] || null)}
+                                  className="hidden"
+                                  id="doc-upload"
+                                />
+                                <label htmlFor="doc-upload" className={`${inputClass} cursor-pointer flex items-center gap-2 text-slate-500 hover:bg-slate-50`}>
+                                  <Upload className="w-4 h-4" />
+                                  <span className="truncate">{newDocumentFile ? newDocumentFile.name : 'Selectionar arquivo...'}</span>
+                                </label>
+                              </div>
+                            </div>
+                            <button
+                              onClick={handleDocumentUpload}
+                              disabled={isUploadingDocument || !newDocumentFile || !newDocumentDescription}
+                              className="h-[50px] px-6 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                            >
+                              {isUploadingDocument ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus className="w-4 h-4" />}
+                              Anexar
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Documents List */}
+                        <div className="space-y-2">
+                          {vehicleDocuments.length > 0 ? (
+                            vehicleDocuments.map((doc) => (
+                              <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl hover:shadow-sm transition-all group">
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                  <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0">
+                                    <FileText className="w-5 h-5" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-bold text-slate-700 truncate">{doc.description || doc.name}</p>
+                                    <p className="text-[10px] text-slate-400 truncate">{doc.name} • {new Date(doc.created_at || '').toLocaleDateString('pt-BR')}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <a
+                                    href={doc.file_url}
+                                    target="_blank"
+                                    download
+                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                    title="Baixar"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </a>
+                                  <button
+                                    onClick={() => handleDocumentDelete(doc)}
+                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                    title="Excluir"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-8 text-slate-400 text-xs font-medium bg-slate-100/50 rounded-xl border border-dashed border-slate-200">
+                              Nenhum documento anexado.
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
