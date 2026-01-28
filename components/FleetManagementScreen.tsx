@@ -71,6 +71,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   const [isMaintDropdownOpen, setIsMaintDropdownOpen] = useState(false);
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
   const [isOilBaseDropdownOpen, setIsOilBaseDropdownOpen] = useState(false);
+  const [isTimingBeltBaseDropdownOpen, setIsTimingBeltBaseDropdownOpen] = useState(false);
 
   const [sectorSearch, setSectorSearch] = useState('');
   const [responsibleSearch, setResponsibleSearch] = useState('');
@@ -85,6 +86,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
   const maintDropdownRef = useRef<HTMLDivElement>(null);
   const brandDropdownRef = useRef<HTMLDivElement>(null);
   const oilBaseDropdownRef = useRef<HTMLDivElement>(null);
+  const timingBeltBaseDropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -133,6 +135,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
       if (maintDropdownRef.current && !maintDropdownRef.current.contains(target)) setIsMaintDropdownOpen(false);
       if (brandDropdownRef.current && !brandDropdownRef.current.contains(target)) setIsBrandDropdownOpen(false);
       if (oilBaseDropdownRef.current && !oilBaseDropdownRef.current.contains(target)) setIsOilBaseDropdownOpen(false);
+      if (timingBeltBaseDropdownRef.current && !timingBeltBaseDropdownRef.current.contains(target)) setIsTimingBeltBaseDropdownOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -1130,24 +1133,40 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                               </div>
                             </div>
 
-                            <div className="relative">
+                            <div className="relative" ref={timingBeltBaseDropdownRef}>
                               <label className={labelClass}>Base de Cálculo (KM)</label>
-                              <select
-                                value={formData.timingBeltCalculationBase || 50000}
-                                onChange={(e) => {
-                                  const base = parseInt(e.target.value) as any;
-                                  const next = (formData.timingBeltLastChange || 0) + base;
-                                  setFormData({ ...formData, timingBeltCalculationBase: base, timingBeltNextChange: next });
-                                }}
-                                className={`${inputClass} appearance-none cursor-pointer`}
+                              <button
+                                type="button"
+                                onClick={() => setIsTimingBeltBaseDropdownOpen(!isTimingBeltBaseDropdownOpen)}
+                                className={`${inputClass} flex items-center justify-between cursor-pointer active:scale-95`}
                               >
-                                <option value={40000}>40.000 KM</option>
-                                <option value={50000}>50.000 KM</option>
-                                <option value={60000}>60.000 KM</option>
-                                <option value={80000}>80.000 KM</option>
-                                <option value={100000}>100.000 KM</option>
-                              </select>
-                              <ChevronDown className="absolute right-4 top-1/2 translate-y-2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                <span className="text-sm font-bold text-slate-900">
+                                  {formData.timingBeltCalculationBase ? `${formData.timingBeltCalculationBase.toLocaleString('pt-BR')} KM` : '50.000 KM'}
+                                </span>
+                                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isTimingBeltBaseDropdownOpen ? 'rotate-180' : ''}`} />
+                              </button>
+
+                              {isTimingBeltBaseDropdownOpen && (
+                                <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-60 overflow-y-auto custom-scrollbar">
+                                  {[10000, 20000, 40000, 50000, 60000, 80000, 100000].map((base) => (
+                                    <button
+                                      key={base}
+                                      type="button"
+                                      onClick={() => {
+                                        const next = (formData.timingBeltLastChange || 0) + base;
+                                        setFormData({ ...formData, timingBeltCalculationBase: base as any, timingBeltNextChange: next });
+                                        setIsTimingBeltBaseDropdownOpen(false);
+                                      }}
+                                      className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors group ${formData.timingBeltCalculationBase === base ? 'bg-indigo-50/50' : ''}`}
+                                    >
+                                      <span className={`text-xs font-bold ${formData.timingBeltCalculationBase === base ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                        {base.toLocaleString('pt-BR')} KM
+                                      </span>
+                                      {formData.timingBeltCalculationBase === base && <Check className="w-4 h-4 text-indigo-600" />}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
 
                             <div>
