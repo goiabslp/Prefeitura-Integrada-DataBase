@@ -284,6 +284,9 @@ export interface Vehicle {
   oilLastChange?: number;
   oilNextChange?: number;
   oilCalculationBase?: 5000 | 7000 | 10000;
+  timingBeltLastChange?: number;
+  timingBeltNextChange?: number;
+  timingBeltCalculationBase?: 40000 | 50000 | 60000 | 80000 | 100000;
 }
 
 export type ScheduleStatus = 'pendente' | 'confirmado' | 'em_curso' | 'concluido' | 'cancelado';
