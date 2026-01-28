@@ -433,1135 +433,1133 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-100 text-rose-700 rounded-xl border border-rose-200" title="Correia Dentada Vencida">
                   <span className="text-[10px] font-black">{oilStats.tbExpired}</span>
                 </div>
-              </div>                <ShieldAlert className="w-3.5 h-3.5" />
-              <span className="text-[10px] font-black uppercase tracking-widest">{oilStats.expired} VENCIDO</span>
-            </div>
+              </div>
             </div>
           )}
+        </div>
+
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="relative flex-1 md:w-96 group">
+            <input
+              type="text"
+              placeholder="Placa, Modelo ou Marca..."
+              className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          </div>
+        </div>
       </div>
 
-      <div className="flex items-center gap-3 w-full md:w-auto">
-        <div className="relative flex-1 md:w-96 group">
-          <input
-            type="text"
-            placeholder="Placa, Modelo ou Marca..."
-            className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        </div>
-      </div>
-    </div>
+      {/* Conteúdo de Grade 100% */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 bg-slate-50">
+        <div className="max-w-[1920px] mx-auto">
+          {activeTab === 'dashboard' ? (
+            <div className="animate-fade-in">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+                {vehicles
+                  .filter(v => v.model.toLowerCase().includes(searchTerm.toLowerCase()) || v.plate.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .sort((a, b) => {
+                    const diffA = (a.oilNextChange && a.currentKm) ? (a.oilNextChange - a.currentKm) : 1000000;
+                    const diffB = (b.oilNextChange && b.currentKm) ? (b.oilNextChange - b.currentKm) : 1000000;
+                    return diffA - diffB;
+                  })
+                  .map(v => {
+                    const kmRemaining = (v.oilNextChange && v.currentKm) ? (v.oilNextChange - v.currentKm) : null;
+                    const alertColor = kmRemaining === null ? 'slate' : kmRemaining <= 0 ? 'rose' : kmRemaining <= 2000 ? 'amber' : 'emerald';
+                    const progress = kmRemaining === null ? 0 : Math.max(0, Math.min(100, (kmRemaining / (v.oilCalculationBase || 5000)) * 100));
 
-      {/* Conteúdo de Grade 100% */ }
-  <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 bg-slate-50">
-    <div className="max-w-[1920px] mx-auto">
-      {activeTab === 'dashboard' ? (
-        <div className="animate-fade-in">
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-            {vehicles
-              .filter(v => v.model.toLowerCase().includes(searchTerm.toLowerCase()) || v.plate.toLowerCase().includes(searchTerm.toLowerCase()))
-              .sort((a, b) => {
-                const diffA = (a.oilNextChange && a.currentKm) ? (a.oilNextChange - a.currentKm) : 1000000;
-                const diffB = (b.oilNextChange && b.currentKm) ? (b.oilNextChange - b.currentKm) : 1000000;
-                return diffA - diffB;
-              })
-              .map(v => {
-                const kmRemaining = (v.oilNextChange && v.currentKm) ? (v.oilNextChange - v.currentKm) : null;
-                const alertColor = kmRemaining === null ? 'slate' : kmRemaining <= 0 ? 'rose' : kmRemaining <= 2000 ? 'amber' : 'emerald';
-                const progress = kmRemaining === null ? 0 : Math.max(0, Math.min(100, (kmRemaining / (v.oilCalculationBase || 5000)) * 100));
+                    return (
+                      <div key={v.id} className={`group relative bg-white rounded-3xl border-2 border-${alertColor}-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col`}>
+                        <div className={`p-4 flex items-center justify-between border-b border-${alertColor}-100 bg-${alertColor}-50/30`}>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl bg-${alertColor}-100 text-${alertColor}-600 flex items-center justify-center shadow-inner shrink-0 leading-none`}>
+                              <Car className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight truncate leading-tight">{v.model}</h3>
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em]">{v.plate}</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleOpenModal(v)}
+                            className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
 
-                return (
-                  <div key={v.id} className={`group relative bg-white rounded-3xl border-2 border-${alertColor}-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col`}>
-                    <div className={`p-4 flex items-center justify-between border-b border-${alertColor}-100 bg-${alertColor}-50/30`}>
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl bg-${alertColor}-100 text-${alertColor}-600 flex items-center justify-center shadow-inner shrink-0 leading-none`}>
-                          <Car className="w-5 h-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight truncate leading-tight">{v.model}</h3>
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em]">{v.plate}</span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleOpenModal(v)}
-                        className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                        <div className="p-4 flex-1 flex flex-col justify-between gap-4">
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                              <span className="text-slate-400">KM Atual</span>
+                              <span className="text-slate-900">{v.currentKm?.toLocaleString('pt-BR') || '---'}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                              <span className="text-slate-400">Próxima</span>
+                              <span className={`text-${alertColor}-600`}>{v.oilNextChange?.toLocaleString('pt-BR') || '---'}</span>
+                            </div>
+                          </div>
 
-                    <div className="p-4 flex-1 flex flex-col justify-between gap-4">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
-                          <span className="text-slate-400">KM Atual</span>
-                          <span className="text-slate-900">{v.currentKm?.toLocaleString('pt-BR') || '---'}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
-                          <span className="text-slate-400">Próxima</span>
-                          <span className={`text-${alertColor}-600`}>{v.oilNextChange?.toLocaleString('pt-BR') || '---'}</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="h-3 bg-slate-50 rounded-full overflow-hidden p-0.5 border border-slate-100 shadow-inner">
-                          <div
-                            className={`h-full rounded-full bg-${alertColor}-500 shadow-lg shadow-${alertColor}-500/20 transition-all duration-1000 relative`}
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                        <div className="text-center">
-                          {kmRemaining !== null ? (
-                            <p className={`text-[9px] font-black ${kmRemaining <= 0 ? 'text-rose-600 animate-pulse' : 'text-slate-500'} uppercase tracking-tight`}>
-                              {kmRemaining <= 0 ? `${Math.abs(kmRemaining).toLocaleString('pt-BR')} KM Vencidos` : `${kmRemaining.toLocaleString('pt-BR')} KM p/ Troca`}
-                            </p>
-                          ) : (
-                            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Não Configurado</p>
-                          )}
+                          <div className="space-y-2">
+                            <div className="h-3 bg-slate-50 rounded-full overflow-hidden p-0.5 border border-slate-100 shadow-inner">
+                              <div
+                                className={`h-full rounded-full bg-${alertColor}-500 shadow-lg shadow-${alertColor}-500/20 transition-all duration-1000 relative`}
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            <div className="text-center">
+                              {kmRemaining !== null ? (
+                                <p className={`text-[9px] font-black ${kmRemaining <= 0 ? 'text-rose-600 animate-pulse' : 'text-slate-500'} uppercase tracking-tight`}>
+                                  {kmRemaining <= 0 ? `${Math.abs(kmRemaining).toLocaleString('pt-BR')} KM Vencidos` : `${kmRemaining.toLocaleString('pt-BR')} KM p/ Troca`}
+                                </p>
+                              ) : (
+                                <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Não Configurado</p>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-          {filteredVehicles.map(v => {
-            const statusCfg = getStatusConfig(v.status || 'operacional');
-            const responsibleName = persons.find(p => p.id === v.responsiblePersonId)?.name || 'Responsável não definido';
-            return (
-              <div key={v.id} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all flex flex-col group overflow-hidden animate-fade-in">
-                <div className="relative h-48 w-full bg-slate-100 overflow-hidden">
-                  {v.vehicleImageUrl ? (
-                    <img src={v.vehicleImageUrl} alt={v.model} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
-                      {v.type === 'leve' ? <Car className="w-16 h-16 mb-2" /> : v.type === 'pesado' ? <Truck className="w-16 h-16 mb-2" /> : <Wrench className="w-16 h-16 mb-2" />}
-                      <span className="text-[10px] font-black uppercase tracking-widest">Sem Foto</span>
-                    </div>
-                  )}
-
-                  <div className={`absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border backdrop-blur-md bg-white/90 text-${statusCfg.color}-700 border-${statusCfg.color}-200 shadow-lg`}>
-                    <statusCfg.icon className="w-3 h-3" />
-                    {statusCfg.label}
-                  </div>
-
-                  <div className="absolute top-4 right-4 flex items-center gap-2">
-                    <button
-                      onClick={() => handleOpenModal(v)}
-                      className="p-2.5 bg-white/90 backdrop-blur-sm text-slate-600 hover:text-indigo-600 rounded-xl shadow-lg transition-all active:scale-90"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {v.documentUrl && (
-                    <button
-                      onClick={() => setViewingDocumentUrl({ url: v.documentUrl!, name: v.documentName || 'documento', type: 'doc' })}
-                      className="absolute bottom-4 right-4 p-2.5 bg-emerald-600 text-white rounded-xl shadow-lg transition-all active:scale-90 hover:bg-emerald-500"
-                      title="Ver Documento"
-                    >
-                      <FileText className="w-4 h-4" />
-                    </button>
-                  )}
-
-                  {v.vehicleImageUrl && (
-                    <button
-                      onClick={() => setViewingDocumentUrl({ url: v.vehicleImageUrl!, name: v.model, type: 'photo' })}
-                      className="absolute bottom-4 left-4 p-2.5 bg-indigo-600/90 backdrop-blur-sm text-white rounded-xl shadow-lg transition-all active:scale-90 hover:bg-indigo-500"
-                      title="Ampliar Foto"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-
-                <div className="p-6 flex flex-col gap-4">
-                  <div className="min-w-0">
-                    <h3 className="text-lg font-black text-slate-900 leading-tight uppercase tracking-tight truncate">{v.model}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="bg-slate-900 text-white font-mono text-[9px] px-2 py-0.5 rounded border border-white/10 shadow-sm tracking-[0.15em] shrink-0">{v.plate}</span>
-                      <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest truncate">{v.brand} • {v.year}</span>
-                    </div>
-                    {v.fuelTypes && v.fuelTypes.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {v.fuelTypes.map(f => (
-                          <span key={f} className="text-[8px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded uppercase tracking-tighter">{f}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-4 border-t border-slate-50 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="p-1.5 bg-slate-50 rounded-lg text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                        <Network className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider leading-tight">
-                        {sectors.find(s => s.id === v.sectorId)?.name || 'Sem Setor'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="p-1.5 bg-slate-50 rounded-lg text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                        <User className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider leading-tight truncate">
-                        {responsibleName}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setConfirmModal({
-                      isOpen: true,
-                      title: "Remover Registro",
-                      message: `Deseja realmente excluir o veículo ${v.model} (${v.plate})?`,
-                      type: 'destructive',
-                      confirmLabel: 'Sim, Remover Registro',
-                      onConfirm: () => { onDeleteVehicle(v.id); setConfirmModal({ ...confirmModal, isOpen: false }); }
-                    })}
-                    className="mt-2 w-full py-2 bg-slate-50 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
-                  >
-                    <Trash2 className="w-3 h-3" /> Excluir
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {filteredVehicles.length === 0 && (
-        <div className="py-32 flex flex-col items-center justify-center text-center space-y-4">
-          <div className="w-20 h-20 bg-white rounded-3xl shadow-xl flex items-center justify-center text-slate-200">
-            <Truck className="w-10 h-10" />
-          </div>
-          <div>
-            <p className="text-xl font-black text-slate-900 tracking-tight uppercase">Nenhum registro localizado</p>
-            <p className="text-sm text-slate-400 font-medium">Refine sua busca ou adicione um novo item.</p>
-          </div>
-        </div>
-      )}
-    </div>
-  </div>
-
-  {/* MODAL DE CADASTRO/EDIÇÃO */ }
-  {
-    isModalOpen && createPortal(
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xl animate-fade-in">
-        <div className="bg-white rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] w-full max-w-6xl overflow-hidden flex flex-col animate-slide-up max-h-[95vh] border border-white/20">
-
-          <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white/50 backdrop-blur-sm shrink-0">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-xl shadow-indigo-600/20 rotate-[-4deg]">
-                {activeTab === 'leve' ? <Car className="w-5 h-5" /> : activeTab === 'pesado' ? <Truck className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none">
-                  {editingVehicle ? 'Perfil do Veículo' : 'Cadastro de Veículo'}
-                </h3>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.1em] mt-1 flex items-center gap-2">
-                  <Activity className="w-3 h-3 text-indigo-500" /> Detalhamento Técnico
-                </p>
+                    );
+                  })}
               </div>
             </div>
-            <button onClick={() => setIsModalOpen(false)} className="p-2 bg-slate-50 hover:bg-rose-50 rounded-xl text-slate-400 hover:text-rose-600 transition-all active:scale-90 border border-slate-100"><X className="w-5 h-5" /></button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
-            <div className="grid grid-cols-1 lg:grid-cols-12 h-full">
-
-              <div className="lg:col-span-5 p-6 border-r border-slate-100 bg-white flex flex-col gap-6">
-                <div className="space-y-4">
-                  <label className={labelClass}><Camera className="w-3.5 h-3.5 inline mr-2" /> Fotografia do Veículo</label>
-                  <div
-                    onClick={() => photoInputRef.current?.click()}
-                    className={`relative aspect-[4/3] rounded-[2rem] border-4 border-dashed transition-all cursor-pointer group flex flex-col items-center justify-center overflow-hidden shadow-inner
-                              ${formData.vehicleImageUrl ? 'border-indigo-600 bg-indigo-50/5' : 'border-slate-100 bg-slate-50 hover:border-indigo-400 hover:bg-white'}
-                            `}
-                  >
-                    <input type="file" ref={photoInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
-                    {formData.vehicleImageUrl ? (
-                      <>
-                        <img src={formData.vehicleImageUrl} alt="Preview" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                        <div className="absolute inset-0 bg-indigo-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
-                          <div className="bg-white p-4 rounded-full text-indigo-600 shadow-2xl scale-75 group-hover:scale-100 transition-transform duration-500"><Upload className="w-8 h-8" /></div>
-                          <span className="text-white text-xs font-black uppercase tracking-[0.2em] bg-indigo-600 px-5 py-2 rounded-full shadow-xl">Alterar Fotografia</span>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex flex-col items-center gap-4 text-slate-300 group-hover:text-indigo-400 transition-all">
-                        <div className="p-8 bg-white rounded-[2rem] shadow-xl group-hover:shadow-indigo-500/10 border border-slate-100 transition-all group-hover:scale-110"><ImageIcon className="w-12 h-12" /></div>
-                        <div className="text-center">
-                          <p className="text-[10px] font-black uppercase tracking-[0.3em]">Carregar Imagem</p>
-                          <p className="text-[9px] font-bold mt-1 opacity-50">Resolução recomendada: 1200x900px</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-100 rounded-[2rem] p-6 space-y-6">
-                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <Activity className="w-3.5 h-3.5" /> Indicadores Operacionais
-                  </h4>
-
-                  <div className="space-y-4">
-                    <div className="relative" ref={statusDropdownRef}>
-                      <label className={labelClass}>Status de Disponibilidade</label>
-                      <button
-                        onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                        className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm hover:border-indigo-400 transition-all group/sel"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`p-1.5 rounded-lg bg-${getStatusConfig(formData.status || 'operacional').color}-600 text-white shadow-md`}>
-                            {React.createElement(getStatusConfig(formData.status || 'operacional').icon, { className: "w-3.5 h-3.5" })}
-                          </div>
-                          <span className="text-xs font-bold text-slate-900">{getStatusConfig(formData.status || 'operacional').label}</span>
-                        </div>
-                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
-                      </button>
-
-                      {isStatusDropdownOpen && (
-                        <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-[2rem] shadow-2xl overflow-hidden animate-slide-up py-2 max-h-72 overflow-y-auto custom-scrollbar">
-                          {STATUS_OPTIONS.map((opt) => (
-                            <button
-                              key={opt.value}
-                              onClick={() => {
-                                setFormData({ ...formData, status: opt.value });
-                                setIsStatusDropdownOpen(false);
-                              }}
-                              className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors group ${formData.status === opt.value ? 'bg-indigo-50/50' : ''}`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg bg-${opt.color}-100 text-${opt.color}-600 group-hover:bg-${opt.color}-600 group-hover:text-white transition-all`}>
-                                  <opt.icon className="w-4 h-4" />
-                                </div>
-                                <span className={`text-xs font-bold ${formData.status === opt.value ? 'text-indigo-900' : 'text-slate-700'}`}>{opt.label}</span>
-                              </div>
-                              {formData.status === opt.value && <Check className="w-4 h-4 text-indigo-600" />}
-                            </button>
-                          ))}
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+              {filteredVehicles.map(v => {
+                const statusCfg = getStatusConfig(v.status || 'operacional');
+                const responsibleName = persons.find(p => p.id === v.responsiblePersonId)?.name || 'Responsável não definido';
+                return (
+                  <div key={v.id} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all flex flex-col group overflow-hidden animate-fade-in">
+                    <div className="relative h-48 w-full bg-slate-100 overflow-hidden">
+                      {v.vehicleImageUrl ? (
+                        <img src={v.vehicleImageUrl} alt={v.model} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
+                          {v.type === 'leve' ? <Car className="w-16 h-16 mb-2" /> : v.type === 'pesado' ? <Truck className="w-16 h-16 mb-2" /> : <Wrench className="w-16 h-16 mb-2" />}
+                          <span className="text-[10px] font-black uppercase tracking-widest">Sem Foto</span>
                         </div>
                       )}
-                    </div>
 
-                    <div className="relative" ref={maintDropdownRef}>
-                      <label className={labelClass}>Condição de Manutenção</label>
-                      <button
-                        onClick={() => setIsMaintDropdownOpen(!isMaintDropdownOpen)}
-                        className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm hover:border-indigo-400 transition-all group/sel"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`p-1.5 rounded-lg bg-${getMaintConfig(formData.maintenanceStatus || 'em_dia').color}-600 text-white shadow-md`}>
-                            <Gauge className="w-3.5 h-3.5" />
-                          </div>
-                          <span className="text-xs font-bold text-slate-900">{getMaintConfig(formData.maintenanceStatus || 'em_dia').label}</span>
-                        </div>
-                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isMaintDropdownOpen ? 'rotate-180' : ''}`} />
-                      </button>
-
-                      {isMaintDropdownOpen && (
-                        <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-[2rem] shadow-2xl overflow-hidden animate-slide-up py-2">
-                          {MAINTENANCE_OPTIONS.map((opt) => (
-                            <button
-                              key={opt.value}
-                              onClick={() => {
-                                setFormData({ ...formData, maintenanceStatus: opt.value });
-                                setIsMaintDropdownOpen(false);
-                              }}
-                              className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors group ${formData.maintenanceStatus === opt.value ? 'bg-indigo-50/50' : ''}`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg bg-${opt.color}-100 text-${opt.color}-600 group-hover:bg-${opt.color}-600 group-hover:text-white transition-all`}>
-                                  <Gauge className="w-4 h-4" />
-                                </div>
-                                <span className={`text-xs font-bold ${formData.maintenanceStatus === opt.value ? 'text-indigo-900' : 'text-slate-700'}`}>{opt.label}</span>
-                              </div>
-                              {formData.maintenanceStatus === opt.value && <Check className="w-4 h-4 text-indigo-600" />}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="lg:col-span-7 p-8 space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                  <div className="md:col-span-2">
-                    <label className={labelClass}><Layers className="w-4 h-4 inline mr-2 text-indigo-500" /> Identificação do Modelo</label>
-                    <input value={formData.model} onChange={e => setFormData({ ...formData, model: e.target.value.toUpperCase() })} className={inputClass} placeholder="Ex: CRONOS" />
-                  </div>
-
-                  <div>
-                    <label className={labelClass}><Hash className="w-4 h-4 inline mr-2 text-indigo-500" /> Placa de Identificação</label>
-                    <input value={formData.plate} onChange={e => setFormData({ ...formData, plate: e.target.value.toUpperCase() })} className={`${inputClass} font-mono uppercase tracking-[0.1em]`} placeholder="ABC-1234" />
-                  </div>
-
-                  <div className="relative" ref={brandDropdownRef}>
-                    <label className={labelClass}><Tag className="w-4 h-4 inline mr-2 text-indigo-500" /> Marca / Fabricante</label>
-                    <div
-                      onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
-                      className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto ${isBrandDropdownOpen ? 'border-indigo-500 ring-4 ring-indigo-500/5 bg-white' : ''}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-xl transition-colors shrink-0 ${formData.brand ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                          <Tag className="w-4 h-4" />
-                        </div>
-                        <span className={`${formData.brand ? 'text-slate-900 font-bold' : 'text-slate-400'} leading-tight text-left`}>
-                          {formData.brand || 'Selecione a Marca'}
-                        </span>
-                      </div>
-                      <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 shrink-0 ${isBrandDropdownOpen ? 'rotate-180' : ''}`} />
-                    </div>
-
-                    {isBrandDropdownOpen && (
-                      <div className="absolute z-50 left-0 right-0 mt-3 bg-white border border-slate-200 rounded-[2rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] overflow-hidden animate-slide-up flex flex-col border-indigo-100">
-                        <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center gap-3">
-                          <Search className="w-4 h-4 text-indigo-400" />
-                          <input
-                            type="text"
-                            autoFocus
-                            placeholder="Pesquisar fabricante..."
-                            className="bg-transparent border-none outline-none text-sm font-bold text-slate-700 w-full"
-                            value={brandSearch}
-                            onChange={(e) => setBrandSearch(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                        <div className="max-h-60 overflow-y-auto custom-scrollbar p-2">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setIsBrandModalOpen(true); setIsBrandDropdownOpen(false); }}
-                            className="w-full mb-2 p-3 bg-indigo-50 text-indigo-700 font-bold uppercase text-[10px] tracking-widest rounded-xl hover:bg-indigo-100 transition-all flex items-center justify-center gap-2 border border-indigo-100"
-                          >
-                            <Plus className="w-3 h-3" /> Nova Marca
-                          </button>
-                          {filteredBrands.length > 0 ? (
-                            filteredBrands.map((brand) => (
-                              <button
-                                key={brand.id}
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setFormData({ ...formData, brand: brand.name });
-                                  setIsBrandDropdownOpen(false);
-                                  setBrandSearch('');
-                                }}
-                                className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group/item ${formData.brand === brand.name ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
-                              >
-                                <span className="text-sm font-bold text-left">{brand.name}</span>
-                                {formData.brand === brand.name && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
-                              </button>
-                            ))
-                          ) : (
-                            <div className="p-8 text-center">
-                              <Tag className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                              <p className="text-xs text-slate-400 font-medium">Nenhuma marca localizada.</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className={labelClass}><Calendar className="w-4 h-4 inline mr-2 text-indigo-500" /> Ano Fabricação/Modelo</label>
-                    <input value={formData.year} onChange={e => setFormData({ ...formData, year: e.target.value })} className={inputClass} placeholder="2023/2024" />
-                  </div>
-
-                  <div className="flex gap-4">
-                    <div className="flex-1">
-                      <label className={labelClass}><Gauge className="w-4 h-4 inline mr-2 text-indigo-500" /> KM/L Mínimo (Referência)</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={minKmlInput}
-                        onChange={e => {
-                          const val = e.target.value;
-                          if (/^[\d.,]*$/.test(val)) {
-                            setMinKmlInput(val);
-                            const numVal = parseFloat(val.replace(',', '.'));
-                            setFormData({ ...formData, minKml: isNaN(numVal) ? undefined : numVal });
-                          }
-                        }}
-                        className={inputClass}
-                        placeholder="Ex: 8,0"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className={labelClass}><Gauge className="w-4 h-4 inline mr-2 text-indigo-500" /> KM/L Máximo (Teto)</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={maxKmlInput}
-                        onChange={e => {
-                          const val = e.target.value;
-                          if (/^[\d.,]*$/.test(val)) {
-                            setMaxKmlInput(val);
-                            const numVal = parseFloat(val.replace(',', '.'));
-                            setFormData({ ...formData, maxKml: isNaN(numVal) ? undefined : numVal });
-                          }
-                        }}
-                        className={inputClass}
-                        placeholder="Ex: 12,5"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className={labelClass}><Palette className="w-4 h-4 inline mr-2 text-indigo-500" /> Cor Predominante</label>
-                    <input value={formData.color} onChange={e => setFormData({ ...formData, color: e.target.value.toUpperCase() })} className={inputClass} placeholder="Ex: BRANCA" />
-                  </div>
-
-                  {/* CAMPO DE COMBUSTÍVEL - MULTISELEÇÃO MODERNA */}
-                  <div className="md:col-span-2">
-                    <label className={labelClass}><Flame className="w-4 h-4 inline mr-2 text-indigo-500" /> Combustível (Multiseleção)</label>
-                    <div className="flex flex-wrap gap-2 p-4 bg-slate-50/50 border border-slate-200 rounded-[2rem]">
-                      {FUEL_OPTIONS.map(fuel => {
-                        const isSelected = formData.fuelTypes?.includes(fuel);
-                        return (
-                          <button
-                            key={fuel}
-                            type="button"
-                            onClick={() => toggleFuel(fuel)}
-                            className={`px-6 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all border-2 flex items-center gap-2 active:scale-95
-                                      ${isSelected
-                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                                : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200 hover:text-indigo-600'}
-                                    `}
-                          >
-                            {isSelected ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5 opacity-40" />}
-                            {fuel}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className={labelClass}><Network className="w-4 h-4 inline mr-2 text-indigo-500" /> Setor de Lotação / Atribuição</label>
-                    <button
-                      onClick={() => setIsSectorModalOpen(true)}
-                      className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto w-full`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-xl transition-colors shrink-0 ${formData.sectorId ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                          <Network className="w-4 h-4" />
-                        </div>
-                        <span className={`${formData.sectorId ? 'text-slate-900 font-bold' : 'text-slate-400'} leading-tight text-left`}>
-                          {selectedSectorName}
-                        </span>
-                      </div>
-                      <Search className="w-5 h-5 text-slate-400" />
-                    </button>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className={labelClass}><User className="w-4 h-4 inline mr-2 text-indigo-500" /> Responsável pelo Veículo (Condutor)</label>
-                    <button
-                      onClick={() => setIsResponsibleModalOpen(true)}
-                      className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto w-full`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-xl transition-colors shrink-0 ${formData.responsiblePersonId ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                          <User className="w-4 h-4" />
-                        </div>
-                        <span className={`${formData.responsiblePersonId ? 'text-slate-900 font-bold' : 'text-slate-400'} leading-tight text-left`}>
-                          {selectedResponsibleName}
-                        </span>
-                      </div>
-                      <Search className="w-5 h-5 text-slate-400" />
-                    </button>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className={labelClass}><ShieldCheck className="w-4 h-4 inline mr-2 text-indigo-500" /> Gestor de Solicitações (Pode aprovar saídas)</label>
-                    <button
-                      onClick={() => setIsRequestManagerModalOpen(true)}
-                      className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto w-full group/mgr`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`p-2 rounded-xl transition-colors shrink-0 ${formData.requestManagerIds?.length ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                          <ShieldCheck className="w-4 h-4" />
-                        </div>
-                        <span className={`${formData.requestManagerIds?.length ? 'text-slate-900 font-bold' : 'text-slate-400'} leading-tight text-left truncate`}>
-                          {selectedManagersNames}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {formData.requestManagerIds?.length ? (
-                          <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black px-2 py-0.5 rounded-lg whitespace-nowrap">{formData.requestManagerIds.length} selecionados</span>
-                        ) : null}
-                        <Plus className="w-5 h-5 text-slate-400 group-hover/mgr:text-indigo-600 transition-colors" />
-                      </div>
-                    </button>
-                  </div>
-
-                  <div className="md:col-span-2 bg-indigo-50/30 border border-indigo-100 rounded-[2rem] p-6 space-y-6">
-                    <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                      <PenTool className="w-3.5 h-3.5" /> Controle de Troca de Óleo
-                    </h4>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
-                        <label className={labelClass}>KM Atual</label>
-                        <div className={`${inputClass} bg-slate-100/50 cursor-not-allowed flex items-center gap-2`}>
-                          <Gauge className="w-4 h-4 text-slate-400" />
-                          {formData.currentKm?.toLocaleString('pt-BR') || '---'} KM
-                        </div>
+                      <div className={`absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border backdrop-blur-md bg-white/90 text-${statusCfg.color}-700 border-${statusCfg.color}-200 shadow-lg`}>
+                        <statusCfg.icon className="w-3 h-3" />
+                        {statusCfg.label}
                       </div>
 
-                      <div className="relative" ref={oilBaseDropdownRef}>
-                        <label className={labelClass}>Base de Cálculo (KM)</label>
+                      <div className="absolute top-4 right-4 flex items-center gap-2">
                         <button
-                          type="button"
-                          onClick={() => setIsOilBaseDropdownOpen(!isOilBaseDropdownOpen)}
-                          className={`${inputClass} flex items-center justify-between cursor-pointer active:scale-95`}
+                          onClick={() => handleOpenModal(v)}
+                          className="p-2.5 bg-white/90 backdrop-blur-sm text-slate-600 hover:text-indigo-600 rounded-xl shadow-lg transition-all active:scale-90"
                         >
-                          <span className="text-sm font-bold text-slate-900">
-                            {formData.oilCalculationBase ? `${formData.oilCalculationBase.toLocaleString('pt-BR')} KM` : '5.000 KM'}
-                          </span>
-                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isOilBaseDropdownOpen ? 'rotate-180' : ''}`} />
+                          <Edit2 className="w-4 h-4" />
                         </button>
+                      </div>
 
-                        {isOilBaseDropdownOpen && (
-                          <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-slide-up flex flex-col">
-                            {[5000, 7000, 10000].map((base) => (
-                              <button
-                                key={base}
-                                type="button"
-                                onClick={() => {
-                                  const next = (formData.oilLastChange || 0) + base;
-                                  setFormData({ ...formData, oilCalculationBase: base as any, oilNextChange: next });
-                                  setIsOilBaseDropdownOpen(false);
-                                }}
-                                className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors group ${formData.oilCalculationBase === base ? 'bg-indigo-50/50' : ''}`}
-                              >
-                                <span className={`text-xs font-bold ${formData.oilCalculationBase === base ? 'text-indigo-900' : 'text-slate-700'}`}>
-                                  {base.toLocaleString('pt-BR')} KM
-                                </span>
-                                {formData.oilCalculationBase === base && <Check className="w-4 h-4 text-indigo-600" />}
-                              </button>
+                      {v.documentUrl && (
+                        <button
+                          onClick={() => setViewingDocumentUrl({ url: v.documentUrl!, name: v.documentName || 'documento', type: 'doc' })}
+                          className="absolute bottom-4 right-4 p-2.5 bg-emerald-600 text-white rounded-xl shadow-lg transition-all active:scale-90 hover:bg-emerald-500"
+                          title="Ver Documento"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {v.vehicleImageUrl && (
+                        <button
+                          onClick={() => setViewingDocumentUrl({ url: v.vehicleImageUrl!, name: v.model, type: 'photo' })}
+                          className="absolute bottom-4 left-4 p-2.5 bg-indigo-600/90 backdrop-blur-sm text-white rounded-xl shadow-lg transition-all active:scale-90 hover:bg-indigo-500"
+                          title="Ampliar Foto"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="p-6 flex flex-col gap-4">
+                      <div className="min-w-0">
+                        <h3 className="text-lg font-black text-slate-900 leading-tight uppercase tracking-tight truncate">{v.model}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="bg-slate-900 text-white font-mono text-[9px] px-2 py-0.5 rounded border border-white/10 shadow-sm tracking-[0.15em] shrink-0">{v.plate}</span>
+                          <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest truncate">{v.brand} • {v.year}</span>
+                        </div>
+                        {v.fuelTypes && v.fuelTypes.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {v.fuelTypes.map(f => (
+                              <span key={f} className="text-[8px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded uppercase tracking-tighter">{f}</span>
                             ))}
                           </div>
                         )}
                       </div>
 
-                      <div>
-                        <label className={labelClass}>Próxima Troca (KM)</label>
-                        <div className={`${inputClass} bg-indigo-100/50 font-black text-indigo-700 flex items-center`}>
-                          {formData.oilNextChange?.toLocaleString('pt-BR') || '---'} KM
+                      <div className="pt-4 border-t border-slate-50 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 bg-slate-50 rounded-lg text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                            <Network className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider leading-tight">
+                            {sectors.find(s => s.id === v.sectorId)?.name || 'Sem Setor'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 bg-slate-50 rounded-lg text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                            <User className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider leading-tight truncate">
+                            {responsibleName}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="md:col-span-2">
-                        <label className={labelClass}>Última Troca de Óleo (KM)</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            value={formData.oilLastChange || ''}
-                            readOnly
-                            className={`${inputClass} bg-slate-100/50 cursor-not-allowed`}
-                            placeholder="KM da última troca"
-                          />
+                      <button
+                        onClick={() => setConfirmModal({
+                          isOpen: true,
+                          title: "Remover Registro",
+                          message: `Deseja realmente excluir o veículo ${v.model} (${v.plate})?`,
+                          type: 'destructive',
+                          confirmLabel: 'Sim, Remover Registro',
+                          onConfirm: () => { onDeleteVehicle(v.id); setConfirmModal({ ...confirmModal, isOpen: false }); }
+                        })}
+                        className="mt-2 w-full py-2 bg-slate-50 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+                      >
+                        <Trash2 className="w-3 h-3" /> Excluir
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {filteredVehicles.length === 0 && (
+            <div className="py-32 flex flex-col items-center justify-center text-center space-y-4">
+              <div className="w-20 h-20 bg-white rounded-3xl shadow-xl flex items-center justify-center text-slate-200">
+                <Truck className="w-10 h-10" />
+              </div>
+              <div>
+                <p className="text-xl font-black text-slate-900 tracking-tight uppercase">Nenhum registro localizado</p>
+                <p className="text-sm text-slate-400 font-medium">Refine sua busca ou adicione um novo item.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* MODAL DE CADASTRO/EDIÇÃO */}
+      {
+        isModalOpen && createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xl animate-fade-in">
+            <div className="bg-white rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] w-full max-w-6xl overflow-hidden flex flex-col animate-slide-up max-h-[95vh] border border-white/20">
+
+              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white/50 backdrop-blur-sm shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-xl shadow-indigo-600/20 rotate-[-4deg]">
+                    {activeTab === 'leve' ? <Car className="w-5 h-5" /> : activeTab === 'pesado' ? <Truck className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none">
+                      {editingVehicle ? 'Perfil do Veículo' : 'Cadastro de Veículo'}
+                    </h3>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.1em] mt-1 flex items-center gap-2">
+                      <Activity className="w-3 h-3 text-indigo-500" /> Detalhamento Técnico
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setIsModalOpen(false)} className="p-2 bg-slate-50 hover:bg-rose-50 rounded-xl text-slate-400 hover:text-rose-600 transition-all active:scale-90 border border-slate-100"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
+                <div className="grid grid-cols-1 lg:grid-cols-12 h-full">
+
+                  <div className="lg:col-span-5 p-6 border-r border-slate-100 bg-white flex flex-col gap-6">
+                    <div className="space-y-4">
+                      <label className={labelClass}><Camera className="w-3.5 h-3.5 inline mr-2" /> Fotografia do Veículo</label>
+                      <div
+                        onClick={() => photoInputRef.current?.click()}
+                        className={`relative aspect-[4/3] rounded-[2rem] border-4 border-dashed transition-all cursor-pointer group flex flex-col items-center justify-center overflow-hidden shadow-inner
+                              ${formData.vehicleImageUrl ? 'border-indigo-600 bg-indigo-50/5' : 'border-slate-100 bg-slate-50 hover:border-indigo-400 hover:bg-white'}
+                            `}
+                      >
+                        <input type="file" ref={photoInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
+                        {formData.vehicleImageUrl ? (
+                          <>
+                            <img src={formData.vehicleImageUrl} alt="Preview" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                            <div className="absolute inset-0 bg-indigo-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
+                              <div className="bg-white p-4 rounded-full text-indigo-600 shadow-2xl scale-75 group-hover:scale-100 transition-transform duration-500"><Upload className="w-8 h-8" /></div>
+                              <span className="text-white text-xs font-black uppercase tracking-[0.2em] bg-indigo-600 px-5 py-2 rounded-full shadow-xl">Alterar Fotografia</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center gap-4 text-slate-300 group-hover:text-indigo-400 transition-all">
+                            <div className="p-8 bg-white rounded-[2rem] shadow-xl group-hover:shadow-indigo-500/10 border border-slate-100 transition-all group-hover:scale-110"><ImageIcon className="w-12 h-12" /></div>
+                            <div className="text-center">
+                              <p className="text-[10px] font-black uppercase tracking-[0.3em]">Carregar Imagem</p>
+                              <p className="text-[9px] font-bold mt-1 opacity-50">Resolução recomendada: 1200x900px</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-100 rounded-[2rem] p-6 space-y-6">
+                      <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <Activity className="w-3.5 h-3.5" /> Indicadores Operacionais
+                      </h4>
+
+                      <div className="space-y-4">
+                        <div className="relative" ref={statusDropdownRef}>
+                          <label className={labelClass}>Status de Disponibilidade</label>
                           <button
-                            type="button"
-                            onClick={() => {
-                              setConfirmModal({
-                                isOpen: true,
-                                title: "Confirmar Troca de Óleo",
-                                message: `Confirma a troca de óleo do veículo ${formData.model} (Placa: ${formData.plate}) no KM atual de ${formData.currentKm?.toLocaleString('pt-BR') || '0'}?`,
-                                type: 'positive',
-                                confirmLabel: 'Sim, Confirmar Troca',
-                                onConfirm: async () => {
-                                  const last = formData.currentKm || 0;
-                                  const next = last + (formData.oilCalculationBase || 5000);
-
-                                  try {
-                                    if (editingVehicle?.id) {
-                                      await fleetService.addOilChangeRecord(editingVehicle.id, last);
-                                    }
-
-                                    setFormData(prev => ({ ...prev, oilLastChange: last, oilNextChange: next }));
-                                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
-                                    alert("Troca de óleo registrada com sucesso!");
-                                  } catch (error) {
-                                    console.error("Erro ao registrar troca de óleo", error);
-                                    alert("Erro ao registrar troca de óleo. Verifique o console.");
-                                  }
-                                }
-                              });
-                            }}
-                            className="px-6 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 shrink-0 shadow-lg shadow-indigo-600/20"
+                            onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                            className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm hover:border-indigo-400 transition-all group/sel"
                           >
-                            Óleo Trocado
+                            <div className="flex items-center gap-3">
+                              <div className={`p-1.5 rounded-lg bg-${getStatusConfig(formData.status || 'operacional').color}-600 text-white shadow-md`}>
+                                {React.createElement(getStatusConfig(formData.status || 'operacional').icon, { className: "w-3.5 h-3.5" })}
+                              </div>
+                              <span className="text-xs font-bold text-slate-900">{getStatusConfig(formData.status || 'operacional').label}</span>
+                            </div>
+                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
                           </button>
+
+                          {isStatusDropdownOpen && (
+                            <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-[2rem] shadow-2xl overflow-hidden animate-slide-up py-2 max-h-72 overflow-y-auto custom-scrollbar">
+                              {STATUS_OPTIONS.map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  onClick={() => {
+                                    setFormData({ ...formData, status: opt.value });
+                                    setIsStatusDropdownOpen(false);
+                                  }}
+                                  className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors group ${formData.status === opt.value ? 'bg-indigo-50/50' : ''}`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg bg-${opt.color}-100 text-${opt.color}-600 group-hover:bg-${opt.color}-600 group-hover:text-white transition-all`}>
+                                      <opt.icon className="w-4 h-4" />
+                                    </div>
+                                    <span className={`text-xs font-bold ${formData.status === opt.value ? 'text-indigo-900' : 'text-slate-700'}`}>{opt.label}</span>
+                                  </div>
+                                  {formData.status === opt.value && <Check className="w-4 h-4 text-indigo-600" />}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="relative" ref={maintDropdownRef}>
+                          <label className={labelClass}>Condição de Manutenção</label>
+                          <button
+                            onClick={() => setIsMaintDropdownOpen(!isMaintDropdownOpen)}
+                            className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm hover:border-indigo-400 transition-all group/sel"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`p-1.5 rounded-lg bg-${getMaintConfig(formData.maintenanceStatus || 'em_dia').color}-600 text-white shadow-md`}>
+                                <Gauge className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="text-xs font-bold text-slate-900">{getMaintConfig(formData.maintenanceStatus || 'em_dia').label}</span>
+                            </div>
+                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isMaintDropdownOpen ? 'rotate-180' : ''}`} />
+                          </button>
+
+                          {isMaintDropdownOpen && (
+                            <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-[2rem] shadow-2xl overflow-hidden animate-slide-up py-2">
+                              {MAINTENANCE_OPTIONS.map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  onClick={() => {
+                                    setFormData({ ...formData, maintenanceStatus: opt.value });
+                                    setIsMaintDropdownOpen(false);
+                                  }}
+                                  className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors group ${formData.maintenanceStatus === opt.value ? 'bg-indigo-50/50' : ''}`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg bg-${opt.color}-100 text-${opt.color}-600 group-hover:bg-${opt.color}-600 group-hover:text-white transition-all`}>
+                                      <Gauge className="w-4 h-4" />
+                                    </div>
+                                    <span className={`text-xs font-bold ${formData.maintenanceStatus === opt.value ? 'text-indigo-900' : 'text-slate-700'}`}>{opt.label}</span>
+                                  </div>
+                                  {formData.maintenanceStatus === opt.value && <Check className="w-4 h-4 text-indigo-600" />}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="md:col-span-2 bg-slate-50 border border-slate-200 rounded-[2rem] p-6 space-y-6">
-                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                      <Activity className="w-3.5 h-3.5" /> Controle de Correia Dentada
-                    </h4>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
-                        <label className={labelClass}>KM Atual</label>
-                        <div className={`${inputClass} bg-slate-100/50 cursor-not-allowed flex items-center gap-2`}>
-                          <Gauge className="w-4 h-4 text-slate-400" />
-                          {formData.currentKm?.toLocaleString('pt-BR') || '---'} KM
-                        </div>
+                  <div className="lg:col-span-7 p-8 space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                      <div className="md:col-span-2">
+                        <label className={labelClass}><Layers className="w-4 h-4 inline mr-2 text-indigo-500" /> Identificação do Modelo</label>
+                        <input value={formData.model} onChange={e => setFormData({ ...formData, model: e.target.value.toUpperCase() })} className={inputClass} placeholder="Ex: CRONOS" />
                       </div>
 
-                      <div className="relative">
-                        <label className={labelClass}>Base de Cálculo (KM)</label>
-                        <select
-                          value={formData.timingBeltCalculationBase || 50000}
-                          onChange={(e) => {
-                            const base = parseInt(e.target.value) as any;
-                            const next = (formData.timingBeltLastChange || 0) + base;
-                            setFormData({ ...formData, timingBeltCalculationBase: base, timingBeltNextChange: next });
-                          }}
-                          className={`${inputClass} appearance-none cursor-pointer`}
+                      <div>
+                        <label className={labelClass}><Hash className="w-4 h-4 inline mr-2 text-indigo-500" /> Placa de Identificação</label>
+                        <input value={formData.plate} onChange={e => setFormData({ ...formData, plate: e.target.value.toUpperCase() })} className={`${inputClass} font-mono uppercase tracking-[0.1em]`} placeholder="ABC-1234" />
+                      </div>
+
+                      <div className="relative" ref={brandDropdownRef}>
+                        <label className={labelClass}><Tag className="w-4 h-4 inline mr-2 text-indigo-500" /> Marca / Fabricante</label>
+                        <div
+                          onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
+                          className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto ${isBrandDropdownOpen ? 'border-indigo-500 ring-4 ring-indigo-500/5 bg-white' : ''}`}
                         >
-                          <option value={40000}>40.000 KM</option>
-                          <option value={50000}>50.000 KM</option>
-                          <option value={60000}>60.000 KM</option>
-                          <option value={80000}>80.000 KM</option>
-                          <option value={100000}>100.000 KM</option>
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 translate-y-2 w-4 h-4 text-slate-400 pointer-events-none" />
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-xl transition-colors shrink-0 ${formData.brand ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                              <Tag className="w-4 h-4" />
+                            </div>
+                            <span className={`${formData.brand ? 'text-slate-900 font-bold' : 'text-slate-400'} leading-tight text-left`}>
+                              {formData.brand || 'Selecione a Marca'}
+                            </span>
+                          </div>
+                          <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 shrink-0 ${isBrandDropdownOpen ? 'rotate-180' : ''}`} />
+                        </div>
+
+                        {isBrandDropdownOpen && (
+                          <div className="absolute z-50 left-0 right-0 mt-3 bg-white border border-slate-200 rounded-[2rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] overflow-hidden animate-slide-up flex flex-col border-indigo-100">
+                            <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center gap-3">
+                              <Search className="w-4 h-4 text-indigo-400" />
+                              <input
+                                type="text"
+                                autoFocus
+                                placeholder="Pesquisar fabricante..."
+                                className="bg-transparent border-none outline-none text-sm font-bold text-slate-700 w-full"
+                                value={brandSearch}
+                                onChange={(e) => setBrandSearch(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                            <div className="max-h-60 overflow-y-auto custom-scrollbar p-2">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setIsBrandModalOpen(true); setIsBrandDropdownOpen(false); }}
+                                className="w-full mb-2 p-3 bg-indigo-50 text-indigo-700 font-bold uppercase text-[10px] tracking-widest rounded-xl hover:bg-indigo-100 transition-all flex items-center justify-center gap-2 border border-indigo-100"
+                              >
+                                <Plus className="w-3 h-3" /> Nova Marca
+                              </button>
+                              {filteredBrands.length > 0 ? (
+                                filteredBrands.map((brand) => (
+                                  <button
+                                    key={brand.id}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setFormData({ ...formData, brand: brand.name });
+                                      setIsBrandDropdownOpen(false);
+                                      setBrandSearch('');
+                                    }}
+                                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group/item ${formData.brand === brand.name ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                                  >
+                                    <span className="text-sm font-bold text-left">{brand.name}</span>
+                                    {formData.brand === brand.name && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="p-8 text-center">
+                                  <Tag className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                                  <p className="text-xs text-slate-400 font-medium">Nenhuma marca localizada.</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div>
-                        <label className={labelClass}>Próxima Troca (KM)</label>
-                        <div className={`${inputClass} bg-indigo-100/50 font-black text-indigo-700 flex items-center`}>
-                          {formData.timingBeltNextChange?.toLocaleString('pt-BR') || '---'} KM
+                        <label className={labelClass}><Calendar className="w-4 h-4 inline mr-2 text-indigo-500" /> Ano Fabricação/Modelo</label>
+                        <input value={formData.year} onChange={e => setFormData({ ...formData, year: e.target.value })} className={inputClass} placeholder="2023/2024" />
+                      </div>
+
+                      <div className="flex gap-4">
+                        <div className="flex-1">
+                          <label className={labelClass}><Gauge className="w-4 h-4 inline mr-2 text-indigo-500" /> KM/L Mínimo (Referência)</label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={minKmlInput}
+                            onChange={e => {
+                              const val = e.target.value;
+                              if (/^[\d.,]*$/.test(val)) {
+                                setMinKmlInput(val);
+                                const numVal = parseFloat(val.replace(',', '.'));
+                                setFormData({ ...formData, minKml: isNaN(numVal) ? undefined : numVal });
+                              }
+                            }}
+                            className={inputClass}
+                            placeholder="Ex: 8,0"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className={labelClass}><Gauge className="w-4 h-4 inline mr-2 text-indigo-500" /> KM/L Máximo (Teto)</label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={maxKmlInput}
+                            onChange={e => {
+                              const val = e.target.value;
+                              if (/^[\d.,]*$/.test(val)) {
+                                setMaxKmlInput(val);
+                                const numVal = parseFloat(val.replace(',', '.'));
+                                setFormData({ ...formData, maxKml: isNaN(numVal) ? undefined : numVal });
+                              }
+                            }}
+                            className={inputClass}
+                            placeholder="Ex: 12,5"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className={labelClass}><Palette className="w-4 h-4 inline mr-2 text-indigo-500" /> Cor Predominante</label>
+                        <input value={formData.color} onChange={e => setFormData({ ...formData, color: e.target.value.toUpperCase() })} className={inputClass} placeholder="Ex: BRANCA" />
+                      </div>
+
+                      {/* CAMPO DE COMBUSTÍVEL - MULTISELEÇÃO MODERNA */}
+                      <div className="md:col-span-2">
+                        <label className={labelClass}><Flame className="w-4 h-4 inline mr-2 text-indigo-500" /> Combustível (Multiseleção)</label>
+                        <div className="flex flex-wrap gap-2 p-4 bg-slate-50/50 border border-slate-200 rounded-[2rem]">
+                          {FUEL_OPTIONS.map(fuel => {
+                            const isSelected = formData.fuelTypes?.includes(fuel);
+                            return (
+                              <button
+                                key={fuel}
+                                type="button"
+                                onClick={() => toggleFuel(fuel)}
+                                className={`px-6 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all border-2 flex items-center gap-2 active:scale-95
+                                      ${isSelected
+                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                                    : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200 hover:text-indigo-600'}
+                                    `}
+                              >
+                                {isSelected ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5 opacity-40" />}
+                                {fuel}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
 
                       <div className="md:col-span-2">
-                        <label className={labelClass}>Última Troca de Correia (KM)</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            value={formData.timingBeltLastChange || ''}
-                            readOnly
-                            className={`${inputClass} bg-slate-100/50 cursor-not-allowed`}
-                            placeholder="KM da última troca"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setConfirmModal({
-                                isOpen: true,
-                                title: "Confirmar Troca de Correia",
-                                message: `Confirma a troca de correia dentada do veículo ${formData.model} (Placa: ${formData.plate}) no KM atual de ${formData.currentKm?.toLocaleString('pt-BR') || '0'}?`,
-                                type: 'positive',
-                                confirmLabel: 'Sim, Confirmar Troca',
-                                onConfirm: async () => {
-                                  const last = formData.currentKm || 0;
-                                  const next = last + (formData.timingBeltCalculationBase || 50000);
+                        <label className={labelClass}><Network className="w-4 h-4 inline mr-2 text-indigo-500" /> Setor de Lotação / Atribuição</label>
+                        <button
+                          onClick={() => setIsSectorModalOpen(true)}
+                          className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto w-full`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-xl transition-colors shrink-0 ${formData.sectorId ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                              <Network className="w-4 h-4" />
+                            </div>
+                            <span className={`${formData.sectorId ? 'text-slate-900 font-bold' : 'text-slate-400'} leading-tight text-left`}>
+                              {selectedSectorName}
+                            </span>
+                          </div>
+                          <Search className="w-5 h-5 text-slate-400" />
+                        </button>
+                      </div>
 
-                                  try {
-                                    if (editingVehicle?.id) {
-                                      await fleetService.addTimingBeltRecord(editingVehicle.id, last);
+                      <div className="md:col-span-2">
+                        <label className={labelClass}><User className="w-4 h-4 inline mr-2 text-indigo-500" /> Responsável pelo Veículo (Condutor)</label>
+                        <button
+                          onClick={() => setIsResponsibleModalOpen(true)}
+                          className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto w-full`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-xl transition-colors shrink-0 ${formData.responsiblePersonId ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                              <User className="w-4 h-4" />
+                            </div>
+                            <span className={`${formData.responsiblePersonId ? 'text-slate-900 font-bold' : 'text-slate-400'} leading-tight text-left`}>
+                              {selectedResponsibleName}
+                            </span>
+                          </div>
+                          <Search className="w-5 h-5 text-slate-400" />
+                        </button>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className={labelClass}><ShieldCheck className="w-4 h-4 inline mr-2 text-indigo-500" /> Gestor de Solicitações (Pode aprovar saídas)</label>
+                        <button
+                          onClick={() => setIsRequestManagerModalOpen(true)}
+                          className={`${inputClass} flex items-center justify-between cursor-pointer group/select h-auto w-full group/mgr`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`p-2 rounded-xl transition-colors shrink-0 ${formData.requestManagerIds?.length ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                              <ShieldCheck className="w-4 h-4" />
+                            </div>
+                            <span className={`${formData.requestManagerIds?.length ? 'text-slate-900 font-bold' : 'text-slate-400'} leading-tight text-left truncate`}>
+                              {selectedManagersNames}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {formData.requestManagerIds?.length ? (
+                              <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black px-2 py-0.5 rounded-lg whitespace-nowrap">{formData.requestManagerIds.length} selecionados</span>
+                            ) : null}
+                            <Plus className="w-5 h-5 text-slate-400 group-hover/mgr:text-indigo-600 transition-colors" />
+                          </div>
+                        </button>
+                      </div>
+
+                      <div className="md:col-span-2 bg-indigo-50/30 border border-indigo-100 rounded-[2rem] p-6 space-y-6">
+                        <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] flex items-center gap-2">
+                          <PenTool className="w-3.5 h-3.5" /> Controle de Troca de Óleo
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div>
+                            <label className={labelClass}>KM Atual</label>
+                            <div className={`${inputClass} bg-slate-100/50 cursor-not-allowed flex items-center gap-2`}>
+                              <Gauge className="w-4 h-4 text-slate-400" />
+                              {formData.currentKm?.toLocaleString('pt-BR') || '---'} KM
+                            </div>
+                          </div>
+
+                          <div className="relative" ref={oilBaseDropdownRef}>
+                            <label className={labelClass}>Base de Cálculo (KM)</label>
+                            <button
+                              type="button"
+                              onClick={() => setIsOilBaseDropdownOpen(!isOilBaseDropdownOpen)}
+                              className={`${inputClass} flex items-center justify-between cursor-pointer active:scale-95`}
+                            >
+                              <span className="text-sm font-bold text-slate-900">
+                                {formData.oilCalculationBase ? `${formData.oilCalculationBase.toLocaleString('pt-BR')} KM` : '5.000 KM'}
+                              </span>
+                              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isOilBaseDropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {isOilBaseDropdownOpen && (
+                              <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-slide-up flex flex-col">
+                                {[5000, 7000, 10000].map((base) => (
+                                  <button
+                                    key={base}
+                                    type="button"
+                                    onClick={() => {
+                                      const next = (formData.oilLastChange || 0) + base;
+                                      setFormData({ ...formData, oilCalculationBase: base as any, oilNextChange: next });
+                                      setIsOilBaseDropdownOpen(false);
+                                    }}
+                                    className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors group ${formData.oilCalculationBase === base ? 'bg-indigo-50/50' : ''}`}
+                                  >
+                                    <span className={`text-xs font-bold ${formData.oilCalculationBase === base ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                      {base.toLocaleString('pt-BR')} KM
+                                    </span>
+                                    {formData.oilCalculationBase === base && <Check className="w-4 h-4 text-indigo-600" />}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className={labelClass}>Próxima Troca (KM)</label>
+                            <div className={`${inputClass} bg-indigo-100/50 font-black text-indigo-700 flex items-center`}>
+                              {formData.oilNextChange?.toLocaleString('pt-BR') || '---'} KM
+                            </div>
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Última Troca de Óleo (KM)</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                value={formData.oilLastChange || ''}
+                                readOnly
+                                className={`${inputClass} bg-slate-100/50 cursor-not-allowed`}
+                                placeholder="KM da última troca"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConfirmModal({
+                                    isOpen: true,
+                                    title: "Confirmar Troca de Óleo",
+                                    message: `Confirma a troca de óleo do veículo ${formData.model} (Placa: ${formData.plate}) no KM atual de ${formData.currentKm?.toLocaleString('pt-BR') || '0'}?`,
+                                    type: 'positive',
+                                    confirmLabel: 'Sim, Confirmar Troca',
+                                    onConfirm: async () => {
+                                      const last = formData.currentKm || 0;
+                                      const next = last + (formData.oilCalculationBase || 5000);
+
+                                      try {
+                                        if (editingVehicle?.id) {
+                                          await fleetService.addOilChangeRecord(editingVehicle.id, last);
+                                        }
+
+                                        setFormData(prev => ({ ...prev, oilLastChange: last, oilNextChange: next }));
+                                        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                                        alert("Troca de óleo registrada com sucesso!");
+                                      } catch (error) {
+                                        console.error("Erro ao registrar troca de óleo", error);
+                                        alert("Erro ao registrar troca de óleo. Verifique o console.");
+                                      }
                                     }
-
-                                    setFormData(prev => ({ ...prev, timingBeltLastChange: last, timingBeltNextChange: next }));
-                                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
-                                    alert("Troca de correia registrada com sucesso!");
-                                  } catch (error) {
-                                    console.error("Erro ao registrar troca de correia", error);
-                                    alert("Erro ao registrar troca de correia. Verifique o console.");
-                                  }
-                                }
-                              });
-                            }}
-                            className="px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all active:scale-95 shrink-0 shadow-lg"
-                          >
-                            Correia Trocada
-                          </button>
+                                  });
+                                }}
+                                className="px-6 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 shrink-0 shadow-lg shadow-indigo-600/20"
+                              >
+                                Óleo Trocado
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <div>
-                    <label className={labelClass}><Fuel className="w-4 h-4 inline mr-2 text-indigo-500" /> Código Renavam</label>
-                    <input value={formData.renavam} onChange={e => setFormData({ ...formData, renavam: e.target.value })} className={`${inputClass} font-mono`} placeholder="01332550344" />
-                  </div>
-                  <div>
-                    <label className={labelClass}><ShieldCheck className="w-4 h-4 inline mr-2 text-indigo-500" /> Número do Chassi (VIN)</label>
-                    <input value={formData.chassis} onChange={e => setFormData({ ...formData, chassis: e.target.value.toUpperCase() })} className={`${inputClass} font-mono uppercase`} placeholder="8AP..." />
+                      <div className="md:col-span-2 bg-slate-50 border border-slate-200 rounded-[2rem] p-6 space-y-6">
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                          <Activity className="w-3.5 h-3.5" /> Controle de Correia Dentada
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div>
+                            <label className={labelClass}>KM Atual</label>
+                            <div className={`${inputClass} bg-slate-100/50 cursor-not-allowed flex items-center gap-2`}>
+                              <Gauge className="w-4 h-4 text-slate-400" />
+                              {formData.currentKm?.toLocaleString('pt-BR') || '---'} KM
+                            </div>
+                          </div>
+
+                          <div className="relative">
+                            <label className={labelClass}>Base de Cálculo (KM)</label>
+                            <select
+                              value={formData.timingBeltCalculationBase || 50000}
+                              onChange={(e) => {
+                                const base = parseInt(e.target.value) as any;
+                                const next = (formData.timingBeltLastChange || 0) + base;
+                                setFormData({ ...formData, timingBeltCalculationBase: base, timingBeltNextChange: next });
+                              }}
+                              className={`${inputClass} appearance-none cursor-pointer`}
+                            >
+                              <option value={40000}>40.000 KM</option>
+                              <option value={50000}>50.000 KM</option>
+                              <option value={60000}>60.000 KM</option>
+                              <option value={80000}>80.000 KM</option>
+                              <option value={100000}>100.000 KM</option>
+                            </select>
+                            <ChevronDown className="absolute right-4 top-1/2 translate-y-2 w-4 h-4 text-slate-400 pointer-events-none" />
+                          </div>
+
+                          <div>
+                            <label className={labelClass}>Próxima Troca (KM)</label>
+                            <div className={`${inputClass} bg-indigo-100/50 font-black text-indigo-700 flex items-center`}>
+                              {formData.timingBeltNextChange?.toLocaleString('pt-BR') || '---'} KM
+                            </div>
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Última Troca de Correia (KM)</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                value={formData.timingBeltLastChange || ''}
+                                readOnly
+                                className={`${inputClass} bg-slate-100/50 cursor-not-allowed`}
+                                placeholder="KM da última troca"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConfirmModal({
+                                    isOpen: true,
+                                    title: "Confirmar Troca de Correia",
+                                    message: `Confirma a troca de correia dentada do veículo ${formData.model} (Placa: ${formData.plate}) no KM atual de ${formData.currentKm?.toLocaleString('pt-BR') || '0'}?`,
+                                    type: 'positive',
+                                    confirmLabel: 'Sim, Confirmar Troca',
+                                    onConfirm: async () => {
+                                      const last = formData.currentKm || 0;
+                                      const next = last + (formData.timingBeltCalculationBase || 50000);
+
+                                      try {
+                                        if (editingVehicle?.id) {
+                                          await fleetService.addTimingBeltRecord(editingVehicle.id, last);
+                                        }
+
+                                        setFormData(prev => ({ ...prev, timingBeltLastChange: last, timingBeltNextChange: next }));
+                                        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                                        alert("Troca de correia registrada com sucesso!");
+                                      } catch (error) {
+                                        console.error("Erro ao registrar troca de correia", error);
+                                        alert("Erro ao registrar troca de correia. Verifique o console.");
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all active:scale-95 shrink-0 shadow-lg"
+                              >
+                                Correia Trocada
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className={labelClass}><Fuel className="w-4 h-4 inline mr-2 text-indigo-500" /> Código Renavam</label>
+                        <input value={formData.renavam} onChange={e => setFormData({ ...formData, renavam: e.target.value })} className={`${inputClass} font-mono`} placeholder="01332550344" />
+                      </div>
+                      <div>
+                        <label className={labelClass}><ShieldCheck className="w-4 h-4 inline mr-2 text-indigo-500" /> Número do Chassi (VIN)</label>
+                        <input value={formData.chassis} onChange={e => setFormData({ ...formData, chassis: e.target.value.toUpperCase() })} className={`${inputClass} font-mono uppercase`} placeholder="8AP..." />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div className="px-6 py-4 border-t border-slate-100 bg-white flex justify-between items-center shrink-0">
-            <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 font-black text-slate-400 hover:text-rose-600 transition-all uppercase text-[10px] tracking-[0.2em]">Descartar</button>
-            <button onClick={handleSave} className="px-8 py-3 bg-slate-900 text-white font-black rounded-2xl hover:bg-indigo-600 shadow-xl flex items-center gap-3 transition-all uppercase text-[10px] tracking-[0.2em] active:scale-95">
-              <Save className="w-4 h-4" /> Salvar Veículo
-            </button>
-          </div>
-        </div>
-      </div>,
-      document.body
-    )
-  }
-
-  {/* MODAL PARA ADICIONAR NOVA MARCA */ }
-  {
-    isBrandModalOpen && createPortal(
-      <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
-        <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20">
-          <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
-                <Tag className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">Nova Marca</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Categoria: {activeTab === 'leve' ? 'Leves' : activeTab === 'pesado' ? 'Pesados' : 'Acessórios'}</p>
+              <div className="px-6 py-4 border-t border-slate-100 bg-white flex justify-between items-center shrink-0">
+                <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 font-black text-slate-400 hover:text-rose-600 transition-all uppercase text-[10px] tracking-[0.2em]">Descartar</button>
+                <button onClick={handleSave} className="px-8 py-3 bg-slate-900 text-white font-black rounded-2xl hover:bg-indigo-600 shadow-xl flex items-center gap-3 transition-all uppercase text-[10px] tracking-[0.2em] active:scale-95">
+                  <Save className="w-4 h-4" /> Salvar Veículo
+                </button>
               </div>
             </div>
-            <button onClick={() => setIsBrandModalOpen(false)} className="p-2 hover:bg-white hover:shadow-sm rounded-xl text-slate-400 transition-all"><X className="w-5 h-5" /></button>
-          </div>
-          <div className="p-8">
-            <label className={labelClass}>Nome do Fabricante / Marca</label>
-            <input
-              autoFocus
-              value={newBrandName}
-              onChange={e => setNewBrandName(e.target.value)}
-              className={inputClass}
-              placeholder="Digite o nome da marca..."
-              onKeyDown={e => e.key === 'Enter' && handleSaveBrand()}
-            />
-          </div>
-          <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
-            <button onClick={() => setIsBrandModalOpen(false)} className="flex-1 py-4 bg-white text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">Cancelar</button>
-            <button
-              onClick={handleSaveBrand}
-              disabled={!newBrandName.trim()}
-              className="flex-2 px-8 py-4 bg-indigo-600 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-xl shadow-lg hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
-            >
-              Salvar Marca
-            </button>
-          </div>
-        </div>
-      </div>,
-      document.body
-    )
-  }
+          </div>,
+          document.body
+        )
+      }
 
-  {/* MODAL DE SELEÇÃO DE SETOR */ }
-  {
-    isSectorModalOpen && createPortal(
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
-        <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20 flex flex-col max-h-[80vh]">
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
-                <Network className="w-5 h-5 text-white" />
+      {/* MODAL PARA ADICIONAR NOVA MARCA */}
+      {
+        isBrandModalOpen && createPortal(
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+            <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20">
+              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                    <Tag className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">Nova Marca</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Categoria: {activeTab === 'leve' ? 'Leves' : activeTab === 'pesado' ? 'Pesados' : 'Acessórios'}</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsBrandModalOpen(false)} className="p-2 hover:bg-white hover:shadow-sm rounded-xl text-slate-400 transition-all"><X className="w-5 h-5" /></button>
               </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">Selecionar Setor</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Atribuição do Veículo</p>
+              <div className="p-8">
+                <label className={labelClass}>Nome do Fabricante / Marca</label>
+                <input
+                  autoFocus
+                  value={newBrandName}
+                  onChange={e => setNewBrandName(e.target.value)}
+                  className={inputClass}
+                  placeholder="Digite o nome da marca..."
+                  onKeyDown={e => e.key === 'Enter' && handleSaveBrand()}
+                />
               </div>
-            </div>
-            <button onClick={() => setIsSectorModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 transition-all"><X className="w-5 h-5" /></button>
-          </div>
-
-          <div className="p-4 bg-slate-50 border-b border-slate-100 shrink-0">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar setor..."
-                autoFocus
-                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                value={sectorSearch}
-                onChange={(e) => setSectorSearch(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="overflow-y-auto custom-scrollbar p-4 flex-1">
-            {filteredSectors.length > 0 ? (
-              <div className="grid grid-cols-1 gap-2">
-                {filteredSectors.map((sector) => (
-                  <button
-                    key={sector.id}
-                    onClick={() => {
-                      setFormData({ ...formData, sectorId: sector.id });
-                      setIsSectorModalOpen(false);
-                      setSectorSearch('');
-                    }}
-                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all group ${formData.sectorId === sector.id ? 'bg-indigo-50 border border-indigo-100 shadow-sm' : 'bg-white border border-slate-100 hover:border-indigo-200 hover:shadow-md'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${formData.sectorId === sector.id ? 'bg-indigo-200 text-indigo-700' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'}`}>
-                        <Network className="w-4 h-4" />
-                      </div>
-                      <span className={`text-sm font-bold ${formData.sectorId === sector.id ? 'text-indigo-900' : 'text-slate-700 group-hover:text-indigo-900'}`}>{sector.name}</span>
-                    </div>
-                    {formData.sectorId === sector.id && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 p-8">
-                <Search className="w-12 h-12 mb-2" />
-                <p className="text-sm font-bold">Nenhum setor encontrado</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>,
-      document.body
-    )
-  }
-
-  {/* MODAL DE SELEÇÃO DE RESPONSÁVEL */ }
-  {
-    isResponsibleModalOpen && createPortal(
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
-        <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20 flex flex-col max-h-[80vh]">
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
-                <User className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">Selecionar Responsável</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Condutor Principal</p>
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
+                <button onClick={() => setIsBrandModalOpen(false)} className="flex-1 py-4 bg-white text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">Cancelar</button>
+                <button
+                  onClick={handleSaveBrand}
+                  disabled={!newBrandName.trim()}
+                  className="flex-2 px-8 py-4 bg-indigo-600 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-xl shadow-lg hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  Salvar Marca
+                </button>
               </div>
             </div>
-            <button onClick={() => setIsResponsibleModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 transition-all"><X className="w-5 h-5" /></button>
-          </div>
+          </div>,
+          document.body
+        )
+      }
 
-          <div className="p-4 bg-slate-50 border-b border-slate-100 shrink-0">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar nome ou cargo..."
-                autoFocus
-                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                value={responsibleSearch}
-                onChange={(e) => setResponsibleSearch(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="overflow-y-auto custom-scrollbar p-4 flex-1">
-            <button
-              type="button"
-              onClick={() => {
-                setFormData({ ...formData, responsiblePersonId: '' });
-                setIsResponsibleModalOpen(false);
-              }}
-              className="w-full mb-3 p-3 bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center justify-center gap-2 border border-slate-100 hover:border-rose-100"
-            >
-              <X className="w-3.5 h-3.5" /> Remover Responsável
-            </button>
-
-            {filteredPersons.length > 0 ? (
-              <div className="grid grid-cols-1 gap-2">
-                {filteredPersons.map((person) => (
-                  <button
-                    key={person.id}
-                    onClick={() => {
-                      setFormData({ ...formData, responsiblePersonId: person.id });
-                      setIsResponsibleModalOpen(false);
-                      setResponsibleSearch('');
-                    }}
-                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all group ${formData.responsiblePersonId === person.id ? 'bg-indigo-50 border border-indigo-100 shadow-sm' : 'bg-white border border-slate-100 hover:border-indigo-200 hover:shadow-md'}`}
-                  >
-                    <div className="flex items-center gap-3 text-left">
-                      <div className={`p-2 rounded-lg ${formData.responsiblePersonId === person.id ? 'bg-indigo-200 text-indigo-700' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'}`}>
-                        <User className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className={`text-sm font-bold block ${formData.responsiblePersonId === person.id ? 'text-indigo-900' : 'text-slate-700 group-hover:text-indigo-900'}`}>{person.name}</span>
-                        <span className="text-[10px] uppercase font-bold text-slate-400">{jobs.find(j => j.id === person.jobId)?.name || 'Sem Cargo'}</span>
-                      </div>
-                    </div>
-                    {formData.responsiblePersonId === person.id && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
-                  </button>
-                ))}
+      {/* MODAL DE SELEÇÃO DE SETOR */}
+      {
+        isSectorModalOpen && createPortal(
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+            <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20 flex flex-col max-h-[80vh]">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                    <Network className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">Selecionar Setor</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Atribuição do Veículo</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsSectorModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 transition-all"><X className="w-5 h-5" /></button>
               </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 p-8">
-                <Search className="w-12 h-12 mb-2" />
-                <p className="text-sm font-bold">Nenhum responsável encontrado</p>
+
+              <div className="p-4 bg-slate-50 border-b border-slate-100 shrink-0">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar setor..."
+                    autoFocus
+                    className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    value={sectorSearch}
+                    onChange={(e) => setSectorSearch(e.target.value)}
+                  />
+                </div>
               </div>
-            )}
-          </div>
-        </div>
-      </div>,
-      document.body
-    )
-  }
 
-  {/* MODAL DE SELEÇÃO DE GESTORES DE SOLICITAÇÕES */ }
-  {
-    isRequestManagerModalOpen && createPortal(
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
-        <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20 flex flex-col max-h-[80vh]">
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
-                <ShieldCheck className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">Gestores de Solicitações</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Quem pode aprovar este veículo</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsRequestManagerModalOpen(false)}
-              className="px-6 py-2 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-indigo-600 transition-all active:scale-95"
-            >
-              Concluído
-            </button>
-          </div>
-
-          <div className="p-4 bg-slate-50 border-b border-slate-100 shrink-0">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar gestor..."
-                autoFocus
-                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                value={requestManagerSearch}
-                onChange={(e) => setRequestManagerSearch(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="overflow-y-auto custom-scrollbar p-4 flex-1">
-            <div className="mb-4 flex items-center justify-between px-2">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lista de Colaboradores</span>
-              <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{formData.requestManagerIds?.length || 0} Selecionados</span>
-            </div>
-
-            {filteredRequestManagers.length > 0 ? (
-              <div className="grid grid-cols-1 gap-2">
-                {filteredRequestManagers.map((person) => {
-                  const isSelected = formData.requestManagerIds?.includes(person.id);
-                  return (
-                    <button
-                      key={person.id}
-                      onClick={() => toggleRequestManager(person.id)}
-                      className={`w-full flex items-center justify-between p-4 rounded-xl transition-all group ${isSelected ? 'bg-indigo-50 border border-indigo-100 shadow-sm' : 'bg-white border border-slate-100 hover:border-indigo-200 hover:shadow-md'}`}
-                    >
-                      <div className="flex items-center gap-3 text-left">
-                        <div className={`p-2 rounded-lg transition-all ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'}`}>
-                          <User className="w-4 h-4" />
+              <div className="overflow-y-auto custom-scrollbar p-4 flex-1">
+                {filteredSectors.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-2">
+                    {filteredSectors.map((sector) => (
+                      <button
+                        key={sector.id}
+                        onClick={() => {
+                          setFormData({ ...formData, sectorId: sector.id });
+                          setIsSectorModalOpen(false);
+                          setSectorSearch('');
+                        }}
+                        className={`w-full flex items-center justify-between p-4 rounded-xl transition-all group ${formData.sectorId === sector.id ? 'bg-indigo-50 border border-indigo-100 shadow-sm' : 'bg-white border border-slate-100 hover:border-indigo-200 hover:shadow-md'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${formData.sectorId === sector.id ? 'bg-indigo-200 text-indigo-700' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'}`}>
+                            <Network className="w-4 h-4" />
+                          </div>
+                          <span className={`text-sm font-bold ${formData.sectorId === sector.id ? 'text-indigo-900' : 'text-slate-700 group-hover:text-indigo-900'}`}>{sector.name}</span>
                         </div>
-                        <div>
-                          <span className={`text-sm font-bold block ${isSelected ? 'text-indigo-900' : 'text-slate-700 group-hover:text-indigo-900'}`}>{person.name}</span>
-                          <span className="text-[10px] uppercase font-bold text-slate-400">{jobs.find(j => j.id === person.jobId)?.name || 'Sem Cargo'}</span>
+                        {formData.sectorId === sector.id && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 p-8">
+                    <Search className="w-12 h-12 mb-2" />
+                    <p className="text-sm font-bold">Nenhum setor encontrado</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      }
+
+      {/* MODAL DE SELEÇÃO DE RESPONSÁVEL */}
+      {
+        isResponsibleModalOpen && createPortal(
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+            <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20 flex flex-col max-h-[80vh]">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">Selecionar Responsável</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Condutor Principal</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsResponsibleModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 transition-all"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="p-4 bg-slate-50 border-b border-slate-100 shrink-0">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar nome ou cargo..."
+                    autoFocus
+                    className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    value={responsibleSearch}
+                    onChange={(e) => setResponsibleSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="overflow-y-auto custom-scrollbar p-4 flex-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData({ ...formData, responsiblePersonId: '' });
+                    setIsResponsibleModalOpen(false);
+                  }}
+                  className="w-full mb-3 p-3 bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center justify-center gap-2 border border-slate-100 hover:border-rose-100"
+                >
+                  <X className="w-3.5 h-3.5" /> Remover Responsável
+                </button>
+
+                {filteredPersons.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-2">
+                    {filteredPersons.map((person) => (
+                      <button
+                        key={person.id}
+                        onClick={() => {
+                          setFormData({ ...formData, responsiblePersonId: person.id });
+                          setIsResponsibleModalOpen(false);
+                          setResponsibleSearch('');
+                        }}
+                        className={`w-full flex items-center justify-between p-4 rounded-xl transition-all group ${formData.responsiblePersonId === person.id ? 'bg-indigo-50 border border-indigo-100 shadow-sm' : 'bg-white border border-slate-100 hover:border-indigo-200 hover:shadow-md'}`}
+                      >
+                        <div className="flex items-center gap-3 text-left">
+                          <div className={`p-2 rounded-lg ${formData.responsiblePersonId === person.id ? 'bg-indigo-200 text-indigo-700' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'}`}>
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className={`text-sm font-bold block ${formData.responsiblePersonId === person.id ? 'text-indigo-900' : 'text-slate-700 group-hover:text-indigo-900'}`}>{person.name}</span>
+                            <span className="text-[10px] uppercase font-bold text-slate-400">{jobs.find(j => j.id === person.jobId)?.name || 'Sem Cargo'}</span>
+                          </div>
                         </div>
-                      </div>
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white scale-110' : 'border-slate-200 group-hover:border-indigo-400'}`}>
-                        {isSelected && <Check className="w-3.5 h-3.5" />}
-                      </div>
-                    </button>
-                  );
-                })}
+                        {formData.responsiblePersonId === person.id && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 p-8">
+                    <Search className="w-12 h-12 mb-2" />
+                    <p className="text-sm font-bold">Nenhum responsável encontrado</p>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 p-8">
-                <Search className="w-12 h-12 mb-2" />
-                <p className="text-sm font-bold">Nenhum colaborador encontrado</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>,
-      document.body
-    )
-  }
+            </div>
+          </div>,
+          document.body
+        )
+      }
 
-  {/* MODAL DE VISUALIZAÇÃO */ }
-  {
-    viewingDocumentUrl && createPortal(
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-3xl animate-fade-in">
-        <div className={`w-full flex flex-col bg-white rounded-[4rem] shadow-2xl overflow-hidden animate-scale-in ${viewingDocumentUrl.type === 'photo' ? 'max-w-4xl h-fit' : 'h-full max-w-6xl'}`}>
-          <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-            <div className="flex items-center gap-6">
-              <div className={`w-14 h-14 rounded-2xl text-white flex items-center justify-center shadow-xl ${viewingDocumentUrl.type === 'photo' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
-                {viewingDocumentUrl.type === 'photo' ? <ImageIcon className="w-8 h-8" /> : <FileText className="w-8 h-8" />}
+      {/* MODAL DE SELEÇÃO DE GESTORES DE SOLICITAÇÕES */}
+      {
+        isRequestManagerModalOpen && createPortal(
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+            <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20 flex flex-col max-h-[80vh]">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                    <ShieldCheck className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">Gestores de Solicitações</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Quem pode aprovar este veículo</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsRequestManagerModalOpen(false)}
+                  className="px-6 py-2 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-indigo-600 transition-all active:scale-95"
+                >
+                  Concluído
+                </button>
               </div>
-              <div>
-                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
-                  {viewingDocumentUrl.type === 'photo' ? 'Visualização da Foto' : 'Visualização de Documento'}
-                </h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{viewingDocumentUrl.name}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <a href={viewingDocumentUrl.url} download={viewingDocumentUrl.name} className="p-4 bg-slate-50 text-slate-600 rounded-2xl hover:bg-indigo-50 hover:text-indigo-600 transition-all shadow-sm"><Download className="w-7 h-7" /></a>
-              <button onClick={() => setViewingDocumentUrl(null)} className="p-4 bg-slate-900 text-white rounded-2xl hover:bg-rose-600 transition-all active:scale-95 shadow-lg"><X className="w-7 h-7" /></button>
-            </div>
-          </div>
-          <div className={`overflow-auto flex items-center justify-center p-12 bg-slate-100/50 ${viewingDocumentUrl.type === 'photo' ? 'max-h-[70vh]' : 'flex-1'}`}>
-            {viewingDocumentUrl.url.startsWith('data:application/pdf') ? (
-              <iframe src={viewingDocumentUrl.url} className="w-full h-full rounded-[2.5rem] border-8 border-white shadow-[0_40px_80px_-15px_rgba(0,0,0,0.3)] min-h-[60vh]" />
-            ) : (
-              <img src={viewingDocumentUrl.url} alt="Visualização" className="max-w-full max-h-full object-contain rounded-[2.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.3)] border-8 border-white" />
-            )}
-          </div>
-          <div className="p-8 bg-white border-t border-slate-100 text-center shrink-0">
-            <button onClick={() => setViewingDocumentUrl(null)} className="px-16 py-5 bg-slate-900 text-white font-black uppercase text-xs tracking-[0.3em] rounded-3xl transition-all shadow-2xl active:scale-95">Fechar Visualização</button>
-          </div>
-        </div>
-      </div>,
-      document.body
-    )
-  }
 
-  {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */ }
-  {/* MODAL DE CONFIRMAÇÃO DE AÇÃO */ }
-  {
-    confirmModal.isOpen && createPortal(
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
-        <div className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20">
-          <div className="p-12 text-center">
-            <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl rotate-3 ${confirmModal.type === 'positive' ? 'bg-indigo-50 text-indigo-600 shadow-indigo-500/10' : 'bg-rose-50 text-rose-600 shadow-rose-500/10'}`}>
-              {confirmModal.type === 'positive' ? <CheckCircle2 className="w-12 h-12" /> : <Trash className="w-12 h-12" />}
+              <div className="p-4 bg-slate-50 border-b border-slate-100 shrink-0">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar gestor..."
+                    autoFocus
+                    className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    value={requestManagerSearch}
+                    onChange={(e) => setRequestManagerSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="overflow-y-auto custom-scrollbar p-4 flex-1">
+                <div className="mb-4 flex items-center justify-between px-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lista de Colaboradores</span>
+                  <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{formData.requestManagerIds?.length || 0} Selecionados</span>
+                </div>
+
+                {filteredRequestManagers.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-2">
+                    {filteredRequestManagers.map((person) => {
+                      const isSelected = formData.requestManagerIds?.includes(person.id);
+                      return (
+                        <button
+                          key={person.id}
+                          onClick={() => toggleRequestManager(person.id)}
+                          className={`w-full flex items-center justify-between p-4 rounded-xl transition-all group ${isSelected ? 'bg-indigo-50 border border-indigo-100 shadow-sm' : 'bg-white border border-slate-100 hover:border-indigo-200 hover:shadow-md'}`}
+                        >
+                          <div className="flex items-center gap-3 text-left">
+                            <div className={`p-2 rounded-lg transition-all ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'}`}>
+                              <User className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className={`text-sm font-bold block ${isSelected ? 'text-indigo-900' : 'text-slate-700 group-hover:text-indigo-900'}`}>{person.name}</span>
+                              <span className="text-[10px] uppercase font-bold text-slate-400">{jobs.find(j => j.id === person.jobId)?.name || 'Sem Cargo'}</span>
+                            </div>
+                          </div>
+                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white scale-110' : 'border-slate-200 group-hover:border-indigo-400'}`}>
+                            {isSelected && <Check className="w-3.5 h-3.5" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60 p-8">
+                    <Search className="w-12 h-12 mb-2" />
+                    <p className="text-sm font-bold">Nenhum colaborador encontrado</p>
+                  </div>
+                )}
+              </div>
             </div>
-            <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-4 uppercase">{confirmModal.title}</h3>
-            <p className="text-slate-500 text-sm font-medium leading-relaxed px-4">{confirmModal.message}</p>
-          </div>
-          <div className="p-8 bg-slate-50 border-t border-slate-100 flex flex-col gap-4">
-            <button
-              onClick={confirmModal.onConfirm}
-              className={`w-full py-5 text-white font-black text-xs uppercase tracking-[0.2em] rounded-[1.5rem] shadow-2xl transition-all active:scale-95 ${confirmModal.type === 'positive' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'}`}
-            >
-              {confirmModal.confirmLabel || 'Confirmar'}
-            </button>
-            <button onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })} className="w-full py-5 bg-white text-slate-400 font-black text-xs uppercase tracking-[0.2em] rounded-[1.5rem] border border-slate-200 hover:bg-white hover:text-slate-600 transition-all shadow-sm">
-              {confirmModal.cancelLabel || 'Voltar / Cancelar'}
-            </button>
-          </div>
-        </div>
-      </div>,
-      document.body
-    )
-  }
+          </div>,
+          document.body
+        )
+      }
+
+      {/* MODAL DE VISUALIZAÇÃO */}
+      {
+        viewingDocumentUrl && createPortal(
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-3xl animate-fade-in">
+            <div className={`w-full flex flex-col bg-white rounded-[4rem] shadow-2xl overflow-hidden animate-scale-in ${viewingDocumentUrl.type === 'photo' ? 'max-w-4xl h-fit' : 'h-full max-w-6xl'}`}>
+              <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-6">
+                  <div className={`w-14 h-14 rounded-2xl text-white flex items-center justify-center shadow-xl ${viewingDocumentUrl.type === 'photo' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
+                    {viewingDocumentUrl.type === 'photo' ? <ImageIcon className="w-8 h-8" /> : <FileText className="w-8 h-8" />}
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+                      {viewingDocumentUrl.type === 'photo' ? 'Visualização da Foto' : 'Visualização de Documento'}
+                    </h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{viewingDocumentUrl.name}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <a href={viewingDocumentUrl.url} download={viewingDocumentUrl.name} className="p-4 bg-slate-50 text-slate-600 rounded-2xl hover:bg-indigo-50 hover:text-indigo-600 transition-all shadow-sm"><Download className="w-7 h-7" /></a>
+                  <button onClick={() => setViewingDocumentUrl(null)} className="p-4 bg-slate-900 text-white rounded-2xl hover:bg-rose-600 transition-all active:scale-95 shadow-lg"><X className="w-7 h-7" /></button>
+                </div>
+              </div>
+              <div className={`overflow-auto flex items-center justify-center p-12 bg-slate-100/50 ${viewingDocumentUrl.type === 'photo' ? 'max-h-[70vh]' : 'flex-1'}`}>
+                {viewingDocumentUrl.url.startsWith('data:application/pdf') ? (
+                  <iframe src={viewingDocumentUrl.url} className="w-full h-full rounded-[2.5rem] border-8 border-white shadow-[0_40px_80px_-15px_rgba(0,0,0,0.3)] min-h-[60vh]" />
+                ) : (
+                  <img src={viewingDocumentUrl.url} alt="Visualização" className="max-w-full max-h-full object-contain rounded-[2.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.3)] border-8 border-white" />
+                )}
+              </div>
+              <div className="p-8 bg-white border-t border-slate-100 text-center shrink-0">
+                <button onClick={() => setViewingDocumentUrl(null)} className="px-16 py-5 bg-slate-900 text-white font-black uppercase text-xs tracking-[0.3em] rounded-3xl transition-all shadow-2xl active:scale-95">Fechar Visualização</button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      }
+
+      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
+      {/* MODAL DE CONFIRMAÇÃO DE AÇÃO */}
+      {
+        confirmModal.isOpen && createPortal(
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+            <div className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20">
+              <div className="p-12 text-center">
+                <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl rotate-3 ${confirmModal.type === 'positive' ? 'bg-indigo-50 text-indigo-600 shadow-indigo-500/10' : 'bg-rose-50 text-rose-600 shadow-rose-500/10'}`}>
+                  {confirmModal.type === 'positive' ? <CheckCircle2 className="w-12 h-12" /> : <Trash className="w-12 h-12" />}
+                </div>
+                <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-4 uppercase">{confirmModal.title}</h3>
+                <p className="text-slate-500 text-sm font-medium leading-relaxed px-4">{confirmModal.message}</p>
+              </div>
+              <div className="p-8 bg-slate-50 border-t border-slate-100 flex flex-col gap-4">
+                <button
+                  onClick={confirmModal.onConfirm}
+                  className={`w-full py-5 text-white font-black text-xs uppercase tracking-[0.2em] rounded-[1.5rem] shadow-2xl transition-all active:scale-95 ${confirmModal.type === 'positive' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'}`}
+                >
+                  {confirmModal.confirmLabel || 'Confirmar'}
+                </button>
+                <button onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })} className="w-full py-5 bg-white text-slate-400 font-black text-xs uppercase tracking-[0.2em] rounded-[1.5rem] border border-slate-200 hover:bg-white hover:text-slate-600 transition-all shadow-sm">
+                  {confirmModal.cancelLabel || 'Voltar / Cancelar'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      }
     </div >
   );
 };
