@@ -2843,17 +2843,26 @@ const App: React.FC = () => {
                         brands={brands}
                         onAddVehicle={async v => {
                           const newV = await entityService.createVehicle(v);
-                          if (newV) setVehicles(p => [...p, newV]);
+                          if (newV) {
+                            const updatedList = await entityService.getVehicles();
+                            setVehicles(updatedList);
+                          }
                           else alert("Erro ao criar veículo");
                         }}
                         onUpdateVehicle={async v => {
                           const updated = await entityService.updateVehicle(v);
-                          if (updated) setVehicles(p => p.map(vi => vi.id === v.id ? updated : vi));
+                          if (updated) {
+                            const updatedList = await entityService.getVehicles();
+                            setVehicles(updatedList);
+                          }
                           else alert("Erro ao atualizar veículo");
                         }}
                         onDeleteVehicle={async id => {
                           const success = await entityService.deleteVehicle(id);
-                          if (success) setVehicles(p => p.filter(v => v.id !== id));
+                          if (success) {
+                            const updatedList = await entityService.getVehicles();
+                            setVehicles(updatedList);
+                          }
                           else alert("Erro ao deletar veículo");
                         }}
                         onAddBrand={async b => {
