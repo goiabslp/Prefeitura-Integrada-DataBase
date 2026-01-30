@@ -1115,7 +1115,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
 
                               {isOilBaseDropdownOpen && (
                                 <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-slide-up flex flex-col">
-                                  {[5000, 7000, 10000].map((base) => (
+                                  {[500, 1000, 2000, 3000, 5000, 7000, 10000].map((base) => (
                                     <button
                                       key={base}
                                       type="button"
