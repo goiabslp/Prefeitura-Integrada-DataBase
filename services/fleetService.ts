@@ -11,13 +11,14 @@ export interface OilChangeRecord {
 }
 
 export const fleetService = {
-    async addOilChangeRecord(vehicleId: string, currentKm: number, date: string = new Date().toISOString()) {
+    async addOilChangeRecord(vehicleId: string, currentKm: number, date: string = new Date().toISOString(), newBase?: number) {
+        const safeKm = Math.round(currentKm);
         const { data, error } = await supabase
             .from('vehicle_oil_changes')
             .insert([
                 {
                     vehicle_id: vehicleId,
-                    current_km: currentKm,
+                    current_km: safeKm,
                     service_date: date,
                 }
             ])
@@ -45,13 +46,14 @@ export const fleetService = {
             .single();
 
         if (!vehicleError && vehicleData) {
-            const base = vehicleData.oil_calculation_base || 5000;
-            const next = currentKm + base;
+            const base = newBase || vehicleData.oil_calculation_base || 5000;
+            const next = Math.round(safeKm + base);
 
             await supabase.from('vehicles').update({
-                oil_last_change: currentKm,
+                oil_last_change: safeKm,
                 oil_next_change: next,
-                current_km: currentKm // Update current KM too as confirmation
+                current_km: safeKm, // Update current KM too as confirmation
+                oil_calculation_base: base // Persist the new base if changed
             }).eq('id', vehicleId);
         }
 

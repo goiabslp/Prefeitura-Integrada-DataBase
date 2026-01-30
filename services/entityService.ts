@@ -269,9 +269,9 @@ export const createVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         request_manager_ids: vehicle.requestManagerIds || [],
         max_kml: vehicle.maxKml,
         min_kml: vehicle.minKml,
-        current_km: vehicle.currentKm,
-        oil_last_change: vehicle.oilLastChange,
-        oil_next_change: vehicle.oilNextChange,
+        current_km: vehicle.currentKm ? Math.round(vehicle.currentKm) : 0,
+        oil_last_change: vehicle.oilLastChange ? Math.round(vehicle.oilLastChange) : null,
+        oil_next_change: vehicle.oilNextChange ? Math.round(vehicle.oilNextChange) : null,
         oil_calculation_base: vehicle.oilCalculationBase
     };
 
@@ -335,9 +335,9 @@ export const updateVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         request_manager_ids: vehicle.requestManagerIds || [],
         max_kml: vehicle.maxKml,
         min_kml: vehicle.minKml,
-        current_km: vehicle.currentKm,
-        oil_last_change: vehicle.oilLastChange,
-        oil_next_change: vehicle.oilNextChange,
+        current_km: vehicle.currentKm ? Math.round(vehicle.currentKm) : 0,
+        oil_last_change: vehicle.oilLastChange ? Math.round(vehicle.oilLastChange) : null,
+        oil_next_change: vehicle.oilNextChange ? Math.round(vehicle.oilNextChange) : null,
         oil_calculation_base: vehicle.oilCalculationBase
     };
 

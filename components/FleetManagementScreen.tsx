@@ -1168,7 +1168,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
 
                                         try {
                                           if (editingVehicle?.id) {
-                                            await fleetService.addOilChangeRecord(editingVehicle.id, last);
+                                            await fleetService.addOilChangeRecord(editingVehicle.id, last, undefined, formData.oilCalculationBase);
 
                                             // Update Parent State to refresh Dashboard immediately
                                             const updatedVehicle: Vehicle = {
