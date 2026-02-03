@@ -160,7 +160,7 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                   </div>
 
                   {/* Card Content Row 1 */}
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 relative z-10">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
                     <div className="flex flex-col lg:flex-row gap-4 lg:items-center flex-1">
                       <div className="flex items-center gap-4 shrink-0">
                         <div className="w-12 h-12 bg-gradient-to-br from-indigo-50 to-slate-50 rounded-2xl flex items-center justify-center text-indigo-400 group-hover:text-indigo-600 group-hover:scale-110 transition-all duration-300 shadow-inner border border-white">
@@ -244,7 +244,7 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                         {statusMenuOpen === s.id && <div className="fixed inset-0 z-[90]" onClick={() => setStatusMenuOpen(null)} />}
                       </div>
 
-                      <button onClick={() => setPreviewingOS(s)} className="px-3 py-2 bg-white border border-slate-200 text-slate-500 hover:bg-slate-900 hover:text-white rounded-lg transition-all text-[10px] font-black uppercase tracking-widest">
+                      <button onClick={() => setPreviewingOS(s)} className="px-3 py-2 bg-white border border-slate-200 text-slate-500 hover:bg-slate-900 hover:text-white rounded-xl transition-all text-[10px] font-black uppercase tracking-widest">
                         OS
                       </button>
 
