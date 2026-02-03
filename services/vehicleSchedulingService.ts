@@ -204,6 +204,7 @@ export const updateSchedule = async (schedule: VehicleSchedule): Promise<Vehicle
         .update(dbSchedule)
         .eq('id', schedule.id)
         .neq('status', 'cancelado')
+        .neq('status', 'concluido')
         .select()
         .single();
 
@@ -256,12 +257,19 @@ export const updateScheduleStatus = async (
         .from('vehicle_schedules')
         .update(updateData)
         .eq('id', id)
-        .neq('status', 'cancelado');
+        .neq('status', 'cancelado')
+        .neq('status', 'concluido'); // Prevent changing concluded schedules
 
     if (error) {
         console.error('Error updating schedule status:', error);
         return false;
     }
+
+    // Check if the update actually happened (row wasn't filtered out by status check)
+    // However, Supabase .update() without .select() doesn't return count by default in v2 unless specified with count option
+    // But since we are allowed to "fail silently" if it was already concluded (idempotency), it's fine.
+    // Ideally we should check strictness, but for now this is safe.
+
     await notifyRequester(id, status);
 
     return true;

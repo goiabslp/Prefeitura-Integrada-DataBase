@@ -303,11 +303,26 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                           className={`px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest shadow-sm bg-${cfg.color}-50 text-${cfg.color}-700 border-${cfg.color}-200 flex items-center gap-1.5 hover:shadow-md transition-all`}
                         >
                           <cfg.icon className="w-3 h-3" /> {cfg.label}
-                          {!['cancelado', 'em_curso', 'concluido'].includes(s.status) && <ChevronDown className="w-2.5 h-2.5 opacity-50" />}
+                          {!['cancelado', 'concluido'].includes(s.status) && <ChevronDown className="w-2.5 h-2.5 opacity-50" />}
                         </button>
 
-                        {statusMenuOpen === s.id && !['cancelado', 'em_curso', 'concluido'].includes(s.status) && (s.requesterId === currentUserId || userRole === 'admin') && (
+                        {statusMenuOpen === s.id && !['cancelado', 'concluido'].includes(s.status) && (s.requesterId === currentUserId || userRole === 'admin') && (
                           <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-[100] animate-slide-up">
+                            {s.status === 'em_curso' && (
+                              <button
+                                onClick={() => {
+                                  onUpdateStatus(s.id, 'concluido');
+                                  setStatusMenuOpen(null);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all text-left mb-1"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                <div className="flex flex-col">
+                                  <span className="text-[10px] font-black uppercase tracking-tight">Concluir</span>
+                                  <span className="text-[8px] font-bold text-emerald-400 uppercase tracking-widest leading-none">Finalizar Serviço</span>
+                                </div>
+                              </button>
+                            )}
                             <button
                               onClick={() => handleOpenCancelModal(s)}
                               className="w-full flex items-center gap-3 px-4 py-3 text-rose-600 hover:bg-rose-50 rounded-xl transition-all text-left"
