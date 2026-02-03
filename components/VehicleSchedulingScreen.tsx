@@ -555,6 +555,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
           onViewDetails={(s) => { setViewingSchedule(s); setIsViewModalOpen(true); }}
           onEdit={(s) => handleOpenModal(s)}
           onUpdateStatus={onUpdateStatusSchedule}
+          onUpdateSchedule={onUpdateSchedule}
           onDelete={onDeleteSchedule}
           onBack={() => handleSubViewChange('menu')}
           currentUserId={currentUserId}
