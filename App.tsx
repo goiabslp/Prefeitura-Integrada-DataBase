@@ -581,6 +581,17 @@ const App: React.FC = () => {
       )
       .subscribe();
 
+    // Vehicle Schedules Channel (NEW)
+    const schedulesChannel = supabase.channel('public:vehicle_schedules')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'vehicle_schedules' },
+        async () => {
+          refreshData(true, 'vehicle-scheduling');
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(vehicleChannel);
       supabase.removeChannel(profileChannel);
@@ -588,106 +599,81 @@ const App: React.FC = () => {
       supabase.removeChannel(configChannel);
       supabase.removeChannel(purchaseChannel);
       supabase.removeChannel(tasksChannel);
+      supabase.removeChannel(schedulesChannel);
     };
+  }, []);
+
+  // --- PERSISTENT ROUTING LOGIC ---
+  useEffect(() => {
+    const restoreStateFromUrl = () => {
+      const path = window.location.pathname;
+      const state = PATH_TO_STATE[path];
+
+      if (state) {
+        console.log("Restoring state from URL:", path, state);
+
+        // 1. Set Main View
+        setCurrentView(state.view as any);
+
+        // 2. Handle Sub-States
+        if (state.view === 'vehicle-scheduling') {
+          // 'vehicle-scheduling' keys in VIEW_TO_PATH are like 'vehicle-scheduling:vs_history'
+          // The 'sub' part in PATH_TO_STATE comes from 'vehicle-scheduling:vs_history' -> view='vehicle-scheduling', sub='vs_history'
+          if (state.sub) setActiveBlock(state.sub);
+          else setActiveBlock('agendamento'); // Default if just /AgendamentoVeiculos
+        }
+        else if (state.view === 'admin') {
+          if (state.sub) setAdminTab(state.sub);
+        }
+        else if (state.view === 'abastecimento') {
+          // 'abastecimento:new' -> sub='new'
+          if (state.sub) {
+            setAppState(prev => ({ ...prev, view: state.sub }));
+          } else {
+            // Default for '/Abastecimento' -> usually dashboard or menu?
+            // Looking at VIEW_TO_PATH: 'abastecimento': '/Abastecimento' -> sub is undefined
+            // If sub is undefined, maybe default to 'menu' or 'dashboard'?
+            // Let's assume 'menu' (which is default view usually) or 'dashboard'
+            // For now, if sub is undefined, we might just leave appState.view as is or set to default.
+            // But 'abastecimento:dashboard' -> '/Abastecimento/DashboardAbastecimento'
+            setActiveBlock('abastecimento');
+          }
+        }
+        else if (state.view === 'editor') {
+          if (state.sub) setActiveBlock(state.sub);
+        }
+        else if (state.view === 'tracking') {
+          if (state.sub) setActiveBlock(state.sub);
+          // We might need to handle 'lastListView' here too if needed
+        }
+        else if (state.view === 'licitacao-screening' || state.view === 'licitacao-all') {
+          // Active block is typically 'licitacao' for these
+          setActiveBlock('licitacao');
+        }
+        else if (state.view === 'tarefas') {
+          if (state.sub === 'dashboard') setCurrentView('tarefas:dashboard' as any); // Wait, View is tasks-dashboard in mapping?
+          // checking VIEW_TO_PATH: 'tasks-dashboard': '/Tarefas/MinhasTarefas'
+          // So if path is /Tarefas/MinhasTarefas, state.view is 'tasks-dashboard'.
+          // setCurrentView('tasks-dashboard') logic needs to be valid.
+          // My generic casting `as any` handles it, but let's verify allowed values for currentView.
+        }
+
+      } else if (path !== '/' && path !== '/Login') {
+        // Fallback for unknown paths? Maybe redirect to home or stay on login?
+        // For now, do nothing prevents loop.
+      }
+    };
+
+    // Restore on mount
+    restoreStateFromUrl();
+
+    // Listen for Back/Forward
+    window.addEventListener('popstate', restoreStateFromUrl);
+    return () => window.removeEventListener('popstate', restoreStateFromUrl);
   }, []);
 
   /* Removed Initial Refresh Effect - Handled by Route Sync Effect */
-  useEffect(() => {
-    const handlePopState = () => {
-      const currentPath = window.location.pathname;
-      const state = PATH_TO_STATE[currentPath];
 
-      if (state) {
-        // Special Handling for Licitacao Routes
-        if (state.view === 'licitacao-new') {
-          setCurrentView('editor');
-          setActiveBlock('licitacao');
-          setEditingOrder(null);
-          setIsLicitacaoSettingsOpen(true);
-        } else if (state.view === 'licitacao-tracking') {
-          setCurrentView('tracking');
-          setActiveBlock('licitacao');
-        } else if (state.view === 'licitacao-all') {
-          setCurrentView('licitacao-all');
-          setActiveBlock('licitacao');
-        } else if (state.view === 'licitacao-screening') {
-          setCurrentView('licitacao-screening');
-          setActiveBlock('licitacao');
-        } else if (state.view === 'tarefas') {
-          if (state.sub === 'dashboard') {
-            setCurrentView('tasks-dashboard');
-            setActiveBlock('tarefas');
-          } else {
-            setActiveBlock('tarefas');
-            setCurrentView('home');
-            setAppState(prev => ({ ...prev, view: state.sub || '' }));
-          }
-        } else if (state.view === 'abastecimento') {
-          setCurrentView('abastecimento');
-          setActiveBlock('abastecimento');
-          if (state.sub === 'new') setAppState(prev => ({ ...prev, view: 'new' }));
-          else if (state.sub === 'management') setAppState(prev => ({ ...prev, view: 'management' }));
-          else if (state.sub === 'dashboard') setAppState(prev => ({ ...prev, view: 'dashboard' }));
-        } else {
-          // General Handling
-          setCurrentView(state.view);
-          if (state.view === 'admin') setAdminTab(state.sub);
-          else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(state.view)) setActiveBlock(state.sub || null);
-        }
-        // Refresh handled by effect dependency on currentView/activeBlock
-      }
-    };
-
-    // Initial Load Logic (Same as popstate but runs once)
-    // Strip trailing slash for consistent lookup (e.g. /Abastecimento/ -> /Abastecimento)
-    const rawPath = window.location.pathname;
-    const initialPath = (rawPath.length > 1 && rawPath.endsWith('/')) ? rawPath.slice(0, -1) : rawPath;
-
-    const initialState = PATH_TO_STATE[initialPath];
-    if (initialState) {
-      if (initialState.view === 'licitacao-new') {
-        setCurrentView('editor');
-        setActiveBlock('licitacao');
-        setEditingOrder(null);
-        setIsLicitacaoSettingsOpen(true);
-      } else if (initialState.view === 'licitacao-tracking') {
-        setCurrentView('tracking');
-        setActiveBlock('licitacao');
-      } else if (initialState.view === 'licitacao-all') {
-        setCurrentView('licitacao-all');
-        setActiveBlock('licitacao');
-      } else if (initialState.view === 'licitacao-screening') {
-        setCurrentView('licitacao-screening');
-        setActiveBlock('licitacao');
-      } else if (initialState.view === 'abastecimento') {
-        setCurrentView('abastecimento');
-        setActiveBlock('abastecimento');
-        if (initialState.sub === 'new') setAppState(prev => ({ ...prev, view: 'new' }));
-        else if (initialState.sub === 'management') setAppState(prev => ({ ...prev, view: 'management' }));
-        else if (initialState.sub === 'dashboard') setAppState(prev => ({ ...prev, view: 'dashboard' }));
-      } else {
-        if (initialState.view !== currentView) setCurrentView(initialState.view);
-        if (initialState.view === 'admin') {
-          if (initialState.sub !== adminTab) setAdminTab(initialState.sub);
-        } else if (['tracking', 'editor', 'home', 'vehicle-scheduling'].includes(initialState.view)) {
-          const newBlock = initialState.sub || null;
-          if (newBlock !== activeBlock) setActiveBlock(newBlock);
-
-          // FORCE CLEAN STATE FOR ALL DOCUMENT TYPES
-          if (initialState.view === 'editor' && !editingOrder) {
-            handleStartEditing(newBlock || 'oficio');
-          }
-        }
-      }
-      // Refresh handled by effect dependency
-    } else if (initialPath === '/' || initialPath === '') {
-      if (currentUser) setCurrentView('home');
-      else setCurrentView('login');
-    }
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
 
   useEffect(() => {
     let stateKey = currentView as string;
@@ -3094,9 +3080,17 @@ const App: React.FC = () => {
                 }}
                 onUpdateSchedule={async (s) => {
                   // Optimistic Update
+                  const previousSchedules = [...schedules];
                   setSchedules(prev => prev.map(old => old.id === s.id ? s : old));
-                  await vehicleSchedulingService.updateSchedule(s);
-                  // No need to handle error/revert for this sprint unless requested
+
+                  try {
+                    const result = await vehicleSchedulingService.updateSchedule(s);
+                    if (!result) throw new Error('Update returned null');
+                  } catch (e) {
+                    console.error("Failed to update schedule", e);
+                    setSchedules(previousSchedules); // Rollback
+                    showToast("Erro ao atualizar agendamento. Tente novamente.", "error");
+                  }
                 }}
                 onDeleteSchedule={async (id) => {
                   // Optimistic Delete

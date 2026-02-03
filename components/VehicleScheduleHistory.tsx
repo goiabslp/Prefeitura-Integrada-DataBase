@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, History, Car, User, MapPin, Clock, Eye, Filter, Calendar, ArrowLeft, Building2, Target, FileText, Trash2, Edit3, ChevronDown, XCircle, Users } from 'lucide-react';
 import { Vehicle, Person, VehicleSchedule, ScheduleStatus, Sector, AppState, CrewMember } from '../types';
+import { checkAndAutoUpdateStatuses } from '../services/vehicleSchedulingService';
 import { VehicleServiceOrderPreview } from './VehicleServiceOrderPreview';
 import { VehicleCrewModal } from './VehicleCrewModal';
 
@@ -57,6 +58,21 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
   const [statusMenuOpen, setStatusMenuOpen] = useState<string | null>(null);
   const [managingCrew, setManagingCrew] = useState<VehicleSchedule | null>(null);
   const [isSavingCrew, setIsSavingCrew] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all' | ScheduleStatus>('all');
+
+  // Auto-Update Status Effect
+  React.useEffect(() => {
+    const checkStatus = () => {
+      checkAndAutoUpdateStatuses(schedules);
+    };
+
+    // Check immediately on mount/data change
+    checkStatus();
+
+    // Check periodically
+    const interval = setInterval(checkStatus, 60000); // 1 minute
+    return () => clearInterval(interval);
+  }, [schedules]);
 
   // States for Cancellation Modal
   const [cancelModalSchedule, setCancelModalSchedule] = useState<VehicleSchedule | null>(null);
@@ -68,15 +84,17 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
         const v = vehicles.find(veh => veh.id === s.vehicleId);
         const d = persons.find(p => p.id === s.driverId);
         const term = searchTerm.toLowerCase();
-        return (
+        const matchesTerm = (
           v?.model.toLowerCase().includes(term) ||
           v?.plate.toLowerCase().includes(term) ||
           d?.name.toLowerCase().includes(term) ||
           s.destination.toLowerCase().includes(term)
         );
+        const matchesTab = activeTab === 'all' || s.status === activeTab;
+        return matchesTerm && matchesTab;
       })
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  }, [schedules, vehicles, persons, searchTerm]);
+  }, [schedules, vehicles, persons, searchTerm, activeTab]);
 
   const handleUpdateCrew = async (scheduleId: string, driverId: string, passengers: CrewMember[]) => {
     setIsSavingCrew(true);
@@ -172,6 +190,37 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
         </div>
       </div>
 
+      {/* Tabs Filter */}
+      <div className="bg-white border-b border-slate-100 flex items-center gap-1 px-6 overflow-x-auto no-scrollbar shadow-sm relative z-10">
+        {[
+          { id: 'all', label: 'Todos' },
+          { id: 'pendente', label: STATUS_MAP['pendente'].label },
+          { id: 'confirmado', label: STATUS_MAP['confirmado'].label },
+          { id: 'em_curso', label: STATUS_MAP['em_curso'].label },
+          { id: 'concluido', label: STATUS_MAP['concluido'].label },
+          { id: 'cancelado', label: STATUS_MAP['cancelado'].label },
+        ].map((tab) => {
+          const count = tab.id === 'all'
+            ? schedules.length
+            : schedules.filter(s => s.status === tab.id).length;
+
+          const isActive = activeTab === tab.id;
+
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`relative px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2 border-b-2 ${isActive ? 'text-indigo-600 border-indigo-600 bg-indigo-50/50' : 'text-slate-400 border-transparent hover:text-slate-600 hover:bg-slate-50'}`}
+            >
+              {tab.label}
+              <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold ${isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Lista de Cards */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
         <div className="max-w-6xl mx-auto w-full space-y-4 pb-8">
@@ -230,8 +279,8 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                         <div className="flex items-center justify-center">
                           <button
                             onClick={() => setManagingCrew(s)}
-                            disabled={s.status === 'cancelado'}
-                            className={`w-full px-3 py-2 border text-[9px] font-bold uppercase tracking-wide rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 ${s.status === 'cancelado' ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60' : 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600'}`}
+                            disabled={['cancelado', 'em_curso', 'concluido'].includes(s.status)}
+                            className={`w-full px-3 py-2 border text-[9px] font-bold uppercase tracking-wide rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 ${['cancelado', 'em_curso', 'concluido'].includes(s.status) ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60' : 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600'}`}
                           >
                             <Users className="w-3.5 h-3.5" /> {(s.passengers?.length || 0) + 1} Ocup.
                           </button>
@@ -254,10 +303,10 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                           className={`px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest shadow-sm bg-${cfg.color}-50 text-${cfg.color}-700 border-${cfg.color}-200 flex items-center gap-1.5 hover:shadow-md transition-all`}
                         >
                           <cfg.icon className="w-3 h-3" /> {cfg.label}
-                          {s.status !== 'cancelado' && <ChevronDown className="w-2.5 h-2.5 opacity-50" />}
+                          {!['cancelado', 'em_curso', 'concluido'].includes(s.status) && <ChevronDown className="w-2.5 h-2.5 opacity-50" />}
                         </button>
 
-                        {statusMenuOpen === s.id && s.status !== 'cancelado' && (s.requesterId === currentUserId || userRole === 'admin') && (
+                        {statusMenuOpen === s.id && !['cancelado', 'em_curso', 'concluido'].includes(s.status) && (s.requesterId === currentUserId || userRole === 'admin') && (
                           <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-[100] animate-slide-up">
                             <button
                               onClick={() => handleOpenCancelModal(s)}
@@ -282,8 +331,8 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                         <>
                           <button
                             onClick={() => onEdit(s)}
-                            disabled={s.status === 'cancelado'}
-                            className={`p-2 border rounded-lg transition-all ${s.status === 'cancelado' ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white'}`}
+                            disabled={['cancelado', 'em_curso', 'concluido'].includes(s.status)}
+                            className={`p-2 border rounded-lg transition-all ${['cancelado', 'em_curso', 'concluido'].includes(s.status) ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white'}`}
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>

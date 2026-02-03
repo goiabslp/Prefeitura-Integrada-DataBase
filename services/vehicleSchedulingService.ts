@@ -203,6 +203,7 @@ export const updateSchedule = async (schedule: VehicleSchedule): Promise<Vehicle
         .from('vehicle_schedules')
         .update(dbSchedule)
         .eq('id', schedule.id)
+        .neq('status', 'cancelado')
         .select()
         .single();
 
@@ -254,7 +255,8 @@ export const updateScheduleStatus = async (
     const { error } = await supabase
         .from('vehicle_schedules')
         .update(updateData)
-        .eq('id', id);
+        .eq('id', id)
+        .neq('status', 'cancelado');
 
     if (error) {
         console.error('Error updating schedule status:', error);
@@ -305,3 +307,31 @@ export const checkAvailability = async (vehicleId: string, start: string, end: s
     return data.length === 0;
 };
 
+// ... existing code
+
+export const checkAndAutoUpdateStatuses = async (schedules: VehicleSchedule[]): Promise<void> => {
+    const now = new Date();
+    const updates: Promise<any>[] = [];
+
+    for (const schedule of schedules) {
+        if (schedule.status === 'cancelado') continue;
+
+        let newStatus: ScheduleStatus | null = null;
+        const departure = new Date(schedule.departureDateTime);
+        const ret = schedule.returnDateTime ? new Date(schedule.returnDateTime) : null;
+
+        if (schedule.status === 'confirmado' && now >= departure) {
+            newStatus = 'em_curso';
+        } else if (schedule.status === 'em_curso' && ret && now >= ret) {
+            newStatus = 'concluido';
+        }
+
+        if (newStatus) {
+            updates.push(updateScheduleStatus(schedule.id, newStatus));
+        }
+    }
+
+    if (updates.length > 0) {
+        await Promise.all(updates);
+    }
+};
