@@ -140,7 +140,34 @@ export const VehicleServiceOrderPreview: React.FC<VehicleServiceOrderPreviewProp
                     <div className={`${isGenerating ? 'bg-white p-0' : 'bg-slate-200/50 p-8 rounded-[2rem] shadow-2xl'} overflow-hidden w-full flex justify-center`}>
                         <div id="os-preview-content" className={`${isGenerating ? 'scale-100 transform-none' : 'scale-[0.6] sm:scale-[0.7] md:scale-[0.8] lg:scale-[0.9]'} origin-top transition-all duration-300 bg-white`}>
                             <PageWrapper state={previewState} pageIndex={0} totalPages={1} isGenerating={isGenerating}>
-                                <div className="flex flex-col gap-3 mt-2">
+                                <div className="flex flex-col gap-3 mt-2 relative">
+                                    {/* Watermark for Cancelled */}
+                                    {schedule.status === 'cancelado' && (
+                                        <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none overflow-hidden">
+                                            <div className="transform -rotate-45 text-rose-500/10 text-[100pt] font-black uppercase whitespace-nowrap border-8 border-rose-500/10 px-20 py-4 rounded-3xl">
+                                                CANCELADO
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Cancellation Details Box */}
+                                    {schedule.status === 'cancelado' && (
+                                        <div className="bg-rose-50 border-2 border-rose-100 rounded-xl p-4 mb-2 relative z-10">
+                                            <div className="flex items-start gap-4">
+                                                <div className="p-3 bg-white rounded-xl shadow-sm border border-rose-100 text-rose-500">
+                                                    <XCircle className="w-6 h-6" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h3 className="text-[10pt] font-black uppercase text-rose-700 tracking-tight mb-1">Solicitação Cancelada</h3>
+                                                    <p className="text-[9pt] font-medium text-rose-900/80 italic mb-2">"{schedule.cancellationReason || 'Sem justificativa informada.'}"</p>
+                                                    <div className="flex items-center gap-4 text-[7pt] uppercase tracking-widest text-rose-400 font-bold">
+                                                        <span className="flex items-center gap-1"><User className="w-3 h-3" /> Por: {schedule.cancelledBy || 'Sistema'}</span>
+                                                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Em: {schedule.cancelledAt ? new Date(schedule.cancelledAt).toLocaleString('pt-BR') : '---'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Status and Creation Section - Compact Grid */}
                                     <div className="grid grid-cols-2 gap-3">

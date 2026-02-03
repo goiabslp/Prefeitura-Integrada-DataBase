@@ -12,11 +12,12 @@ interface VehicleScheduleHistoryProps {
   state: AppState;
   onViewDetails: (s: VehicleSchedule) => void;
   onEdit: (s: VehicleSchedule) => void;
-  onUpdateStatus: (id: string, status: ScheduleStatus) => Promise<void>;
+  onUpdateStatus: (id: string, status: ScheduleStatus, cancellationDetails?: { reason: string, cancelledBy: string }) => Promise<void>;
   onUpdateSchedule: (s: VehicleSchedule) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onBack?: () => void;
   currentUserId: string;
+  userRole: string;
 }
 
 const CheckCircle2 = ({ className }: { className?: string }) => (
@@ -48,6 +49,7 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
   onDelete,
   onBack,
   currentUserId,
+  userRole,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewingPurpose, setViewingPurpose] = useState<VehicleSchedule | null>(null);
@@ -55,6 +57,10 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
   const [statusMenuOpen, setStatusMenuOpen] = useState<string | null>(null);
   const [managingCrew, setManagingCrew] = useState<VehicleSchedule | null>(null);
   const [isSavingCrew, setIsSavingCrew] = useState(false);
+
+  // States for Cancellation Modal
+  const [cancelModalSchedule, setCancelModalSchedule] = useState<VehicleSchedule | null>(null);
+  const [cancellationReason, setCancellationReason] = useState('');
 
   const filtered = useMemo(() => {
     return schedules
@@ -91,6 +97,34 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
       alert("Erro ao atualizar tripulação.");
     } finally {
       setIsSavingCrew(false);
+    }
+  };
+
+  const handleOpenCancelModal = (s: VehicleSchedule) => {
+    setCancelModalSchedule(s);
+    setCancellationReason('');
+    setStatusMenuOpen(null);
+  };
+
+  const handleConfirmCancellation = async () => {
+    if (!cancelModalSchedule) return;
+    if (!cancellationReason.trim()) {
+      alert('Por favor, informe uma justificativa para o cancelamento.');
+      return;
+    }
+
+    try {
+      // Find current user name
+      const currentUser = persons.find(p => p.id === currentUserId)?.name || persons.find(p => p.name === currentUserId)?.name || 'Usuário Atual';
+
+      await onUpdateStatus(cancelModalSchedule.id, 'cancelado', {
+        reason: cancellationReason,
+        cancelledBy: currentUser
+      });
+      setCancelModalSchedule(null);
+    } catch (error) {
+      console.error("Failed to cancel", error);
+      alert("Erro ao cancelar agendamento.");
     }
   };
 
@@ -196,7 +230,8 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                         <div className="flex items-center justify-center">
                           <button
                             onClick={() => setManagingCrew(s)}
-                            className="w-full px-3 py-2 bg-indigo-50 border border-indigo-100 text-indigo-600 text-[9px] font-bold uppercase tracking-wide rounded-xl hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2"
+                            disabled={s.status === 'cancelado'}
+                            className={`w-full px-3 py-2 border text-[9px] font-bold uppercase tracking-wide rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 ${s.status === 'cancelado' ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60' : 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600'}`}
                           >
                             <Users className="w-3.5 h-3.5" /> {(s.passengers?.length || 0) + 1} Ocup.
                           </button>
@@ -222,15 +257,10 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
                           {s.status !== 'cancelado' && <ChevronDown className="w-2.5 h-2.5 opacity-50" />}
                         </button>
 
-                        {statusMenuOpen === s.id && s.status !== 'cancelado' && s.requesterId === currentUserId && (
+                        {statusMenuOpen === s.id && s.status !== 'cancelado' && (s.requesterId === currentUserId || userRole === 'admin') && (
                           <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-[100] animate-slide-up">
                             <button
-                              onClick={async () => {
-                                if (window.confirm('Deseja realmente cancelar este agendamento?')) {
-                                  await onUpdateStatus(s.id, 'cancelado');
-                                }
-                                setStatusMenuOpen(null);
-                              }}
+                              onClick={() => handleOpenCancelModal(s)}
                               className="w-full flex items-center gap-3 px-4 py-3 text-rose-600 hover:bg-rose-50 rounded-xl transition-all text-left"
                             >
                               <XCircle className="w-4 h-4" />
@@ -250,7 +280,13 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
 
                       {s.requesterId === currentUserId && (
                         <>
-                          <button onClick={() => onEdit(s)} className="p-2 bg-white border border-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white rounded-lg transition-all"><Edit3 className="w-4 h-4" /></button>
+                          <button
+                            onClick={() => onEdit(s)}
+                            disabled={s.status === 'cancelado'}
+                            className={`p-2 border rounded-lg transition-all ${s.status === 'cancelado' ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white'}`}
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => { if (window.confirm('Excluir agendamento?')) onDelete(s.id); }}
                             className="p-2 bg-white border border-slate-100 text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg transition-all"
@@ -324,6 +360,55 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
             </div>
             <div className="p-6 bg-slate-50 border-t border-slate-100">
               <button onClick={() => setViewingPurpose(null)} className="w-full py-4 bg-slate-900 text-white font-black text-xs uppercase tracking-widest rounded-2xl">Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Modal */}
+      {cancelModalSchedule && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-slide-up">
+            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-rose-50/50">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <XCircle className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Cancelar Agendamento</h3>
+                  <p className="text-xs font-bold text-rose-500 uppercase tracking-widest">Ação Irreversível</p>
+                </div>
+              </div>
+              <button onClick={() => setCancelModalSchedule(null)} className="p-3 hover:bg-white rounded-2xl text-slate-400 transition-colors"><X className="w-6 h-6" /></button>
+            </div>
+
+            <div className="p-8">
+              <div className="mb-4">
+                <p className="text-sm text-slate-600 mb-4 font-medium">Você está prestes a cancelar o agendamento <strong>{cancelModalSchedule.protocol}</strong>. Esta ação não poderá ser desfeita e o veículo será liberado para outros agendamentos.</p>
+
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Justificativa do Cancelamento (Obrigatório)</label>
+                <textarea
+                  value={cancellationReason}
+                  onChange={(e) => setCancellationReason(e.target.value)}
+                  placeholder="Descreva o motivo do cancelamento..."
+                  className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={() => setCancelModalSchedule(null)}
+                className="px-6 py-3 rounded-xl border border-slate-200 text-slate-500 font-black uppercase tracking-widest text-xs hover:bg-white transition-colors"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={handleConfirmCancellation}
+                className="px-6 py-3 rounded-xl bg-rose-600 text-white font-black uppercase tracking-widest text-xs hover:bg-rose-700 transition-colors shadow-lg shadow-rose-600/20"
+              >
+                Confirmar Cancelamento
+              </button>
             </div>
           </div>
         </div>

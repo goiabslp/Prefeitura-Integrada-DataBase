@@ -199,11 +199,22 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
   };
 
 
-  const onUpdateStatusSchedule = async (id: string, status: ScheduleStatus) => {
+  const onUpdateStatusSchedule = async (id: string, status: ScheduleStatus, cancellationDetails?: { reason: string, cancelledBy: string }) => {
     const schedule = (schedules || []).find(s => s.id === id);
     if (schedule) {
       try {
-        await onUpdateSchedule({ ...schedule, status });
+        let updatedSchedule = { ...schedule, status };
+
+        if (status === 'cancelado' && cancellationDetails) {
+          updatedSchedule = {
+            ...updatedSchedule,
+            cancellationReason: cancellationDetails.reason,
+            cancelledBy: cancellationDetails.cancelledBy,
+            cancelledAt: new Date().toISOString()
+          };
+        }
+
+        await onUpdateSchedule(updatedSchedule);
         showToast("Status atualizado com sucesso!", "success");
       } catch (error) {
         showToast("Erro ao atualizar status.", "error");
@@ -559,6 +570,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
           onDelete={onDeleteSchedule}
           onBack={() => handleSubViewChange('menu')}
           currentUserId={currentUserId}
+          userRole={currentUserRole}
         />
       )}
       {activeSubView === 'approvals' && canViewApprovals && (

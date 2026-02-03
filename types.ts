@@ -319,6 +319,9 @@ export interface VehicleSchedule {
   vehicleLocation?: string;
   authorizedByName?: string;
   passengers?: CrewMember[];
+  cancellationReason?: string;
+  cancelledAt?: string;
+  cancelledBy?: string;
 }
 
 export interface CrewMember {

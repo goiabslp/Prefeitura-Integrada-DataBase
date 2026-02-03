@@ -30,7 +30,10 @@ export const getSchedules = async (): Promise<VehicleSchedule[]> => {
         status: s.status as ScheduleStatus,
         createdAt: s.created_at,
         authorizedByName: s.authorized_by_name,
-        passengers: s.passengers
+        passengers: s.passengers,
+        cancellationReason: s.cancellation_reason,
+        cancelledAt: s.cancelled_at,
+        cancelledBy: s.cancelled_by
     }));
 };
 
@@ -42,6 +45,19 @@ const generateProtocol = async (): Promise<string> => {
     try {
         // Try to get next count from counterService (if it existed) or manual logic
         // For simplicity and since counterService is available, let's try to use RPC if possible or simple timestamp/random as fallback
+        // For now, simpler: Notify users with 'parent_frotas' permission.
+
+        // 1. Get users with 'parent_frotas' permission
+        // In a real app we might query a "permissions" table or "users" table with permission column.
+        // Assuming 'users' table has a text[] permissions column or similar.
+        // However, our User Interface has permissions in JSONB or array.
+        // Let's assume we can query users. Since we may not have easy 'contains' on JSON if not set up,
+        // we will fetch all admin/frotas users.
+
+        // Fallback if RPC fails: Date based unique ID
+        const timestamp = Date.now().toString().slice(-6);
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        // @ts-ignore
         const { data, error } = await supabase.rpc('increment_sector_counter', {
             p_sector_id: counterId,
             p_year: year
@@ -50,10 +66,7 @@ const generateProtocol = async (): Promise<string> => {
         if (!error && data !== null) {
             return `OS-${year}${String(data).padStart(5, '0')}`;
         }
-
-        // Fallback if RPC fails: Date based unique ID
-        const timestamp = Date.now().toString().slice(-6);
-        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        // Fallback
         return `OS-${year}${timestamp}${random}`;
     } catch (e) {
         console.error('Error generating protocol:', e);
@@ -62,23 +75,10 @@ const generateProtocol = async (): Promise<string> => {
 };
 
 const notifyApprovers = async (schedule: any) => {
-    // Find who should approve this.
-    // Logic: Request Manager (role or permission) OR Vehicle Responsible.
-    // For now, simpler: Notify users with 'parent_frotas' permission.
-
-    // 1. Get users with 'parent_frotas' permission
-    // In a real app we might query a "permissions" table or "users" table with permission column.
-    // Assuming 'users' table has a text[] permissions column or similar.
-    // However, our User Interface has permissions in JSONB or array.
-    // Let's assume we can query users. Since we may not have easy 'contains' on JSON if not set up,
-    // we will fetch all admin/frotas users.
-
-    // Fallback: Notify known admins if we can't search deeply.
-    // Better: Fetch users where permissions contains 'parent_frotas'
     const { data: managers } = await supabase
         .from('users')
         .select('id')
-        .ilike('permissions', '%parent_frotas%'); // Simple text search if array stored as json/string
+        .ilike('permissions', '%parent_frotas%');
 
     if (managers) {
         for (const manager of managers) {
@@ -94,7 +94,6 @@ const notifyApprovers = async (schedule: any) => {
 };
 
 const notifyRequester = async (scheduleId: string, status: ScheduleStatus) => {
-    // Get schedule to find requester
     const { data: schedule } = await supabase
         .from('vehicle_schedules')
         .select('requester_id, protocol, destination')
@@ -175,7 +174,6 @@ export const createSchedule = async (schedule: Omit<VehicleSchedule, 'id' | 'cre
         passengers: data.passengers
     };
 
-    // Notification Trigger
     await notifyApprovers({ ...result });
 
     return result;
@@ -195,7 +193,10 @@ export const updateSchedule = async (schedule: VehicleSchedule): Promise<Vehicle
         vehicle_location: schedule.vehicleLocation,
         status: schedule.status,
         authorized_by_name: schedule.authorizedByName,
-        passengers: schedule.passengers
+        passengers: schedule.passengers,
+        cancellation_reason: schedule.cancellationReason,
+        cancelled_at: schedule.cancelledAt,
+        cancelled_by: schedule.cancelledBy
     };
 
     const { data, error } = await supabase
@@ -227,29 +228,38 @@ export const updateSchedule = async (schedule: VehicleSchedule): Promise<Vehicle
         createdAt: data.created_at,
 
         authorizedByName: data.authorized_by_name,
-        passengers: data.passengers
+        passengers: data.passengers,
+        cancellationReason: data.cancellation_reason,
+        cancelledAt: data.cancelled_at,
+        cancelledBy: data.cancelled_by
     };
-
-    // Notification Trigger (Notify requester if status changed - but updateSchedule is general update)
-    // Actually, usually updateSchedule is used for edits. Status changes use updateScheduleStatus.
-    // However, if status changes here, we might want to notify.
-    // Let's leave it for now or check if status changed.
 
     return result;
 };
 
 
-export const updateScheduleStatus = async (id: string, status: ScheduleStatus): Promise<boolean> => {
+export const updateScheduleStatus = async (
+    id: string,
+    status: ScheduleStatus,
+    cancellationDetails?: { reason: string, cancelledBy: string }
+): Promise<boolean> => {
+    const updateData: any = { status };
+
+    if (status === 'cancelado' && cancellationDetails) {
+        updateData.cancellation_reason = cancellationDetails.reason;
+        updateData.cancelled_by = cancellationDetails.cancelledBy;
+        updateData.cancelled_at = new Date().toISOString();
+    }
+
     const { error } = await supabase
         .from('vehicle_schedules')
-        .update({ status })
+        .update(updateData)
         .eq('id', id);
 
     if (error) {
         console.error('Error updating schedule status:', error);
         return false;
     }
-    // Notification Trigger
     await notifyRequester(id, status);
 
     return true;
