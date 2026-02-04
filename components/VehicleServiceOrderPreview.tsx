@@ -194,24 +194,32 @@ export const VehicleServiceOrderPreview: React.FC<VehicleServiceOrderPreviewProp
 
                                     {/* Summary Cards - Compact */}
                                     <div className="grid grid-cols-2 gap-3">
-                                        {/* Vehicle Card */}
-                                        <div className="p-3 border border-slate-200 rounded-lg bg-slate-50 relative overflow-hidden">
-                                            <div className="absolute right-0 top-0 p-2 opacity-5">
-                                                <Car className="w-16 h-16" />
-                                            </div>
-                                            <div className="relative z-10">
-                                                <h3 className="text-[8pt] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
-                                                    <Car className="w-3 h-3" /> Veículo
-                                                </h3>
-                                                <div className="space-y-0.5">
-                                                    <p className="text-[11pt] font-black text-slate-800">{vehicle.model}</p>
-                                                    <div className="flex gap-2 text-[8pt]">
-                                                        <span className="font-mono bg-slate-200 px-1.5 py-px rounded text-slate-600">{vehicle.plate}</span>
-                                                        <span className="text-slate-500">{vehicle.type.toUpperCase()}</span>
+                                        {/* Vehicle Card - Conditionally Visible */}
+                                        {vehicle.sectorId === sector?.id ? (
+                                            <div className="p-3 border border-slate-200 rounded-lg bg-slate-50 relative overflow-hidden">
+                                                <div className="absolute right-0 top-0 p-2 opacity-5">
+                                                    <Car className="w-16 h-16" />
+                                                </div>
+                                                <div className="relative z-10">
+                                                    <h3 className="text-[8pt] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
+                                                        <Car className="w-3 h-3" /> Veículo
+                                                    </h3>
+                                                    <div className="space-y-0.5">
+                                                        <p className="text-[11pt] font-black text-slate-800">{vehicle.model}</p>
+                                                        <div className="flex gap-2 text-[8pt]">
+                                                            <span className="font-mono bg-slate-200 px-1.5 py-px rounded text-slate-600">{vehicle.plate}</span>
+                                                            <span className="text-slate-500">{vehicle.type.toUpperCase()}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        ) : (
+                                            <div className="p-3 border border-slate-100 rounded-lg bg-slate-50/50 flex items-center justify-center">
+                                                <p className="text-[9pt] font-bold text-slate-400 uppercase tracking-widest italic text-center">
+                                                    Dados do veículo restritos
+                                                </p>
+                                            </div>
+                                        )}
 
                                         {/* Driver Card */}
                                         <div className="p-3 border border-slate-200 rounded-lg bg-slate-50 relative overflow-hidden">

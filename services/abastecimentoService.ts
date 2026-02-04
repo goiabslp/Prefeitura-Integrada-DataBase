@@ -32,6 +32,7 @@ export interface GasStation {
     name: string;
     cnpj: string;
     city: string;
+    fuel_prices?: FuelConfig;
 }
 
 const DEFAULT_CONFIG: FuelConfig = {
@@ -281,6 +282,21 @@ export const AbastecimentoService = {
             if (error) throw error;
         } catch (error) {
             console.error('Error saving gas station:', error);
+            throw error;
+        }
+    },
+
+    updateStationFuelPrices: async (stationId: string, prices: FuelConfig): Promise<void> => {
+        try {
+            const { error } = await supabase
+                .from('abastecimento_gas_stations')
+                .update({ fuel_prices: prices })
+                .eq('id', stationId);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error updating station fuel prices:', error);
+            throw error;
         }
     },
 

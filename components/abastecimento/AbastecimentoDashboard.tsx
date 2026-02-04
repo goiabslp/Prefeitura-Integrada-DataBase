@@ -47,25 +47,48 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
     const [fuelConfig, setFuelConfig] = useState({ diesel: 0, gasolina: 0, etanol: 0, arla: 0 });
     const [gasStations, setGasStations] = useState(initialGasStations);
     const [newStation, setNewStation] = useState({ name: '', cnpj: '', city: '' });
+    const [selectedStationId, setSelectedStationId] = useState<string>('');
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
-
-    useEffect(() => {
-        // Transform array to object for the form state
-        const config: any = { diesel: 0, gasolina: 0, etanol: 0, arla: 0 };
-        fuelTypes.forEach(ft => {
-            if (ft.key in config) config[ft.key] = ft.price;
-        });
-        setFuelConfig(config);
-    }, [fuelTypes]);
 
     useEffect(() => {
         setGasStations(initialGasStations);
     }, [initialGasStations]);
 
+    useEffect(() => {
+        if (selectedStationId) {
+            const station = gasStations.find(s => s.id === selectedStationId);
+            if (station && station.fuel_prices) {
+                setFuelConfig(station.fuel_prices);
+            } else {
+                setFuelConfig({ diesel: 0, gasolina: 0, etanol: 0, arla: 0 });
+            }
+        } else {
+            setFuelConfig({ diesel: 0, gasolina: 0, etanol: 0, arla: 0 });
+        }
+    }, [selectedStationId, gasStations]);
+
     const handleSaveConfig = async () => {
-        await AbastecimentoService.saveFuelConfig(fuelConfig);
-        showSuccessToast('Valores salvos com sucesso!');
+        if (!selectedStationId) {
+            showSuccessToast('Selecione um posto para salvar os valores.');
+            return;
+        }
+
+        try {
+            await AbastecimentoService.updateStationFuelPrices(selectedStationId, fuelConfig);
+
+            // Update local state
+            setGasStations(prev => prev.map(s =>
+                s.id === selectedStationId
+                    ? { ...s, fuel_prices: fuelConfig }
+                    : s
+            ));
+
+            showSuccessToast('Valores vinculados ao posto com sucesso!');
+        } catch (error) {
+            console.error(error);
+            showSuccessToast('Erro ao salvar valores.');
+        }
     };
 
     const handleAddStation = async () => {
@@ -73,7 +96,8 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
 
         const station = {
             id: crypto.randomUUID(),
-            ...newStation
+            ...newStation,
+            fuel_prices: { diesel: 0, gasolina: 0, etanol: 0, arla: 0 }
         };
 
         await AbastecimentoService.saveGasStation(station);
@@ -88,6 +112,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
             await AbastecimentoService.deleteGasStation(id);
             const updatedStations = await AbastecimentoService.getGasStations();
             setGasStations(updatedStations);
+            if (selectedStationId === id) setSelectedStationId('');
         }
     };
 
@@ -208,11 +233,30 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-slate-900">Valores Licitados</h2>
-                        <p className="text-slate-500 text-sm font-medium">Definir preço por tipo de combustível</p>
+                        <p className="text-slate-500 text-sm font-medium">Definir preço por tipo de combustível para cada posto</p>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Station Selection for Pricing */}
+                <div className="mb-8">
+                    <ModernSelect
+                        label="Selecione o Posto para Vincular os Valores"
+                        value={selectedStationId}
+                        onChange={setSelectedStationId}
+                        options={[
+                            { value: "", label: "Selecione um posto..." },
+                            ...gasStations.map(s => ({
+                                value: s.id,
+                                label: `${s.name} - ${s.city}`
+                            }))
+                        ]}
+                        placeholder="Selecione um posto..."
+                        required
+                        icon={Building2}
+                    />
+                </div>
+
+                <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 transition-all ${!selectedStationId ? 'opacity-50 pointer-events-none blur-[1px]' : ''}`}>
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 hover:border-amber-300 transition-colors group">
                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Diesel</label>
                         <div className="relative">
@@ -277,10 +321,11 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
                 <div className="flex justify-end mt-6 pt-6 border-t border-slate-100">
                     <button
                         onClick={handleSaveConfig}
-                        className="flex items-center gap-2 px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-lg shadow-cyan-600/20 transition-all active:scale-95"
+                        disabled={!selectedStationId}
+                        className="flex items-center gap-2 px-6 py-3 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-cyan-600/20 transition-all active:scale-95"
                     >
                         <Save className="w-4 h-4" />
-                        Salvar Valores
+                        Salvar Valores do Posto
                     </button>
                 </div>
             </div>

@@ -13,7 +13,7 @@ interface AbastecimentoFormProps {
     onSave: (data: any) => void;
     vehicles: Vehicle[];
     persons: Person[];
-    gasStations: { id: string, name: string, city: string }[];
+    gasStations: { id: string, name: string, city: string, fuel_prices?: any }[]; // Updated type
     fuelTypes: { key: string; label: string; price: number }[];
     initialData?: AbastecimentoRecord;
 }
@@ -29,8 +29,10 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     const persons = useCachedPersons(initialPersons);
     const fuelTypes = useCachedFuelTypes(initialFuelTypes);
 
-    // Derived prices from props (now from cached fuelTypes)
+    // Derived prices from props (now from cached fuelTypes by default)
     const [fuelPrices, setFuelPrices] = useState<{ [key: string]: number }>({});
+    // Store global prices for fallback
+    const [globalPrices, setGlobalPrices] = useState<{ [key: string]: number }>({});
 
     const [date, setDate] = useState(() => {
         const d = new Date();
@@ -93,6 +95,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             return acc;
         }, {});
         setFuelPrices(prices);
+        setGlobalPrices(prices);
 
         if (fuelTypes.length > 0 && !fuelType) {
             setFuelType(fuelTypes[0].key);
@@ -104,6 +107,35 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             if (defaultStation) setStation(defaultStation.name);
         }
     }, [fuelTypes, gasStations]); // Run when props change/load
+
+    // Update prices based on selected station
+    useEffect(() => {
+        if (!station) {
+            setFuelPrices(globalPrices);
+            return;
+        }
+
+        const selectedStation = gasStations.find(s => s.name === station);
+        if (selectedStation && selectedStation.fuel_prices) {
+            // Merge station prices with global prices (fallback for missing keys) or just override
+            // Requirement implies station prices are specific.
+            // Let's iterate keys of global to ensure structure, but take from station if > 0
+            const newPrices = { ...globalPrices };
+
+            // Assuming fuel_prices keys match fuelTypes keys
+            Object.keys(selectedStation.fuel_prices).forEach(key => {
+                // @ts-ignore
+                const val = selectedStation.fuel_prices[key];
+                if (val && val > 0) {
+                    newPrices[key] = val;
+                }
+            });
+            setFuelPrices(newPrices);
+        } else {
+            // Revert to global if station has no specific prices
+            setFuelPrices(globalPrices);
+        }
+    }, [station, gasStations, globalPrices]);
 
     // Load initial data for editing
     useEffect(() => {
@@ -273,9 +305,9 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
         .map(t => ({
             value: t.key,
             label: t.label,
-            subtext: `R$ ${t.price.toFixed(2)}/L`
+            subtext: `R$ ${(fuelPrices[t.key] || t.price).toFixed(2)}/L`
         }))
-        .sort((a, b) => a.label.localeCompare(b.label)), [fuelTypes]);
+        .sort((a, b) => a.label.localeCompare(b.label)), [fuelTypes, fuelPrices]);
 
     const stationOptions: Option[] = useMemo(() => gasStations
         .map(s => ({
