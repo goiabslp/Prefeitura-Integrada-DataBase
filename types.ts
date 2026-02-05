@@ -234,6 +234,7 @@ export interface Person {
   name: string;
   jobId?: string;
   sectorId?: string;
+  role?: string;
 }
 
 export interface Sector {

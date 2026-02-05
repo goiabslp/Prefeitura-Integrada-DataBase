@@ -7,6 +7,7 @@ import { GestureItem } from '../common/GestureItem';
 interface AbastecimentoListProps {
     onBack: () => void;
     onEdit?: (record: AbastecimentoRecord) => void;
+    refreshTrigger?: number;
 }
 import { useAuth } from '../../contexts/AuthContext';
 import { Edit } from 'lucide-react';
@@ -88,7 +89,7 @@ const AbastecimentoCard = ({ item, isAdmin, onEdit, onDelete, vehicleModelMap, v
                         />
                         <DataItem label="Placa" value={vehiclePlateMap[item.vehicle] || '-'} colorClass="text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-100 font-mono text-xs" flex="col-span-1 md:w-auto" />
                         <DataItem label="Fiscal" value={item.fiscal || 'Sistema'} icon={ShieldCheck} colorClass="text-slate-600 font-medium" flex="col-span-1 md:w-auto" />
-                        <DataItem label="Quantidade" value={`${item.liters.toFixed(2)} L`} flex="col-span-1 md:w-auto" colorClass="text-slate-600" />
+                        <DataItem label="Quantidade" value={`${item.liters.toFixed(3)} L`} flex="col-span-1 md:w-auto" colorClass="text-slate-600" />
                         <DataItem label="Odômetro" value={`${item.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Km`} flex="col-span-1 md:w-auto" colorClass="text-slate-600" />
 
                         {/* Action Buttons in Expanded View */}

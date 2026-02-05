@@ -104,7 +104,7 @@ export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationM
                             <span className="text-xs uppercase font-bold text-slate-400 tracking-wider mb-1 flex items-center gap-1">
                                 <Droplets className="w-3 h-3" /> Litros
                             </span>
-                            <span className="text-lg font-bold text-slate-800">{data.liters.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} L</span>
+                            <span className="text-lg font-bold text-slate-800">{data.liters.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} L</span>
                         </div>
                     </div>
 
@@ -114,7 +114,7 @@ export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationM
                         <div className="flex items-center gap-1 text-emerald-600">
                             <DollarSign className="w-6 h-6" />
                             <span className="text-4xl font-black tracking-tight">
-                                {data.cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                {data.cost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                         </div>
                     </div>

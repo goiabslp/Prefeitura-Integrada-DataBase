@@ -48,6 +48,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     const [station, setStation] = useState('');
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [cost, setCost] = useState(0);
+    const [formattedCost, setFormattedCost] = useState('R$ 0,00');
+
 
     // Formatting Helpers
     const formatNumberInput = (value: string, decimals: number) => {
@@ -78,10 +80,18 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     };
 
     const handleLitersChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // Liters: 2 decimal places
-        const formatted = formatNumberInput(e.target.value, 2);
+        // Liters: 3 decimal places
+        const formatted = formatNumberInput(e.target.value, 3);
         setLiters(formatted);
     };
+
+    const handleCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // Cost: 2 decimal places
+        const formatted = formatNumberInput(e.target.value, 2);
+        setFormattedCost(`R$ ${formatted}`);
+        setCost(parseFormattedNumber(formatted));
+    };
+
 
     // Confirmation Modal State
     const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -152,7 +162,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             );
             setVehicle(matchedVehicle ? matchedVehicle.plate : savedVehicle);
             setDriver(initialData.driver);
-            setLiters(initialData.liters.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+            setLiters(initialData.liters.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }));
             setOdometer(initialData.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
             // Extract fuel key from "type - price" string "gasolina - R$ 5.00" -> "gasolina" or just use full string if needed?
             // The record stores "gasolina - R$ 5.89". We need to find the key.
@@ -164,21 +174,27 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             if (foundType) setFuelType(foundType.key);
 
             setStation(initialData.station || '');
-            setInvoiceNumber(initialData.invoiceNumber || '');
-            setCost(initialData.cost);
+            const initialCost = initialData.cost;
+            setCost(initialCost);
+            setFormattedCost(`R$ ${initialCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
         }
+
     }, [initialData, fuelTypes]);
 
     useEffect(() => {
         const calculateCost = () => {
             if (!liters || !fuelType) {
                 setCost(0);
+                setFormattedCost('R$ 0,00');
                 return;
             }
             const price = fuelPrices[fuelType] || 0;
             const litersFloat = parseFormattedNumber(liters);
             const total = litersFloat * price;
-            setCost(total);
+            // Round to 2 decimals for precision requirement
+            const roundedTotal = Number(total.toFixed(2));
+            setCost(roundedTotal);
+            setFormattedCost(`R$ ${roundedTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
         };
         calculateCost();
     }, [liters, fuelType, fuelPrices]);
@@ -293,7 +309,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             .map(p => ({
                 value: p.name,
                 label: p.name,
-                subtext: p.role,
+                subtext: (p as any).role || p.jobId,
                 key: p.id,
                 // Pre-calculating sort key to avoid expensive operations during comparison
                 _sortKey: (p.name || '').trim().toLowerCase()
@@ -437,7 +453,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                         type="text"
                                         inputMode="numeric"
                                         required
-                                        placeholder="00,00"
+                                        placeholder="00,000"
                                         value={liters}
                                         onChange={handleLitersChange}
                                         className={inputClass}
@@ -471,13 +487,15 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
 
                         <div className="col-span-12 md:col-span-4">
                             <label className={labelClass}>Valor Total</label>
-                            <div className="w-full bg-emerald-50 rounded-xl p-3 border border-emerald-100 flex items-center justify-between h-[46px] mt-1">
-                                <div className="flex items-center gap-2">
-                                    <DollarSign className="w-5 h-5 text-emerald-600" />
-                                    <span className="text-xl font-black text-emerald-600 tracking-tight">
-                                        R$ {cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </span>
-                                </div>
+                            <div className="relative group mt-1">
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={formattedCost}
+                                    onChange={handleCostChange}
+                                    className="w-full font-black text-xl text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-xl px-10 py-2 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+                                />
+                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-600" />
                             </div>
                         </div>
                     </div>
