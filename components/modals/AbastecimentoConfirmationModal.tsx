@@ -27,8 +27,8 @@ export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationM
     if (!isOpen || !data) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-end desktop:items-center justify-center p-4 desktop:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-            <div className="w-full max-w-md bg-white rounded-t-[2rem] desktop:rounded-[2rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col desktop:animate-scale-in animate-slide-up-mobile">
+        <div className="fixed inset-0 z-[100] flex items-end wide:items-center justify-center p-4 wide:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+            <div className="w-full max-w-md bg-white rounded-t-[2rem] wide:rounded-[2rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col wide:animate-scale-in animate-slide-up-mobile">
 
                 {/* Header */}
                 <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center justify-between">

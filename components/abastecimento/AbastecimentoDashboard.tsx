@@ -134,7 +134,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
                 </div>
             )}
 
-            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 desktop:p-8">
+            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 wide:p-8">
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
                     <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600">
                         <Building2 className="w-6 h-6" />
@@ -145,8 +145,8 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 desktop:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    <div className="desktop:col-span-1">
+                <div className="grid grid-cols-1 wide:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div className="wide:col-span-1">
                         <label className={labelClass}>Nome do Posto</label>
                         <div className="relative">
                             <input
@@ -185,7 +185,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
                             <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                         </div>
                     </div>
-                    <div className="desktop:col-span-3 flex justify-end">
+                    <div className="wide:col-span-3 flex justify-end">
                         <button
                             onClick={handleAddStation}
                             disabled={!newStation.name}
@@ -200,7 +200,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
                 {gasStations.length > 0 && (
                     <div className="border-t border-slate-100 pt-6">
                         <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Postos Cadastrados</h3>
-                        <div className="grid grid-cols-1 desktop:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 wide:grid-cols-2 lg:grid-cols-3 gap-4">
                             {gasStations.map((station) => (
                                 <div key={station.id} className="group bg-slate-50 p-4 rounded-2xl border border-slate-200 hover:border-blue-200 hover:bg-blue-50/30 transition-all relative">
                                     <div className="flex items-start justify-between">
@@ -226,7 +226,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
                 )}
             </div>
 
-            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 desktop:p-8">
+            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 wide:p-8">
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
                     <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600">
                         <Fuel className="w-6 h-6" />
@@ -255,7 +255,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
                     />
                 </div>
 
-                <div className={`grid grid-cols-1 sm:grid-cols-2 desktop:grid-cols-4 gap-6 transition-all ${!selectedStationId ? 'opacity-50 pointer-events-none blur-[1px]' : ''}`}>
+                <div className={`grid grid-cols-1 sm:grid-cols-2 wide:grid-cols-4 gap-6 transition-all ${!selectedStationId ? 'opacity-50 pointer-events-none blur-[1px]' : ''}`}>
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 hover:border-amber-300 transition-colors group">
                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Diesel</label>
                         <div className="relative">
@@ -999,8 +999,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const renderSectorView = () => (
         <div className="space-y-6 animate-fade-in pb-20">
             {/* Sector Filters */}
-            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 desktop:p-8">
-                <div className="flex flex-col desktop:flex-row desktop:items-center justify-between gap-6">
+            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 wide:p-8">
+                <div className="flex flex-col wide:flex-row wide:items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
                             <Factory className="w-6 h-6" />
@@ -1011,7 +1011,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         </div>
                     </div>
 
-                    <div className="w-full desktop:w-72">
+                    <div className="w-full wide:w-72">
                         <ModernSelect
                             label="Selecione o Setor"
                             value={selectedSector}
@@ -1029,7 +1029,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 desktop:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 wide:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Total Cost */}
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
                     <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -1083,7 +1083,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-1 desktop:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 wide:grid-cols-2 gap-6">
                 {/* Ranking Vehicle Cost */}
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-6 flex items-center gap-2">
@@ -1175,7 +1175,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const renderOverview = () => (
         <div className="space-y-6 animate-fade-in pb-10">
             {/* 1. Top KPI Row */}
-            <div className="grid grid-cols-1 desktop:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 wide:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Custo Total */}
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -1259,7 +1259,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             </div>
 
             {/* 2. Charts Row: Evolution & Fuel Dist */}
-            <div className="grid grid-cols-1 desktop:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 wide:grid-cols-3 gap-6">
                 {/* Evolution Chart */}
                 <div className="lg:col-span-2 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
                     <div className="mb-6">
@@ -1338,7 +1338,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             </div>
 
             {/* 3. Charts Row: Sector & Ranking */}
-            <div className="grid grid-cols-1 desktop:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 wide:grid-cols-2 gap-6">
                 {/* Spending by Sector */}
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
                     <div className="mb-6">
@@ -1416,7 +1416,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             </p>
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 desktop:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 wide:grid-cols-2 lg:grid-cols-3 gap-3">
                         {stats.costAlerts.map((v, idx) => {
                             const isLow = v.alertType === 'low';
                             // Calculate deviation %
@@ -1569,7 +1569,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 </div>
 
                 {/* Detail KPIs */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 desktop:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 wide:grid-cols-4 gap-4">
                     <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
                             <DollarSign className="w-4 h-4 text-emerald-500" />
@@ -1611,7 +1611,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 </div>
 
                 {/* Charts Area */}
-                <div className="grid grid-cols-1 desktop:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 wide:grid-cols-2 gap-6">
                     <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm min-h-[300px] flex flex-col">
                         <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-6 flex items-center gap-2">
                             <TrendingUp className="w-4 h-4 text-cyan-500" /> Histórico de Consumo (Litros)
@@ -1753,7 +1753,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             <div className="space-y-6 animate-fade-in">
                 {/* Search Bar - Specific for Vehicles Tab */}
                 <div className="flex justify-end mb-4">
-                    <div className="relative group w-full desktop:w-80">
+                    <div className="relative group w-full wide:w-80">
                         <input
                             type="text"
                             placeholder="Buscar veículo, placa ou setor..."
@@ -1783,7 +1783,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 desktop:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 wide:grid-cols-2 xl:grid-cols-3 gap-6">
                         {filteredVehicles.map((v) => {
                             const color = getSectorColor(v.sectorName);
                             // White background, colored left border
@@ -1861,7 +1861,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const renderReportsView = () => (
         <div className="space-y-6 animate-fade-in pb-20">
             {/* Filters Section */}
-            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 desktop:p-8">
+            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 wide:p-8">
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
                     <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
                         <Filter className="w-6 h-6" />
@@ -1872,7 +1872,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 desktop:grid-cols-3 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 wide:grid-cols-3 lg:grid-cols-4 gap-6">
                     {/* Date inputs */}
                     <div>
                         <ModernDateInput
@@ -1946,7 +1946,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         />
                     </div>
 
-                    <div className="desktop:col-span-3 lg:col-span-2 flex items-end">
+                    <div className="wide:col-span-3 lg:col-span-2 flex items-end">
                         <button
                             onClick={() => setAppliedFilters({ ...pendingFilters })}
                             className="w-full md:w-auto px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95 flex items-center justify-center gap-2 h-[46px]"
@@ -1959,7 +1959,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             </div>
 
             {/* Summary Row */}
-            <div className="grid grid-cols-1 desktop:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 wide:grid-cols-3 gap-6">
                 {/* Liters and Value Totals */}
                 <div className="bg-slate-900 text-white rounded-[2rem] border border-slate-800 p-8 shadow-xl relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-6 opacity-10">
@@ -2140,7 +2140,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     );
 
     return (
-        <div className="flex-1 h-full bg-slate-50 p-4 desktop:p-6 overflow-auto custom-scrollbar">
+        <div className="flex-1 h-full bg-slate-50 p-4 wide:p-6 overflow-auto custom-scrollbar">
             <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
                 <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8">
                     <div className="flex items-center gap-4">

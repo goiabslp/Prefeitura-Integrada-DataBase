@@ -50,26 +50,26 @@ const AbastecimentoCard = ({ item, isAdmin, onEdit, onDelete, vehicleModelMap, v
 
                 <div className="p-4 pl-5">
                     {/* Minimized / Header Content */}
-                    <div className="flex flex-col desktop:flex-row desktop:items-center gap-4">
-                        <div className="flex-1 grid grid-cols-2 desktop:grid-cols-12 gap-4 items-center">
+                    <div className="flex flex-col wide:flex-row wide:items-center gap-4">
+                        <div className="flex-1 grid grid-cols-2 wide:grid-cols-12 gap-4 items-center">
                             {/* Always Visible Fields */}
-                            <DataItem label="Nº Nota" value={item.invoiceNumber || '-'} icon={FileText} flex="col-span-1 desktop:col-span-1" />
-                            <DataItem label="Data" value={new Date(item.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} icon={Calendar} flex="col-span-1 desktop:col-span-2" />
-                            <DataItem label="Veículo" value={vehicleModelMap[item.vehicle] ? `${vehicleModelMap[item.vehicle]}` : item.vehicle} icon={Truck} colorClass="text-slate-900 uppercase tracking-tight" flex="col-span-2 desktop:col-span-3" />
-                            <DataItem label="Motorista" value={item.driver} icon={User} colorClass="text-slate-600 uppercase tracking-tight" flex="col-span-1 desktop:col-span-2" />
-                            <DataItem label="Setor" value={vehicleSectorMap[item.vehicle] || '-'} colorClass="text-slate-500 uppercase text-[10px]" flex="col-span-1 desktop:col-span-2" />
+                            <DataItem label="Nº Nota" value={item.invoiceNumber || '-'} icon={FileText} flex="col-span-1 wide:col-span-1" />
+                            <DataItem label="Data" value={new Date(item.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} icon={Calendar} flex="col-span-1 wide:col-span-2" />
+                            <DataItem label="Veículo" value={vehicleModelMap[item.vehicle] ? `${vehicleModelMap[item.vehicle]}` : item.vehicle} icon={Truck} colorClass="text-slate-900 uppercase tracking-tight" flex="col-span-2 wide:col-span-3" />
+                            <DataItem label="Motorista" value={item.driver} icon={User} colorClass="text-slate-600 uppercase tracking-tight" flex="col-span-1 wide:col-span-2" />
+                            <DataItem label="Setor" value={vehicleSectorMap[item.vehicle] || '-'} colorClass="text-slate-500 uppercase text-[10px]" flex="col-span-1 wide:col-span-2" />
                             <DataItem
                                 label="Combustível"
                                 value={item.fuelType.split(' - ')[0].toUpperCase()}
                                 colorClass={fuelColor}
-                                flex="col-span-1 desktop:col-span-1"
+                                flex="col-span-1 wide:col-span-1"
                                 isBadge={true}
                             />
                             <DataItem
                                 label="Custo"
                                 value={`R$ ${item.cost.toFixed(2)}`}
                                 colorClass="text-emerald-700 font-black"
-                                flex="col-span-1 desktop:col-span-1"
+                                flex="col-span-1 wide:col-span-1"
                             />
                         </div>
 
@@ -80,21 +80,21 @@ const AbastecimentoCard = ({ item, isAdmin, onEdit, onDelete, vehicleModelMap, v
                     </div>
 
                     {/* Expanded Content */}
-                    <div className={`grid grid-cols-2 desktop:flex desktop:flex-wrap gap-4 pt-4 mt-4 border-t border-slate-100 transition-all duration-300 origin-top ${isExpanded ? 'opacity-100 max-h-96 scale-100' : 'opacity-0 max-h-0 scale-95 hidden'}`}>
+                    <div className={`grid grid-cols-2 wide:flex wide:flex-wrap gap-4 pt-4 mt-4 border-t border-slate-100 transition-all duration-300 origin-top ${isExpanded ? 'opacity-100 max-h-96 scale-100' : 'opacity-0 max-h-0 scale-95 hidden'}`}>
                         <DataItem
                             label="Protocolo"
                             value={item.protocol || item.id.substring(0, 8)}
                             colorClass="text-slate-400 font-mono text-[9px] bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200"
-                            flex="col-span-1 desktop:w-auto"
+                            flex="col-span-1 wide:w-auto"
                         />
-                        <DataItem label="Placa" value={vehiclePlateMap[item.vehicle] || '-'} colorClass="text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-100 font-mono text-xs" flex="col-span-1 desktop:w-auto" />
-                        <DataItem label="Fiscal" value={item.fiscal || 'Sistema'} icon={ShieldCheck} colorClass="text-slate-600 font-medium" flex="col-span-1 desktop:w-auto" />
-                        <DataItem label="Quantidade" value={`${item.liters.toFixed(3)} L`} flex="col-span-1 desktop:w-auto" colorClass="text-slate-600" />
-                        <DataItem label="Odômetro" value={`${item.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Km`} flex="col-span-1 desktop:w-auto" colorClass="text-slate-600" />
+                        <DataItem label="Placa" value={vehiclePlateMap[item.vehicle] || '-'} colorClass="text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-100 font-mono text-xs" flex="col-span-1 wide:w-auto" />
+                        <DataItem label="Fiscal" value={item.fiscal || 'Sistema'} icon={ShieldCheck} colorClass="text-slate-600 font-medium" flex="col-span-1 wide:w-auto" />
+                        <DataItem label="Quantidade" value={`${item.liters.toFixed(3)} L`} flex="col-span-1 wide:w-auto" colorClass="text-slate-600" />
+                        <DataItem label="Odômetro" value={`${item.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Km`} flex="col-span-1 wide:w-auto" colorClass="text-slate-600" />
 
                         {/* Action Buttons in Expanded View */}
                         {isAdmin && (
-                            <div className="flex gap-2 ml-auto mt-2 desktop:mt-0 col-span-2 desktop:col-span-auto justify-end">
+                            <div className="flex gap-2 ml-auto mt-2 wide:mt-0 col-span-2 wide:col-span-auto justify-end">
                                 {onEdit && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onEdit(item); }}
@@ -273,10 +273,10 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
     const filteredSupplies = supplies;
 
     return (
-        <div className="flex-1 h-full bg-slate-50/50 p-4 desktop:p-6 overflow-auto custom-scrollbar">
+        <div className="flex-1 h-full bg-slate-50/50 p-4 wide:p-6 overflow-auto custom-scrollbar">
             <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
                 {/* Header Section */}
-                <div className="flex flex-col desktop:flex-row desktop:items-center justify-between gap-4">
+                <div className="flex flex-col wide:flex-row wide:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <button onClick={onBack} className="group p-2 text-slate-400 hover:text-cyan-600 hover:bg-white rounded-xl transition-all shadow-sm ring-1 ring-slate-200 hover:ring-cyan-200">
                             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />

@@ -18,7 +18,9 @@ interface CustomSelectProps {
     icon?: React.ElementType;
     required?: boolean;
     className?: string;
-    enableMobileModal?: boolean;
+    mobileThreshold?: number;
+    disableMobileModal?: boolean;
+    forceDirection?: 'up' | 'down';
 }
 
 // Sub-component for options to enable granular memoization
@@ -40,7 +42,7 @@ const SelectItem = memo(({
                 e.stopPropagation();
                 onClick(option.value);
             }}
-            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-start desktop:items-center justify-between group/item gap-2 ${className || ''}
+            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-start wide:items-center justify-between group/item gap-2 ${className || ''}
                 ${isSelected
                     ? 'bg-cyan-50 text-cyan-700'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -70,7 +72,9 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
     icon: Icon,
     required,
     className,
-    enableMobileModal = false
+    mobileThreshold = 700,
+    disableMobileModal = false,
+    forceDirection
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -79,18 +83,18 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 1200);
+        const checkMobile = () => setIsMobile(window.innerWidth < mobileThreshold);
         checkMobile();
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
-    }, []);
+    }, [mobileThreshold]);
 
     const selectedOption = useMemo(() => options.find(opt => opt.value === value), [options, value]);
     const deferredSearchTerm = useDeferredValue(searchTerm);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (isMobile && enableMobileModal) return; // Don't close on outside click for mobile modal (use heavy overlay instead)
+            if (isMobile) return; // Don't close on outside click for mobile modal (use heavy overlay instead)
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
             }
@@ -99,7 +103,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
         if (isOpen) {
             document.addEventListener('mousedown', handleClickOutside);
             // Lock body scroll for mobile modal
-            if (isMobile && enableMobileModal) {
+            if (isMobile) {
                 document.body.style.overflow = 'hidden';
             }
         }
@@ -107,7 +111,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
             document.removeEventListener('mousedown', handleClickOutside);
             document.body.style.overflow = '';
         };
-    }, [isOpen, isMobile, enableMobileModal]);
+    }, [isOpen, isMobile]);
 
     const [dropdownStyle, setDropdownStyle] = useState<{ position: 'down' | 'up', maxHeight: number }>({ position: 'down', maxHeight: 300 });
 
@@ -115,76 +119,81 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
     const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
 
     useIsomorphicLayoutEffect(() => {
-        if (isOpen && containerRef.current) {
-            const updatePosition = () => {
-                if (!containerRef.current) return;
+        if (!isOpen || (isMobile && !disableMobileModal)) return;
 
-                const rect = containerRef.current.getBoundingClientRect();
-                const viewportHeight = window.innerHeight;
+        const updatePosition = () => {
+            if (!containerRef.current) return;
 
-                // Margins
-                const MARGIN = 10;
+            if (forceDirection) {
+                setDropdownStyle({ position: forceDirection, maxHeight: 300 });
+                return;
+            }
 
-                // Available space
-                const spaceBelow = viewportHeight - rect.bottom - MARGIN;
-                const spaceAbove = rect.top - MARGIN;
+            const rect = containerRef.current.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
 
-                // Logic:
-                // 1. Prefer DOWN if it fits (needs ~200px or at least more than 150)
-                // 2. Else if UP has significantly more space, flip UP.
+            // Margins
+            const MARGIN = 10;
 
-                const MIN_HEIGHT = 120; // Minimum usable height
-                const DESIRED_HEIGHT = 300; // Target max height
+            // Available space
+            const spaceBelow = viewportHeight - rect.bottom - MARGIN;
+            const spaceAbove = rect.top - MARGIN;
 
-                let newPos: 'down' | 'up' = 'down';
-                let maxH = DESIRED_HEIGHT;
+            // Logic:
+            // 1. Prefer DOWN if it fits (needs ~200px or at least more than 150)
+            // 2. Else if UP has significantly more space, flip UP.
 
-                // If enough space below, usage down (default limits)
-                if (spaceBelow >= DESIRED_HEIGHT) {
+            const MIN_HEIGHT = 120; // Minimum usable height
+            const DESIRED_HEIGHT = 300; // Target max height
+
+            let newPos: 'down' | 'up' = 'down';
+            let maxH = DESIRED_HEIGHT;
+
+            // If enough space below, usage down (default limits)
+            if (spaceBelow >= DESIRED_HEIGHT) {
+                newPos = 'down';
+                maxH = DESIRED_HEIGHT;
+            }
+            // If not enough below, check above
+            else if (spaceAbove > spaceBelow && spaceAbove > MIN_HEIGHT) {
+                newPos = 'up';
+                // Use all available space up to DESIRED
+                maxH = Math.min(spaceAbove, DESIRED_HEIGHT);
+            }
+            // If neither is great, pick the largest one
+            else {
+                if (spaceBelow >= spaceAbove) {
                     newPos = 'down';
-                    maxH = DESIRED_HEIGHT;
-                }
-                // If not enough below, check above
-                else if (spaceAbove > spaceBelow && spaceAbove > MIN_HEIGHT) {
+                    maxH = Math.max(spaceBelow, MIN_HEIGHT);
+                } else {
                     newPos = 'up';
-                    // Use all available space up to DESIRED
-                    maxH = Math.min(spaceAbove, DESIRED_HEIGHT);
+                    maxH = Math.max(spaceAbove, MIN_HEIGHT);
                 }
-                // If neither is great, pick the largest one
-                else {
-                    if (spaceBelow >= spaceAbove) {
-                        newPos = 'down';
-                        maxH = Math.max(spaceBelow, MIN_HEIGHT);
-                    } else {
-                        newPos = 'up';
-                        maxH = Math.max(spaceAbove, MIN_HEIGHT);
-                    }
-                }
+            }
 
-                setDropdownStyle({ position: newPos, maxHeight: maxH });
-            };
+            setDropdownStyle({ position: newPos, maxHeight: maxH });
+        };
 
-            updatePosition();
-            // Optional: update on scroll/resize could be expensive, sticking to open-time calc + window resize
-            window.addEventListener('resize', updatePosition);
-            window.addEventListener('scroll', updatePosition, true); // Capture scroll to reposition
+        updatePosition();
+        // Optional: update on scroll/resize could be expensive, sticking to open-time calc + window resize
+        window.addEventListener('resize', updatePosition);
+        window.addEventListener('scroll', updatePosition, true); // Capture scroll to reposition
 
-            return () => {
-                window.removeEventListener('resize', updatePosition);
-                window.removeEventListener('scroll', updatePosition, true);
-            };
-        }
-    }, [isOpen]);
+        return () => {
+            window.removeEventListener('resize', updatePosition);
+            window.removeEventListener('scroll', updatePosition, true);
+        };
+    }, [isOpen, isMobile, disableMobileModal, forceDirection]);
 
     useEffect(() => {
-        if (isOpen && (!isMobile || !enableMobileModal) && searchInputRef.current) {
+        if (isOpen && !isMobile && searchInputRef.current) {
             // Focus search input after a short delay to allow transition
             setTimeout(() => searchInputRef.current?.focus(), 50);
         }
         if (!isOpen) {
             setSearchTerm('');
         }
-    }, [isOpen, isMobile, enableMobileModal]);
+    }, [isOpen, isMobile]);
 
     const filteredOptions = useMemo(() => {
         if (!deferredSearchTerm) return options;
@@ -201,7 +210,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
     const inputClass = "w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-900 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none transition-all flex items-center justify-between cursor-pointer group-hover:bg-white group-hover:border-cyan-200";
 
     const renderMobileModal = () => (
-        <div className="fixed inset-0 z-[100] flex items-end desktop:items-center justify-center">
+        <div className="fixed inset-0 z-[100] flex items-end wide:items-center justify-center">
             {/* Backdrop Blur */}
             <div
                 className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
@@ -209,7 +218,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
             />
 
             {/* Modal Content */}
-            <div className="relative w-full desktop:w-[500px] bg-white rounded-t-2xl desktop:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom duration-300">
+            <div className="relative w-full wide:w-[500px] bg-white rounded-t-2xl wide:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom duration-300">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50">
                     <h3 className="font-bold text-slate-700">{label || placeholder}</h3>
@@ -289,7 +298,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
                 </div>
 
                 {isOpen && (
-                    (isMobile && enableMobileModal) ? renderMobileModal() : (
+                    (isMobile && !disableMobileModal) ? renderMobileModal() : (
                         <div className={`absolute z-50 left-0 right-0 bg-white rounded-xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in duration-200 ${dropdownStyle.position === 'up'
                             ? 'bottom-full mb-2 slide-in-from-bottom-2'
                             : 'mt-2 slide-in-from-top-2'

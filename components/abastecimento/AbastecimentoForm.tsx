@@ -337,7 +337,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     // Removed isLoading check as data is passed via props
 
     return (
-        <div className="flex-1 h-full bg-slate-50 p-4 desktop:p-6 overflow-auto custom-scrollbar">
+        <div className="flex-1 h-full bg-slate-50 p-4 wide:p-6 overflow-auto custom-scrollbar">
             <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in">
                 {/* Compact Header */}
                 <div className="bg-slate-900 px-6 py-5 flex items-center justify-between relative overflow-hidden">
@@ -356,7 +356,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                 <form onSubmit={handleSubmit} className="p-6">
                     <div className="grid grid-cols-12 gap-x-4 gap-y-5">
                         {/* Row 1: Data, Hora, Nota (Compact) - Mobile: Date/Time hidden */}
-                        <div className="hidden desktop:block desktop:col-span-3">
+                        <div className="hidden wide:block wide:col-span-3">
                             <CustomDateTimeInput
                                 label="Data"
                                 value={date}
@@ -365,7 +365,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 required
                             />
                         </div>
-                        <div className="hidden desktop:block desktop:col-span-3">
+                        <div className="hidden wide:block wide:col-span-3">
                             <CustomDateTimeInput
                                 label="Hora"
                                 value={time}
@@ -374,7 +374,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 required
                             />
                         </div>
-                        <div className="col-span-12 desktop:col-span-6 space-y-1">
+                        <div className="col-span-12 wide:col-span-6 space-y-1">
                             <label className={labelClass}>Número da Nota</label>
                             <div className="relative group">
                                 <input
@@ -391,7 +391,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                         </div>
 
                         {/* Row 2: Veículo e Motorista */}
-                        <div className="col-span-12 desktop:col-span-6">
+                        <div className="col-span-12 wide:col-span-6">
                             <CustomSelect
                                 label="Veículo"
                                 value={vehicle}
@@ -400,9 +400,10 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 placeholder="Selecione o veículo"
                                 icon={Truck}
                                 required
+                                mobileThreshold={1200}
                             />
                         </div>
-                        <div className="col-span-12 desktop:col-span-6">
+                        <div className="col-span-12 wide:col-span-6">
                             <CustomSelect
                                 label="Motorista"
                                 value={driver}
@@ -411,12 +412,13 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 placeholder="Selecione o motorista"
                                 icon={User}
                                 required
+                                mobileThreshold={1200}
                             />
                         </div>
 
                         {/* Row 3: Odômetro, Combustível, Litros (Grouped) */}
                         <div className="col-span-12 grid grid-cols-12 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                            <div className="col-span-12 desktop:col-span-4 space-y-1">
+                            <div className="col-span-12 wide:col-span-4 space-y-1">
                                 <label className={labelClass}>Odômetro (KM)</label>
                                 <div className="relative group">
                                     <input
@@ -434,7 +436,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 </div>
                             </div>
 
-                            <div className="col-span-6 desktop:col-span-4">
+                            <div className="col-span-6 wide:col-span-4">
                                 <CustomSelect
                                     label="Combustível"
                                     value={fuelType}
@@ -443,10 +445,13 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                     placeholder="Tipo"
                                     icon={Fuel}
                                     required
+                                    mobileThreshold={1200}
+                                    disableMobileModal={true}
+                                    forceDirection="up"
                                 />
                             </div>
 
-                            <div className="col-span-6 desktop:col-span-4 space-y-1">
+                            <div className="col-span-6 wide:col-span-4 space-y-1">
                                 <label className={labelClass}>Litros</label>
                                 <div className="relative group">
                                     <input
@@ -466,7 +471,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                         </div>
 
                         {/* Row 4: Posto e Total */}
-                        <div className="hidden desktop:block desktop:col-span-8">
+                        <div className="hidden wide:block wide:col-span-8">
                             <div className="space-y-1">
                                 <CustomSelect
                                     label="Posto de Abastecimento"
@@ -476,6 +481,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                     placeholder="Selecione o posto..."
                                     icon={MapPin}
                                     required
+                                    mobileThreshold={1200}
                                 />
                                 {gasStations.length === 0 && (
                                     <p className="text-[10px] text-amber-600 mt-1 ml-1 flex items-center gap-1">
@@ -485,7 +491,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                             </div>
                         </div>
 
-                        <div className="col-span-12 desktop:col-span-4">
+                        <div className="col-span-12 wide:col-span-4">
                             <label className={labelClass}>Valor Total</label>
                             <div className="relative group mt-1">
                                 <input
