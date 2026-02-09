@@ -400,7 +400,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 placeholder="Selecione o veículo"
                                 icon={Truck}
                                 required
-                                mobileThreshold={1200}
+                                mobileThreshold={1201}
                             />
                         </div>
                         <div className="col-span-12 wide:col-span-6">
@@ -412,7 +412,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 placeholder="Selecione o motorista"
                                 icon={User}
                                 required
-                                mobileThreshold={1200}
+                                mobileThreshold={1201}
                             />
                         </div>
 
@@ -445,7 +445,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                     placeholder="Tipo"
                                     icon={Fuel}
                                     required
-                                    mobileThreshold={1200}
+                                    mobileThreshold={1201}
                                     disableMobileModal={true}
                                     forceDirection="up"
                                 />
@@ -481,7 +481,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                     placeholder="Selecione o posto..."
                                     icon={MapPin}
                                     required
-                                    mobileThreshold={1200}
+                                    mobileThreshold={1201}
                                 />
                                 {gasStations.length === 0 && (
                                     <p className="text-[10px] text-amber-600 mt-1 ml-1 flex items-center gap-1">
