@@ -40,16 +40,16 @@ const SelectItem = memo(({
                 e.stopPropagation();
                 onClick(option.value);
             }}
-            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-start sm:items-center justify-between group/item gap-2 ${className || ''}
+            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-start desktop:items-center justify-between group/item gap-2 ${className || ''}
                 ${isSelected
                     ? 'bg-cyan-50 text-cyan-700'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
         >
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-1 min-w-0">
+            <div className="flex flex-col desktop:flex-row desktop:items-center gap-1 desktop:gap-2 flex-1 min-w-0">
                 <span className="font-semibold truncate">{option.label}</span>
                 {option.subtext && (
-                    <span className={`text-xs sm:text-sm truncate ${isSelected ? 'text-cyan-600/70' : 'text-slate-400'}`}>
+                    <span className={`text-xs desktop:text-sm truncate ${isSelected ? 'text-cyan-600/70' : 'text-slate-400'}`}>
                         {option.subtext}
                     </span>
                 )}
@@ -79,7 +79,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        const checkMobile = () => setIsMobile(window.innerWidth < 1200);
         checkMobile();
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
@@ -201,7 +201,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
     const inputClass = "w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-900 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none transition-all flex items-center justify-between cursor-pointer group-hover:bg-white group-hover:border-cyan-200";
 
     const renderMobileModal = () => (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+        <div className="fixed inset-0 z-[100] flex items-end desktop:items-center justify-center">
             {/* Backdrop Blur */}
             <div
                 className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
@@ -209,7 +209,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
             />
 
             {/* Modal Content */}
-            <div className="relative w-full sm:w-[500px] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom duration-300">
+            <div className="relative w-full desktop:w-[500px] bg-white rounded-t-2xl desktop:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom duration-300">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50">
                     <h3 className="font-bold text-slate-700">{label || placeholder}</h3>
