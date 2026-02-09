@@ -69,7 +69,7 @@ export const TasksDashboard: React.FC<TasksDashboardProps> = ({
     return (
         <div className={`w-full h-full flex flex-col bg-slate-50 ${fullScreen ? '' : 'border border-white/60 rounded-[2.5rem] shadow-2xl shadow-slate-200/50'} overflow-hidden relative transition-all duration-500`}>
             {/* Header Area */}
-            <div className="px-6 md:px-12 py-4 shrink-0 relative bg-white border-b border-slate-100">
+            <div className="px-6 desktop:px-12 py-4 shrink-0 relative bg-white border-b border-slate-100">
                 <div className="flex items-center justify-between relative z-10 max-w-7xl mx-auto">
                     <div className="flex items-center gap-4">
                         <div className="p-2 bg-pink-500 rounded-xl shadow-lg shadow-pink-500/20 text-white">
@@ -125,7 +125,7 @@ export const TasksDashboard: React.FC<TasksDashboardProps> = ({
             </div>
 
             {/* List Area */}
-            <div className="flex-1 overflow-hidden flex flex-col p-4 md:p-6 pb-6">
+            <div className="flex-1 overflow-hidden flex flex-col p-4 desktop:p-6 pb-6">
                 <div className="flex-1 bg-white rounded-[2.5rem] border border-slate-200 shadow-inner-lg overflow-hidden flex flex-col max-w-7xl mx-auto w-full">
                     <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
                         {filteredTasks.length === 0 ? (
@@ -140,7 +140,7 @@ export const TasksDashboard: React.FC<TasksDashboardProps> = ({
                                 </div>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 desktop:grid-cols-2 gap-4">
                                 {filteredTasks.map((task, idx) => {
                                     const Icon = getIcon(task.blockType);
                                     const status = getStatusStyles(task.status);

@@ -95,11 +95,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         const hoverBorder = `hover:border-${color}-200`;
         const hoverBg = `hover:from-white hover:to-${color}-50`;
 
-        return `group relative w-full h-auto min-h-[140px] md:min-h-[180px] py-6 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] ${hoverShadow} hover:-translate-y-1.5 ${hoverBorder} ${hoverBg} active:scale-95 transition-all duration-300 ease-out ${hideOnMobile ? 'hidden md:flex' : 'flex'} flex-col items-center justify-center overflow-hidden shrink-0`;
+        return `group relative w-full h-auto min-h-[140px] desktop:min-h-[180px] py-6 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] ${hoverShadow} hover:-translate-y-1.5 ${hoverBorder} ${hoverBg} active:scale-95 transition-all duration-300 ease-out ${hideOnMobile ? 'hidden desktop:flex' : 'flex'} flex-col items-center justify-center overflow-hidden shrink-0`;
     };
 
     const getIconContainerClass = (color: string) => {
-        return `w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center mb-3 transition-transform duration-500 ease-spring group-hover:scale-110 group-hover:rotate-3 shadow-lg bg-gradient-to-br from-${color}-500 to-${color}-600 text-white ring-4 ring-white`;
+        return `w-14 h-14 desktop:w-16 desktop:h-16 rounded-2xl flex items-center justify-center mb-3 transition-transform duration-500 ease-spring group-hover:scale-110 group-hover:rotate-3 shadow-lg bg-gradient-to-br from-${color}-500 to-${color}-600 text-white ring-4 ring-white`;
     };
 
     const [isTasksDrawerOpen, setIsTasksDrawerOpen] = React.useState(false);
@@ -136,9 +136,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             <div className="relative z-10 flex flex-col items-center p-4">
                 <div className={`${getIconContainerClass(color)}`}>
-                    <Icon className="w-7 h-7 md:w-8 md:h-8 drop-shadow-md" />
+                    <Icon className="w-7 h-7 desktop:w-8 desktop:h-8 drop-shadow-md" />
                 </div>
-                <h2 className="text-lg md:text-xl font-bold text-slate-800 tracking-tight leading-none mb-1.5 group-hover:text-slate-900 transition-colors">{title}</h2>
+                <h2 className="text-lg desktop:text-xl font-bold text-slate-800 tracking-tight leading-none mb-1.5 group-hover:text-slate-900 transition-colors">{title}</h2>
                 <p className="text-xs font-medium text-slate-500 text-center max-w-[150px] leading-tight group-hover:text-${color}-600 transition-colors">{description}</p>
             </div>
 
@@ -267,7 +267,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 {/* Fixed Back Button - Hoisted up to ensure true fixed positioning regardless of parent transforms */}
                 <button
                     onClick={() => setActiveBlock(null)}
-                    className="fixed top-20 left-4 md:top-24 md:left-8 z-[999] group flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold transition-all p-2 pr-4 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-lg hover:shadow-xl hover:bg-white hover:-translate-y-0.5 hover:border-indigo-100"
+                    className="fixed top-20 left-4 desktop:top-24 desktop:left-8 z-[999] group flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold transition-all p-2 pr-4 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-lg hover:shadow-xl hover:bg-white hover:-translate-y-0.5 hover:border-indigo-100"
                     title="Voltar ao Menu"
                 >
                     <div className="w-8 h-8 rounded-full bg-white border border-slate-100 flex items-center justify-center group-hover:bg-indigo-50 group-hover:border-indigo-100 transition-colors">
@@ -278,7 +278,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
                 <div className="w-full h-full flex flex-col relative animate-fade-in z-0 overflow-hidden">
                     {/* Centered Content Container */}
-                    <div className="flex-1 w-full h-full p-4 md:p-8 pt-20 md:pt-24">
+                    <div className="flex-1 w-full h-full p-4 desktop:p-8 pt-20 desktop:pt-24">
                         <div className="w-full min-h-full flex flex-col items-center justify-center container mx-auto">
 
                             {/* Header */}
@@ -286,27 +286,27 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                 <div className={`p-5 rounded-[2rem] bg-gradient-to-br from-${config.color}-50 to-${config.color}-100/50 mb-5 shadow-sm ring-8 ring-white/50`}>
                                     <config.icon className={`w-12 h-12 text-${config.color}-600 drop-shadow-sm`} />
                                 </div>
-                                <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tight text-center drop-shadow-sm">{config.name}</h2>
+                                <h2 className="text-3xl desktop:text-5xl font-black text-slate-800 tracking-tight text-center drop-shadow-sm">{config.name}</h2>
                             </div>
 
                             {/* Actions Grid */}
-                            <div className="w-full flex flex-wrap justify-center items-stretch gap-3 md:gap-4 max-w-6xl animate-in zoom-in duration-500 fill-mode-backwards p-2">
+                            <div className="w-full flex flex-wrap justify-center items-stretch gap-3 desktop:gap-4 max-w-6xl animate-in zoom-in duration-500 fill-mode-backwards p-2">
                                 {actionButtons.map((btn, idx) => (
                                     <button
                                         key={idx}
                                         onClick={btn.onClick}
-                                        className={`group relative flex-1 min-w-[240px] md:min-w-[260px] max-w-[360px] min-h-[120px] md:min-h-[130px] h-auto py-6 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50/50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_25px_60px_rgb(0,0,0,0.12)] hover:shadow-${btn.color}-500/30 hover:border-${btn.color}-200 hover:from-white hover:to-${btn.color}-50/30 transition-all duration-300 ease-spring hover:-translate-y-2 active:scale-95 flex flex-col items-center justify-center overflow-hidden shrink-0 basis-0 grow ${btn.hideOnMobile ? 'hidden md:flex' : 'flex'}`}
+                                        className={`group relative flex-1 min-w-[240px] desktop:min-w-[260px] max-w-[360px] min-h-[120px] desktop:min-h-[130px] h-auto py-6 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50/50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_25px_60px_rgb(0,0,0,0.12)] hover:shadow-${btn.color}-500/30 hover:border-${btn.color}-200 hover:from-white hover:to-${btn.color}-50/30 transition-all duration-300 ease-spring hover:-translate-y-2 active:scale-95 flex flex-col items-center justify-center overflow-hidden shrink-0 basis-0 grow ${btn.hideOnMobile ? 'hidden desktop:flex' : 'flex'}`}
                                         style={{ animationDelay: `${idx * 100}ms` }}
                                     >
                                         <div className={`absolute top-0 right-0 w-32 h-32 bg-${btn.color}-500/5 rounded-bl-[100%] -mr-10 -mt-10 transition-transform duration-700 ease-out group-hover:scale-150`}></div>
                                         <div className={`absolute bottom-0 left-0 w-24 h-24 bg-${btn.color}-500/5 rounded-tr-[100%] -ml-10 -mb-10 transition-transform duration-700 ease-out group-hover:scale-125 opacity-0 group-hover:opacity-100`}></div>
 
-                                        <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-${btn.color}-500 to-${btn.color}-600 flex items-center justify-center mb-3 text-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300 shadow-lg shadow-${btn.color}-500/30 ring-4 ring-white`}>
-                                            <btn.icon className="w-6 h-6 md:w-7 md:h-7 drop-shadow-md" />
+                                        <div className={`w-12 h-12 desktop:w-14 desktop:h-14 rounded-2xl bg-gradient-to-br from-${btn.color}-500 to-${btn.color}-600 flex items-center justify-center mb-3 text-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300 shadow-lg shadow-${btn.color}-500/30 ring-4 ring-white`}>
+                                            <btn.icon className="w-6 h-6 desktop:w-7 desktop:h-7 drop-shadow-md" />
                                         </div>
 
-                                        <h3 className="text-lg md:text-2xl font-bold text-slate-800 mb-1 group-hover:text-slate-900 tracking-tight">{btn.label}</h3>
-                                        <p className="text-[10px] md:text-xs font-bold text-slate-400 group-hover:text-${btn.color}-600 transition-colors uppercase tracking-widest">{btn.desc}</p>
+                                        <h3 className="text-lg desktop:text-2xl font-bold text-slate-800 mb-1 group-hover:text-slate-900 tracking-tight">{btn.label}</h3>
+                                        <p className="text-[10px] desktop:text-xs font-bold text-slate-400 group-hover:text-${btn.color}-600 transition-colors uppercase tracking-widest">{btn.desc}</p>
                                     </button>
                                 ))}
                             </div>
@@ -334,13 +334,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         onScroll={handleScroll}
                         className="flex-1 overflow-y-auto custom-scrollbar scroll-smooth"
                     >
-                        <div className="p-8 lg:p-12 pb-40 md:pb-32 max-w-7xl mx-auto w-full pt-12 md:pt-16">
+                        <div className="p-8 lg:p-12 pb-40 desktop:pb-32 max-w-7xl mx-auto w-full pt-12 desktop:pt-16">
 
                             {/* ... content ... */}
 
                             {/* Welcome Header */}
                             <div className="mb-12">
-                                <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tighter mb-3">
+                                <h1 className="text-4xl desktop:text-5xl font-extrabold text-slate-900 tracking-tighter mb-3">
                                     Olá, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">{firstName}</span>.
                                 </h1>
                                 <p className="text-slate-500 text-lg font-medium max-w-2xl">
@@ -349,7 +349,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             </div>
 
                             {/* Modules Grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 desktop:grid-cols-3 xl:grid-cols-4 gap-5 desktop:gap-6">
                                 {/* Operational Modules */}
                                 {canAccessOficio && renderModuleButton(() => setActiveBlock('oficio'), 'indigo', FileText, 'Ofícios', 'Geração e trâmite', '50ms', true)}
                                 {canAccessCompras && renderModuleButton(() => setActiveBlock('compras'), 'emerald', ShoppingCart, 'Compras', 'Pedidos e requisições', '100ms', true)}
@@ -373,7 +373,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             {/* Mobile-only Logout */}
                             <button
                                 onClick={onLogout}
-                                className="mt-12 w-full py-4 rounded-2xl border border-rose-200 bg-white text-rose-500 font-bold uppercase tracking-widest text-xs flex md:hidden items-center justify-center gap-2 hover:bg-rose-50 transition-all shadow-sm"
+                                className="mt-12 w-full py-4 rounded-2xl border border-rose-200 bg-white text-rose-500 font-bold uppercase tracking-widest text-xs flex desktop:hidden items-center justify-center gap-2 hover:bg-rose-50 transition-all shadow-sm"
                             >
                                 <LogOut className="w-4 h-4" /> Sair do Sistema
                             </button>
@@ -407,7 +407,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     />
 
                     {/* Drawer Content */}
-                    <div className="relative z-10 w-full max-w-md h-full bg-white/60 backdrop-blur-xl border-l border-white/50 shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col p-4 md:p-6">
+                    <div className="relative z-10 w-full max-w-md h-full bg-white/60 backdrop-blur-xl border-l border-white/50 shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col p-4 desktop:p-6">
                         <TasksDashboard
                             orders={orders}
                             userRole={userRole}

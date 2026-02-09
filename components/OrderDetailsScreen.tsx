@@ -92,12 +92,12 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
     // Helper to render History Tab Content
     const renderHistory = () => (
         <div className="relative p-4 w-full">
-            <div className="absolute left-[39px] md:left-[55px] top-6 bottom-6 w-0.5 bg-slate-200/60"></div>
+            <div className="absolute left-[39px] desktop:left-[55px] top-6 bottom-6 w-0.5 bg-slate-200/60"></div>
             <div className="space-y-8 relative">
                 {order.statusHistory && order.statusHistory.length > 0 ? (
                     [...order.statusHistory].reverse().map((move, idx) => (
-                        <div key={idx} className="relative pl-16 md:pl-20 group animate-fade-in" style={{ animationDelay: `${idx * 50}ms` }}>
-                            <div className={`absolute left-4 md:left-8 top-0 w-12 h-12 rounded-2xl border-4 border-white shadow-sm flex items-center justify-center z-10 transition-transform group-hover:scale-110 ${idx === 0
+                        <div key={idx} className="relative pl-16 desktop:pl-20 group animate-fade-in" style={{ animationDelay: `${idx * 50}ms` }}>
+                            <div className={`absolute left-4 desktop:left-8 top-0 w-12 h-12 rounded-2xl border-4 border-white shadow-sm flex items-center justify-center z-10 transition-transform group-hover:scale-110 ${idx === 0
                                 ? (move.statusLabel.includes('Cancela') || move.statusLabel.includes('Rejeição') ? 'bg-rose-50 text-rose-600' : move.statusLabel.includes('Aprova') ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-600 text-white')
                                 : 'bg-white text-slate-400 border-slate-100 shadow-sm'
                                 }`}>
@@ -115,12 +115,12 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                                 ? (move.statusLabel.includes('Cancela') || move.statusLabel.includes('Rejeição') ? 'bg-rose-50/50 border-rose-100' : 'bg-white border-indigo-100 shadow-md shadow-indigo-100/20')
                                 : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'
                                 }`}>
-                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
+                                <div className="flex flex-col desktop:flex-row desktop:items-center justify-between gap-2 mb-3">
                                     <h4 className={`text-sm font-black uppercase tracking-wider ${idx === 0 ? (move.statusLabel.includes('Cancela') || move.statusLabel.includes('Rejeição') ? 'text-rose-900' : 'text-indigo-900') : 'text-slate-700'
                                         }`}>
                                         {move.statusLabel}
                                     </h4>
-                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 self-start md:self-auto">
+                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 self-start desktop:self-auto">
                                         <Calendar className="w-3 h-3" />
                                         {new Date(move.date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                     </div>
@@ -164,7 +164,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
     const renderAttachments = () => (
         <div className="p-4 w-full">
             {order.attachments && order.attachments.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 desktop:grid-cols-2 gap-4">
                     {order.attachments.map(att => (
                         <div key={att.id} className="group relative bg-white p-4 rounded-2xl border border-slate-200 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-300">
                             <div className="flex items-start gap-4">
@@ -319,7 +319,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
     const renderDetails = () => (
         <div className="p-4 space-y-4 animate-fade-in w-full">
             {/* ID & Status Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 desktop:grid-cols-3 gap-4">
                 <div className="bg-white p-5 rounded-[20px] border border-slate-100 shadow-sm flex flex-col justify-between h-full bg-gradient-to-br from-white to-slate-50/50">
                     <div className="flex items-center gap-3 text-slate-400 mb-2">
                         <div className="p-2 bg-indigo-50 text-indigo-500 rounded-lg"><FileText className="w-4 h-4" /></div>
@@ -350,9 +350,9 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
             </div>
 
             {/* Main Content Info */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+            <div className="grid grid-cols-1 desktop:grid-cols-3 gap-6 desktop:gap-8">
                 {/* Main Column: ITEMS (Visual Highlight) */}
-                <div className="lg:col-span-2 space-y-6 md:space-y-8 order-2 lg:order-1">
+                <div className="desktop:col-span-2 space-y-6 desktop:space-y-8 order-2 desktop:order-1">
                     {/* Items List */}
                     <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm flex flex-col h-full min-h-[500px]">
                         <div className="bg-slate-50/50 px-8 py-6 border-b border-slate-100 flex items-center justify-between">
@@ -414,7 +414,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                 </div>
 
                 {/* Secondary Column: Sidebar Info */}
-                <div className="space-y-6 md:space-y-6 lg:order-2">
+                <div className="space-y-6 desktop:order-2">
                     {/* Requester Info */}
                     <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
                         <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -515,7 +515,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                                     {order.status === 'pending' && <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200 uppercase tracking-wide flex items-center gap-1"><Clock className="w-3 h-3" /> Pendente</span>}
                                     {order.priority === 'Alta' && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100 uppercase tracking-wide flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Alta Prioridade</span>}
                                 </div>
-                                <h1 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">
+                                <h1 className="text-xl desktop:text-2xl font-black text-slate-800 leading-tight">
                                     {order.title || 'Detalhes do Pedido'}
                                 </h1>
                             </div>
@@ -525,7 +525,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                             {order.documentSnapshot && (
                                 <button
                                     onClick={() => onDownloadPdf(order.documentSnapshot!, 'compras')}
-                                    className="hidden md:flex px-5 py-2.5 bg-white text-indigo-600 border border-indigo-100 hover:bg-indigo-50 hover:border-indigo-200 rounded-xl font-bold text-xs uppercase tracking-wide items-center gap-2 transition-all active:scale-95 shadow-sm"
+                                    className="hidden desktop:flex px-5 py-2.5 bg-white text-indigo-600 border border-indigo-100 hover:bg-indigo-50 hover:border-indigo-200 rounded-xl font-bold text-xs uppercase tracking-wide items-center gap-2 transition-all active:scale-95 shadow-sm"
                                 >
                                     <Download className="w-4 h-4" /> Baixar PDF
                                 </button>

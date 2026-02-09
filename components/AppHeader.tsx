@@ -111,7 +111,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       case 'licitacao': return "Módulo de Licitação";
       case 'diarias': return "Módulo de Diárias";
       case 'abastecimento': return "Módulo de Abastecimento";
-      case 'tarefas': return "Gestão de Tarefas";
+      case 'tarefas' as any: return "Gestão de Tarefas";
       default: return "Página Inicial";
     }
   };
@@ -214,9 +214,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             )}
           </button>
 
-          <div className="h-6 w-px bg-slate-200 hidden md:block"></div>
+          <div className="h-6 w-px bg-slate-200 hidden desktop:block"></div>
 
-          <div className="hidden md:flex flex-col">
+          <div className="hidden desktop:flex flex-col">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1">Tela Atual</span>
             <span className="text-sm font-bold text-slate-900 tracking-tight">{getModuleTitle()}</span>
           </div>
@@ -257,7 +257,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
 
-          <div className="h-8 w-px bg-slate-200 mx-1"></div>
+          <div className="h-8 w-px bg-slate-200 mx-1 hidden desktop:block"></div>
 
           {isNotHome && (
             <button
@@ -265,7 +265,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition-all active:scale-95"
             >
               <Home className="w-4 h-4" />
-              <span className="hidden sm:inline">Início</span>
+              <span className="hidden desktop:inline">Início</span>
             </button>
           )}
 
@@ -273,7 +273,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             isAdmin && currentView !== 'admin' && (
               <button
                 onClick={() => onOpenAdmin(null)}
-                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-slate-900/10 active:scale-95"
+                className="hidden desktop:flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-slate-900/10 active:scale-95"
               >
                 <Settings className="w-4 h-4" />
                 Administração

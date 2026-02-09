@@ -203,16 +203,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   return (
     <>
       {/* Overlay para mobile */}
-      {isOpen && <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity md:hidden" onClick={onClose} />}
+      {isOpen && <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity desktop:hidden" onClick={onClose} />}
 
       {/* Sidebar - relative no desktop para permitir lado-a-lado com o preview */}
       <div className={`
-        fixed md:relative inset-y-0 left-0 h-full
-        ${activeBlock === 'compras' ? 'w-full' : 'w-full md:w-[500px] lg:w-[550px] xl:w-[600px]'}
-        bg-white shadow-2xl md:shadow-none border-r border-slate-200
+        fixed desktop:relative inset-y-0 left-0 h-full
+        ${activeBlock === 'compras' ? 'w-full' : 'w-full desktop:w-[500px] lg:w-[550px] xl:w-[600px]'}
+        bg-white shadow-2xl desktop:shadow-none border-r border-slate-200
         transform transition-all duration-300 ease-in-out z-50 shrink-0
         flex flex-col 
-        ${isOpen ? 'translate-x-0 opacity-100 visible' : '-translate-x-full opacity-0 invisible absolute md:w-0'}
+        ${isOpen ? 'translate-x-0 opacity-100 visible' : '-translate-x-full opacity-0 invisible absolute desktop:w-0'}
       `}>
         {activeBlock !== 'compras' && (
           <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white z-10 shrink-0">

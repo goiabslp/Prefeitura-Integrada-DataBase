@@ -227,6 +227,7 @@ export interface Order {
   description?: string;
   is_public?: boolean;
   assigned_user_id?: string;
+  priority?: 'Normal' | 'Média' | 'Alta' | 'Urgência';
 }
 
 export interface Person {

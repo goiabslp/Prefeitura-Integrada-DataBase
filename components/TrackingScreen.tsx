@@ -275,39 +275,39 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
     return (
         <>
-            <div className="min-h-screen w-full bg-slate-100/50 backdrop-blur-sm font-sans flex items-center justify-center p-4 md:p-8 overflow-hidden animate-fade-in">
+            <div className="min-h-screen w-full bg-slate-100/50 backdrop-blur-sm font-sans flex items-center justify-center p-4 desktop:p-8 overflow-hidden animate-fade-in">
                 <div className="w-full max-w-6xl bg-white rounded-[2.5rem] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.15)] border border-slate-200 overflow-hidden animate-slide-up flex flex-col h-full max-h-[90vh]">
 
-                    <div className={`${(isDiarias || isCompras || activeBlock === 'oficio') ? 'p-4' : 'p-8'} border-b border-slate-100 shrink-0 bg-white transition-all`}>
-                        <div className={`flex flex-col md:flex-row md:items-center justify-between ${(isDiarias || isCompras || activeBlock === 'oficio') ? 'gap-4' : 'gap-6'}`}>
-                            <div className={`${(isDiarias || isCompras || activeBlock === 'oficio') ? 'flex items-center gap-4 flex-1 min-w-0' : ''}`}>
-                                <div className={(isDiarias || isCompras || activeBlock === 'oficio') ? "contents" : "block"}>
+                    <div className={`${(isDiarias || isCompras || (activeBlock as any) === 'oficio') ? 'p-4' : 'p-8'} border-b border-slate-100 shrink-0 bg-white transition-all`}>
+                        <div className={`flex flex-col desktop:flex-row desktop:items-center justify-between ${(isDiarias || isCompras || (activeBlock as any) === 'oficio') ? 'gap-4' : 'gap-6'}`}>
+                            <div className={`${(isDiarias || isCompras || (activeBlock as any) === 'oficio') ? 'flex items-center gap-4 flex-1 min-w-0' : ''}`}>
+                                <div className={(isDiarias || isCompras || (activeBlock as any) === 'oficio') ? "contents" : "block"}>
                                     <button
                                         onClick={() => {
-                                            if (activeBlock === 'oficio' && onBack) {
+                                            if ((activeBlock as any) === 'oficio' && onBack) {
                                                 onBack();
                                             } else {
                                                 onBack();
                                             }
                                         }}
-                                        className={`flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors font-bold uppercase tracking-widest group ${(isDiarias || isCompras || activeBlock === 'oficio') ? 'text-[10px] p-2 hover:bg-slate-50 rounded-lg -ml-2' : 'text-xs mb-4'}`}
+                                        className={`flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors font-bold uppercase tracking-widest group ${(isDiarias || isCompras || (activeBlock as any) === 'oficio') ? 'text-[10px] p-2 hover:bg-slate-50 rounded-lg -ml-2' : 'text-xs mb-4'}`}
                                         title="Voltar"
                                     >
-                                        <ArrowLeft className={`transition-transform ${(isDiarias || isCompras || activeBlock === 'oficio') ? 'w-3 h-3' : 'w-4 h-4 group-hover:-translate-x-1'}`} />
-                                        {!(isDiarias || isCompras || activeBlock === 'oficio') && (activeBlock === 'oficio' ? 'Voltar para Oficios' : 'Voltar ao Menu')}
+                                        <ArrowLeft className={`transition-transform ${(isDiarias || isCompras || (activeBlock as any) === 'oficio') ? 'w-3 h-3' : 'w-4 h-4 group-hover:-translate-x-1'}`} />
+                                        {!((isDiarias || isCompras || (activeBlock as any) === 'oficio')) && ((activeBlock as any) === 'oficio' ? 'Voltar para Oficios' : 'Voltar ao Menu')}
                                     </button>
 
-                                    <h2 className={`${(isDiarias || isCompras || activeBlock === 'oficio') ? 'text-xl' : 'text-3xl'} font-extrabold text-slate-900 tracking-tight flex items-center gap-3 shrink-0`}>
-                                        <div className={`${(isDiarias || isCompras || activeBlock === 'oficio') ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30`}>
-                                            <FileText className={`${(isDiarias || isCompras || activeBlock === 'oficio') ? 'w-4 h-4' : 'w-6 h-6'} text-white`} />
+                                    <h2 className={`${(isDiarias || isCompras || (activeBlock as any) === 'oficio') ? 'text-xl' : 'text-3xl'} font-extrabold text-slate-900 tracking-tight flex items-center gap-3 shrink-0`}>
+                                        <div className={`${(isDiarias || isCompras || (activeBlock as any) === 'oficio') ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30`}>
+                                            <FileText className={`${(isDiarias || isCompras || (activeBlock as any) === 'oficio') ? 'w-4 h-4' : 'w-6 h-6'} text-white`} />
                                         </div>
                                         <span className="truncate">
-                                            {activeBlock === 'oficio' ? 'Histórico de Ofícios' : (activeBlock === 'licitacao' && !showAllProcesses) ? 'Meus Processos' : (activeBlock === 'licitacao' && showAllProcesses) ? 'Processos' : `Histórico: ${activeBlock?.toUpperCase()}`}
+                                            {(activeBlock as any) === 'oficio' ? 'Histórico de Ofícios' : ((activeBlock as any) === 'licitacao' && !showAllProcesses) ? 'Meus Processos' : ((activeBlock as any) === 'licitacao' && showAllProcesses) ? 'Processos' : `Histórico: ${activeBlock?.toUpperCase()}`}
                                         </span>
                                     </h2>
                                 </div>
 
-                                {!(isDiarias || isCompras || activeBlock === 'oficio') && (
+                                {!(isDiarias || isCompras || (activeBlock as any) === 'oficio') && (
                                     <p className="text-slate-500 text-sm mt-1 font-medium">
                                         {isAdmin ? 'Gerenciamento global de registros.' : isCompras ? 'Pedidos de compra autorizados para seu setor.' : 'Seus documentos gerados neste módulo.'}
                                     </p>
@@ -341,7 +341,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                         title="Limpar Histórico"
                                     >
                                         <Trash2 className={(isDiarias || isCompras || activeBlock === 'oficio') ? 'w-3.5 h-3.5' : 'w-5 h-5'} />
-                                        {!(isDiarias || isCompras || activeBlock === 'oficio') && <span className="hidden lg:inline">Limpar Bloco</span>}
+                                        {!(isDiarias || isCompras || activeBlock === 'oficio') && <span className="hidden desktop:inline">Limpar Bloco</span>}
                                     </button>
                                 )}
                             </div>
@@ -357,9 +357,9 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                         ) : filteredOrders.length > 0 ? (
                             <div className={`min-w-full ${isLicitacao ? 'px-8 py-4 space-y-4' : ''}`}>
                                 {!isLicitacao && (
-                                    <div className="border-b border-slate-100 bg-slate-50/50 hidden md:grid md:grid-cols-12 gap-4 px-8 py-4 sticky top-0 z-10">
+                                    <div className="border-b border-slate-100 bg-slate-50/50 hidden desktop:grid desktop:grid-cols-12 gap-4 px-8 py-4 sticky top-0 z-10">
                                         {isCompras && (
-                                            <div className="md:col-span-1 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap">
+                                            <div className="desktop:col-span-1 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap">
                                                 <Calendar className="w-3 h-3" /> Pedido
                                             </div>
                                         )}
@@ -492,7 +492,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                 <div key={order.id} className="bg-white rounded-2xl border border-slate-200/60 p-5 flex flex-col gap-5 shadow-sm hover:shadow-xl hover:border-blue-200/50 hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden group">
                                                     <div className="absolute top-0 left-0 w-1 rounded-l-2xl h-full bg-gradient-to-b from-blue-500 to-indigo-600 opacity-80 group-hover:opacity-100 transition-opacity" />
 
-                                                    <div className="grid grid-cols-1 md:grid-cols-7 gap-4 items-center">
+                                                    <div className="grid grid-cols-1 desktop:grid-cols-7 gap-4 items-center">
                                                         <div className="flex flex-col gap-1">
                                                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
                                                                 <HashIcon className="w-3 h-3 text-slate-300" /> ID
@@ -502,7 +502,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                             </span>
                                                         </div>
 
-                                                        <div className="flex flex-col gap-1 md:col-span-2">
+                                                        <div className="flex flex-col gap-1 desktop:col-span-2">
                                                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Objeto</span>
                                                             <span className="text-xs font-bold text-slate-800 line-clamp-1" title={order.title}>{order.title || 'Sem Título'}</span>
                                                         </div>
@@ -563,7 +563,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
                                                     <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent w-full" />
 
-                                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                                    <div className="grid grid-cols-2 desktop:grid-cols-5 gap-4">
                                                         <div className="flex flex-col">
                                                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                                                                 <Calendar className="w-3 h-3 text-slate-300" /> Data do Pedido
@@ -614,7 +614,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                         }
 
                                         return (
-                                            <div key={order.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 px-8 py-5 hover:bg-slate-50/80 transition-colors items-center">
+                                            <div key={order.id} className="grid grid-cols-1 desktop:grid-cols-12 gap-4 px-8 py-5 hover:bg-slate-50/80 transition-colors items-center">
                                                 {isCompras && (
                                                     <div className="md:col-span-1 flex justify-center">
                                                         <div className="w-11 h-11 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center shadow-sm shrink-0">
@@ -698,7 +698,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                 </div>
 
                                                 {isDiarias && (
-                                                    <div className="md:col-span-2 text-slate-600 text-xs font-bold flex flex-col">
+                                                    <div className="desktop:col-span-2 text-slate-600 text-xs font-bold flex flex-col">
                                                         <span>{getDepartureDate(order)}</span>
                                                         {content?.returnDateTime && (
                                                             <span className="text-[9px] text-slate-400 font-medium">Volta: {new Date(content.returnDateTime).toLocaleDateString('pt-BR')}</span>
@@ -810,13 +810,13 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                 ) : null}
 
                                                 {!isCompras && !isDiarias && !isLicitacao && (
-                                                    <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
+                                                    <div className="desktop:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
                                                         <Calendar className="w-3 h-3" />
                                                         {new Date(order.createdAt).toLocaleDateString('pt-BR')}
                                                     </div>
                                                 )}
 
-                                                <div className={`${isCompras ? 'md:col-span-3' : 'md:col-span-2'} flex items-center justify-center gap-1`}>
+                                                <div className={`${isCompras ? 'desktop:col-span-3' : 'desktop:col-span-2'} flex items-center justify-center gap-1`}>
                                                     {isCompras && (
                                                         <button
                                                             onClick={() => setAttachmentManagerOrder(order)}
@@ -1120,7 +1120,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
                 {/* Modal de Auditoria de Histórico */}
                 {historyOrder && createPortal(
-                    <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 md:p-6 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+                    <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 desktop:p-6 bg-slate-900/60 backdrop-blur-md animate-fade-in">
                         <div className="w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-slide-up max-h-[85vh]">
                             <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                 <div className="flex items-center gap-4">
@@ -1140,7 +1140,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                         {move.statusLabel.includes('Aprova') ? <CheckCircle2 className="w-5 h-5" /> : (move.statusLabel.includes('Cancela') || move.statusLabel.includes('Rejeição')) ? <XCircle className="w-5 h-5" /> : move.statusLabel.includes('Criação') ? <Sparkles className="w-5 h-5" /> : move.statusLabel.includes('Recebido') ? <PackageCheck className="w-5 h-5" /> : move.statusLabel.includes('Dotação') ? <Landmark className="w-5 h-5" /> : move.statusLabel.includes('Orçamento') ? <FileSearch className="w-5 h-5" /> : move.statusLabel.includes('Concluído') ? <CheckCircle className="w-5 h-5" /> : move.statusLabel.includes('Realizado') ? <ShoppingCart className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
                                                     </div>
                                                     <div className={`p-6 rounded-[2rem] border transition-all ${idx === 0 ? (move.statusLabel.includes('Cancela') || move.statusLabel.includes('Rejeição') ? 'bg-rose-50/50 border-rose-100' : 'bg-indigo-50/50 border-indigo-100') + ' shadow-sm' : 'bg-white border-slate-100'}`}>
-                                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3"><h4 className={`text-sm font-black uppercase tracking-wider ${idx === 0 ? (move.statusLabel.includes('Cancela') || move.statusLabel.includes('Rejeição') ? 'text-rose-900' : 'text-indigo-900') : 'text-slate-800'}`}>{move.statusLabel}</h4><div className="flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-100 text-[10px] font-bold text-slate-500 shadow-sm"><Calendar className="w-3.5 h-3.5 text-indigo-400" /> {new Date(move.date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
+                                                        <div className="flex flex-col desktop:flex-row desktop:items-center justify-between gap-2 mb-3"><h4 className={`text-sm font-black uppercase tracking-wider ${idx === 0 ? (move.statusLabel.includes('Cancela') || move.statusLabel.includes('Rejeição') ? 'text-rose-900' : 'text-indigo-900') : 'text-slate-800'}`}>{move.statusLabel}</h4><div className="flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-100 text-[10px] font-bold text-slate-500 shadow-sm"><Calendar className="w-3.5 h-3.5 text-indigo-400" /> {new Date(move.date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
                                                         {move.justification && <div className={`mb-4 p-4 rounded-2xl border flex items-start gap-3 ${move.statusLabel.includes('Cancela') || move.statusLabel.includes('Rejeição') ? 'bg-rose-100/50 border-rose-200 text-rose-900' : 'bg-slate-50 border-slate-200 text-slate-700'}`}><MessageCircle className="w-4 h-4 shrink-0 mt-0.5 opacity-60" /><div className="space-y-1"><p className="text-[8px] font-black uppercase tracking-widest opacity-60">Motivo informado:</p><p className="text-xs font-bold leading-relaxed">{move.justification}</p></div></div>}
                                                         <div className="flex items-center gap-2"><div className={`w-6 h-6 rounded-lg ${move.statusLabel.includes('Cancela') || move.statusLabel.includes('Rejeição') ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'} flex items-center justify-center`}><User className="w-3.5 h-3.5" /></div><p className="text-xs font-black text-slate-600">Responsável: <span className={`${move.statusLabel.includes('Cancela') || move.statusLabel.includes('Rejeição') ? 'text-rose-600' : 'text-indigo-600'} ml-1`}>{move.userName || 'Sistema'}</span></p></div>
                                                     </div>
