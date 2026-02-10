@@ -404,8 +404,8 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
 
       {/* Modals */}
       {viewingPurpose && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-slide-up">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-white sm:rounded-[2.5rem] rounded-t-[2.5rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-slide-up max-h-[90vh]">
             <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -417,7 +417,7 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
               </div>
               <button onClick={() => setViewingPurpose(null)} className="p-3 hover:bg-white rounded-2xl text-slate-400"><X className="w-6 h-6" /></button>
             </div>
-            <div className="p-8">
+            <div className="p-8 flex-1 overflow-y-auto custom-scrollbar">
               <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-6">
                 <p className="text-base text-slate-700 font-medium">"{viewingPurpose.purpose}"</p>
               </div>
@@ -431,8 +431,8 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
 
       {/* Cancellation Modal */}
       {cancelModalSchedule && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-slide-up">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg bg-white sm:rounded-[2.5rem] rounded-t-[2.5rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-slide-up max-h-[90vh]">
             <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-rose-50/50">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -446,7 +446,7 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
               <button onClick={() => setCancelModalSchedule(null)} className="p-3 hover:bg-white rounded-2xl text-slate-400 transition-colors"><X className="w-6 h-6" /></button>
             </div>
 
-            <div className="p-8">
+            <div className="p-8 flex-1 overflow-y-auto custom-scrollbar">
               <div className="mb-4">
                 <p className="text-sm text-slate-600 mb-4 font-medium">Você está prestes a cancelar o agendamento <strong>{cancelModalSchedule.protocol}</strong>. Esta ação não poderá ser desfeita e o veículo será liberado para outros agendamentos.</p>
 

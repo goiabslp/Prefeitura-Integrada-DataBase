@@ -136,7 +136,7 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 );
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details'>('login');
+  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details' | 'tasks-dashboard' | 'purchase-inventory'>('login');
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
   const [appState, setAppState] = useState<AppState>(INITIAL_STATE);
   const [activeBlock, setActiveBlock] = useState<BlockType | null>(null);
@@ -752,7 +752,7 @@ const App: React.FC = () => {
     return { error };
   };
 
-  const handleFinish = async (skip2FA = false, digitalSignatureData?: { enabled: boolean, method: string, ip: string, date: string }, forceOficio = false, customDescription?: string): Promise<boolean> => {
+  const handleFinish = async (skip2FA = false, digitalSignatureData?: { enabled: boolean, method: string, ip: string, date: string, id: string }, forceOficio = false, customDescription?: string): Promise<boolean> => {
     if (!currentUser || !activeBlock) return false;
 
     // 2FA Interception Logic
@@ -859,8 +859,14 @@ const App: React.FC = () => {
 
       // Add digital signature if present
       if (digitalSignatureData) {
-        updatedSnapshot.content.digitalSignature = digitalSignatureData;
-        setAppState(prev => ({ ...prev, content: { ...prev.content, digitalSignature: digitalSignatureData } }));
+        updatedSnapshot.content.digitalSignature = { ...digitalSignatureData, id: digitalSignatureData.id || crypto.randomUUID() };
+        setAppState(prev => ({
+          ...prev,
+          content: {
+            ...prev.content,
+            digitalSignature: { ...digitalSignatureData, id: digitalSignatureData.id || crypto.randomUUID() }
+          }
+        }));
       }
 
       finalOrder = { ...editingOrder, title: appState.content.title, documentSnapshot: updatedSnapshot };
@@ -1018,8 +1024,14 @@ const App: React.FC = () => {
 
       // Add digital signature if present
       if (digitalSignatureData) {
-        finalSnapshot.content.digitalSignature = digitalSignatureData;
-        setAppState(prev => ({ ...prev, content: { ...prev.content, digitalSignature: digitalSignatureData } }));
+        finalSnapshot.content.digitalSignature = { ...digitalSignatureData, id: digitalSignatureData.id || crypto.randomUUID() };
+        setAppState(prev => ({
+          ...prev,
+          content: {
+            ...prev.content,
+            digitalSignature: { ...digitalSignatureData, id: digitalSignatureData.id || crypto.randomUUID() }
+          }
+        }));
       }
 
       finalOrder = {
@@ -1035,7 +1047,7 @@ const App: React.FC = () => {
         paymentStatus: activeBlock === 'diarias' ? 'pending' : undefined,
         statusHistory: activeBlock === 'compras' ? [{ statusLabel: 'Criação do Pedido', date: new Date().toISOString(), userName: currentUser.name }] : [],
         attachments: appState.content.attachments || [],
-        description: customDescription || appState.content.description
+        description: customDescription || appState.content.description || ''
       };
 
       if (activeBlock === 'compras') {
@@ -1334,7 +1346,7 @@ const App: React.FC = () => {
     }
 
     // LAZY LOAD DETAILS (Optimized Diarias)
-    if (order.blockType === 'diarias' && (!order.documentSnapshot?.content || Object.keys(order.documentSnapshot.content).length === 0)) {
+    if (order.blockType === 'diarias' && (!order.documentSnapshot?.content || !order.documentSnapshot.content.requestedValue)) {
       setIsLoadingDetails(true);
       try {
         const fetched = await diariasService.getServiceRequestById(order.id);
@@ -2042,12 +2054,12 @@ const App: React.FC = () => {
       const draftKey = `draft_${activeBlock}`;
       const hasDraft = localStorage.getItem(draftKey);
 
-      // If no protocol and no draft, or if we just want to be sure:
-      if (!appState.content.protocol && !hasDraft && activeBlock) {
+      // CRITICAL: Only auto-start if there is NO protocol AND NO editing order in progress
+      if (!appState.content.protocol && !hasDraft && activeBlock && !editingOrder) {
         handleStartEditing(activeBlock);
       }
     }
-  }, [currentView, activeBlock, currentUser, sectors.length]);
+  }, [currentView, activeBlock, currentUser, sectors.length, editingOrder]);
 
   // Ensure viewingStageIndex is synced when entering Licitação or changing stages
   useEffect(() => {
@@ -3069,12 +3081,13 @@ const App: React.FC = () => {
                 sectors={sectors}
                 onAddSchedule={async (s) => {
                   // Optimistic Update
-                  setSchedules(prev => [s, ...prev]);
+                  const optimistic = { ...s, id: Date.now().toString(), createdAt: new Date().toISOString() } as VehicleSchedule;
+                  setSchedules(prev => [optimistic, ...prev]);
                   try {
                     await vehicleSchedulingService.createSchedule(s);
                   } catch (e) {
                     console.error("Failed to create schedule", e);
-                    setSchedules(prev => prev.filter(x => x.id !== s.id));
+                    setSchedules(prev => prev.filter(x => x.id !== optimistic.id));
                     showToast("Erro ao agendar veículo.", "error");
                   }
                 }}
@@ -3196,7 +3209,6 @@ const App: React.FC = () => {
                 fuelTypes={fuelTypes}
                 sectors={sectors}
                 refreshTrigger={lastRefresh}
-                onFetchDetails={entityService.getVehicleById}
               />
             )}
 
@@ -3226,7 +3238,7 @@ const App: React.FC = () => {
                 currentUser={currentUser}
                 activeBlock={activeBlock}
                 orders={orders}
-                allUsers={users}
+
                 onDownloadPdf={(snapshot, forcedBlockType, order) => { const target = order || orders.find(o => o.documentSnapshot === snapshot); if (target) handleDownloadFromHistory(target, forcedBlockType, snapshot); }}
                 onClearAll={() => setOrders([])}
                 onEditOrder={handleEditOrder}

@@ -115,6 +115,7 @@ export interface ContentData {
   distanceKm?: number;
   requestedValue?: string;
   descriptionReason?: string;
+  description?: string; // Add description
   paymentForecast?: string;
   useDigitalSignature?: boolean;
   digitalSignature?: {
@@ -122,7 +123,7 @@ export interface ContentData {
     method: string;
     ip: string;
     date: string;
-    id: string;
+    id: string; // Add ID as required
   };
   signatures?: { name: string; role: string; sector: string; id?: string }[];
   licitacaoStages?: {
@@ -153,6 +154,7 @@ export interface AppState {
   document: DocumentConfig;
   content: ContentData;
   ui: UIConfig;
+  view?: string; // Add optional view property for compatibility
 }
 
 export type UserRole = 'admin' | 'collaborator' | 'licitacao' | 'compras';
@@ -227,7 +229,8 @@ export interface Order {
   description?: string;
   is_public?: boolean;
   assigned_user_id?: string;
-  priority?: 'Normal' | 'Média' | 'Alta' | 'Urgência';
+  priority?: 'Normal' | 'Média' | 'Alta' | 'Urgência' | 'normal'; // Allow lowercase 'normal' for back compatibility
+  updatedAt?: string; // Add updatedAt
 }
 
 export interface Person {

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Order } from '../types';
@@ -41,6 +41,23 @@ export const useServiceRequests = () => {
             return diariasService.getAllServiceRequests(true);
         },
         staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+};
+
+export const useInfiniteServiceRequests = (pageSize = 20) => {
+    return useInfiniteQuery({
+        queryKey: [...serviceRequestKeys.lists(), 'infinite'],
+        queryFn: async ({ pageParam = 0 }) => {
+            return diariasService.getAllServiceRequests(true, pageParam as number, pageSize);
+        },
+        getNextPageParam: (lastPage, allPages) => {
+            // If the last page has fewer items than pageSize, we've reached the end.
+            // Otherwise, the next page index is the current number of pages.
+            return lastPage.length === pageSize ? allPages.length : undefined;
+        },
+        initialPageParam: 0,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        refetchOnWindowFocus: false,
     });
 };
 

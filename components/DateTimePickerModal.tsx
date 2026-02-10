@@ -153,7 +153,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
 
             <div className={`
         relative w-full max-w-md ${mode === 'datetime' ? 'md:max-w-2xl' : 'md:max-w-md'} bg-white sm:rounded-[2.5rem] rounded-t-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-white/20
-        transform transition-all duration-300 ease-out
+        transform transition-all duration-300 ease-out h-full sm:h-auto max-h-[96vh]
         ${isClosing ? 'translate-y-full sm:scale-95 sm:opacity-0' : 'translate-y-0 sm:scale-100 sm:opacity-100'}
         animate-slide-up
       `}>

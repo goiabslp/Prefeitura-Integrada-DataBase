@@ -186,9 +186,11 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
     }, [isOpen, isMobile, disableMobileModal, forceDirection]);
 
     useEffect(() => {
-        if (isOpen && !isMobile && searchInputRef.current) {
+        if (isOpen && searchInputRef.current) {
             // Focus search input after a short delay to allow transition
-            setTimeout(() => searchInputRef.current?.focus(), 50);
+            setTimeout(() => {
+                searchInputRef.current?.focus();
+            }, 50);
         }
         if (!isOpen) {
             setSearchTerm('');

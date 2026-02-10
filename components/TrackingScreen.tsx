@@ -12,7 +12,7 @@ import { DocumentPreview } from './DocumentPreview';
 import { uploadFile } from '../services/storageService';
 import { useOficios, useOficio, useUpdateOficioDescription, useInfiniteOficios } from '../hooks/useOficios';
 import { usePurchaseOrders, usePurchaseOrder, useInfinitePurchaseOrders } from '../hooks/usePurchaseOrders';
-import { useServiceRequests, useServiceRequest } from '../hooks/useServiceRequests';
+import { useServiceRequests, useServiceRequest, useInfiniteServiceRequests } from '../hooks/useServiceRequests';
 
 const HashIcon = ({ className }: { className?: string }) => (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -65,7 +65,18 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     const isPurchaseError = false;
     const isInfiniteLoading = false;
 
-    const { data: serviceRequestsData } = useServiceRequests();
+    // const { data: serviceRequestsData } = useServiceRequests(); // Deprecated for infinite scroll
+    const {
+        data: infiniteServiceRequests,
+        fetchNextPage: fetchNextServiceRequests,
+        hasNextPage: hasNextServiceRequests,
+        isFetchingNextPage: isFetchingNextServiceRequests,
+        isLoading: isLoadingServiceRequests
+    } = useInfiniteServiceRequests(20);
+
+    const serviceRequestsData = React.useMemo(() => {
+        return infiniteServiceRequests?.pages.flatMap(page => page) || [];
+    }, [infiniteServiceRequests]);
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
     const [previewOrder, setPreviewOrder] = useState<Order | null>(null);
 
@@ -253,6 +264,14 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
             const updatedList = (attachmentManagerOrder.attachments || []).filter(a => a.id !== attachmentId);
             onUpdateAttachments?.(attachmentManagerOrder.id, updatedList);
             setAttachmentManagerOrder({ ...attachmentManagerOrder, attachments: updatedList });
+        }
+    };
+
+    const handleLoadMore = () => {
+        if (activeBlock === 'oficio' && hasNextOficios) {
+            fetchNextOficios();
+        } else if (activeBlock === 'diarias' && hasNextServiceRequests) {
+            fetchNextServiceRequests();
         }
     };
 
@@ -910,31 +929,27 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                         );
                                     })}
 
-                                    {/* Infinite Scroll Trigger */}
-                                    {/* Infinite Scroll Trigger for Compras (DISABLED for Global Sync) */}
-                                    {/* activeBlock === 'compras' logic removed to rely on global store passed via props */}
-
-
-                                    {/* Infinite Scroll Trigger for Oficios */}
-                                    {activeBlock === 'oficio' && (
+                                    {/* Infinite Scroll Trigger for Oficios & Diarias */}
+                                    {((activeBlock === 'oficio' && hasNextOficios) || (activeBlock === 'diarias' && hasNextServiceRequests)) && (
                                         <div ref={(node) => {
-                                            if (node && hasNextOficios && !isFetchingStrictOficios) {
+                                            if (node && ((activeBlock === 'oficio' && hasNextOficios && !isFetchingStrictOficios) || (activeBlock === 'diarias' && hasNextServiceRequests && !isFetchingNextServiceRequests))) {
                                                 const observer = new IntersectionObserver((entries) => {
-                                                    if (entries[0].isIntersecting) fetchNextOficios();
+                                                    if (entries[0].isIntersecting) {
+                                                        if (activeBlock === 'oficio') fetchNextOficios();
+                                                        if (activeBlock === 'diarias') fetchNextServiceRequests();
+                                                    }
                                                 });
                                                 observer.observe(node);
                                                 return () => observer.disconnect();
                                             }
                                         }} className="py-4 flex justify-center w-full">
-                                            {isFetchingStrictOficios ? (
+                                            {(activeBlock === 'oficio' ? isFetchingStrictOficios : isFetchingNextServiceRequests) ? (
                                                 <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
                                                     <Loader2 className="w-4 h-4 animate-spin" /> Carregando mais...
                                                 </div>
-                                            ) : hasNextOficios ? (
+                                            ) : (activeBlock === 'oficio' ? hasNextOficios : hasNextServiceRequests) ? (
                                                 <span className="text-slate-300 text-[10px] font-bold uppercase tracking-widest">Role para ver mais</span>
-                                            ) : (filteredOrders.length > 0 && (
-                                                <span className="text-slate-300 text-[10px] font-bold uppercase tracking-widest">Todos os registros carregados</span>
-                                            ))}
+                                            ) : null}
                                         </div>
                                     )}
                                 </div>
