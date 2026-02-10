@@ -1,6 +1,7 @@
 
 import { supabase } from './supabaseClient';
 import { Order } from '../types';
+import * as counterService from './counterService';
 
 export const getAllServiceRequests = async (lightweight = false, page = 0, pageSize = 20): Promise<Order[]> => {
     let query = supabase
@@ -87,23 +88,60 @@ export const getServiceRequestById = async (id: string): Promise<Order> => {
     };
 };
 
-export const saveServiceRequest = async (order: Order): Promise<void> => {
-    const dbOrder = {
-        id: order.id,
-        protocol: order.protocol,
-        title: order.title,
-        status: order.status,
-        payment_status: order.paymentStatus,
-        payment_date: order.paymentDate,
-        status_history: order.statusHistory,
-        created_at: order.createdAt,
-        user_id: order.userId,
-        user_name: order.userName,
-        document_snapshot: order.documentSnapshot
-    };
+export const saveServiceRequest = async (order: Order): Promise<Order> => {
+    let currentOrder = { ...order };
+    let attempts = 0;
+    const maxAttempts = 3;
 
-    const { error } = await supabase.from('service_requests').upsert(dbOrder);
-    if (error) throw error;
+    while (attempts < maxAttempts) {
+        const dbOrder = {
+            id: currentOrder.id,
+            protocol: currentOrder.protocol,
+            title: currentOrder.title,
+            status: currentOrder.status,
+            payment_status: currentOrder.paymentStatus,
+            payment_date: currentOrder.paymentDate,
+            status_history: currentOrder.statusHistory,
+            created_at: currentOrder.createdAt,
+            user_id: currentOrder.userId,
+            user_name: currentOrder.userName,
+            document_snapshot: currentOrder.documentSnapshot
+        };
+
+        const { error } = await supabase.from('service_requests').upsert(dbOrder);
+
+        if (!error) {
+            return currentOrder;
+        }
+
+        if (error.code === '23505') { // Unique violation
+            console.warn(`Duplicate protocol ${currentOrder.protocol} detected. Retrying... (Attempt ${attempts + 1}/${maxAttempts})`);
+            attempts++;
+
+            const year = new Date().getFullYear();
+            const newCount = await counterService.incrementDiariasProtocolCount(year);
+            const formattedNum = (newCount || 1).toString().padStart(3, '0');
+            const newProtocol = `DIA-${formattedNum}/${year}`;
+
+            currentOrder.protocol = newProtocol;
+
+            // Update documentSnapshot if it exists and has content
+            if (currentOrder.documentSnapshot && currentOrder.documentSnapshot.content) {
+                currentOrder.documentSnapshot = {
+                    ...currentOrder.documentSnapshot,
+                    content: {
+                        ...currentOrder.documentSnapshot.content,
+                        protocol: newProtocol,
+                        leftBlockText: `Solicitação Nº: ${newProtocol}`
+                    }
+                };
+            }
+        } else {
+            throw error;
+        }
+    }
+
+    throw new Error(`Failed to save service request after ${maxAttempts} attempts due to protocol uniqueness violations.`);
 };
 
 export const deleteServiceRequest = async (id: string): Promise<void> => {

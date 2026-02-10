@@ -205,6 +205,10 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
       try {
         let updatedSchedule = { ...schedule, status };
 
+        if (status === 'confirmado') {
+          updatedSchedule.authorizedByName = currentUserName;
+        }
+
         if (status === 'cancelado' && cancellationDetails) {
           updatedSchedule = {
             ...updatedSchedule,
@@ -214,8 +218,11 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
           };
         }
 
+        // Optimistic UI handled by parent's onUpdateSchedule
         await onUpdateSchedule(updatedSchedule);
-        showToast("Status atualizado com sucesso!", "success");
+        if (status === 'confirmado') showToast("Agendamento aprovado!", "success");
+        else if (status === 'cancelado') showToast("Agendamento rejeitado/cancelado.", "success");
+        else showToast("Status atualizado com sucesso!", "success");
       } catch (error) {
         showToast("Erro ao atualizar status.", "error");
       }
@@ -579,8 +586,8 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
           vehicles={vehicles}
           persons={persons}
           sectors={sectors}
-          onApprove={(s) => onUpdateSchedule({ ...s, status: 'confirmado', authorizedByName: currentUserName })}
-          onReject={(s) => onUpdateSchedule({ ...s, status: 'cancelado' })}
+          onApprove={(s) => onUpdateStatusSchedule(s.id, 'confirmado')}
+          onReject={(s) => onUpdateStatusSchedule(s.id, 'cancelado', { reason: 'Rejeitado por Gestor', cancelledBy: currentUserName || 'Gestor' })}
           onBack={() => handleSubViewChange('menu')}
           currentUserId={currentUserId}
           currentUserPersonId={currentUserPersonId}

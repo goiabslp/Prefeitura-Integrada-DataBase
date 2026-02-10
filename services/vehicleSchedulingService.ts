@@ -236,6 +236,10 @@ export const updateSchedule = async (schedule: VehicleSchedule): Promise<Vehicle
         cancelledBy: data.cancelled_by
     };
 
+    if (data.status) {
+        await notifyRequester(data.id, data.status as ScheduleStatus);
+    }
+
     return result;
 };
 

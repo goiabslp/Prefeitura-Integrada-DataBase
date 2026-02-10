@@ -1145,7 +1145,25 @@ const App: React.FC = () => {
         setServiceRequests(prev => [finalOrder, ...prev]);
         setOrders(prev => [finalOrder, ...prev]);
         try {
-          await diariasService.saveServiceRequest(finalOrder);
+          const savedOrder = await diariasService.saveServiceRequest(finalOrder);
+
+          // Update state if protocol was changed during save (retry logic)
+          if (savedOrder.protocol !== finalOrder.protocol) {
+            setServiceRequests(prev => prev.map(o => o.id === savedOrder.id ? savedOrder : o));
+            setOrders(prev => prev.map(o => o.id === savedOrder.id ? savedOrder : o));
+
+            // Update current app state protocol if we are still editing/viewing this order
+            if (appState.content.protocol === finalOrder.protocol) {
+              setAppState(prev => ({
+                ...prev,
+                content: {
+                  ...prev.content,
+                  protocol: savedOrder.protocol,
+                  leftBlockText: `Solicitação Nº: ${savedOrder.protocol}`
+                }
+              }));
+            }
+          }
         } catch (err) {
           setServiceRequests(prev => prev.filter(o => o.id !== finalOrder.id));
           setOrders(prev => prev.filter(o => o.id !== finalOrder.id));
@@ -3098,7 +3116,9 @@ const App: React.FC = () => {
 
                   try {
                     const result = await vehicleSchedulingService.updateSchedule(s);
-                    if (!result) throw new Error('Update returned null');
+                    if (!result) throw new Error('Update failed');
+                    // Ensure the state reflects any server-side defaults/changes
+                    setSchedules(prev => prev.map(old => old.id === result.id ? result : old));
                   } catch (e) {
                     console.error("Failed to update schedule", e);
                     setSchedules(previousSchedules); // Rollback
@@ -3107,8 +3127,18 @@ const App: React.FC = () => {
                 }}
                 onDeleteSchedule={async (id) => {
                   // Optimistic Delete
+                  const previousSchedules = [...schedules];
                   setSchedules(prev => prev.filter(s => s.id !== id));
-                  await vehicleSchedulingService.deleteSchedule(id);
+                  
+                  try {
+                    const success = await vehicleSchedulingService.deleteSchedule(id);
+                    if (!success) throw new Error('Delete failed');
+                    showToast("Agendamento excluído.", "success");
+                  } catch (e) {
+                    console.error("Failed to delete schedule", e);
+                    setSchedules(previousSchedules); // Rollback
+                    showToast("Erro ao excluir agendamento.", "error");
+                  }
                 }}
                 onBack={() => {
                   setCurrentView('home');
