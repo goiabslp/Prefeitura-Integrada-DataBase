@@ -19,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
     loading: true,
     signIn: async () => ({ error: 'Not implemented' }),
     signOut: async () => { },
+    refreshUser: async () => { },
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -86,7 +87,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     twoFactorEnabled: data.two_factor_enabled,
                     twoFactorSecret: data.two_factor_secret,
                     twoFactorEnabled2: data.two_factor_enabled_2,
-                    twoFactorSecret2: data.two_factor_secret_2
+                    twoFactorSecret2: data.two_factor_secret_2,
+                    mustChangePassword: data.must_change_password
                 };
                 setUser(appUser);
 

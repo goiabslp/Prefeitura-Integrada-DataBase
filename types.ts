@@ -169,6 +169,7 @@ export interface User {
   password?: string;
   tempPassword?: string;
   tempPasswordExpiresAt?: number;
+  mustChangePassword?: boolean;
   name: string;
   role: UserRole;
   sector?: string;

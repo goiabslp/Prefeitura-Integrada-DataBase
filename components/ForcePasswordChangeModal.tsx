@@ -54,7 +54,8 @@ export const ForcePasswordChangeModal: React.FC<ForcePasswordChangeModalProps> =
                 .from('profiles')
                 .update({
                     temp_password: null,
-                    temp_password_expires_at: null
+                    temp_password_expires_at: null,
+                    must_change_password: false
                 })
                 .eq('id', currentUser.id);
 

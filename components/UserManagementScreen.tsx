@@ -239,11 +239,13 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
         const updatedUser = {
           ...editingUser,
           tempPassword: newPass,
-          tempPasswordExpiresAt: expiry
+          tempPasswordExpiresAt: expiry,
+          password: newPass, // Pass explicitly to trigger RPC update
+          mustChangePassword: true // Enforce password change
         } as User;
 
         onUpdateUser(updatedUser);
-        setFormData(prev => ({ ...prev, tempPassword: newPass, tempPasswordExpiresAt: expiry }));
+        setFormData(prev => ({ ...prev, tempPassword: newPass, tempPasswordExpiresAt: expiry, mustChangePassword: true }));
         setCopied(false);
         setConfirmModal({ ...confirmModal, isOpen: false });
         showToast("Senha temporária gerada!");

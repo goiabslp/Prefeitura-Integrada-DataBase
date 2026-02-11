@@ -2144,6 +2144,7 @@ const App: React.FC = () => {
       permissions: u.permissions,
       temp_password: u.tempPassword,
       temp_password_expires_at: u.tempPasswordExpiresAt,
+      must_change_password: u.mustChangePassword,
       two_factor_enabled: u.twoFactorEnabled,
       two_factor_secret: u.twoFactorSecret,
       two_factor_enabled_2: u.twoFactorEnabled2,
@@ -2151,12 +2152,17 @@ const App: React.FC = () => {
     }).eq('id', u.id);
 
     if (u.password) {
-      await supabase.rpc('update_user_password', { user_id: u.id, new_password: u.password });
+      const { error: rpcError } = await supabase.rpc('update_user_password', { user_id: u.id, new_password: u.password });
+      if (rpcError) {
+        console.error("Error updating password via RPC:", rpcError);
+        alert("Erro ao atualizar senha no sistema de autenticação: " + rpcError.message);
+        return; // Stop execution if auth update fails
+      }
     }
 
     if (error) {
-      console.error("Error updating user:", error);
-      alert("Erro ao atualizar: " + error.message);
+      console.error("Error updating user profile:", error);
+      alert("Erro ao atualizar perfil: " + error.message);
     } else {
       setUsers(p => p.map(us => us.id === u.id ? u : us));
       if (currentUser && currentUser.id === u.id) {
@@ -2167,7 +2173,7 @@ const App: React.FC = () => {
 
   if (currentView === 'login') return <LoginScreen onLogin={handleLogin} uiConfig={appState.ui} />;
 
-  if (currentUser && currentUser.tempPassword) {
+  if (currentUser && (currentUser.tempPassword || currentUser.mustChangePassword)) {
     return (
       <ForcePasswordChangeModal
         currentUser={currentUser}
@@ -3129,7 +3135,7 @@ const App: React.FC = () => {
                   // Optimistic Delete
                   const previousSchedules = [...schedules];
                   setSchedules(prev => prev.filter(s => s.id !== id));
-                  
+
                   try {
                     const success = await vehicleSchedulingService.deleteSchedule(id);
                     if (!success) throw new Error('Delete failed');
