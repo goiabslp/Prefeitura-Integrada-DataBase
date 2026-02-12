@@ -1,81 +1,173 @@
 import React, { useMemo } from 'react';
 import { AppState } from '../types';
 import { PageWrapper } from './PageWrapper';
+import { X } from 'lucide-react';
 
 interface OficioPreviewProps {
   state: AppState;
   isGenerating: boolean;
+  onRemoveImage?: (id: string) => void;
 }
 
-export const OficioPreview: React.FC<OficioPreviewProps> = ({ state, isGenerating }) => {
+export const OficioPreview: React.FC<OficioPreviewProps> = ({ state, isGenerating, onRemoveImage }) => {
   const { branding, document: docConfig, content } = state;
 
   const pages = useMemo(() => {
     // Calibração para folha A4 com fonte 11pt e entrelinha 1.5
-    const CHARS_PER_LINE = 85;
-    const SECURITY_MARGIN_LINES = 3; // LIMITE DE 03 LINHAS ANTES DO RODAPÉ
+    // CHARS_PER_LINE used only for pagination estimation now
+    const CHARS_PER_LINE = 90;
+    const SECURITY_MARGIN_LINES = 3;
     const TOTAL_LINES_CAPACITY = 40;
+    const IMAGE_LINES_ALLOWANCE = 12;
 
     const LIMIT_NORMAL = TOTAL_LINES_CAPACITY - SECURITY_MARGIN_LINES;
-    const LIMIT_FIRST_PAGE = 24; // Espaço reduzido na primeira página devido ao cabeçalho/blocos
+    const LIMIT_FIRST_PAGE = 24;
 
-    const paragraphs = content.body.split('\n');
+    // Regex to split by image tokens
+    const parts = content.body.split(/{{(IMG::\d+)}}/g);
 
-    const resultPages: string[] = [];
-    let currentPageText = '';
+    const resultPages: React.ReactNode[][] = [];
+    let currentPageBlocks: React.ReactNode[] = [];
     let currentLinesUsed = 0;
     let isFirstPage = true;
 
     const getLimit = () => isFirstPage ? LIMIT_FIRST_PAGE : LIMIT_NORMAL;
 
-    paragraphs.forEach((paragraph) => {
-      const text = paragraph.trim();
+    const formatText = (text: string) => {
+      if (!text) return '\u00A0';
 
+      const parts = text.split(/(<\/?(?:b|strong|i|em|u)>)/g);
+
+      let isBold = false;
+      let isItalic = false;
+      let isUnderline = false;
+
+      return parts.map((part, index) => {
+        if (part === '<b>' || part === '<strong>') { isBold = true; return null; }
+        if (part === '</b>' || part === '</strong>') { isBold = false; return null; }
+        if (part === '<i>' || part === '<em>') { isItalic = true; return null; }
+        if (part === '</i>' || part === '</em>') { isItalic = false; return null; }
+        if (part === '<u>') { isUnderline = true; return null; }
+        if (part === '</u>') { isUnderline = false; return null; }
+        if (part === '') return null;
+
+        return (
+          <span key={index} className={`
+            ${isBold ? 'font-bold' : ''}
+            ${isItalic ? 'italic' : ''}
+            ${isUnderline ? 'underline' : ''}
+          `}>
+            {part}
+          </span>
+        );
+      });
+    };
+
+    const nextPage = () => {
+      resultPages.push(currentPageBlocks);
+      currentPageBlocks = [];
+      currentLinesUsed = 0;
+      isFirstPage = false;
+    };
+
+    // Helper: Push a block of text (paragraph)
+    const pushParagraph = (text: string) => {
       if (!text) {
+        // Empty line
         if (currentLinesUsed + 1 > getLimit()) {
-          resultPages.push(currentPageText.trim());
-          currentPageText = '\n';
-          currentLinesUsed = 1;
-          isFirstPage = false;
-        } else {
-          currentPageText += '\n';
-          currentLinesUsed += 1;
+          nextPage();
         }
+        currentPageBlocks.push(<div key={`empty-${Math.random()}`} className="min-h-[1.5em]">{'\u00A0'}</div>);
+        currentLinesUsed += 1;
         return;
       }
 
-      const linesInParagraph = Math.max(1, Math.ceil(text.length / CHARS_PER_LINE));
+      // Estimate lines
+      const estLines = Math.ceil(text.length / CHARS_PER_LINE) || 1;
       const limit = getLimit();
+      const remaining = limit - currentLinesUsed;
 
-      if ((currentLinesUsed + linesInParagraph) <= limit) {
-        currentPageText += text + '\n';
-        currentLinesUsed += linesInParagraph;
+      if (estLines <= remaining) {
+        // Fits entirely
+        currentPageBlocks.push(
+          <div key={`p-${Math.random()}`} className="w-full text-justify mb-0 whitespace-normal leading-relaxed">
+            {formatText(text)}
+          </div>
+        );
+        currentLinesUsed += estLines;
       } else {
-        const availableLines = limit - currentLinesUsed;
+        // Needs split
+        let splitIndex = remaining * CHARS_PER_LINE;
+        if (splitIndex > text.length) splitIndex = text.length;
 
-        if (availableLines <= 2) {
-          resultPages.push(currentPageText.trim());
-          currentPageText = text + '\n';
-          currentLinesUsed = linesInParagraph;
-          isFirstPage = false;
-        } else {
-          const charsFit = availableLines * CHARS_PER_LINE;
-          const part1 = text.substring(0, charsFit);
-          const part2 = text.substring(charsFit);
+        // Backtrack to space
+        const safeSplit = text.lastIndexOf(' ', splitIndex);
+        const cutoff = (safeSplit > 0) ? safeSplit : splitIndex;
 
-          currentPageText += part1;
-          resultPages.push(currentPageText.trim());
+        const firstPart = text.substring(0, cutoff);
+        const restPart = text.substring(cutoff + 1);
 
-          currentPageText = part2 + '\n';
-          currentLinesUsed = Math.ceil(part2.length / CHARS_PER_LINE);
-          isFirstPage = false;
-        }
+        currentPageBlocks.push(
+          <div key={`p-split-${Math.random()}`} className="w-full text-justify mb-0 whitespace-normal leading-relaxed">
+            {formatText(firstPart)}
+          </div>
+        );
+        currentLinesUsed += remaining;
+
+        nextPage();
+        pushParagraph(restPart);
+      }
+    };
+
+    const pushImage = (imageId: string) => {
+      const imgData = content.images?.find(i => i.id === imageId);
+      if (!imgData) return;
+
+      if (currentLinesUsed + IMAGE_LINES_ALLOWANCE > getLimit()) {
+        nextPage();
+      }
+
+      currentPageBlocks.push(
+        <div key={`img-${imageId}`} className="relative w-full flex justify-center my-4 group">
+          <div className="relative inline-block">
+            <img
+              src={imgData.url}
+              alt="Anexo"
+              className="max-w-full h-auto max-h-[300px] object-contain rounded-sm border border-black shadow-sm transition-all"
+              style={{ width: imgData.width ? `${imgData.width}px` : 'auto' }}
+            />
+            {!isGenerating && onRemoveImage && (
+              <button
+                onClick={() => onRemoveImage(imageId)}
+                className="absolute -top-3 -right-3 bg-red-500 text-white p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 print:hidden"
+                title="Remover Imagem"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      );
+      currentLinesUsed += IMAGE_LINES_ALLOWANCE;
+    };
+
+    parts.forEach((part) => {
+      if (part.startsWith('IMG::')) {
+        const imageId = part.replace('IMG::', '');
+        pushImage(imageId);
+      } else {
+        const paragraphs = part.split('\n');
+        paragraphs.forEach((paragraph) => {
+          pushParagraph(paragraph);
+        });
       }
     });
 
-    if (currentPageText) resultPages.push(currentPageText.trim());
+    if (currentPageBlocks.length > 0) resultPages.push(currentPageBlocks);
+    if (resultPages.length === 0) resultPages.push([]);
+
     return resultPages;
-  }, [content.body]);
+  }, [content.body, content.images, isGenerating]);
 
   return (
     <>

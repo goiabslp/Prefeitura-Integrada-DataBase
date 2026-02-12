@@ -13,6 +13,7 @@ interface DocumentPreviewProps {
   blockType?: BlockType | null;
   customId?: string;
   scale?: number;
+  onRemoveImage?: (id: string) => void;
 }
 
 export const DocumentPreview = forwardRef<HTMLDivElement, DocumentPreviewProps>(({
@@ -21,7 +22,8 @@ export const DocumentPreview = forwardRef<HTMLDivElement, DocumentPreviewProps>(
   mode = 'editor',
   blockType,
   customId = "preview-scaler",
-  scale
+  scale,
+  onRemoveImage
 }, ref) => {
 
   // Decide qual componente de visualização renderizar
@@ -44,7 +46,7 @@ export const DocumentPreview = forwardRef<HTMLDivElement, DocumentPreviewProps>(
         return <LicitacaoPreview state={state} isGenerating={isGenerating} />;
       case 'oficio':
       default:
-        return <OficioPreview state={state} isGenerating={isGenerating} />;
+        return <OficioPreview state={state} isGenerating={isGenerating} onRemoveImage={onRemoveImage} />;
     }
   };
 

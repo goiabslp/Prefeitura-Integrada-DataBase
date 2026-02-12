@@ -1627,6 +1627,22 @@ const App: React.FC = () => {
     setOrders(updatedOrders);
   };
 
+  const handleRemoveImage = (imageId: string) => {
+    setAppState(prev => {
+      const newImages = prev.content.images?.filter(img => img.id !== imageId) || [];
+      const token = `{{IMG::${imageId}}}`;
+      const newBody = prev.content.body.split(token).join('');
+      return {
+        ...prev,
+        content: {
+          ...prev.content,
+          images: newImages,
+          body: newBody
+        }
+      };
+    });
+  };
+
   const handleUpdatePaymentStatus = async (orderId: string, status: 'pending' | 'paid') => {
     const orderToUpdate = orders.find(o => o.id === orderId);
     if (!orderToUpdate) return;
@@ -2902,7 +2918,7 @@ const App: React.FC = () => {
                       <SystemAccessControl onBack={() => setAdminTab(null)} />
                     ) : (
                       <div className={activeBlock === 'compras' && currentView === 'editor' ? 'fixed left-[-9999px] top-0 pointer-events-none opacity-0' : 'w-full h-full'}>
-                        <DocumentPreview ref={componentRef} state={appState} isGenerating={isDownloading} mode={currentView === 'admin' ? 'admin' : 'editor'} blockType={activeBlock} />
+                        <DocumentPreview ref={componentRef} state={appState} isGenerating={isDownloading} mode={currentView === 'admin' ? 'admin' : 'editor'} blockType={activeBlock} onRemoveImage={handleRemoveImage} />
                       </div>
                     )}
 

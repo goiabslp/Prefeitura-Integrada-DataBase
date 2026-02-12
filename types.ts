@@ -138,6 +138,14 @@ export interface ContentData {
   licitacaoActiveDraft?: { body: string; signatureName?: string; signatureRole?: string; signatureSector?: string; signatures?: { name: string; role: string; sector: string; id?: string }[] };
   currentStageIndex?: number;
   viewingStageIndex?: number;
+  images?: {
+    id: string;
+    url: string;
+    width?: number;
+    height?: number;
+    display_width?: number; // % or px
+    align?: 'left' | 'center' | 'right';
+  }[];
   attachments?: Attachment[];
 }
 
