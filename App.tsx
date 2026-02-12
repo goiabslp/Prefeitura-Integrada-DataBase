@@ -57,6 +57,7 @@ import { TwoFactorAuthScreen } from './components/TwoFactorAuthScreen';
 import { TwoFactorModal } from './components/TwoFactorModal';
 import { OficioNumberingModal } from './components/modals/OficioNumberingModal';
 import { ProcessStepper } from './components/common/ProcessStepper';
+import { ActionProcessingModal, ProcessingStage } from './components/modals/ActionProcessingModal';
 import { LicitacaoScreeningScreen } from './components/LicitacaoScreeningScreen';
 import { SystemAccessControl } from './components/admin/SystemAccessControl';
 import { GlobalLoading } from './components/common/GlobalLoading';
@@ -241,6 +242,18 @@ const App: React.FC = () => {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false); // New state for lazy loading
   const [successOverlay, setSuccessOverlay] = useState<{ show: boolean, protocol: string } | null>(null);
   const [lastRefresh, setLastRefresh] = useState(0);
+  const [actionProcessing, setActionProcessing] = useState<{
+    isOpen: boolean;
+    stage: ProcessingStage;
+  }>({
+    isOpen: false,
+    stage: 'sending'
+  });
+
+  const advanceActionStep = async (stage: ProcessingStage, delay = 1000) => {
+    setActionProcessing(prev => ({ ...prev, stage }));
+    await new Promise(resolve => setTimeout(resolve, delay));
+  };
 
   const handleSaveGlobalSettings = async () => {
     try {
@@ -1265,6 +1278,14 @@ const App: React.FC = () => {
     const prevOficios = oficios;
 
     // 2. Optimistic Update
+    const isPurchaseAction = activeBlock === 'compras';
+
+    if (isPurchaseAction) {
+      setActionProcessing({ isOpen: true, stage: 'sending' });
+      await new Promise(resolve => setTimeout(resolve, 800));
+      await advanceActionStep('validating', 1200);
+    }
+
     setOrders(p => p.filter(o => o.id !== id));
     if (activeBlock === 'compras') {
       // Derived state updates automatically
@@ -1274,6 +1295,9 @@ const App: React.FC = () => {
     else setOficios(p => p.filter(o => o.id !== id));
 
     try {
+      if (isPurchaseAction) {
+        await advanceActionStep('confirming', 1500);
+      }
       // 3. API Call
       if (activeBlock === 'compras') {
         await comprasService.deletePurchaseOrder(id);
@@ -1286,6 +1310,11 @@ const App: React.FC = () => {
       }
       showToast("Item excluído com sucesso", "success");
       syncOrders(activeBlock || 'oficio');
+
+      if (isPurchaseAction) {
+        await advanceActionStep('success', 1500);
+        setActionProcessing(prev => ({ ...prev, isOpen: false }));
+      }
     } catch (error) {
       console.error("Error deleting order:", error);
       // 4. Rollback on Error
@@ -1298,6 +1327,9 @@ const App: React.FC = () => {
       showToast("Erro ao excluir item. As alterações foram desfeitas.", "error");
     } finally {
       setIsDeleting(null);
+      if (isPurchaseAction) {
+        setActionProcessing(prev => ({ ...prev, isOpen: false }));
+      }
     }
   };
 
@@ -1515,6 +1547,15 @@ const App: React.FC = () => {
     // 3. Optimistic Update (Immediate UI Refresh)
     const updateList = (list: Order[]) => list.map(o => o.id === updatedOrder.id ? updatedOrder : o);
 
+    // If it's a purchase action, show the rich modal
+    const isPurchaseAction = updatedOrder.blockType === 'compras';
+
+    if (isPurchaseAction) {
+      setActionProcessing({ isOpen: true, stage: 'sending' });
+      await new Promise(resolve => setTimeout(resolve, 800));
+      await advanceActionStep('validating', 1200);
+    }
+
     setOrders(updateList);
     if (updatedOrder.blockType === 'compras') { /* Derived */ }
     else if (updatedOrder.blockType === 'diarias') setServiceRequests(updateList);
@@ -1522,6 +1563,9 @@ const App: React.FC = () => {
     else setOficios(updateList);
 
     try {
+      if (isPurchaseAction) {
+        await advanceActionStep('confirming', 1500);
+      }
       // 4. API Sync
       if (updatedOrder.blockType === 'compras') {
         await comprasService.savePurchaseOrder(updatedOrder);
@@ -1534,6 +1578,11 @@ const App: React.FC = () => {
       }
       showToast(status === 'approved' ? "Pedido Aprovado" : "Pedido Rejeitado", "success");
       syncOrders(updatedOrder.blockType);
+
+      if (isPurchaseAction) {
+        await advanceActionStep('success', 1500);
+        setActionProcessing(prev => ({ ...prev, isOpen: false }));
+      }
     } catch (error: any) {
       // 5. Rollback
       console.error("Failed to update status:", error);
@@ -1545,6 +1594,10 @@ const App: React.FC = () => {
       else setOficios(prevSpecificList);
 
       showToast("Erro ao atualizar status. As alterações foram desfeitas.", "error");
+    } finally {
+      if (isPurchaseAction) {
+        setActionProcessing(prev => ({ ...prev, isOpen: false }));
+      }
     }
   };
 
@@ -1575,20 +1628,30 @@ const App: React.FC = () => {
 
     // 3. Optimistic Update
     const updateList = (list: Order[]) => list.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+
+    setActionProcessing({ isOpen: true, stage: 'sending' });
+    await new Promise(resolve => setTimeout(resolve, 800));
+    await advanceActionStep('validating', 1200);
+
     setOrders(updateList);
     // setPurchaseOrders(updateList); // Removed derived setter
 
     try {
-      // 4. API Sync
+      await advanceActionStep('confirming', 1500);
       await comprasService.updatePurchaseStatus(orderId, purchaseStatus as string, newMovement, budgetFileUrl);
       showToast("Status de compra atualizado!", "success");
       syncOrders('compras');
+
+      await advanceActionStep('success', 1500);
+      setActionProcessing(prev => ({ ...prev, isOpen: false }));
     } catch (error: any) {
       // 5. Rollback
       console.error("Failed to update purchase status:", error);
       setOrders(prevOrders);
       // setPurchaseOrders(prevPurchaseOrders); // Removed derived rollback
       showToast("Erro ao atualizar status de compra: " + (error.message || "Unknown"), "error");
+    } finally {
+      setActionProcessing(prev => ({ ...prev, isOpen: false }));
     }
   };
 
@@ -3462,12 +3525,16 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* GLOBAL LOADING MODAL */}
       <GlobalLoading
         type="overlay"
         isOpen={purchaseLoadingState.isLoading}
         message={purchaseLoadingState.title}
         description={purchaseLoadingState.message}
+      />
+
+      <ActionProcessingModal
+        isOpen={actionProcessing.isOpen}
+        stage={actionProcessing.stage}
       />
     </NotificationProvider >
   );
