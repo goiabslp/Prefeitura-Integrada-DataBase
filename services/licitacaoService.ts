@@ -2,13 +2,23 @@
 import { supabase } from './supabaseClient';
 import { Order } from '../types';
 
-export const getAllLicitacaoProcesses = async (): Promise<Order[]> => {
-    const { data, error } = await supabase
+export const getAllLicitacaoProcesses = async (lightweight = true, page = 0, limit = 50): Promise<Order[]> => {
+    const columns = lightweight
+        ? 'id, protocol, title, status, stage, requesting_sector, created_at, user_id, user_name'
+        : '*';
+
+    let query = supabase
         .from('licitacao_processes')
-        .select(`
-            id, protocol, title, status, status_history, created_at, user_id, user_name
-        `)
+        .select(columns)
         .order('created_at', { ascending: false });
+
+    if (lightweight) {
+        const from = page * limit;
+        const to = from + limit - 1;
+        query = query.range(from, to);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
         console.error('Error fetching licitacao processes:', error);
@@ -20,15 +30,79 @@ export const getAllLicitacaoProcesses = async (): Promise<Order[]> => {
         protocol: item.protocol,
         title: item.title,
         status: item.status,
-        stage: item.stage, // Custom field for Licitacao
-        requestingSector: item.requesting_sector, // Custom field for Licitacao
+        stage: item.stage,
+        requestingSector: item.requesting_sector,
         createdAt: item.created_at,
         userId: item.user_id,
         userName: item.user_name,
         blockType: 'licitacao',
-        documentSnapshot: item.document_snapshot,
-        statusHistory: item.status_history || [] // Assuming we might want history later
+        documentSnapshot: lightweight ? {
+            branding: {
+                logoUrl: null,
+                primaryColor: '#4f46e5',
+                secondaryColor: '#0f172a',
+                fontFamily: 'font-sans' as any,
+                logoWidth: 76,
+                logoAlignment: 'left' as any,
+                watermark: {
+                    enabled: false,
+                    imageUrl: null,
+                    opacity: 20,
+                    size: 55,
+                    grayscale: true
+                }
+            },
+            document: {
+                headerText: '',
+                footerText: '',
+                city: '',
+                showDate: true,
+                showPageNumbers: true,
+                showSignature: false,
+                showLeftBlock: true,
+                showRightBlock: true,
+                titleStyle: { size: 12, color: '#000000', alignment: 'left' as any },
+                leftBlockStyle: { size: 10, color: '#000000' },
+                rightBlockStyle: { size: 10, color: '#000000' }
+            },
+            ui: {
+                loginLogoUrl: null,
+                loginLogoHeight: 80,
+                headerLogoUrl: null,
+                headerLogoHeight: 40,
+                homeLogoPosition: 'left' as any
+            },
+            content: {
+                requesterSector: item.requesting_sector
+            }
+        } as any : item.document_snapshot,
+        statusHistory: item.status_history || []
     }));
+};
+
+export const getLicitacaoProcessById = async (id: string): Promise<Order> => {
+    const { data, error } = await supabase
+        .from('licitacao_processes')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (error) throw error;
+
+    return {
+        id: data.id,
+        protocol: data.protocol,
+        title: data.title,
+        status: data.status,
+        stage: data.stage,
+        requestingSector: data.requesting_sector,
+        createdAt: data.created_at,
+        userId: data.user_id,
+        userName: data.user_name,
+        blockType: 'licitacao',
+        documentSnapshot: data.document_snapshot,
+        statusHistory: data.status_history || []
+    };
 };
 
 export const saveLicitacaoProcess = async (order: Order): Promise<void> => {

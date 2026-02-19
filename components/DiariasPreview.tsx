@@ -13,15 +13,15 @@ export const DiariasPreview: React.FC<DiariasPreviewProps> = ({ state, isGenerat
   const stateNoWatermark = {
     ...state,
     branding: {
-      ...(state.branding || {}),
+      ...state?.branding,
       watermark: {
-        ...(state.branding?.watermark || {}),
+        ...state?.branding?.watermark,
         enabled: false
       }
     }
   };
 
-  const { branding, document: docConfig, content } = state;
+  const { branding = {} as any, document: docConfig = {} as any, content = {} as any } = state || {};
 
   const pages = useMemo(() => {
     const result: { type: 'diaria-form' | 'extra-flow' | 'evidences'; content: any }[] = [{ type: 'diaria-form', content: '' }];

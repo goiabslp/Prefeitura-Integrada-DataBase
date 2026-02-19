@@ -2,10 +2,15 @@
 import { supabase } from './supabaseClient';
 import { Order } from '../types';
 
-export const getAllOficios = async (lightweight = false, page = 0, limit = 50): Promise<Order[]> => {
+export const getAllOficios = async (lightweight = true, page = 0, limit = 50): Promise<Order[]> => {
+    const columns = lightweight
+        ? `id, protocol, title, status, status_history, created_at, user_id, user_name, description,
+           requester_sector:document_snapshot->content->>requesterSector`
+        : '*';
+
     let query = supabase
         .from('oficios')
-        .select('*')
+        .select(columns)
         .order('created_at', { ascending: false });
 
     if (lightweight) {
@@ -30,9 +35,49 @@ export const getAllOficios = async (lightweight = false, page = 0, limit = 50): 
         createdAt: item.created_at,
         userId: item.user_id,
         userName: item.user_name,
-        blockType: 'oficio', // Explicitly set block type
-        documentSnapshot: item.document_snapshot,
-        description: item.description
+        blockType: 'oficio',
+        documentSnapshot: lightweight ? {
+            branding: {
+                logoUrl: null,
+                primaryColor: '#4f46e5',
+                secondaryColor: '#0f172a',
+                fontFamily: 'font-sans' as any,
+                logoWidth: 76,
+                logoAlignment: 'left' as any,
+                watermark: {
+                    enabled: false,
+                    imageUrl: null,
+                    opacity: 20,
+                    size: 55,
+                    grayscale: true
+                }
+            },
+            document: {
+                headerText: '',
+                footerText: '',
+                city: '',
+                showDate: true,
+                showPageNumbers: true,
+                showSignature: false,
+                showLeftBlock: true,
+                showRightBlock: true,
+                titleStyle: { size: 12, color: '#000000', alignment: 'left' as any },
+                leftBlockStyle: { size: 10, color: '#000000' },
+                rightBlockStyle: { size: 10, color: '#000000' }
+            },
+            ui: {
+                loginLogoUrl: null,
+                loginLogoHeight: 80,
+                headerLogoUrl: null,
+                headerLogoHeight: 40,
+                homeLogoPosition: 'left' as any
+            },
+            content: {
+                requesterSector: item.requester_sector
+            }
+        } as any : item.document_snapshot,
+        description: item.description,
+        requestingSector: item.requester_sector
     }));
 };
 

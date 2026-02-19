@@ -18,12 +18,13 @@ interface PurchaseManagementScreenProps {
   currentUser: UserType;
   orders: Order[];
   sectors: Sector[];
-  onDownloadPdf: (snapshot: AppState, blockType?: BlockType) => void;
+  onDownloadPdf: (snapshot: AppState, blockType?: BlockType, order?: Order) => void;
   onUpdateStatus: (orderId: string, status: Order['status'], justification?: string) => void;
   onUpdatePurchaseStatus?: (orderId: string, purchaseStatus: Order['purchaseStatus'], justification?: string, budgetFileUrl?: string) => void;
   onUpdateCompletionForecast?: (orderId: string, date: string) => void;
   onUpdateAttachments?: (orderId: string, attachments: Attachment[]) => void;
   onDeleteOrder: (id: string) => void;
+  onFetchOrderDetails?: (order: Order) => Promise<Order | null>;
 }
 
 export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> = ({
@@ -36,7 +37,8 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
   onUpdatePurchaseStatus,
   onUpdateCompletionForecast,
   onUpdateAttachments,
-  onDeleteOrder
+  onDeleteOrder,
+  onFetchOrderDetails
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<Order['status'] | 'all'>('pending');
@@ -51,6 +53,31 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
   const [budgetPreviewUrl, setBudgetPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  const handleLocalPreview = async (order: Order) => {
+    // Check if it's lightweight (skeleton has keys but lacks items)
+    const isLightweight = order.blockType === 'compras' && (!order.documentSnapshot?.content?.purchaseItems || order.documentSnapshot.content.purchaseItems.length === 0);
+
+    if (isLightweight && onFetchOrderDetails) {
+      setIsLoadingDetails(true);
+      try {
+        const fullOrder = await onFetchOrderDetails(order);
+        if (fullOrder) {
+          setPreviewOrder(fullOrder);
+        } else {
+          setPreviewOrder(order);
+        }
+      } catch (err) {
+        console.error("Local preview fetch error:", err);
+        setPreviewOrder(order);
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    } else {
+      setPreviewOrder(order);
+    }
+  };
 
   // Estados para modais de entrada (Substituindo Prompt/Confirm)
   const [rejectionModal, setRejectionModal] = useState<{ isOpen: boolean, orderId: string, reason: string }>({ isOpen: false, orderId: '', reason: '' });
@@ -234,7 +261,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
       color: 'emerald'
     },
     concluido: {
-      label: 'Concluído',
+      label: 'Concluido',
       description: 'Ciclo completo e atestado.',
       icon: CheckCircle,
       color: 'slate'
@@ -517,11 +544,11 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                           </>
                         )}
 
-                        <button onClick={() => setPreviewOrder(order)} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all" title="Visualizar">
-                          <Eye className="w-4 h-4" />
+                        <button onClick={() => handleLocalPreview(order)} disabled={isLoadingDetails} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all disabled:opacity-50" title="Visualizar">
+                          {isLoadingDetails && previewOrder?.id === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
                         </button>
 
-                        <button onClick={() => onDownloadPdf(order.documentSnapshot!, order.blockType)} disabled={downloadingId === order.id} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all" title="Baixar PDF">
+                        <button onClick={() => onDownloadPdf(order.documentSnapshot!, order.blockType, order)} disabled={downloadingId === order.id} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all" title="Baixar PDF">
                           {downloadingId === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
                         </button>
                       </div>

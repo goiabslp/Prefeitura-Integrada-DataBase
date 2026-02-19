@@ -5,11 +5,15 @@ import { notificationService } from './notificationService';
 
 import { handleSupabaseError } from '../utils/errorUtils';
 
-export const getAllPurchaseOrders = async (lightweight = false, page = 0, limit = 50): Promise<Order[]> => {
+export const getAllPurchaseOrders = async (lightweight = true, page = 0, limit = 50): Promise<Order[]> => {
     // Select specific columns to reduce payload
     // We join with profiles using user_id foreign key to get the sector name
     const columns = lightweight
-        ? 'id, protocol, title, status, purchase_status, status_history, created_at, user_id, user_name, completion_forecast, budget_file_url, profiles:user_id(sector)'
+        ? `id, protocol, title, status, purchase_status, status_history, created_at, user_id, user_name, completion_forecast, budget_file_url,
+           requester_name:document_snapshot->content->>requesterName,
+           requester_sector:document_snapshot->content->>requesterSector,
+           priority:document_snapshot->content->>priority,
+           profiles:user_id(sector)`
         : '*, profiles:user_id(sector)';
 
     let query = supabase
@@ -28,7 +32,7 @@ export const getAllPurchaseOrders = async (lightweight = false, page = 0, limit 
     if (error) {
         const appError = handleSupabaseError(error);
         console.error('[comprasService] Error:', appError.message);
-        throw appError; // Throw so useQuery can handle isError
+        throw appError;
     }
 
     return data.map((item: any) => ({
@@ -42,13 +46,52 @@ export const getAllPurchaseOrders = async (lightweight = false, page = 0, limit 
         userId: item.user_id,
         userName: item.user_name,
         blockType: 'compras',
-        documentSnapshot: item.document_snapshot, // Will be undefined if lightweight
+        documentSnapshot: lightweight ? {
+            branding: {
+                logoUrl: null,
+                primaryColor: '#4f46e5',
+                secondaryColor: '#0f172a',
+                fontFamily: 'font-sans' as any,
+                logoWidth: 76,
+                logoAlignment: 'left' as any,
+                watermark: {
+                    enabled: false,
+                    imageUrl: null,
+                    opacity: 20,
+                    size: 55,
+                    grayscale: true
+                }
+            },
+            document: {
+                headerText: '',
+                footerText: '',
+                city: '',
+                showDate: true,
+                showPageNumbers: true,
+                showSignature: false,
+                showLeftBlock: true,
+                showRightBlock: true,
+                titleStyle: { size: 12, color: '#000000', alignment: 'left' as any },
+                leftBlockStyle: { size: 10, color: '#000000' },
+                rightBlockStyle: { size: 10, color: '#000000' }
+            },
+            ui: {
+                loginLogoUrl: null,
+                loginLogoHeight: 80,
+                headerLogoUrl: null,
+                headerLogoHeight: 40,
+                homeLogoPosition: 'left' as any
+            },
+            content: {
+                requesterName: item.requester_name,
+                requesterSector: item.requester_sector || item.profiles?.sector,
+                priority: item.priority
+            }
+        } as any : item.document_snapshot,
         budgetFileUrl: item.budget_file_url,
         attachments: item.attachments,
         completionForecast: item.completion_forecast,
-        // Map the joined sector. Supabase returns it as an object or array depending on relation.
-        // Since user_id is FK to profiles.id (1:1 from order's perspective to user), it should be a single object.
-        requestingSector: item.profiles?.sector
+        requestingSector: item.requester_sector || item.profiles?.sector
     }));
 };
 

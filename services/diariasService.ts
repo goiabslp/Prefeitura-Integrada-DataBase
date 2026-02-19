@@ -3,13 +3,13 @@ import { supabase } from './supabaseClient';
 import { Order } from '../types';
 import * as counterService from './counterService';
 
-export const getAllServiceRequests = async (lightweight = false, page = 0, pageSize = 20): Promise<Order[]> => {
+export const getAllServiceRequests = async (lightweight = true, page = 0, pageSize = 20): Promise<Order[]> => {
     let query = supabase
         .from('service_requests')
         .select(`
             id, protocol, title, status, status_history, created_at, user_id, user_name, payment_status, payment_date
             ${lightweight
-                ? ', requester_name:document_snapshot->content->>requesterName, destination:document_snapshot->content->>destination, departure_date:document_snapshot->content->>departureDateTime, return_date:document_snapshot->content->>returnDateTime, requester_sector:document_snapshot->content->>requesterSector, sub_type:document_snapshot->content->>subType'
+                ? ', requester_name:document_snapshot->content->>requesterName, destination:document_snapshot->content->>destination, departure_date:document_snapshot->content->>departureDateTime, return_date:document_snapshot->content->>returnDateTime, requester_sector:document_snapshot->content->>requesterSector, sub_type:document_snapshot->content->>subType, priority:document_snapshot->content->>priority'
                 : ', document_snapshot'}
         `)
         .order('created_at', { ascending: false });
@@ -40,9 +40,41 @@ export const getAllServiceRequests = async (lightweight = false, page = 0, pageS
         userName: item.user_name,
         blockType: 'diarias',
         documentSnapshot: lightweight ? {
-            branding: {} as any,
-            document: {} as any,
-            ui: {} as any,
+            branding: {
+                logoUrl: null,
+                primaryColor: '#4f46e5',
+                secondaryColor: '#0f172a',
+                fontFamily: 'font-sans' as any,
+                logoWidth: 76,
+                logoAlignment: 'left' as any,
+                watermark: {
+                    enabled: false,
+                    imageUrl: null,
+                    opacity: 20,
+                    size: 55,
+                    grayscale: true
+                }
+            },
+            document: {
+                headerText: '',
+                footerText: '',
+                city: '',
+                showDate: true,
+                showPageNumbers: true,
+                showSignature: false,
+                showLeftBlock: true,
+                showRightBlock: true,
+                titleStyle: { size: 12, color: '#000000', alignment: 'left' as any },
+                leftBlockStyle: { size: 10, color: '#000000' },
+                rightBlockStyle: { size: 10, color: '#000000' }
+            },
+            ui: {
+                loginLogoUrl: null,
+                loginLogoHeight: 80,
+                headerLogoUrl: null,
+                headerLogoHeight: 40,
+                homeLogoPosition: 'left' as any
+            },
             content: {
                 title: item.title,
                 protocol: item.protocol, // CRITICAL: Include protocol in document content
@@ -57,7 +89,8 @@ export const getAllServiceRequests = async (lightweight = false, page = 0, pageS
                 destination: item.destination,
                 departureDateTime: item.departure_date,
                 returnDateTime: item.return_date,
-                requesterSector: item.requester_sector
+                requesterSector: item.requester_sector,
+                priority: item.priority
             }
         } : item.document_snapshot
     }));

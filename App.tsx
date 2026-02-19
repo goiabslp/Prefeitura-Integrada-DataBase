@@ -1419,6 +1419,30 @@ const App: React.FC = () => {
       }
     }
 
+    // LAZY LOAD DETAILS (Optimized Licitacao)
+    if (order.blockType === 'licitacao' && (!order.documentSnapshot || Object.keys(order.documentSnapshot).length === 0)) {
+      setIsLoadingDetails(true);
+      try {
+        const fetched = await licitacaoService.getLicitacaoProcessById(order.id);
+        if (fetched) {
+          fullOrder = fetched;
+          // Update local cache
+          setLicitacaoProcesses(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+        } else {
+          alert("Erro ao carregar os detalhes do processo. Tente novamente.");
+          setIsLoadingDetails(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Error fetching licitacao details", err);
+        alert("Erro de conexão ao carregar processo de licitação.");
+        setIsLoadingDetails(false);
+        return;
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    }
+
     let snapshotToUse = fullOrder.documentSnapshot;
 
     // STRICT NAVIGATION GUARD: Licitacao logic
@@ -1749,23 +1773,52 @@ const App: React.FC = () => {
   };
 
   const handleDownloadFromHistory = async (order: Order, forcedBlockType?: BlockType, forcedSnapshot?: AppState) => {
-    // Lazy load details if missing
     let fullOrder = order;
-    if (order.blockType === 'oficio' && (!order.documentSnapshot?.content || Object.keys(order.documentSnapshot.content).length === 0)) {
+
+    // LAZY LOAD DETAILS (Optimized - Check for specific missing content as we now have skeletons)
+    const needsFetch = (
+      (order.blockType === 'oficio' && !order.documentSnapshot?.content?.body) ||
+      (order.blockType === 'compras' && (!order.documentSnapshot?.content?.purchaseItems || order.documentSnapshot.content.purchaseItems.length === 0)) ||
+      (order.blockType === 'diarias' && !order.documentSnapshot?.content?.requestedValue) ||
+      (order.blockType === 'licitacao' && (!order.documentSnapshot?.content?.licitacaoStages || order.documentSnapshot.content.licitacaoStages.length === 0))
+    );
+
+    if (needsFetch) {
       setIsLoadingDetails(true);
       try {
-        const fetched = await oficiosService.getOficioById(order.id);
-        if (fetched) {
-          fullOrder = fetched;
-          setOficios(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
-        } else {
+        if (order.blockType === 'oficio') {
+          const fetched = await oficiosService.getOficioById(order.id);
+          if (fetched) {
+            fullOrder = fetched;
+            setOficios(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+          }
+        } else if (order.blockType === 'compras') {
+          const fetched = await comprasService.getPurchaseOrderById(order.id);
+          if (fetched) {
+            fullOrder = fetched;
+            setOrders(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+          }
+        } else if (order.blockType === 'diarias') {
+          const fetched = await diariasService.getServiceRequestById(order.id);
+          if (fetched) {
+            fullOrder = fetched;
+            setServiceRequests(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+          }
+        } else if (order.blockType === 'licitacao') {
+          const fetched = await licitacaoService.getLicitacaoProcessById(order.id);
+          if (fetched) {
+            fullOrder = fetched;
+            setLicitacaoProcesses(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+          }
+        }
+
+        if (!fullOrder.documentSnapshot?.content) {
           alert("Erro ao baixar: Detalhes não encontrados.");
-          setIsLoadingDetails(false);
           return;
         }
       } catch (e) {
+        console.error("Fetch error session:", e);
         alert("Erro ao baixar: Falha na conexão.");
-        setIsLoadingDetails(false);
         return;
       } finally {
         setIsLoadingDetails(false);
@@ -1863,9 +1916,90 @@ const App: React.FC = () => {
     setEditingOrder(null);
   };
 
-  const handleViewOrder = (order: Order) => {
-    setViewingOrder(order);
+  const handleViewOrder = async (order: Order) => {
+    let fullOrder = order;
+
+    // LAZY LOAD DETAILS (Optimized - Check for specific missing content as we now have skeletons)
+    const needsFetch = (
+      (order.blockType === 'oficio' && !order.documentSnapshot?.content?.body) ||
+      (order.blockType === 'compras' && (!order.documentSnapshot?.content?.purchaseItems || order.documentSnapshot.content.purchaseItems.length === 0)) ||
+      (order.blockType === 'diarias' && !order.documentSnapshot?.content?.requestedValue) ||
+      (order.blockType === 'licitacao' && (!order.documentSnapshot?.content?.licitacaoStages || order.documentSnapshot.content.licitacaoStages.length === 0))
+    );
+
+    if (needsFetch) {
+      setIsLoadingDetails(true);
+      try {
+        if (order.blockType === 'oficio') {
+          const fetched = await oficiosService.getOficioById(order.id);
+          if (fetched) {
+            fullOrder = fetched;
+            setOficios(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+          }
+        } else if (order.blockType === 'compras') {
+          const fetched = await comprasService.getPurchaseOrderById(order.id);
+          if (fetched) {
+            fullOrder = fetched;
+            setOrders(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+          }
+        } else if (order.blockType === 'diarias') {
+          const fetched = await diariasService.getServiceRequestById(order.id);
+          if (fetched) {
+            fullOrder = fetched;
+            setServiceRequests(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+          }
+        } else if (order.blockType === 'licitacao') {
+          const fetched = await licitacaoService.getLicitacaoProcessById(order.id);
+          if (fetched) {
+            fullOrder = fetched;
+            setLicitacaoProcesses(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching details for view:", err);
+        showToast("Erro ao carregar detalhes.", "error");
+        return;
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    }
+
+    setViewingOrder(fullOrder);
     setCurrentView('order-details');
+  };
+
+  const handleFetchOrderDetails = async (order: Order): Promise<Order | null> => {
+    try {
+      if (order.blockType === 'compras') {
+        const fetched = await comprasService.getPurchaseOrderById(order.id);
+        if (fetched) {
+          setOrders(prev => prev.map(o => o.id === fetched.id ? fetched : o));
+          return fetched;
+        }
+      } else if (order.blockType === 'oficio') {
+        const fetched = await oficiosService.getOficioById(order.id);
+        if (fetched) {
+          setOficios(prev => prev.map(o => o.id === fetched.id ? fetched : o));
+          return fetched;
+        }
+      } else if (order.blockType === 'diarias') {
+        const fetched = await diariasService.getServiceRequestById(order.id);
+        if (fetched) {
+          setServiceRequests(prev => prev.map(o => o.id === fetched.id ? fetched : o));
+          return fetched;
+        }
+      } else if (order.blockType === 'licitacao') {
+        const fetched = await licitacaoService.getLicitacaoProcessById(order.id);
+        if (fetched) {
+          setLicitacaoProcesses(prev => prev.map(o => o.id === fetched.id ? fetched : o));
+          return fetched;
+        }
+      }
+      return null;
+    } catch (err) {
+      console.error("Error in handleFetchOrderDetails:", err);
+      return null;
+    }
   };
 
   const handleBackToTracking = () => {
@@ -3408,12 +3542,13 @@ const App: React.FC = () => {
                 currentUser={currentUser}
                 orders={purchaseOrders}
                 sectors={sectors}
-                onDownloadPdf={(snapshot, forcedBlockType) => { const order = orders.find(o => o.documentSnapshot === snapshot); if (order) handleDownloadFromHistory(order, forcedBlockType); }}
+                onDownloadPdf={(snapshot, forcedBlockType, order) => { const target = order || orders.find(o => o.documentSnapshot === snapshot); if (target) handleDownloadFromHistory(target, forcedBlockType, snapshot); }}
                 onUpdateStatus={handleUpdateOrderStatus}
                 onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
                 onUpdateCompletionForecast={handleUpdateCompletionForecast}
                 onUpdateAttachments={handleUpdateOrderAttachments}
                 onDeleteOrder={handleDeleteOrder}
+                onFetchOrderDetails={handleFetchOrderDetails}
               />
             )}
 

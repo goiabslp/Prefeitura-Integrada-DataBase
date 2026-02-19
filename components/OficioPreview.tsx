@@ -10,7 +10,7 @@ interface OficioPreviewProps {
 }
 
 export const OficioPreview: React.FC<OficioPreviewProps> = ({ state, isGenerating, onRemoveImage }) => {
-  const { branding, document: docConfig, content } = state;
+  const { branding = {} as any, document: docConfig = {} as any, content = {} as any } = state || {};
 
   const pages = useMemo(() => {
     // Calibração para folha A4 com fonte 11pt e entrelinha 1.5

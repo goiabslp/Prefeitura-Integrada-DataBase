@@ -13,15 +13,15 @@ export const ComprasPreview: React.FC<ComprasPreviewProps> = ({ state, isGenerat
   const stateNoWatermark = {
     ...state,
     branding: {
-      ...state.branding,
+      ...state?.branding,
       watermark: {
-        ...state.branding.watermark,
+        ...state?.branding?.watermark,
         enabled: false
       }
     }
   };
 
-  const { branding, document: docConfig, content } = state;
+  const { branding, document: docConfig = {} as any, content = {} as any } = state || {};
 
   const showPriorityNote = content.priority === 'Alta' || content.priority === 'Urgência';
 

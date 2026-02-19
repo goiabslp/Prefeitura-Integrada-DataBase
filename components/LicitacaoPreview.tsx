@@ -14,7 +14,7 @@ const hasRealContent = (html: string) => {
 };
 
 export const LicitacaoPreview: React.FC<LicitacaoPreviewProps> = ({ state, isGenerating }) => {
-  const { branding, document: docConfig, content } = state;
+  const { branding = {} as any, document: docConfig = {} as any, content = {} as any } = state || {};
 
   // Standard Signature Helper matches DocumentPreview style
   const getSignatureHtml = (name?: string, role?: string, sector?: string) => {
