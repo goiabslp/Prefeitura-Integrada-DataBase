@@ -676,7 +676,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                 {activeBlock === 'oficio' && (
                                                     <>
                                                         <div className="md:col-span-2 text-xs font-bold text-slate-700">
-                                                            {extractOficioNumber(order.documentSnapshot?.content.leftBlockText || order.title)}
+                                                            {order.protocol ? (order.protocol.startsWith('OFC-') ? order.protocol.replace('OFC-', 'Nº ') : order.protocol) : '---'}
                                                         </div>
                                                         <div className="md:col-span-3">
                                                             <input

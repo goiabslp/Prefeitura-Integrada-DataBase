@@ -1026,6 +1026,11 @@ const App: React.FC = () => {
       const finalSnapshot = JSON.parse(JSON.stringify(appState));
       finalSnapshot.content.protocol = protocolString;
 
+      // Populate requesterSector for Oficio and Compras for easier querying/listing
+      if (activeBlock === 'oficio' || activeBlock === 'compras') {
+        finalSnapshot.content.requesterSector = currentUser.sector;
+      }
+
       if (uniqueProtocolId) {
         finalSnapshot.content.protocolId = uniqueProtocolId;
       }
@@ -1060,7 +1065,8 @@ const App: React.FC = () => {
         paymentStatus: activeBlock === 'diarias' ? 'pending' : undefined,
         statusHistory: activeBlock === 'compras' ? [{ statusLabel: 'Criação do Pedido', date: new Date().toISOString(), userName: currentUser.name }] : [],
         attachments: appState.content.attachments || [],
-        description: customDescription || appState.content.description || ''
+        description: customDescription || appState.content.description || '',
+        requestingSector: (activeBlock === 'oficio' || activeBlock === 'compras') ? currentUser.sector : undefined
       };
 
       if (activeBlock === 'compras') {

@@ -2,30 +2,58 @@ import { supabase } from './supabaseClient';
 import { AppState } from '../types';
 
 export const getGlobalSettings = async (): Promise<AppState | null> => {
-    const { data, error } = await supabase
-        .from('organization_settings')
-        .select('*')
-        .eq('id', 'global_config')
-        .single();
+    try {
+        const { data, error } = await supabase
+            .from('organization_settings')
+            .select('*')
+            .eq('id', 'global_config')
+            .single();
 
-    if (error) {
-        console.error('Error fetching global settings from Supabase:', error);
-        return null;
+        if (error) {
+            console.warn('Error fetching global settings (full), attempting fallback:', error.message);
+            throw error; // Trigger fallback
+        }
+
+        if (!data) return null;
+
+        return {
+            branding: data.branding,
+            document: data.document_config,
+            ui: data.ui_config || {},
+            content: {} as any
+        } as AppState;
+
+    } catch (err) {
+        console.error('Primary settings fetch failed. Attempting partial fetch...');
+        try {
+            // Fallback: Fetch critical columns individually
+            const [brandingReq, documentReq, uiReq] = await Promise.all([
+                supabase.from('organization_settings').select('branding').eq('id', 'global_config').single(),
+                supabase.from('organization_settings').select('document_config').eq('id', 'global_config').single(),
+                supabase.from('organization_settings').select('ui_config').eq('id', 'global_config').single()
+            ]);
+
+            const branding = brandingReq.data?.branding;
+            const docConfig = documentReq.data?.document_config;
+            const uiConfig = uiReq.data?.ui_config;
+
+            if (!branding && !docConfig) {
+                console.error('Fallback settings fetch also failed or returned no data.');
+                return null;
+            }
+
+            return {
+                branding: branding || {},
+                document: docConfig || {},
+                ui: uiConfig || {},
+                content: {} as any
+            } as AppState;
+
+        } catch (fallbackErr) {
+            console.error('Critical: Failed to load global settings even with fallback.', fallbackErr);
+            return null;
+        }
     }
-
-    if (!data) return null;
-
-    // Merge the JSONB columns back into the AppState structure
-    // Note: 'content' usually isn't global setting, but we might want to preserve defaults if stored.
-    // The implementations plan focused on branding and docConfig.
-    // We'll reconstruct the AppState, spreading defaults if needed.
-
-    return {
-        branding: data.branding,
-        document: data.document_config,
-        ui: data.ui_config || {},
-        content: {} as any // Content is usually per-session or cleared, so empty object or specific defaults
-    } as AppState;
 };
 
 export const saveGlobalSettings = async (settings: AppState): Promise<boolean> => {

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
     ArrowLeft, Search, PackageX, FileText, Clock, Trash2,
     FileDown, Calendar, Edit3, TrendingUp, Loader2,
-    CheckCircle2, AlertCircle, CalendarCheck, Check, RotateCcw,
+    CheckCircle2, AlertCircle, CalendarCheck, Check, RotateCcw, AlignJustify,
     Paperclip, PackageCheck, FileSearch, Scale, Landmark, ShoppingCart, CheckCircle, XCircle,
     Eye, History, X, Lock, User, MessageCircle, Sparkles, Plus, Upload, Download, AlertTriangle, ShieldAlert, Zap, Info, Network, Trash, ArrowRight
 } from 'lucide-react';
@@ -76,6 +76,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     const isDiarias = activeBlock === 'diarias';
     const isCompras = activeBlock === 'compras';
     const isLicitacao = activeBlock === 'licitacao';
+    const isOficio = activeBlock === 'oficio';
 
     const filteredOrders = orders.filter(order => {
         const matchesBlock = order.blockType === activeBlock;
@@ -297,6 +298,15 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                     </div>
 
                     <div className="flex-1 overflow-auto custom-scrollbar">
+                        {
+                            // DEBUG: Check what data is actually coming in for Oficios
+                            (() => {
+                                if (activeBlock === 'oficio' && filteredOrders.length > 0) {
+                                    console.log('DEBUG: TrackingList Oficio Orders:', filteredOrders);
+                                }
+                                return null;
+                            })()
+                        }
                         {filteredOrders.length > 0 ? (
                             <div className={`min-w-full ${isLicitacao ? 'px-8 py-4 space-y-4' : ''}`}>
                                 {!isLicitacao && (
@@ -312,11 +322,16 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                             </div>
                                         )}
                                         <div className={`${isCompras ? 'md:col-span-1' : 'md:col-span-2'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
-                                            <HashIcon className="w-3 h-3" /> {isCompras ? 'ID' : 'Protocolo'}
+                                            <HashIcon className="w-3 h-3" /> {isCompras ? 'ID' : (isOficio ? 'Número do Ofício' : 'Protocolo')}
                                         </div>
-                                        <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : 'md:col-span-6'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
+                                        <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : 'md:col-span-3'} text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center ${isCompras ? 'justify-center' : 'gap-2'} whitespace-nowrap`}>
                                             {isDiarias ? <><FileText className="w-3 h-3" /> Solicitante + Destino</> : isCompras ? <><Network className="w-3 h-3" /> Setor / Solicitante</> : <><FileText className="w-3 h-3" /> Solicitante</>}
                                         </div>
+                                        {!isDiarias && !isCompras && (
+                                            <div className="md:col-span-3 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
+                                                <AlignJustify className="w-3 h-3" /> Descrição
+                                            </div>
+                                        )}
                                         {isDiarias && (
                                             <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
                                                 <CalendarCheck className="w-3 h-3" /> Saída
@@ -530,6 +545,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
                                         return (
                                             <div key={order.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 px-8 py-5 hover:bg-slate-50/80 transition-colors items-center">
+                                                {/* Date Cell for Compras */}
                                                 {isCompras && (
                                                     <div className="md:col-span-1 flex justify-center">
                                                         <div className="w-11 h-11 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center shadow-sm shrink-0">
@@ -541,6 +557,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                     </div>
                                                 )}
 
+                                                {/* Priority for Compras */}
                                                 {isCompras && (
                                                     <div className="md:col-span-1 flex justify-center">
                                                         {(priority === 'Alta' || priority === 'Urgência') ? (
@@ -561,15 +578,19 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                     </div>
                                                 )}
 
-                                                <div className={`${isCompras ? 'md:col-span-1' : 'md:col-span-2'} flex justify-center`}>
-                                                    <span className="font-mono text-[10px] font-bold text-indigo-600 bg-indigo-50/50 px-2 py-1 rounded border border-indigo-100/50">
-                                                        {order.protocol}
+                                                {/* Protocol/ID */}
+                                                <div className={`${isCompras ? 'md:col-span-1 border-x border-slate-100 flex items-center justify-center' : 'md:col-span-2'} py-4 flex justify-center`}>
+                                                    <span className="text-xs font-black text-slate-900 tracking-tighter">
+                                                        {isCompras ? order.id.slice(-6).toUpperCase() : (order.blockType === 'oficio' ? ((order.protocol || '').startsWith('OFC-') ? (order.protocol || '').replace('OFC-', 'Nº ') : (order.protocol || '---')) : (order.protocol || '---'))}
                                                     </span>
                                                 </div>
 
-                                                <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : 'md:col-span-6'}`}>
+                                                {/* Solicitante/Sector */}
+                                                <div className={`${isDiarias ? 'md:col-span-4' : isCompras ? 'md:col-span-3 text-center' : 'md:col-span-3'}`}>
                                                     <h3 className="text-sm font-bold text-slate-800 leading-tight">
-                                                        {isDiarias ? (content?.requesterName || '---') : isCompras ? (content?.requesterSector || 'Sem Setor') : order.userName}
+                                                        {isDiarias ? (content?.requesterName || '---') :
+                                                            isCompras ? (content?.requesterSector || 'Sem Setor') :
+                                                                (order.blockType === 'oficio' ? (order.requestingSector || 'Sem Setor') : order.userName)}
                                                     </h3>
                                                     {isDiarias ? (
                                                         <p className="text-[10px] text-slate-400 font-medium">
@@ -579,15 +600,30 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                         <p className="text-[10px] text-slate-400 font-medium">
                                                             {order.userName}
                                                         </p>
-                                                    ) : null}
+                                                    ) : (order.blockType === 'oficio' ? (
+                                                        <p className="text-[10px] text-slate-400 font-medium">
+                                                            {order.userName}
+                                                        </p>
+                                                    ) : null)}
                                                 </div>
 
+                                                {/* Description (Oficio/Diaria/Others) */}
+                                                {!isDiarias && !isCompras && !isLicitacao && (
+                                                    <div className="md:col-span-3">
+                                                        <p className="text-[11px] text-slate-600 font-medium leading-relaxed line-clamp-2 italic" title={order.description}>
+                                                            {order.description || <span className="text-slate-300 opacity-50">Sem descrição</span>}
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                {/* Diarias Specific Date */}
                                                 {isDiarias && (
                                                     <div className="md:col-span-2 text-slate-600 text-xs font-bold">
                                                         {getDepartureDate(order)}
                                                     </div>
                                                 )}
 
+                                                {/* Compras Specific: Previsao + Status */}
                                                 {isCompras && (
                                                     <>
                                                         <div className="md:col-span-1 flex flex-col items-center">
@@ -616,7 +652,6 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                                     {pStatus.label}
                                                                 </div>
                                                             ) : (
-                                                                // CASE: awaiting_approval or special pending
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
@@ -644,7 +679,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                     </>
                                                 )}
 
-                                                {isDiarias ? (
+                                                {/* Diarias Status (Payment) */}
+                                                {isDiarias && (
                                                     <div className="md:col-span-2">
                                                         {isAdmin ? (
                                                             <div className="flex flex-col gap-1">
@@ -689,8 +725,9 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                             </div>
                                                         )}
                                                     </div>
-                                                ) : null}
+                                                )}
 
+                                                {/* Creation Date for others */}
                                                 {!isCompras && !isDiarias && !isLicitacao && (
                                                     <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
                                                         <Calendar className="w-3 h-3" />
@@ -698,6 +735,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                     </div>
                                                 )}
 
+                                                {/* Actions */}
                                                 <div className={`${isCompras ? 'md:col-span-3' : 'md:col-span-2'} flex items-center justify-center gap-1`}>
                                                     {isCompras && (
                                                         <button
@@ -714,7 +752,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                         </button>
                                                     )}
 
-                                                    {(isCompras || activeBlock === 'oficio') && (
+                                                    {(isCompras || order.blockType === 'oficio') && (
                                                         <button
                                                             onClick={() => setPreviewOrder(order)}
                                                             className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
@@ -738,7 +776,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                         {order.status === 'approved' || order.status === 'completed' || order.status === 'awaiting_approval' ? <Eye className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
                                                     </button>
 
-                                                    {activeBlock !== 'oficio' && activeBlock !== 'diarias' && (
+                                                    {!isOficio && !isDiarias && (
                                                         <button
                                                             onClick={() => handleDownload(order)}
                                                             disabled={downloadingId === order.id}
@@ -748,6 +786,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                             {downloadingId === order.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileDown className="w-5 h-5" />}
                                                         </button>
                                                     )}
+
                                                     <button
                                                         onClick={() => setConfirmModal({
                                                             isOpen: true,

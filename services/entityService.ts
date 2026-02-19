@@ -170,42 +170,76 @@ export const deletePerson = async (id: string): Promise<boolean> => {
 };
 
 // Vehicles
+// Vehicles
 export const getVehicles = async (): Promise<Vehicle[]> => {
-    const { data, error } = await supabase
-        .from('vehicles')
-        .select('*')
-        .limit(1000);
+    try {
+        const CHUNK_SIZE = 50;
+        let allVehicles: any[] = [];
+        let from = 0;
+        let to = CHUNK_SIZE - 1;
+        let keepFetching = true;
 
-    if (error) {
-        console.error('Error fetching vehicles:', error.message);
+        // Fetch in chunks to avoid single massive JSON response failure
+        while (keepFetching) {
+            const { data, error } = await supabase
+                .from('vehicles')
+                .select('*')
+                .range(from, to);
+
+            if (error) {
+                console.error(`Error fetching vehicles chunk ${from}-${to}:`, error.message);
+                // Instead of failing entirely, we stop fetching but try to return what we have
+                break;
+            }
+
+            if (data) {
+                allVehicles = [...allVehicles, ...data];
+
+                // If we got fewer items than requested, we've reached the end
+                if (data.length < CHUNK_SIZE) {
+                    keepFetching = false;
+                } else {
+                    from += CHUNK_SIZE;
+                    to += CHUNK_SIZE;
+                }
+            } else {
+                keepFetching = false;
+            }
+
+            // Safety break to prevent infinite loops in case of weird API behavior
+            if (from > 5000) break;
+        }
+
+        return allVehicles.map(v => ({
+            id: v.id,
+            type: v.type,
+            model: v.model,
+            plate: v.plate,
+            brand: v.brand,
+            year: v.year,
+            color: v.color,
+            renavam: v.renavam,
+            chassis: v.chassis,
+            sectorId: v.sector_id,
+            responsiblePersonId: v.responsible_person_id,
+            documentUrl: v.document_url,
+            documentName: v.document_name,
+            vehicleImageUrl: v.vehicle_image_url,
+            status: v.status,
+            maintenanceStatus: v.maintenance_status,
+            fuelTypes: v.fuel_types,
+            requestManagerIds: v.request_manager_ids || [],
+            maxKml: v.max_kml,
+            minKml: v.min_kml,
+            currentKm: v.current_km,
+            oilLastChange: v.oil_last_change,
+            oilNextChange: v.oil_next_change,
+            oilCalculationBase: v.oil_calculation_base
+        }));
+    } catch (err) {
+        console.error('Critical error in getVehicles:', err);
         return [];
     }
-    return data?.map(v => ({
-        id: v.id,
-        type: v.type,
-        model: v.model,
-        plate: v.plate,
-        brand: v.brand,
-        year: v.year,
-        color: v.color,
-        renavam: v.renavam,
-        chassis: v.chassis,
-        sectorId: v.sector_id,
-        responsiblePersonId: v.responsible_person_id,
-        documentUrl: v.document_url,
-        documentName: v.document_name,
-        vehicleImageUrl: v.vehicle_image_url,
-        status: v.status,
-        maintenanceStatus: v.maintenance_status,
-        fuelTypes: v.fuel_types,
-        requestManagerIds: v.request_manager_ids || [],
-        maxKml: v.max_kml,
-        minKml: v.min_kml,
-        currentKm: v.current_km,
-        oilLastChange: v.oil_last_change,
-        oilNextChange: v.oil_next_change,
-        oilCalculationBase: v.oil_calculation_base
-    })) || [];
 };
 
 export const getVehicleById = async (id: string): Promise<Vehicle | null> => {

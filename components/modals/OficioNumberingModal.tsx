@@ -5,7 +5,7 @@ import * as counterService from '../../services/counterService';
 interface Props {
     isOpen: boolean;
     onClose: () => void;
-    onConfirm: () => void;
+    onConfirm: (summary?: string) => void;
     sectorId: string | null;
     sectorName: string;
     title?: string;
@@ -18,11 +18,15 @@ export const OficioNumberingModal: React.FC<Props> = ({ isOpen, onClose, onConfi
     const [year, setYear] = useState<number>(new Date().getFullYear());
 
     const [summary, setSummary] = useState('');
+    const [showError, setShowError] = useState(false);
 
     useEffect(() => {
         let isMounted = true;
         // Reset summary when opening
-        if (isOpen) setSummary('');
+        if (isOpen) {
+            setSummary('');
+            setShowError(false);
+        }
 
         if (isOpen && sectorId) {
             const fetchNext = async () => {
@@ -95,18 +99,28 @@ export const OficioNumberingModal: React.FC<Props> = ({ isOpen, onClose, onConfi
                         )}
                     </div>
 
-                    {/* Summary Input */}
-                    <div className="w-full mb-6">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block text-left pl-1">
-                            Resumo do Pedido (Opcional)
+                    <div className="w-full mb-6 text-left">
+                        <label className={`text-[10px] font-bold uppercase tracking-widest mb-2 block pl-1 transition-colors ${showError ? 'text-rose-500' : 'text-slate-400'}`}>
+                            Resumo do Pedido (Obrigatório)
                         </label>
                         <textarea
                             value={summary}
-                            onChange={(e) => setSummary(e.target.value)}
+                            onChange={(e) => {
+                                setSummary(e.target.value);
+                                if (e.target.value.trim()) setShowError(false);
+                            }}
                             placeholder="Descreva brevemente o assunto deste ofício..."
-                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none h-20"
+                            className={`w-full p-3 bg-slate-50 border rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all resize-none h-20 ${showError
+                                    ? 'border-rose-400 ring-2 ring-rose-500/10'
+                                    : 'border-slate-200 focus:ring-indigo-500/20 focus:border-indigo-500'
+                                }`}
                             maxLength={200}
                         />
+                        {showError && (
+                            <span className="text-[10px] font-bold text-rose-500 ml-1 mt-1 block animate-fade-in uppercase tracking-wider">
+                                Por favor, preencha o resumo do pedido.
+                            </span>
+                        )}
                     </div>
 
                     <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8 max-w-[280px]">
@@ -121,7 +135,13 @@ export const OficioNumberingModal: React.FC<Props> = ({ isOpen, onClose, onConfi
                             Cancelar
                         </button>
                         <button
-                            onClick={() => onConfirm(summary)}
+                            onClick={() => {
+                                if (!summary.trim()) {
+                                    setShowError(true);
+                                    return;
+                                }
+                                onConfirm(summary);
+                            }}
                             disabled={loading || !nextNumber}
                             className="flex-1 py-3.5 bg-indigo-600 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 hover:shadow-indigo-600/40 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
                         >
