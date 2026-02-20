@@ -393,10 +393,10 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         }).format(value);
     };
 
-    const loadRecords = async () => {
+    const loadRecords = async (limit: number = 2000) => {
         // PERF: Temporarily fetching a large number of records to maintain dashboard functionality 
         // which relies on client-side aggregation. Future TODO: Refactor dashboard to use server-side aggregation.
-        const { data } = await AbastecimentoService.getAbastecimentos(1, 2000);
+        const { data } = await AbastecimentoService.getAbastecimentos(1, limit);
         setAllRecords(data);
     };
 
@@ -425,6 +425,21 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             loadRecords();
         }
     }, [refreshTrigger]);
+
+    const [isPreparingReport, setIsPreparingReport] = useState(false);
+
+    const handleOpenReport = async () => {
+        setIsPreparingReport(true);
+        try {
+            // Fetch a much larger limit to ensure all records matching the filter are available for the complete report
+            await loadRecords(10000);
+            setShowPrintPreview(true);
+        } catch (error) {
+            console.error("Error loading records for report:", error);
+        } finally {
+            setIsPreparingReport(false);
+        }
+    };
 
     const months = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -1998,8 +2013,9 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 </div>
                             </div>
                             <button
-                                onClick={() => setShowPrintPreview(true)}
-                                className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-indigo-600 hover:bg-indigo-700 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] group"
+                                onClick={handleOpenReport}
+                                disabled={isPreparingReport}
+                                className={`w-full flex items-center justify-center gap-3 px-6 py-4 bg-indigo-600 hover:bg-indigo-700 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] group ${isPreparingReport ? 'opacity-70 cursor-wait' : ''}`}
                             >
                                 <div className="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors">
                                     <Download className="w-4 h-4 text-white" />

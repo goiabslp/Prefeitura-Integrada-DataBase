@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { AppState } from '../../types';
 import { AbastecimentoRecord } from '../../services/abastecimentoService';
 import { PageWrapper } from '../PageWrapper';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { Printer, X, FileSpreadsheet, Fuel, Building2, Calendar, LayoutDashboard, Car } from 'lucide-react';
 
 interface AbastecimentoReportPDFProps {
@@ -51,31 +53,67 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
     mode
 }) => {
     const [isGenerating, setIsGenerating] = useState(false);
+    const [progress, setProgress] = useState<{ current: number, total: number } | null>(null);
 
     const handleDownloadPdf = async () => {
         setIsGenerating(true);
-        setTimeout(async () => {
-            const element = document.getElementById('report-pdf-content');
-            if (element) {
-                const opt = {
-                    margin: 0,
-                    filename: `Relatorio-Abastecimento-${new Date().getTime()}.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: {
-                        scale: 2,
-                        useCORS: true,
-                        letterRendering: true,
-                        scrollY: 0,
-                        scrollX: 0
-                    },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                    pagebreak: { mode: 'css' }
-                };
-                // @ts-ignore
-                await window.html2pdf().from(element).set(opt).save();
+        setProgress({ current: 0, total: 1 });
+
+        // Wrap timeout in a Promise to properly await React rendering changes
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        try {
+            const container = document.getElementById('report-pdf-content');
+            if (!container) {
+                console.error("PDF container not found");
+                return;
             }
+
+            const pages = Array.from(container.children) as HTMLElement[];
+            if (pages.length === 0) return;
+
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            // Iterate over each page wrapper to avoid browser canvas max-height limits
+            for (let i = 0; i < pages.length; i++) {
+                const pageEl = pages[i];
+
+                setProgress({ current: i + 1, total: pages.length });
+                // Yield to event loop to update progress UI and prevent browser hang
+                await new Promise(resolve => setTimeout(resolve, 20));
+
+                const reportScale = pages.length > 20 ? 1.5 : 2;
+
+                const canvas = await html2canvas(pageEl, {
+                    scale: reportScale,
+                    useCORS: true,
+                    logging: false,
+                    scrollY: 0,
+                    scrollX: 0
+                });
+
+                const imgData = canvas.toDataURL('image/jpeg', 0.98);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+                if (i > 0) {
+                    pdf.addPage();
+                }
+
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+            }
+
+            pdf.save(`Relatorio-Abastecimento-${new Date().getTime()}.pdf`);
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+        } finally {
             setIsGenerating(false);
-        }, 300);
+            setProgress(null);
+        }
     };
 
     const formatCurrency = (value: number) => {
@@ -550,8 +588,26 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                 </div>
             )}
 
-            <div className={`fixed inset-0 overflow-y-auto flex items-start justify-center p-4 md:p-8 ${isGenerating ? 'p-0' : ''}`}>
-                <div id="report-pdf-content" className={`relative flex flex-col items-center py-12 ${isGenerating ? 'py-0' : ''}`}>
+            {/* Generation Progress Overlay */}
+            {isGenerating && progress && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm pointer-events-none">
+                    <div className="bg-white p-8 rounded-3xl flex flex-col items-center max-w-sm w-full shadow-2xl">
+                        <Printer className="w-12 h-12 text-indigo-600 mb-4 animate-pulse" />
+                        <h3 className="text-lg font-black text-slate-900 mb-2">Gerando PDF</h3>
+                        <p className="text-sm font-bold text-slate-500 mb-6">Página {progress.current} de {progress.total}</p>
+                        <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-indigo-600 rounded-full transition-all duration-300"
+                                style={{ width: `${Math.max(5, (progress.current / progress.total) * 100)}%` }}
+                            />
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-4 text-center font-medium">Isso pode levar alguns minutos em relatórios completos dependendo do volume de dados.</p>
+                    </div>
+                </div>
+            )}
+
+            <div className={`${isGenerating ? 'absolute top-0 left-0 w-full bg-white z-[9999]' : 'fixed inset-0 overflow-y-auto w-full'} flex items-start justify-center p-4 md:p-8 ${isGenerating ? 'p-0' : ''}`}>
+                <div id="report-pdf-content" className={`relative flex flex-col items-center py-12 ${isGenerating ? 'py-0 w-min origin-top-left items-start' : 'w-full max-w-5xl'}`}>
                     {renderSummaryPage()}
                     {renderPlateSummaryPages()}
                     {mode === 'complete' && renderRecordPages()}
