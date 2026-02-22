@@ -127,7 +127,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         title: string,
         description: string,
         delay: string = '0ms',
-        hideOnMobile: boolean = false
+        hideOnMobile: boolean = false,
+        badgeCount: number = 0
     ) => (
         <button
             onClick={onClick}
@@ -138,8 +139,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <div className={`absolute bottom-0 left-0 w-24 h-24 bg-${color}-500/5 rounded-tr-[100%] -ml-10 -mb-10 transition-transform duration-700 ease-out group-hover:scale-125 opacity-0 group-hover:opacity-100`}></div>
 
             <div className="relative z-10 flex flex-col items-center p-4">
-                <div className={`${getIconContainerClass(color)}`}>
+                <div className={`${getIconContainerClass(color)} relative`}>
                     <Icon className="w-7 h-7 desktop:w-8 desktop:h-8 drop-shadow-md" />
+                    {badgeCount > 0 && (
+                        <div className="absolute -top-2.5 -right-2.5 min-w-[24px] h-6 px-1.5 bg-rose-500 text-white text-[11px] font-black flex items-center justify-center rounded-full shadow-md ring-4 ring-white animate-in zoom-in spin-in-12 duration-300">
+                            {badgeCount > 99 ? '99+' : badgeCount}
+                        </div>
+                    )}
                 </div>
                 <h2 className="text-lg desktop:text-xl font-bold text-slate-800 tracking-tight leading-none mb-1.5 group-hover:text-slate-900 transition-colors">{title}</h2>
                 <p className="text-xs font-medium text-slate-500 text-center max-w-[150px] leading-tight group-hover:text-${color}-600 transition-colors">{description}</p>
@@ -200,9 +206,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         const config = getBlockConfig();
 
+        // Count for Compras
+        const pendingComprasCount = (activeBlock === 'compras' && canManagePurchaseOrders)
+            ? (orders?.filter(o => o.blockType === 'compras' && (o.status === 'pending' || o.purchaseStatus === 'aprovacao_orcamento')).length || 0)
+            : 0;
 
         // Define Action Buttons for Active Block
-        const actionButtons = [];
+        const actionButtons: Array<any> = [];
 
         // "New" Button
         if (activeBlock !== 'abastecimento' && activeBlock !== 'tarefas') {
@@ -246,7 +256,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         // Specific Extra Buttons
         if (activeBlock === 'compras' && canManagePurchaseOrders) {
-            actionButtons.push({ label: 'Pedidos', desc: 'Gestão Administrativa', icon: Inbox, onClick: onManagePurchaseOrders, color: 'emerald' });
+            actionButtons.push({ label: 'Pedidos', desc: 'Gestão Administrativa', icon: Inbox, onClick: onManagePurchaseOrders, color: 'emerald', badge: pendingComprasCount });
             actionButtons.push({ label: 'Itens', desc: 'Catálogo e Inventário', icon: Package, onClick: onManageInventory, color: 'amber' });
         }
         if (activeBlock === 'licitacao') {
@@ -304,8 +314,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                         <div className={`absolute top-0 right-0 w-32 h-32 bg-${btn.color}-500/5 rounded-bl-[100%] -mr-10 -mt-10 transition-transform duration-700 ease-out group-hover:scale-150`}></div>
                                         <div className={`absolute bottom-0 left-0 w-24 h-24 bg-${btn.color}-500/5 rounded-tr-[100%] -ml-10 -mb-10 transition-transform duration-700 ease-out group-hover:scale-125 opacity-0 group-hover:opacity-100`}></div>
 
-                                        <div className={`w-12 h-12 desktop:w-14 desktop:h-14 rounded-2xl bg-gradient-to-br from-${btn.color}-500 to-${btn.color}-600 flex items-center justify-center mb-3 text-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300 shadow-lg shadow-${btn.color}-500/30 ring-4 ring-white`}>
+                                        <div className={`relative w-12 h-12 desktop:w-14 desktop:h-14 rounded-2xl bg-gradient-to-br from-${btn.color}-500 to-${btn.color}-600 flex items-center justify-center mb-3 text-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300 shadow-lg shadow-${btn.color}-500/30 ring-4 ring-white`}>
                                             <btn.icon className="w-6 h-6 desktop:w-7 desktop:h-7 drop-shadow-md" />
+                                            {btn.badge > 0 && (
+                                                <div className="absolute -top-2.5 -right-2.5 min-w-[24px] h-6 px-1.5 bg-rose-500 text-white text-[11px] font-black flex items-center justify-center rounded-full shadow-md ring-4 ring-white animate-in zoom-in spin-in-12 duration-300">
+                                                    {btn.badge > 99 ? '99+' : btn.badge}
+                                                </div>
+                                            )}
                                         </div>
 
                                         <h3 className="text-lg desktop:text-2xl font-bold text-slate-800 mb-1 group-hover:text-slate-900 tracking-tight">{btn.label}</h3>
@@ -355,7 +370,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             <div className="grid grid-cols-1 sm:grid-cols-2 desktop:grid-cols-3 xl:grid-cols-4 gap-5 desktop:gap-6">
                                 {/* Operational Modules */}
                                 {canAccessOficio && renderModuleButton(() => setActiveBlock('oficio'), 'indigo', FileText, 'Ofícios', 'Geração e trâmite', '50ms', true)}
-                                {canAccessCompras && renderModuleButton(() => setActiveBlock('compras'), 'emerald', ShoppingCart, 'Compras', 'Pedidos e requisições', '100ms', true)}
+                                {canAccessCompras && renderModuleButton(() => setActiveBlock('compras'), 'emerald', ShoppingCart, 'Compras', 'Pedidos e requisições', '100ms', true, canManagePurchaseOrders ? (orders?.filter(o => o.blockType === 'compras' && (o.status === 'pending' || o.purchaseStatus === 'aprovacao_orcamento')).length || 0) : 0)}
                                 {canAccessDiarias && renderModuleButton(() => setActiveBlock('diarias'), 'amber', Wallet, 'Diárias', 'Gestão de despesas', '150ms', true)}
                                 {canAccessLicitacao && renderModuleButton(() => setActiveBlock('licitacao'), 'blue', Gavel, 'Licitação', 'Processos e editais', '200ms', true)}
 
