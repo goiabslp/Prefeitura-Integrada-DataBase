@@ -346,7 +346,8 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
     { id: 'parent_compras_pedidos', label: 'Gestão de Pedidos (Compras)' },
     { id: 'parent_agricultura', label: 'Módulo: Agricultura' },
     { id: 'parent_obras', label: 'Módulo: Obras' },
-    { id: 'parent_tarefas', label: 'Módulo: Tarefas' }
+    { id: 'parent_tarefas', label: 'Módulo: Tarefas' },
+    { id: 'parent_calendario', label: 'Módulo: Calendário' }
   ];
 
   return (
@@ -955,7 +956,8 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                         title: 'Módulos Operacionais',
                         permissions: [
                           { id: 'parent_agricultura', label: 'Agricultura' },
-                          { id: 'parent_obras', label: 'Obras' }
+                          { id: 'parent_obras', label: 'Obras' },
+                          { id: 'parent_calendario', label: 'Calendário' }
                         ],
                         color: 'teal'
                       },

@@ -46,15 +46,36 @@ export const SystemSettingsProvider: React.FC<{ children: React.ReactNode }> = (
             }
 
             if (data) {
-                setSettings(data || []);
+                const fetchedSettings = data || [];
+                // Check if calendario is missing from DB and add it as a virtual setting
+                if (!fetchedSettings.find(s => s.module_key === 'parent_calendario')) {
+                    fetchedSettings.push({
+                        id: 'virtual_calendario',
+                        module_key: 'parent_calendario',
+                        label: 'Calendário',
+                        is_enabled: true,
+                        parent_key: null,
+                        order_index: 55,
+                        description: 'Módulo de Agenda e Eventos'
+                    });
+                }
+                setSettings(fetchedSettings);
                 const statusMap: Record<string, boolean> = {};
-                (data || []).forEach(s => {
+                fetchedSettings.forEach(s => {
                     statusMap[s.module_key] = s.is_enabled;
                 });
                 setModuleStatus(statusMap);
             } else {
-                setSettings([]);
-                setModuleStatus({});
+                setSettings([{
+                    id: 'virtual_calendario',
+                    module_key: 'parent_calendario',
+                    label: 'Calendário',
+                    is_enabled: true,
+                    parent_key: null,
+                    order_index: 55,
+                    description: 'Módulo de Agenda e Eventos'
+                }]);
+                setModuleStatus({ 'parent_calendario': true });
             }
         } catch (err) {
             console.error('Unexpected error fetching settings:', err);

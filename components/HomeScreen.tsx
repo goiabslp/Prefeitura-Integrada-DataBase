@@ -87,7 +87,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     const canAccessAgricultura = (permissions.includes('parent_agricultura') || userRole === 'admin') && isModuleActive('parent_agricultura');
     const canAccessObras = (permissions.includes('parent_obras') || userRole === 'admin') && isModuleActive('parent_obras');
     const canAccessTarefas = permissions.includes('parent_tarefas') && isModuleActive('parent_tarefas');
-    const canAccessCalendario = isModuleActive('parent_calendario');
+    const canAccessCalendario = (permissions.includes('parent_calendario') || userRole === 'admin') && isModuleActive('parent_calendario');
     const firstName = userName.split(' ')[0];
 
     // --- Helper Functions for Card Styling ---

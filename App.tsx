@@ -33,7 +33,7 @@ import * as vehicleSchedulingService from './services/vehicleSchedulingService';
 import * as licitacaoService from './services/licitacaoService';
 import { AbastecimentoService } from './services/abastecimentoService';
 import * as taskService from './services/taskService';
-import { Send, CheckCircle2, X, Download, Save, FilePlus, Package, History, FileText, Settings, LogOut, ChevronRight, ChevronDown, Search, Filter, Upload, Trash2, Printer, Edit, ArrowLeft, Loader2 } from 'lucide-react';
+import { Send, CheckCircle2, X, Download, Save, FilePlus, Package, History, FileText, Settings, LogOut, ChevronRight, ChevronDown, Search, Filter, Upload, Trash2, Printer, Edit, ArrowLeft, Loader2, ShieldAlert } from 'lucide-react';
 
 
 // Components
@@ -68,7 +68,7 @@ import { AbastecimentoList } from './components/abastecimento/AbastecimentoList'
 import { AbastecimentoDashboard } from './components/abastecimento/AbastecimentoDashboard';
 import { ForcePasswordChangeModal } from './components/ForcePasswordChangeModal';
 import { NotificationProvider, useNotification } from './contexts/NotificationContext';
-import { SystemSettingsProvider } from './contexts/SystemSettingsContext';
+import { SystemSettingsProvider, useSystemSettings } from './contexts/SystemSettingsContext';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -141,6 +141,9 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details' | 'tasks-dashboard' | 'purchase-inventory' | 'calendario'>('login');
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
+  const { moduleStatus } = useSystemSettings();
+  const isModuleActive = (key: string) => moduleStatus[key] !== false;
+  const permissions = currentUser?.permissions || [];
   const [appState, setAppState] = useState<AppState>(INITIAL_STATE);
   const [activeBlock, setActiveBlock] = useState<BlockType | null>(null);
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
@@ -3585,11 +3588,25 @@ const App: React.FC = () => {
             )}
 
             {currentView === 'calendario' && (
-              <Calendario
-                onBack={handleGoHome}
-                userRole={currentUser?.role || 'collaborator'}
-                currentUserId={currentUser?.id || ''}
-              />
+              (permissions.includes('parent_calendario') || currentUser?.role === 'admin') && isModuleActive('parent_calendario') ? (
+                <Calendario
+                  onBack={handleGoHome}
+                  userRole={currentUser?.role || 'collaborator'}
+                  currentUserId={currentUser?.id || ''}
+                />
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 p-6">
+                  <ShieldAlert className="w-20 h-20 text-red-500 mb-6 opacity-20" />
+                  <h2 className="text-2xl font-black text-slate-800">Acesso Restrito</h2>
+                  <p className="text-slate-500 font-medium mt-2">Você não possui permissão para acessar o módulo de Calendário.</p>
+                  <button
+                    onClick={handleGoHome}
+                    className="mt-8 px-6 py-3 bg-slate-900 text-white font-bold rounded-2xl hover:bg-indigo-600 transition-all shadow-lg"
+                  >
+                    Voltar ao Início
+                  </button>
+                </div>
+              )
             )}
 
             {/* LOADING OVERLAY */}
