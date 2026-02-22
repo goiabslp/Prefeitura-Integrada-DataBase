@@ -128,7 +128,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   'tarefas': '/Tarefas',
   'tarefas:new': '/Tarefas/NovaTarefa',
   'tarefas:dashboard': '/Tarefas/MinhasTarefas',
-  'home:calendario': '/Calendario'
+  'calendario': '/Calendario'
 };
 
 const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
