@@ -3593,6 +3593,7 @@ const App: React.FC = () => {
                   onBack={handleGoHome}
                   userRole={currentUser?.role || 'collaborator'}
                   currentUserId={currentUser?.id || ''}
+                  appState={appState}
                 />
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 p-6">

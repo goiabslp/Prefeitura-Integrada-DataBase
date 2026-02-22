@@ -7,6 +7,7 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { EventPdfGenerator } from './EventPdfGenerator';
 import { FileDown, Loader2 } from 'lucide-react';
+import { AppState } from '../../types';
 
 interface EventDetailsModalProps {
     isOpen: boolean;
@@ -15,6 +16,7 @@ interface EventDetailsModalProps {
     isAdmin: boolean;
     onEditEvent: (event: CalendarEvent) => void;
     onDeleteSuccess: () => void;
+    appState: AppState;
 }
 
 export const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
@@ -23,7 +25,8 @@ export const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     event,
     isAdmin,
     onEditEvent,
-    onDeleteSuccess
+    onDeleteSuccess,
+    appState
 }) => {
     const [activeTab, setActiveTab] = useState<'details' | 'invites'>('details');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -59,20 +62,27 @@ export const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
         setIsGenerating(true);
 
         // Allow React to render the invisible portal first
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         try {
             const container = document.getElementById('event-pdf-content');
-            if (!container) return;
+            if (!container) {
+                console.error("PDF container not found");
+                return;
+            }
 
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
             const canvas = await html2canvas(container, {
                 scale: 2,
                 useCORS: true,
+                allowTaint: true,
                 logging: false,
+                backgroundColor: '#ffffff',
                 scrollY: 0,
-                scrollX: 0
+                scrollX: 0,
+                width: container.offsetWidth,
+                height: container.offsetHeight
             });
 
             const imgData = canvas.toDataURL('image/jpeg', 0.98);
@@ -291,7 +301,7 @@ export const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                     </div>
                 </motion.div>
             </div>
-            {isGenerating && <EventPdfGenerator event={event} />}
+            {isGenerating && <EventPdfGenerator event={event} state={appState} />}
         </AnimatePresence>
     );
 };

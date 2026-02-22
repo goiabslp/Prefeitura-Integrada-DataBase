@@ -9,6 +9,7 @@ import { generateHolidaysForYear } from './holidays';
 import { calendarService, CalendarEvent } from '../../services/calendarService';
 import { MyEventsModal } from './MyEventsModal';
 import { PendingInvitesModal } from './PendingInvitesModal';
+import { AppState } from '../../types';
 
 // CalendarEvent is now imported from calendarService
 
@@ -16,9 +17,10 @@ interface CalendarioProps {
     onBack: () => void;
     userRole: string;
     currentUserId: string;
+    appState: AppState;
 }
 
-export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, currentUserId }) => {
+export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, currentUserId, appState }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [loading, setLoading] = useState(true);
@@ -487,15 +489,16 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                 isOpen={isEventDetailsOpen}
                 onClose={() => setIsEventDetailsOpen(false)}
                 event={eventDetailsEvent}
-                isAdmin={isAdmin}
-                onEditEvent={(evt) => {
-                    setEventToEdit(evt);
-                    setSelectedDate(evt.start_date);
+                isAdmin={isAdmin || eventDetailsEvent?.created_by === currentUserId}
+                onEditEvent={(ev) => {
+                    setEventToEdit(ev);
+                    setSelectedDate(ev.start_date); // Keep this line as it was in the original
                     setIsModalOpen(true);
                 }}
                 onDeleteSuccess={() => {
                     fetchEvents(currentDate);
                 }}
+                appState={appState}
             />
 
             <MyEventsModal

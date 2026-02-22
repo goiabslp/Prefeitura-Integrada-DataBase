@@ -1,21 +1,24 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { CalendarEvent } from '../../services/calendarService';
-import { Calendar as CalendarIcon, Clock, AlignLeft, Users, Star, User, Flag, Lock, Building2 } from 'lucide-react';
+import { AppState } from '../../types';
+import { PageWrapper } from '../PageWrapper';
+import { Calendar as CalendarIcon, Clock, AlignLeft, Users, Star, User, Flag, Lock } from 'lucide-react';
 
 interface EventPdfGeneratorProps {
     event: CalendarEvent;
+    state: AppState;
 }
 
-export const EventPdfGenerator: React.FC<EventPdfGeneratorProps> = ({ event }) => {
+export const EventPdfGenerator: React.FC<EventPdfGeneratorProps> = ({ event, state }) => {
     // Cores e Ícones do Evento
     const colors: Record<string, any> = {
-        Feriado: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: 'text-red-500', iconComp: Flag },
-        Reunião: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', icon: 'text-indigo-500', iconComp: Users },
-        Evento: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: 'text-emerald-500', iconComp: CalendarIcon },
-        Pessoal: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: 'text-amber-500', iconComp: Lock }
+        Feriado: { text: 'text-red-700', border: 'border-red-200', icon: 'text-red-500', iconComp: Flag },
+        Reunião: { text: 'text-indigo-700', border: 'border-indigo-200', icon: 'text-indigo-500', iconComp: Users },
+        Evento: { text: 'text-emerald-700', border: 'border-emerald-200', icon: 'text-emerald-500', iconComp: CalendarIcon },
+        Pessoal: { text: 'text-amber-700', border: 'border-amber-200', icon: 'text-amber-500', iconComp: Lock }
     };
-    const theme = colors[event.type] || { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', icon: 'text-slate-500', iconComp: CalendarIcon };
+    const theme = colors[event.type] || { text: 'text-slate-700', border: 'border-slate-200', icon: 'text-slate-500', iconComp: CalendarIcon };
     const ThemeIcon = theme.iconComp;
 
     const formatTime = (t: string) => t.slice(0, 5);
@@ -26,146 +29,163 @@ export const EventPdfGenerator: React.FC<EventPdfGeneratorProps> = ({ event }) =
     };
 
     return createPortal(
-        <div id="event-pdf-content" className="fixed top-[-9999px] left-[-9999px] w-[210mm] opacity-0 pointer-events-none bg-white">
-            <div className="w-[210mm] min-h-[297mm] p-12 bg-white flex flex-col font-sans relative">
-
-                {/* Cabeçalho Institucional */}
-                <div className="flex items-start justify-between border-b-2 border-slate-900 pb-6 mb-8">
-                    <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-slate-900 rounded-xl flex items-center justify-center shrink-0">
-                            <Building2 className="w-8 h-8 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Prefeitura Integrada</h1>
-                            <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">Sistema de Gestão Pública</p>
-                            <p className="text-xs text-slate-400 mt-0.5">Módulo de Calendário Institucional</p>
-                        </div>
+        <div
+            id="event-pdf-content"
+            style={{
+                position: 'fixed',
+                left: '-10000px',
+                top: '0',
+                width: '210mm',
+                background: 'white',
+                zIndex: -1
+            }}
+        >
+            <PageWrapper
+                state={{
+                    ...state,
+                    branding: {
+                        ...state.branding,
+                        watermark: {
+                            ...state.branding?.watermark,
+                            enabled: false
+                        }
+                    },
+                    content: {
+                        ...state.content,
+                        title: event.title,
+                        protocol: event.id.substring(0, 8).toUpperCase()
+                    }
+                }}
+                pageIndex={0}
+                totalPages={1}
+                isGenerating={true}
+            >
+                <div className="flex flex-col gap-8">
+                    {/* Título Principal do Relatório */}
+                    <div className="border-b-2 border-slate-900 pb-4">
+                        <h1 className="text-[18pt] font-black uppercase tracking-tight text-slate-900">Detalhes do Evento</h1>
+                        <p className="text-[10pt] font-bold text-slate-500 uppercase tracking-widest mt-1">Informações do Calendário Institucional</p>
                     </div>
-                    <div className="text-right">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Documento Gerado Em</div>
-                        <div className="text-sm font-black text-slate-800 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                            {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                    </div>
-                </div>
 
-                {/* Título e Capa do Evento */}
-                <div className={`p-8 rounded-2xl border ${theme.border} ${theme.bg} mb-8`}>
-                    <div className="flex items-start gap-5">
-                        <div className={`mt-1 bg-white p-3 rounded-xl shadow-sm border ${theme.border}`}>
-                            <ThemeIcon className={`w-8 h-8 ${theme.icon}`} />
-                        </div>
-                        <div className="flex-1">
-                            <span className={`inline-block px-2.5 py-1 rounded text-xs uppercase font-black tracking-widest bg-white border outline outline-4 outline-white shadow-sm mb-3 ${theme.border} ${theme.text}`}>
-                                {event.type}
-                            </span>
-                            <h2 className="text-3xl font-black text-slate-900 leading-tight mb-4">
-                                {event.title}
-                            </h2>
+                    {/* Bloco de Destaque */}
+                    <div className="grid grid-cols-1 gap-6">
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-10">
+                                <ThemeIcon className="w-24 h-24" />
+                            </div>
 
-                            <div className="flex flex-wrap gap-6 border-t border-slate-900/10 pt-4 mt-2">
-                                <div className="flex items-center gap-2">
-                                    <CalendarIcon className={`w-4 h-4 ${theme.text}`} />
-                                    <div>
-                                        <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Datas</p>
-                                        <p className="font-bold text-slate-900 text-sm">
-                                            {event.start_date === event.end_date
-                                                ? formatDateBr(event.start_date)
-                                                : `De ${formatDateBr(event.start_date)} a ${formatDateBr(event.end_date)}`
-                                            }
-                                        </p>
+                            <div className="relative z-10">
+                                <span className={`inline-block px-2.5 py-1 rounded text-[8pt] uppercase font-black tracking-widest bg-white border shadow-sm mb-4 ${theme.border} ${theme.text}`}>
+                                    {event.type}
+                                </span>
+                                <h2 className="text-[22pt] font-black text-slate-900 leading-tight mb-6">{event.title}</h2>
+
+                                <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-200">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+                                            <CalendarIcon className="w-5 h-5 text-slate-400" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[7pt] font-black uppercase text-slate-400 tracking-wider">Período</p>
+                                            <p className="text-[11pt] font-bold text-slate-900">
+                                                {event.start_date === event.end_date
+                                                    ? formatDateBr(event.start_date)
+                                                    : `${formatDateBr(event.start_date)} - ${formatDateBr(event.end_date)}`
+                                                }
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Clock className={`w-4 h-4 ${theme.text}`} />
-                                    <div>
-                                        <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Horário</p>
-                                        <p className="font-bold text-slate-900 text-sm">
-                                            {event.is_all_day
-                                                ? 'Dia Inteiro'
-                                                : `${formatTime(event.start_time!)} às ${formatTime(event.end_time!)}`
-                                            }
-                                        </p>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+                                            <Clock className="w-5 h-5 text-slate-400" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[7pt] font-black uppercase text-slate-400 tracking-wider">Horário</p>
+                                            <p className="text-[11pt] font-bold text-slate-900">
+                                                {event.is_all_day ? 'Dia Inteiro' : `${formatTime(event.start_time!)} às ${formatTime(event.end_time!)}`}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                {/* Descrição */}
-                {event.description && (
-                    <div className="mb-8">
-                        <div className="flex items-start gap-3 text-slate-800">
-                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                                <AlignLeft className="w-4 h-4 text-slate-600" />
-                            </div>
-                            <div className="flex-1">
-                                <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 mt-1">Descrição Detalhada</h3>
-                                <div className="text-sm text-slate-700 leading-relaxed border-l-2 pl-4 border-slate-200">
+                        {/* Descrição */}
+                        {event.description && (
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2 text-slate-400">
+                                    <AlignLeft className="w-4 h-4" />
+                                    <h3 className="text-[9pt] font-black uppercase tracking-widest">Descrição</h3>
+                                </div>
+                                <div className="bg-white border-l-4 border-slate-900 p-5 text-[11pt] text-slate-700 leading-relaxed shadow-sm italic">
                                     {event.description}
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                )}
+                        )}
 
-                {/* Convidados */}
-                {event.invites && event.invites.length > 0 && (
-                    <div className="mb-8">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                                <Users className="w-4 h-4 text-slate-600" />
-                            </div>
-                            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">Lista de Convidados ({event.invites.length})</h3>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            {event.invites.map(inv => (
-                                <div key={inv.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col justify-between">
-                                    <div className="flex items-start justify-between mb-2">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${inv.role === 'Colaborador' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}`}>
-                                                {inv.role === 'Colaborador' ? <Star className="w-4 h-4" /> : <User className="w-4 h-4" />}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-slate-900 truncate max-w-[120px]">{inv.user_name || 'Usuário Desconhecido'}</p>
-                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{inv.role === 'Colaborador' ? 'Organizador' : 'Participante'}</p>
-                                            </div>
-                                        </div>
-                                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${inv.status === 'Aceito' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                            inv.status === 'Recusado' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                                'bg-white text-slate-600 border-slate-200'
-                                            }`}>
-                                            {inv.status}
-                                        </span>
-                                    </div>
-
-                                    {inv.status === 'Recusado' && inv.decline_reason && (
-                                        <div className="mt-2 text-xs bg-white border border-rose-100 rounded-lg p-2.5 text-rose-800">
-                                            <span className="font-bold flex block mb-0.5">Motivo:</span>
-                                            <span className="opacity-90">{inv.decline_reason}</span>
-                                        </div>
-                                    )}
+                        {/* Convidados */}
+                        {event.invites && event.invites.length > 0 && (
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 text-slate-400">
+                                    <Users className="w-4 h-4" />
+                                    <h3 className="text-[9pt] font-black uppercase tracking-widest">Lista de Participantes ({event.invites.length})</h3>
                                 </div>
-                            ))}
+
+                                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                                    <table className="w-full text-left bg-white">
+                                        <thead>
+                                            <tr className="bg-slate-900 text-white text-[8pt] uppercase tracking-widest">
+                                                <th className="px-5 py-3 font-black">Participante</th>
+                                                <th className="px-5 py-3 font-black text-center">Tipo</th>
+                                                <th className="px-5 py-3 font-black text-right">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 italic">
+                                            {event.invites.map(inv => (
+                                                <tr key={inv.id} className="text-[10pt]">
+                                                    <td className="px-5 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${inv.role === 'Colaborador' ? 'bg-indigo-50 text-indigo-500' : 'bg-slate-100 text-slate-400'}`}>
+                                                                {inv.role === 'Colaborador' ? <Star className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                                                            </div>
+                                                            <span className="font-bold text-slate-900">{inv.user_name || 'Usuário'}</span>
+                                                        </div>
+                                                        {inv.status === 'Recusado' && inv.decline_reason && (
+                                                            <p className="mt-1 text-[8pt] text-rose-600 pl-11">Motivo: {inv.decline_reason}</p>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-4 text-center">
+                                                        <span className="text-[8pt] font-bold text-slate-500 uppercase tracking-tight">{inv.role === 'Colaborador' ? 'Organizador' : 'Participante'}</span>
+                                                    </td>
+                                                    <td className="px-5 py-4 text-right">
+                                                        <span className={`inline-block px-2 py-0.5 rounded text-[8pt] font-black uppercase tracking-tighter ${inv.status === 'Aceito' ? 'text-emerald-600' :
+                                                            inv.status === 'Recusado' ? 'text-rose-600' : 'text-slate-400'
+                                                            }`}>
+                                                            {inv.status}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Metadados Finais */}
+                    <div className="mt-auto grid grid-cols-2 gap-4 text-slate-400 pt-8 border-t border-slate-100">
+                        <div>
+                            <p className="text-[7pt] font-black uppercase tracking-widest opacity-60">Criado em</p>
+                            <p className="text-[9pt] font-medium">{new Date(event.created_at!).toLocaleString('pt-BR')}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[7pt] font-black uppercase tracking-widest opacity-60">ID do Evento</p>
+                            <p className="text-[8pt] font-mono">{event.id}</p>
                         </div>
                     </div>
-                )}
-
-                {/* Rodapé e Metadados Técnicos */}
-                <div className="mt-auto pt-6 border-t border-slate-200 flex items-center justify-between text-xs text-slate-400">
-                    <p>Evento criado em: {new Date(event.created_at!).toLocaleDateString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
-                    <p className="font-mono text-[10px]">ID: {event.id}</p>
                 </div>
-
-                {/* Marca d'agua / Identificacao final */}
-                <div className="absolute bottom-12 left-0 right-0 text-center opacity-20 pointer-events-none">
-                    <p className="text-[10vh] font-black text-slate-300 uppercase tracking-tighter leading-none select-none">
-                        PREFEITURA
-                    </p>
-                </div>
-            </div>
+            </PageWrapper>
         </div>,
         document.body
     );
