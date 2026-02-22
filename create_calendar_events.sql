@@ -1,9 +1,16 @@
+-- Drop the old table if it exists to allow a clean creation with new schema (development only)
+DROP TABLE IF EXISTS public.calendar_events;
+
 -- Create Calendar Events Table
-CREATE TABLE IF NOT EXISTS public.calendar_events (
+CREATE TABLE public.calendar_events (
     id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
     title text NOT NULL,
     type text NOT NULL, -- 'Feriado', 'Reunião', 'Evento', etc.
-    date date NOT NULL,
+    start_date date NOT NULL,
+    end_date date NOT NULL,
+    is_all_day boolean NOT NULL DEFAULT true,
+    start_time time,
+    end_time time,
     description text,
     created_by uuid REFERENCES public.profiles(id),
     created_at timestamp with time zone DEFAULT now(),

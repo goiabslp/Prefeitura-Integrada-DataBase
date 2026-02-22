@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, ChevronsLeft, ChevronsRight, Star, Users, Flag } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EventModal } from './EventModal';
+import { DayDetailsModal } from './DayDetailsModal';
+import { EventDetailsModal } from './EventDetailsModal';
+import { generateHolidaysForYear } from './holidays';
 
 export interface CalendarEvent {
     id: string;
     title: string;
     type: string;
-    date: string; // YYYY-MM-DD
+    start_date: string; // YYYY-MM-DD
+    end_date: string; // YYYY-MM-DD
+    is_all_day: boolean;
+    start_time?: string;
+    end_time?: string;
     description?: string;
     created_by?: string;
     created_at?: string;
@@ -31,6 +38,12 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
     const [eventToEdit, setEventToEdit] = useState<CalendarEvent | null>(null);
     const [selectedDate, setSelectedDate] = useState('');
 
+    const [isDayDetailsOpen, setIsDayDetailsOpen] = useState(false);
+    const [selectedDayEvents, setSelectedDayEvents] = useState<CalendarEvent[]>([]);
+
+    const [eventDetailsEvent, setEventDetailsEvent] = useState<CalendarEvent | null>(null);
+    const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
+
     // Fetch events for current month (and slightly padding)
     const fetchEvents = async (date: Date) => {
         setLoading(true);
@@ -50,12 +63,23 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
             const { data, error } = await supabase
                 .from('calendar_events')
                 .select('*')
-                .gte('date', startDateStr)
-                .lte('date', endDateStr)
-                .order('date', { ascending: true });
+                .lte('start_date', endDateStr)
+                .gte('end_date', startDateStr)
+                .order('start_date', { ascending: true });
 
             if (error) throw error;
-            setEvents(data || []);
+
+            // Gen recurring holidays for the current view and surroundings
+            const holidaysData = [
+                ...generateHolidaysForYear(prevYear),
+                ...((prevYear !== nextYear) && (nextYear !== year) ? generateHolidaysForYear(year) : []),
+                ...((prevYear !== nextYear) ? generateHolidaysForYear(nextYear) : [])
+            ];
+
+            // Deduplicate generated holidays since there could be overlaps depending on the month
+            const uniqueHolidays = Array.from(new Map(holidaysData.map(h => [h.id, h])).values());
+
+            setEvents([...uniqueHolidays, ...(data || [])]);
         } catch (error) {
             console.error('Erro ao buscar eventos do calendário:', error);
         } finally {
@@ -87,6 +111,23 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
         setCurrentDate(new Date(currentDate.getFullYear() - 1, currentDate.getMonth(), 1));
     };
 
+    const goToToday = () => {
+        const now = new Date();
+        const yearDiff = now.getFullYear() - currentDate.getFullYear();
+        const monthDiff = now.getMonth() - currentDate.getMonth();
+
+        if (yearDiff === 0 && monthDiff === 0) return; // Algready today
+
+        // Determine animation direction
+        if (yearDiff > 0 || (yearDiff === 0 && monthDiff > 0)) {
+            setDirection(1);
+        } else {
+            setDirection(-1);
+        }
+
+        setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    };
+
     const today = new Date();
 
     const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -105,31 +146,22 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
         const lastDayOfMonth = new Date(year, month + 1, 0);
         const totalDaysInMonth = lastDayOfMonth.getDate();
 
-        // Last day of previous month
-        const lastDayOfPrevMonth = new Date(year, month, 0).getDate();
-
         const days = [];
 
-        // Padding from previous month
+        // Padding from previous month (empty slots)
         for (let i = 0; i < startingDayOfWeek; i++) {
-            const day = lastDayOfPrevMonth - startingDayOfWeek + i + 1;
-            const dateStr = `${month === 0 ? year - 1 : year}-${String(month === 0 ? 12 : month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            days.push({ day, isCurrentMonth: false, dateStr });
+            days.push({ day: null, isCurrentMonth: false, dateStr: '', isWeekend: false });
         }
 
         // Current month days
         for (let day = 1; day <= totalDaysInMonth; day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            days.push({ day, isCurrentMonth: true, dateStr });
+            const dayOfWeek = new Date(year, month, day).getDay();
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            days.push({ day, isCurrentMonth: true, dateStr, isWeekend });
         }
 
-        // Padding from next month
-        const remainingSlots = 42 - days.length; // 6 rows * 7 cols = 42
-        for (let day = 1; day <= remainingSlots; day++) {
-            const dateStr = `${month === 11 ? year + 1 : year}-${String(month === 11 ? 1 : month + 2).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            days.push({ day, isCurrentMonth: false, dateStr });
-        }
-
+        // We don't pad the end with next month anymore, let the grid flow naturally.
         return days;
     }, [currentDate]);
 
@@ -208,24 +240,33 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                     </button>
                 </div>
 
-                <div className="w-64 flex justify-center overflow-hidden">
-                    <AnimatePresence mode="popLayout" initial={false} custom={direction}>
-                        <motion.div
-                            key={`${currentDate.getFullYear()}-${currentDate.getMonth()}`}
-                            custom={direction}
-                            variants={variants}
-                            initial="enter"
-                            animate="center"
-                            exit="exit"
-                            transition={{
-                                x: { type: "spring", stiffness: 300, damping: 30 },
-                                opacity: { duration: 0.2 }
-                            }}
-                            className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-600 uppercase tracking-wider text-center"
-                        >
-                            {monthNames[currentDate.getMonth()]} <span className="text-rose-500">{currentDate.getFullYear()}</span>
-                        </motion.div>
-                    </AnimatePresence>
+                <div className="flex flex-col items-center">
+                    <div className="w-64 flex justify-center overflow-hidden">
+                        <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+                            <motion.div
+                                key={`${currentDate.getFullYear()}-${currentDate.getMonth()}`}
+                                custom={direction}
+                                variants={variants}
+                                initial="enter"
+                                animate="center"
+                                exit="exit"
+                                transition={{
+                                    x: { type: "spring", stiffness: 300, damping: 30 },
+                                    opacity: { duration: 0.2 }
+                                }}
+                                className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-600 uppercase tracking-wider text-center"
+                            >
+                                {monthNames[currentDate.getMonth()]} <span className="text-rose-500">{currentDate.getFullYear()}</span>
+                            </motion.div>
+                        </AnimatePresence>
+                    </div>
+
+                    <button
+                        onClick={goToToday}
+                        className="mt-1 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider rounded-md transition-colors"
+                    >
+                        Hoje
+                    </button>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -249,8 +290,8 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                     ))}
                 </div>
 
-                {/* Grip principal fullscreen */}
-                <div className="flex-1 grid grid-cols-7 grid-rows-6 gap-2 min-h-0 relative">
+                {/* Grip principal dinâmico */}
+                <div className="flex-1 grid grid-cols-7 auto-rows-fr gap-2 min-h-0 relative">
                     <AnimatePresence mode="wait">
                         {loading && (
                             <motion.div
@@ -263,59 +304,127 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                     </AnimatePresence>
 
                     {calendarGrid.map((slot, i) => {
+                        if (!slot.isCurrentMonth || !slot.day) {
+                            return <div key={i} className="flex flex-col rounded-2xl border-none bg-transparent"></div>;
+                        }
+
                         const isTodaySlot = isToday(slot.dateStr);
-                        // filter events for this day
-                        const dayEvents = events.filter(e => e.date === slot.dateStr);
+                        // filter events for this day (if slot date is between start_date and end_date)
+                        const dayEvents = events.filter(e => {
+                            return slot.dateStr >= e.start_date && slot.dateStr <= e.end_date;
+                        });
+
+                        // Define styles based on Priority: Today > Weekend > Regular
+                        let bgClass = slot.isWeekend ? 'bg-indigo-50/30' : 'bg-white';
+                        let borderClass = 'border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-200';
+                        let headerBgClass = slot.isWeekend ? 'bg-indigo-50/50 border-b border-indigo-100/50' : 'border-b border-slate-50';
+                        let textClass = slot.isWeekend ? 'text-indigo-900/60' : 'text-slate-700';
+
+                        if (isTodaySlot) {
+                            bgClass = 'bg-blue-50';
+                            borderClass = 'border-blue-400 shadow-md ring-1 ring-blue-400';
+                            headerBgClass = 'bg-blue-600 border-b border-blue-700';
+                            textClass = 'text-white';
+                        }
 
                         return (
                             <div
                                 key={i}
-                                className={`flex flex-col rounded-2xl border ${slot.isCurrentMonth ? 'bg-white border-slate-100 shadow-sm hover:shadow-md' : 'bg-slate-50/50 border-slate-50 opacity-60'} overflow-hidden transition-all duration-300 group`}
+                                onClick={() => {
+                                    setSelectedDate(slot.dateStr);
+                                    setSelectedDayEvents(dayEvents);
+                                    setIsDayDetailsOpen(true);
+                                }}
+                                className={`flex flex-col min-h-[90px] desktop:min-h-[110px] rounded-2xl border overflow-hidden transition-all duration-300 group cursor-pointer ${bgClass} ${borderClass}`}
                             >
                                 {/* Cabeçalho do Dia */}
-                                <div className={`flex justify-between items-center p-2 px-3 ${isTodaySlot ? 'bg-rose-50 border-b border-rose-100' : ''}`}>
-                                    <span className={`text-sm font-bold ${isTodaySlot ? 'text-rose-600' : slot.isCurrentMonth ? 'text-slate-700' : 'text-slate-400'}`}>
-                                        {slot.day}
+                                <div className={`flex justify-between items-center p-2 px-3 ${headerBgClass}`}>
+                                    <span className={`text-sm font-bold ${textClass}`}>
+                                        {slot.day === 1 && slot.dateStr
+                                            ? new Date(slot.dateStr + 'T12:00:00')
+                                                .toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' })
+                                                .replace('.', '')
+                                            : slot.day}
                                     </span>
-                                    {/* Se admin e for hover, pode mostrar atalho pra adicionar evento na data. Por enquanto simples: */}
-                                    {isAdmin && slot.isCurrentMonth && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setEventToEdit(null);
-                                                setSelectedDate(slot.dateStr);
-                                                setIsModalOpen(true);
-                                            }}
-                                            className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-rose-100 hover:text-rose-600 transition-all"
-                                        >
-                                            <Plus className="w-4 h-4" />
-                                        </button>
-                                    )}
+                                    <div className="flex items-center gap-0.5">
+                                        {/* Icons summary */}
+                                        {dayEvents.length > 0 && (
+                                            <div className="flex items-center -space-x-1 mr-0.5">
+                                                {dayEvents.slice(0, 3).map((e, idx) => {
+                                                    let Icon = Star;
+                                                    let colorClass = "text-emerald-600 bg-emerald-50 border-emerald-200";
+                                                    if (e.type === 'Reunião') {
+                                                        Icon = Users;
+                                                        colorClass = "text-indigo-600 bg-indigo-50 border-indigo-200";
+                                                    } else if (e.type === 'Feriado') {
+                                                        Icon = Flag;
+                                                        colorClass = "text-red-600 bg-red-50 border-red-200";
+                                                    }
+
+                                                    return (
+                                                        <div key={`${e.id}-${idx}`} title={e.title} className={`w-5 h-5 flex items-center justify-center rounded-full border relative shadow-sm ${colorClass}`} style={{ zIndex: 10 - idx }}>
+                                                            <Icon className="w-[10px] h-[10px]" />
+                                                        </div>
+                                                    )
+                                                })}
+                                                {dayEvents.length > 3 && (
+                                                    <div className="w-5 h-5 flex items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm text-[9px] font-black text-slate-600 relative z-0">
+                                                        +{dayEvents.length - 3}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {isAdmin && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedDate(slot.dateStr);
+                                                    setSelectedDayEvents(dayEvents);
+                                                    setIsDayDetailsOpen(true);
+                                                }}
+                                                className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-rose-100 hover:text-rose-600 transition-all shrink-0"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Eventos do Dia */}
-                                <div className="flex-1 overflow-y-auto p-1 custom-scrollbar space-y-1 relative">
-                                    {dayEvents.map(event => (
+                                <div className="flex-1 overflow-y-hidden p-1 flex flex-col gap-0.5 relative">
+                                    {dayEvents.slice(0, 3).map(event => (
                                         <div
                                             key={event.id}
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                if (isAdmin) {
-                                                    setEventToEdit(event);
-                                                    setSelectedDate(event.date);
-                                                    setIsModalOpen(true);
-                                                }
+                                                setEventDetailsEvent(event);
+                                                setIsEventDetailsOpen(true);
                                             }}
-                                            className={`text-[10px] sm:text-xs px-2 py-1 rounded truncate font-medium shadow-sm transition-transform ${isAdmin ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default'}`}
+                                            className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold transition-transform cursor-pointer hover:opacity-80 truncate"
                                             style={{
                                                 backgroundColor: event.type === 'Feriado' ? '#fee2e2' : event.type === 'Reunião' ? '#e0e7ff' : '#dcfce7',
                                                 color: event.type === 'Feriado' ? '#991b1b' : event.type === 'Reunião' ? '#3730a3' : '#166534',
-                                                borderLeft: `3px solid ${event.type === 'Feriado' ? '#ef4444' : event.type === 'Reunião' ? '#6366f1' : '#22c55e'}`
+                                                borderLeft: `2px solid ${event.type === 'Feriado' ? '#ef4444' : event.type === 'Reunião' ? '#6366f1' : '#22c55e'}`
                                             }}
                                         >
-                                            {event.title}
+                                            <span className="truncate block font-bold leading-tight">{event.title}</span>
                                         </div>
                                     ))}
+
+                                    {dayEvents.length > 3 && (
+                                        <div
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedDate(slot.dateStr);
+                                                setSelectedDayEvents(dayEvents);
+                                                setIsDayDetailsOpen(true);
+                                            }}
+                                            className="text-[9px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded px-1.5 py-0.5 mt-auto cursor-pointer text-left transition-colors"
+                                        >
+                                            +{dayEvents.length - 3} mais...
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -328,13 +437,62 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                 onClose={() => setIsModalOpen(false)}
                 onSaved={() => {
                     setIsModalOpen(false);
-                    fetchEvents(currentDate);
+                    // Update the day events list if the day details is open
+                    fetchEvents(currentDate).then(() => {
+                        // After fetch closes, we can update selectedDayEvents
+                        // A slightly hacky but simple way: we just let the parent handle the events array, 
+                        // but selectedDayEvents need to react. 
+                    });
                 }}
                 eventToEdit={eventToEdit}
                 selectedDate={selectedDate}
                 currentUserId={currentUserId}
             />
 
+            <DayDetailsModal
+                isOpen={isDayDetailsOpen}
+                onClose={() => setIsDayDetailsOpen(false)}
+                dateStr={selectedDate}
+                // Recalculate directly from state so updates bubble gracefully
+                events={events.filter(e => selectedDate >= e.start_date && selectedDate <= e.end_date)}
+                isAdmin={isAdmin}
+                onAddEvent={() => {
+                    setEventToEdit(null);
+                    setIsModalOpen(true);
+                }}
+                onEditEvent={(evt) => {
+                    setEventToEdit(evt);
+                    setIsModalOpen(true);
+                }}
+                onDeleteEvent={async (evt) => {
+                    // Quick inline delete handler avoiding opening EventModal just to delete
+                    try {
+                        const { error } = await supabase.from('calendar_events').delete().eq('id', evt.id);
+                        if (error) throw error;
+                        fetchEvents(currentDate);
+                    } catch (e) {
+                        console.error(e);
+                        alert("Erro ao remover evento.");
+                    }
+                }}
+            />
+
+            <EventDetailsModal
+                isOpen={isEventDetailsOpen}
+                onClose={() => setIsEventDetailsOpen(false)}
+                event={eventDetailsEvent}
+                isAdmin={isAdmin}
+                onEditEvent={(evt) => {
+                    setEventToEdit(evt);
+                    setSelectedDate(evt.start_date);
+                    setIsModalOpen(true);
+                }}
+                onDeleteSuccess={() => {
+                    fetchEvents(currentDate);
+                }}
+            />
         </div>
     );
 };
+
+export default Calendario;

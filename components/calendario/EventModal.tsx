@@ -18,7 +18,11 @@ export const EventModal: React.FC<Props> = ({
 }) => {
     const [title, setTitle] = useState('');
     const [type, setType] = useState('Evento');
-    const [date, setDate] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [isAllDay, setIsAllDay] = useState(true);
+    const [startTime, setStartTime] = useState('');
+    const [endTime, setEndTime] = useState('');
     const [description, setDescription] = useState('');
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -28,12 +32,20 @@ export const EventModal: React.FC<Props> = ({
             if (eventToEdit) {
                 setTitle(eventToEdit.title);
                 setType(eventToEdit.type);
-                setDate(eventToEdit.date);
+                setStartDate(eventToEdit.start_date);
+                setEndDate(eventToEdit.end_date);
+                setIsAllDay(eventToEdit.is_all_day);
+                setStartTime(eventToEdit.start_time || '');
+                setEndTime(eventToEdit.end_time || '');
                 setDescription(eventToEdit.description || '');
             } else {
                 setTitle('');
                 setType('Evento');
-                setDate(selectedDate || new Date().toISOString().split('T')[0]);
+                setStartDate(selectedDate || new Date().toISOString().split('T')[0]);
+                setEndDate(selectedDate || new Date().toISOString().split('T')[0]);
+                setIsAllDay(true);
+                setStartTime('');
+                setEndTime('');
                 setDescription('');
             }
         }
@@ -41,29 +53,48 @@ export const EventModal: React.FC<Props> = ({
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim() || !date) return;
+        if (!title.trim() || !startDate || !endDate) return;
+
+        if (startDate > endDate) {
+            alert('A data de término não pode ser anterior à data de início.');
+            return;
+        }
+
+        if (!isAllDay) {
+            if (!startTime || !endTime) {
+                alert('Informe os horários de início e término.');
+                return;
+            }
+            if (startDate === endDate && startTime >= endTime) {
+                alert('O horário de término deve ser posterior ao horário de início.');
+                return;
+            }
+        }
 
         setLoading(true);
         try {
+            const payload = {
+                title,
+                type,
+                start_date: startDate,
+                end_date: endDate,
+                is_all_day: isAllDay,
+                start_time: isAllDay ? null : startTime,
+                end_time: isAllDay ? null : endTime,
+                description
+            };
+
             if (eventToEdit) {
                 const { error } = await supabase
                     .from('calendar_events')
-                    .update({
-                        title,
-                        type,
-                        date,
-                        description
-                    })
+                    .update(payload)
                     .eq('id', eventToEdit.id);
                 if (error) throw error;
             } else {
                 const { error } = await supabase
                     .from('calendar_events')
                     .insert({
-                        title,
-                        type,
-                        date,
-                        description,
+                        ...payload,
                         created_by: currentUserId
                     });
                 if (error) throw error;
@@ -163,31 +194,62 @@ export const EventModal: React.FC<Props> = ({
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                                    Data
+                                    Data de Início
                                 </label>
                                 <input
                                     type="date"
                                     required
-                                    value={date}
-                                    onChange={e => setDate(e.target.value)}
+                                    value={startDate}
+                                    onChange={e => setStartDate(e.target.value)}
                                     className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none"
                                 />
                             </div>
 
                             <div>
                                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                                    Tipo
+                                    Data de Término
                                 </label>
-                                <select
-                                    value={type}
-                                    onChange={e => setType(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none appearance-none"
-                                >
-                                    <option value="Evento">Evento Público</option>
-                                    <option value="Reunião">Reunião Interna</option>
-                                    <option value="Feriado">Feriado / Recesso</option>
-                                </select>
+                                <input
+                                    type="date"
+                                    required
+                                    value={endDate}
+                                    onChange={e => setEndDate(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none"
+                                />
                             </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <input type="checkbox" id="isAllDay" checked={isAllDay} onChange={e => setIsAllDay(e.target.checked)} className="w-5 h-5 text-rose-600 rounded border-slate-300 focus:ring-rose-500 cursor-pointer" />
+                            <label htmlFor="isAllDay" className="text-sm font-medium text-slate-700 cursor-pointer">Evento de Dia Inteiro</label>
+                        </div>
+
+                        {!isAllDay && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">Hora Inicial</label>
+                                    <input type="time" required={!isAllDay} value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none" />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">Hora Final</label>
+                                    <input type="time" required={!isAllDay} value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none" />
+                                </div>
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                                Tipo
+                            </label>
+                            <select
+                                value={type}
+                                onChange={e => setType(e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none appearance-none"
+                            >
+                                <option value="Evento">Evento Público</option>
+                                <option value="Reunião">Reunião Interna</option>
+                                <option value="Feriado">Feriado / Recesso</option>
+                            </select>
                         </div>
 
                         <div>
@@ -237,6 +299,6 @@ export const EventModal: React.FC<Props> = ({
                     </form>
                 </motion.div>
             </div>
-        </AnimatePresence>
+        </AnimatePresence >
     );
 };
