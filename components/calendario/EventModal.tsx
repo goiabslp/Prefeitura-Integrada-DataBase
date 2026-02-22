@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, Calendar as CalendarIcon, Save, Trash2, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Calendar as CalendarIcon, Save, Trash2, Loader2, Users, CheckSquare, Square, ChevronDown, Lock, Flag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CalendarEvent } from './Calendario';
 import { supabase } from '../../services/supabaseClient';
+import { calendarService, CalendarEventInvite, CalendarEvent } from '../../services/calendarService';
 
 interface Props {
     isOpen: boolean;
@@ -13,11 +13,16 @@ interface Props {
     currentUserId: string;
 }
 
+interface UserProfile {
+    id: string;
+    name: string;
+}
+
 export const EventModal: React.FC<Props> = ({
     isOpen, onClose, onSaved, eventToEdit, selectedDate, currentUserId
 }) => {
     const [title, setTitle] = useState('');
-    const [type, setType] = useState('Evento');
+    const [type, setType] = useState('Pessoal');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [isAllDay, setIsAllDay] = useState(true);
@@ -26,9 +31,17 @@ export const EventModal: React.FC<Props> = ({
     const [description, setDescription] = useState('');
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Invites State
+    const [activeTab, setActiveTab] = useState<'details' | 'invites'>('details');
+    const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+    const [selectedInvites, setSelectedInvites] = useState<{ user_id: string; role: 'Colaborador' | 'Participante' }[]>([]);
 
     useEffect(() => {
         if (isOpen) {
+            fetchUsers();
             if (eventToEdit) {
                 setTitle(eventToEdit.title);
                 setType(eventToEdit.type);
@@ -38,18 +51,48 @@ export const EventModal: React.FC<Props> = ({
                 setStartTime(eventToEdit.start_time || '');
                 setEndTime(eventToEdit.end_time || '');
                 setDescription(eventToEdit.description || '');
+
+                // Pre-fill invites
+                if (eventToEdit.invites) {
+                    setSelectedInvites(
+                        eventToEdit.invites.map(inv => ({ user_id: inv.user_id, role: inv.role }))
+                    );
+                } else {
+                    setSelectedInvites([]);
+                }
+                setActiveTab('details');
             } else {
                 setTitle('');
-                setType('Evento');
+                setType('Pessoal');
                 setStartDate(selectedDate || new Date().toISOString().split('T')[0]);
                 setEndDate(selectedDate || new Date().toISOString().split('T')[0]);
                 setIsAllDay(true);
                 setStartTime('');
                 setEndTime('');
                 setDescription('');
+                setSelectedInvites([]);
+                setActiveTab('details');
             }
         }
     }, [isOpen, eventToEdit, selectedDate]);
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsTypeDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const fetchUsers = async () => {
+        const { data } = await supabase.from('profiles').select('id, name').order('name');
+        if (data) {
+            setAllUsers(data.filter(u => u.id !== currentUserId)); // exclude self
+        }
+    };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -81,25 +124,28 @@ export const EventModal: React.FC<Props> = ({
                 is_all_day: isAllDay,
                 start_time: isAllDay ? null : startTime,
                 end_time: isAllDay ? null : endTime,
-                description
+                description,
+                created_by: currentUserId
             };
 
+            const invitesPayload: Partial<CalendarEventInvite>[] = selectedInvites.map(inv => ({
+                user_id: inv.user_id,
+                role: inv.role,
+                status: 'Pendente'
+            }));
+
             if (eventToEdit) {
-                const { error } = await supabase
-                    .from('calendar_events')
-                    .update(payload)
-                    .eq('id', eventToEdit.id);
-                if (error) throw error;
+                // Update Basic Event
+                await calendarService.updateEvent(eventToEdit.id, payload);
+                // Note: Updating existing invites list deeply is omitted for simplicity in this phase
+                // unless instructed, usually creating events with invites is the core focus here.
+                onSaved();
             } else {
-                const { error } = await supabase
-                    .from('calendar_events')
-                    .insert({
-                        ...payload,
-                        created_by: currentUserId
-                    });
-                if (error) throw error;
+                // Create new event with Invites
+                const result = await calendarService.createEventWithInvites(payload, invitesPayload);
+                if (!result.success) throw new Error(result.error);
+                onSaved();
             }
-            onSaved();
         } catch (err) {
             console.error('Error saving event:', err);
             alert('Erro ao salvar o evento.');
@@ -114,12 +160,8 @@ export const EventModal: React.FC<Props> = ({
 
         setDeleting(true);
         try {
-            const { error } = await supabase
-                .from('calendar_events')
-                .delete()
-                .eq('id', eventToEdit.id);
-
-            if (error) throw error;
+            const success = await calendarService.deleteEvent(eventToEdit.id);
+            if (!success) throw new Error('Delete failed');
             onSaved();
         } catch (err) {
             console.error('Error deleting event:', err);
@@ -129,12 +171,31 @@ export const EventModal: React.FC<Props> = ({
         }
     };
 
+    const toggleInvite = (userId: string) => {
+        setSelectedInvites(prev => {
+            const exists = prev.find(p => p.user_id === userId);
+            if (exists) return prev.filter(p => p.user_id !== userId);
+            return [...prev, { user_id: userId, role: 'Participante' }];
+        });
+    };
+
+    const setRole = (userId: string, role: 'Colaborador' | 'Participante') => {
+        setSelectedInvites(prev => prev.map(p => p.user_id === userId ? { ...p, role } : p));
+    };
+
+    const selectAll = () => {
+        if (selectedInvites.length === allUsers.length) {
+            setSelectedInvites([]); // Deselect all
+        } else {
+            setSelectedInvites(allUsers.map(u => ({ user_id: u.id, role: 'Participante' })));
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
         <AnimatePresence>
             <div className="fixed inset-0 z-[2500] flex items-center justify-center p-4">
-                {/* Backdrop */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -143,28 +204,46 @@ export const EventModal: React.FC<Props> = ({
                     onClick={onClose}
                 />
 
-                {/* Modal Content */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="w-full max-w-lg bg-white rounded-[2rem] shadow-2xl relative z-10 overflow-hidden flex flex-col"
+                    className="w-full max-w-lg bg-white rounded-[2rem] shadow-2xl relative z-10 flex flex-col max-h-[90vh]"
                 >
                     {/* Header */}
-                    <div className="h-24 bg-gradient-to-br from-rose-500 to-pink-600 p-6 flex items-start justify-between shrink-0 relative overflow-hidden">
+                    <div className="h-28 bg-gradient-to-br from-rose-500 to-pink-600 p-6 flex items-start justify-between shrink-0 relative overflow-hidden rounded-t-[2rem]">
                         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
                         <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-black/10 rounded-full blur-xl" />
 
-                        <div className="relative z-10">
+                        <div className="relative z-10 flex-1">
                             <div className="flex items-center gap-3 text-white mb-1">
                                 <CalendarIcon className="w-6 h-6 opacity-80" />
                                 <h2 className="text-xl font-black tracking-tight">
                                     {eventToEdit ? 'Editar Registro' : 'Novo Registro'}
                                 </h2>
                             </div>
-                            <p className="text-rose-100 text-sm font-medium">
-                                Gerencie eventos, reuniões e feriados no calendário
-                            </p>
+
+                            {/* Tabs */}
+                            <div className="flex items-center gap-2 mt-4 bg-white/10 p-1 rounded-xl w-fit">
+                                <button
+                                    onClick={() => setActiveTab('details')}
+                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'details' ? 'bg-white text-rose-600 shadow-sm' : 'text-white hover:bg-white/10'}`}
+                                >
+                                    Detalhes
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('invites')}
+                                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'invites' ? 'bg-white text-rose-600 shadow-sm' : 'text-white hover:bg-white/10'}`}
+                                >
+                                    <Users className="w-3.5 h-3.5" />
+                                    Convidados
+                                    {selectedInvites.length > 0 && (
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === 'invites' ? 'bg-rose-100 text-rose-600' : 'bg-white/20'}`}>
+                                            {selectedInvites.length}
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
                         </div>
 
                         <button
@@ -175,128 +254,222 @@ export const EventModal: React.FC<Props> = ({
                         </button>
                     </div>
 
-                    {/* Form */}
-                    <form onSubmit={handleSave} className="p-6 flex flex-col gap-5">
-                        <div>
-                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                                Título do Registro
-                            </label>
-                            <input
-                                type="text"
-                                required
-                                value={title}
-                                onChange={e => setTitle(e.target.value)}
-                                placeholder="Ex: Reunião de Alinhamento"
-                                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium placeholder:text-slate-400 outline-none"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                                    Data de Início
-                                </label>
-                                <input
-                                    type="date"
-                                    required
-                                    value={startDate}
-                                    onChange={e => setStartDate(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                                    Data de Término
-                                </label>
-                                <input
-                                    type="date"
-                                    required
-                                    value={endDate}
-                                    onChange={e => setEndDate(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <input type="checkbox" id="isAllDay" checked={isAllDay} onChange={e => setIsAllDay(e.target.checked)} className="w-5 h-5 text-rose-600 rounded border-slate-300 focus:ring-rose-500 cursor-pointer" />
-                            <label htmlFor="isAllDay" className="text-sm font-medium text-slate-700 cursor-pointer">Evento de Dia Inteiro</label>
-                        </div>
-
-                        {!isAllDay && (
-                            <div className="grid grid-cols-2 gap-4">
+                    {/* Form / Content */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                        {activeTab === 'details' ? (
+                            <form id="event-form" onSubmit={handleSave} className="flex flex-col gap-5">
                                 <div>
-                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">Hora Inicial</label>
-                                    <input type="time" required={!isAllDay} value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none" />
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                                        Título do Registro
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={title}
+                                        onChange={e => setTitle(e.target.value)}
+                                        placeholder="Ex: Reunião de Alinhamento"
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium placeholder:text-slate-400 outline-none"
+                                    />
                                 </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                                            Data de Início
+                                        </label>
+                                        <input
+                                            type="date"
+                                            required
+                                            value={startDate}
+                                            onChange={e => setStartDate(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                                            Data de Término
+                                        </label>
+                                        <input
+                                            type="date"
+                                            required
+                                            value={endDate}
+                                            onChange={e => setEndDate(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <input type="checkbox" id="isAllDay" checked={isAllDay} onChange={e => setIsAllDay(e.target.checked)} className="w-5 h-5 text-rose-600 rounded border-slate-300 focus:ring-rose-500 cursor-pointer" />
+                                    <label htmlFor="isAllDay" className="text-sm font-medium text-slate-700 cursor-pointer">Evento de Dia Inteiro</label>
+                                </div>
+
+                                {!isAllDay && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">Hora Inicial</label>
+                                            <input type="time" required={!isAllDay} value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">Hora Final</label>
+                                            <input type="time" required={!isAllDay} value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none" />
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div>
-                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">Hora Final</label>
-                                    <input type="time" required={!isAllDay} value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none" />
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                                        Tipo
+                                    </label>
+                                    <div className="relative" ref={dropdownRef}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium flex items-center justify-between outline-none"
+                                        >
+                                            <span className="flex items-center gap-2">
+                                                {type === 'Pessoal' && <Lock className="w-4 h-4 text-amber-500" />}
+                                                {type === 'Evento' && <CalendarIcon className="w-4 h-4 text-emerald-500" />}
+                                                {type === 'Reunião' && <Users className="w-4 h-4 text-indigo-500" />}
+                                                {type === 'Feriado' && <Flag className="w-4 h-4 text-rose-500" />}
+                                                {type === 'Pessoal' ? 'Evento Pessoal' : type === 'Evento' ? 'Evento Público' : type === 'Reunião' ? 'Reunião Interna' : 'Feriado / Recesso'}
+                                            </span>
+                                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isTypeDropdownOpen ? 'rotate-180' : ''}`} />
+                                        </button>
+
+                                        <AnimatePresence>
+                                            {isTypeDropdownOpen && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: 10 }}
+                                                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                                                    className="absolute z-[3000] bottom-full left-0 right-0 mb-2 bg-white rounded-2xl shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-100 overflow-hidden"
+                                                >
+                                                    {[
+                                                        { value: 'Pessoal', label: 'Evento Pessoal', icon: Lock, color: 'text-amber-500', bg: 'hover:bg-amber-50' },
+                                                        { value: 'Evento', label: 'Evento Público', icon: CalendarIcon, color: 'text-emerald-500', bg: 'hover:bg-emerald-50' },
+                                                        { value: 'Reunião', label: 'Reunião Interna', icon: Users, color: 'text-indigo-500', bg: 'hover:bg-indigo-50' },
+                                                        { value: 'Feriado', label: 'Feriado / Recesso', icon: Flag, color: 'text-rose-500', bg: 'hover:bg-rose-50' }
+                                                    ].map(option => (
+                                                        <button
+                                                            key={option.value}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setType(option.value);
+                                                                setIsTypeDropdownOpen(false);
+                                                            }}
+                                                            className={`w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold transition-colors ${type === option.value ? 'bg-slate-50 text-slate-900 border-l-2 border-slate-300' : `text-slate-600 ${option.bg} border-l-2 border-transparent hover:text-slate-900 hover:border-${option.color.split('-')[1]}-300`}`}
+                                                        >
+                                                            <option.icon className={`w-4 h-4 ${option.color}`} />
+                                                            {option.label}
+                                                        </button>
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                                        Descrição (Opcional)
+                                    </label>
+                                    <textarea
+                                        value={description}
+                                        onChange={e => setDescription(e.target.value)}
+                                        placeholder="Detalhes adicionais..."
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium placeholder:text-slate-400 outline-none resize-none h-24"
+                                    />
+                                </div>
+                            </form>
+                        ) : (
+                            <div className="flex flex-col h-full gap-4">
+                                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                                    <div>
+                                        <h3 className="font-bold text-slate-800">Convidados</h3>
+                                        <p className="text-xs text-slate-500">Selecione quem irá participar</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={selectAll}
+                                        className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
+                                    >
+                                        {selectedInvites.length === allUsers.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                                    </button>
+                                </div>
+
+                                <div className="flex-1 flex flex-col gap-2 overflow-y-auto">
+                                    {allUsers.map(user => {
+                                        const invite = selectedInvites.find(i => i.user_id === user.id);
+                                        const isSelected = !!invite;
+
+                                        return (
+                                            <div key={user.id} className={`flex items-center justify-between p-3 border rounded-xl transition-all ${isSelected ? 'border-indigo-200 bg-indigo-50/50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                                                <div className="flex items-center gap-3 cursor-pointer flex-1" onClick={() => toggleInvite(user.id)}>
+                                                    <div className={`text-indigo-600 transition-transform ${isSelected ? 'scale-110' : 'scale-100 text-slate-300'}`}>
+                                                        {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
+                                                    </div>
+                                                    <span className={`text-sm font-bold ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                        {user.name}
+                                                    </span>
+                                                </div>
+
+                                                {isSelected && (
+                                                    <select
+                                                        value={invite.role}
+                                                        onChange={(e) => setRole(user.id, e.target.value as 'Colaborador' | 'Participante')}
+                                                        className="text-xs font-bold bg-white border border-indigo-200 text-indigo-700 rounded-lg px-2 py-1 outline-none"
+                                                    >
+                                                        <option value="Participante">Participante</option>
+                                                        <option value="Colaborador">Organizador</option>
+                                                    </select>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                    {allUsers.length === 0 && (
+                                        <p className="text-center text-slate-500 text-sm py-4">Nenhum outro usuário disponível para convidar.</p>
+                                    )}
                                 </div>
                             </div>
                         )}
+                    </div>
 
-                        <div>
-                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                                Tipo
-                            </label>
-                            <select
-                                value={type}
-                                onChange={e => setType(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium outline-none appearance-none"
+                    {/* Actions */}
+                    <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-[2rem] flex items-center justify-between shrink-0">
+                        {eventToEdit ? (
+                            <button
+                                type="button"
+                                onClick={handleDelete}
+                                disabled={deleting || loading}
+                                className="flex items-center gap-2 px-4 py-3 text-rose-500 hover:bg-rose-100 rounded-xl font-bold uppercase tracking-widest text-xs transition-colors"
                             >
-                                <option value="Evento">Evento Público</option>
-                                <option value="Reunião">Reunião Interna</option>
-                                <option value="Feriado">Feriado / Recesso</option>
-                            </select>
-                        </div>
+                                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                Excluir
+                            </button>
+                        ) : <div />}
 
-                        <div>
-                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                                Descrição (Opcional)
-                            </label>
-                            <textarea
-                                value={description}
-                                onChange={e => setDescription(e.target.value)}
-                                placeholder="Detalhes adicionais..."
-                                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-slate-700 font-medium placeholder:text-slate-400 outline-none resize-none h-24"
-                            />
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-6 py-3 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl font-bold uppercase tracking-widest text-xs transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button" // Change to type button and explicitly call form submit because the form might not wrap this
+                                onClick={(e) => handleSave(e)}
+                                disabled={loading || deleting}
+                                className="flex items-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-lg shadow-rose-500/30 hover:shadow-rose-600/40 font-bold uppercase tracking-widest text-xs transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                Salvar
+                            </button>
                         </div>
-
-                        {/* Actions */}
-                        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                            {eventToEdit ? (
-                                <button
-                                    type="button"
-                                    onClick={handleDelete}
-                                    disabled={deleting || loading}
-                                    className="flex items-center gap-2 px-4 py-3 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-xl font-bold uppercase tracking-widest text-xs transition-colors"
-                                >
-                                    {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                                    Excluir
-                                </button>
-                            ) : <div />}
-
-                            <div className="flex items-center gap-3">
-                                <button
-                                    type="button"
-                                    onClick={onClose}
-                                    className="px-6 py-3 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl font-bold uppercase tracking-widest text-xs transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={loading || deleting}
-                                    className="flex items-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-lg shadow-rose-500/30 hover:shadow-rose-600/40 font-bold uppercase tracking-widest text-xs transition-all active:scale-95 disabled:opacity-50"
-                                >
-                                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                    Salvar
-                                </button>
-                            </div>
-                        </div>
-                    </form>
+                    </div>
                 </motion.div>
             </div>
         </AnimatePresence >

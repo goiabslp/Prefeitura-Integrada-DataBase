@@ -6,20 +6,11 @@ import { EventModal } from './EventModal';
 import { DayDetailsModal } from './DayDetailsModal';
 import { EventDetailsModal } from './EventDetailsModal';
 import { generateHolidaysForYear } from './holidays';
+import { calendarService, CalendarEvent } from '../../services/calendarService';
+import { MyEventsModal } from './MyEventsModal';
+import { PendingInvitesModal } from './PendingInvitesModal';
 
-export interface CalendarEvent {
-    id: string;
-    title: string;
-    type: string;
-    start_date: string; // YYYY-MM-DD
-    end_date: string; // YYYY-MM-DD
-    is_all_day: boolean;
-    start_time?: string;
-    end_time?: string;
-    description?: string;
-    created_by?: string;
-    created_at?: string;
-}
+// CalendarEvent is now imported from calendarService
 
 interface CalendarioProps {
     onBack: () => void;
@@ -44,6 +35,9 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
     const [eventDetailsEvent, setEventDetailsEvent] = useState<CalendarEvent | null>(null);
     const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
 
+    // My Events
+    const [isMyEventsOpen, setIsMyEventsOpen] = useState(false);
+
     // Fetch events for current month (and slightly padding)
     const fetchEvents = async (date: Date) => {
         setLoading(true);
@@ -58,16 +52,10 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
             if (nextMonth === 13) { nextMonth = 1; nextYear++; }
 
             const startDateStr = `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`;
-            const endDateStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}-31`;
+            const lastDayOfNextMonth = new Date(nextYear, nextMonth, 0).getDate();
+            const endDateStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(lastDayOfNextMonth).padStart(2, '0')}`;
 
-            const { data, error } = await supabase
-                .from('calendar_events')
-                .select('*')
-                .lte('start_date', endDateStr)
-                .gte('end_date', startDateStr)
-                .order('start_date', { ascending: true });
-
-            if (error) throw error;
+            const data = await calendarService.fetchEvents(startDateStr, endDateStr);
 
             // Gen recurring holidays for the current view and surroundings
             const holidaysData = [
@@ -215,16 +203,34 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                 </div>
 
                 {isAdmin && (
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setIsMyEventsOpen(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-all active:scale-95"
+                        >
+                            <CalendarIcon className="w-5 h-5" />
+                            <span>Meus Eventos</span>
+                        </button>
+                        <button
+                            onClick={() => {
+                                setEventToEdit(null);
+                                setSelectedDate(new Date().toISOString().split('T')[0]);
+                                setIsModalOpen(true);
+                            }}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold shadow-lg shadow-rose-500/30 hover:shadow-rose-500/50 hover:-translate-y-0.5 transition-all active:scale-95"
+                        >
+                            <Plus className="w-5 h-5" />
+                            <span>Novo Evento</span>
+                        </button>
+                    </div>
+                )}
+                {!isAdmin && (
                     <button
-                        onClick={() => {
-                            setEventToEdit(null);
-                            setSelectedDate(new Date().toISOString().split('T')[0]);
-                            setIsModalOpen(true);
-                        }}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold shadow-lg shadow-rose-500/30 hover:shadow-rose-500/50 hover:-translate-y-0.5 transition-all active:scale-95"
+                        onClick={() => setIsMyEventsOpen(true)}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-all active:scale-95"
                     >
-                        <Plus className="w-5 h-5" />
-                        <span>Novo Evento</span>
+                        <CalendarIcon className="w-5 h-5" />
+                        <span>Meus Eventos</span>
                     </button>
                 )}
             </div>
@@ -490,6 +496,23 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                 onDeleteSuccess={() => {
                     fetchEvents(currentDate);
                 }}
+            />
+
+            <MyEventsModal
+                isOpen={isMyEventsOpen}
+                onClose={() => setIsMyEventsOpen(false)}
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+                onEventClick={(evt) => {
+                    setEventDetailsEvent(evt);
+                    setIsEventDetailsOpen(true);
+                }}
+            />
+
+            <PendingInvitesModal
+                currentUserId={currentUserId}
+                onClose={() => { }} // Could be used to track if it's open, but it manages itself
+                onResolved={() => fetchEvents(currentDate)}
             />
         </div>
     );

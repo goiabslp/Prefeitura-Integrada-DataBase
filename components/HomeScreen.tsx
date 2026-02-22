@@ -3,6 +3,7 @@ import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCa
 import { UserRole, UIConfig, AppPermission, BlockType } from '../types';
 import { TasksDashboard } from './dashboard/TasksDashboard';
 import { QuickTaskCreation } from './dashboard/QuickTaskCreation';
+import { UpcomingEventsNotification } from './calendario/UpcomingEventsNotification';
 import { useSystemSettings } from '../contexts/SystemSettingsContext';
 import { Order, User } from '../types';
 
@@ -467,6 +468,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     // For now, let's close.
                 }}
             />
+
+            <UpcomingEventsNotification />
         </div>
     );
 };
