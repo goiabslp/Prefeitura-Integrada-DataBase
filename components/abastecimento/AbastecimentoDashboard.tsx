@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ArrowLeft, TrendingUp, Droplet, DollarSign, Truck, Settings, LayoutDashboard, Building2, MapPin, CreditCard, Fuel, Save, Plus, Calendar, ChevronDown, History, BarChart3, Search, ChevronRight, FileText, Filter, FileSpreadsheet, Download, CalendarDays, Factory, Car, AlertTriangle } from 'lucide-react';
 import { ModernSelect } from '../common/ModernSelect';
 import { ModernDateInput } from '../common/ModernDateInput';
-import { AbastecimentoService, AbastecimentoRecord } from '../../services/abastecimentoService';
+import { AbastecimentoService, AbastecimentoRecord, AbastecimentoReportHistory } from '../../services/abastecimentoService';
 import { getVehicles, getSectors } from '../../services/entityService';
 import { AbastecimentoReportPDF } from './AbastecimentoReportPDF';
 import { AppState, Vehicle, Sector } from '../../types';
@@ -341,7 +341,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
     const [allRecords, setAllRecords] = useState<AbastecimentoRecord[]>([]);
     const [showPrintPreview, setShowPrintPreview] = useState(false);
-    const [reportMode, setReportMode] = useState<'simplified' | 'complete'>('complete');
+    const [reportMode, setReportMode] = useState<'simplified' | 'complete' | 'listagem'>('complete');
     const [appliedFilters, setAppliedFilters] = useState({
         startDate: (() => {
             const now = new Date();
@@ -359,9 +359,11 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         station: 'all',
         sector: user?.role === 'admin' ? 'all' : (sectors.find(s => s.id === user?.sectorId)?.name || 'all'),
         vehicle: 'all',
-        fuelType: 'all'
+        fuelType: 'all',
+        paymentStatus: 'all'
     });
     const [pendingFilters, setPendingFilters] = useState({ ...appliedFilters });
+    const [reportHistory, setReportHistory] = useState<AbastecimentoReportHistory[]>([]);
     const [selectedSector, setSelectedSector] = useState<string>(() => {
         if (user?.role === 'admin') return 'all';
         const userSector = sectors.find(s => s.id === user?.sectorId);
@@ -400,8 +402,14 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         setAllRecords(data);
     };
 
+    const loadReportHistory = async () => {
+        const history = await AbastecimentoService.getReportHistory();
+        setReportHistory(history);
+    };
+
     useEffect(() => {
         loadRecords();
+        loadReportHistory();
 
         const channel = supabase
             .channel('dashboard-records-changes')
@@ -423,6 +431,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     useEffect(() => {
         if (refreshTrigger && refreshTrigger > 0) {
             loadRecords();
+            loadReportHistory();
         }
     }, [refreshTrigger]);
 
@@ -433,6 +442,29 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         try {
             // Fetch a much larger limit to ensure all records matching the filter are available for the complete report
             await loadRecords(10000);
+
+            // We must wait for React to process the state update of allRecords before saving the report history?
+            // Actually, the current reportData is already based on appliedFilters. 
+            // We will just save the current view of reportData.
+            if (reportData.records.length > 0) {
+                const newReport: Partial<AbastecimentoReportHistory> = {
+                    report_type: reportMode,
+                    start_date: appliedFilters.startDate || undefined,
+                    end_date: appliedFilters.endDate || undefined,
+                    station: appliedFilters.station === 'all' ? undefined : appliedFilters.station,
+                    sector: appliedFilters.sector === 'all' ? undefined : appliedFilters.sector,
+                    vehicle: appliedFilters.vehicle === 'all' ? undefined : appliedFilters.vehicle,
+                    fuel_type: appliedFilters.fuelType === 'all' ? undefined : appliedFilters.fuelType,
+                    payment_status: appliedFilters.paymentStatus || 'all',
+                    user_id: user?.id,
+                    user_name: user?.name,
+                    record_ids: reportData.records.map(r => r.id)
+                };
+
+                await AbastecimentoService.saveReportHistory(newReport);
+                await loadReportHistory();
+            }
+
             setShowPrintPreview(true);
         } catch (error) {
             console.error("Error loading records for report:", error);
@@ -922,6 +954,10 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 if (appliedFilters.fuelType === 'diesel' && !fuel.includes('diesel')) return false;
                 if (appliedFilters.fuelType === 'gasolina' && !fuel.includes('gasolina')) return false;
                 if (appliedFilters.fuelType === 'etanol' && !fuel.includes('etanol')) return false;
+            }
+            if (appliedFilters.paymentStatus && appliedFilters.paymentStatus !== 'all') {
+                const pStatus = r.payment_status || 'Em Aberto';
+                if (pStatus !== appliedFilters.paymentStatus) return false;
             }
 
             return true;
@@ -1873,6 +1909,17 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         );
     };
 
+    const handleUpdatePaymentStatus = async (historyId: string, newStatus: string, recordIds?: string[]) => {
+        try {
+            await AbastecimentoService.updateReportPaymentStatus(historyId, newStatus, recordIds || []);
+            await loadReportHistory();
+            await loadRecords(); // Refresh the records to show updated payment status
+        } catch (error) {
+            console.error("Error updating payment status:", error);
+            alert("Erro ao atualizar situação de pagamento.");
+        }
+    };
+
     const renderReportsView = () => (
         <div className="space-y-6 animate-fade-in pb-20">
             {/* Filters Section */}
@@ -1960,8 +2007,23 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             placeholder="Todos"
                         />
                     </div>
+                    <div>
+                        <ModernSelect
+                            label="Situação de Pagamento"
+                            value={pendingFilters.paymentStatus || 'all'}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, paymentStatus: val })}
+                            options={[
+                                { value: 'all', label: 'Todos' },
+                                { value: 'Em Aberto', label: 'Em Aberto' },
+                                { value: 'Empenhando', label: 'Empenhando' },
+                                { value: 'Pago', label: 'Pago' }
+                            ]}
+                            icon={CreditCard}
+                            placeholder="Todos"
+                        />
+                    </div>
 
-                    <div className="wide:col-span-3 lg:col-span-2 flex items-end">
+                    <div className="wide:col-span-1 lg:col-span-1 flex items-end">
                         <button
                             onClick={() => setAppliedFilters({ ...pendingFilters })}
                             className="w-full md:w-auto px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95 flex items-center justify-center gap-2 h-[46px]"
@@ -2010,6 +2072,12 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                     >
                                         Completo
                                     </button>
+                                    <button
+                                        onClick={() => setReportMode('listagem')}
+                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${reportMode === 'listagem' ? 'bg-white text-slate-900' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        Listagem
+                                    </button>
                                 </div>
                             </div>
                             <button
@@ -2022,7 +2090,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 </div>
                                 <div className="text-left">
                                     <p className="text-white leading-none">Exportar PDF</p>
-                                    <p className="text-[8px] text-indigo-200 mt-1 font-bold">{reportMode === 'simplified' ? 'Sem listagem detalhada' : 'Relatório Integral'}</p>
+                                    <p className="text-[8px] text-indigo-200 mt-1 font-bold">{reportMode === 'simplified' ? 'Sem listagem detalhada' : reportMode === 'listagem' ? 'Agrupado por Setor' : 'Relatório Integral'}</p>
                                 </div>
                             </button>
                         </div>
@@ -2145,6 +2213,79 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 <tr>
                                     <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
                                         Nenhum registro encontrado com os filtros selecionados.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Report History */}
+            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden mt-6">
+                <div className="p-8 border-b border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                            <History className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-black text-slate-900">Histórico de Relatórios</h3>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Relatórios gerados anteriormente</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-100">
+                            <tr>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Data do Relatório</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Filtros (Período / Posto / Setor)</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Usuário</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Situação de Pagamento</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {reportHistory.map((history) => (
+                                <tr key={history.id} className="hover:bg-slate-50/80 transition-colors group">
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-slate-900 text-sm">{new Date(history.created_at).toLocaleDateString()}</span>
+                                            <span className="text-[10px] font-medium text-slate-400">{new Date(history.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                            <span className="text-[10px] font-bold text-indigo-500 uppercase mt-1">{history.report_type === 'simplified' ? 'Simplificado' : 'Completo'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-xs font-bold text-slate-700">🗓️ {history.start_date ? new Date(history.start_date).toLocaleDateString() : 'Início'} - {history.end_date ? new Date(history.end_date).toLocaleDateString() : 'Fim'}</span>
+                                            <span className="text-[10px] font-medium text-slate-500">🏢 {history.station || 'Todos os Postos'} • 🏭 {history.sector || 'Todos os Setores'}</span>
+                                            <span className="text-[10px] font-medium text-slate-500">🚗 {history.vehicle || 'Todos'} • ⛽ {history.fuel_type || 'Todos'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-slate-900 text-xs">{history.user_name || 'Desconhecido'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <select
+                                            value={history.payment_status}
+                                            onChange={(e) => handleUpdatePaymentStatus(history.id, e.target.value, history.record_ids)}
+                                            className={`text-xs font-bold rounded-lg px-3 py-1.5 border-0 focus:ring-2 focus:ring-indigo-500 cursor-pointer ${history.payment_status === 'Pago' ? 'bg-emerald-100 text-emerald-700' :
+                                                history.payment_status === 'Empenhando' ? 'bg-amber-100 text-amber-700' :
+                                                    'bg-rose-100 text-rose-700'
+                                                }`}
+                                        >
+                                            <option value="Em Aberto">Em Aberto</option>
+                                            <option value="Empenhando">Empenhando</option>
+                                            <option value="Pago">Pago</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            ))}
+                            {reportHistory.length === 0 && (
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                                        Nenhum histórico de relatório salvo.
                                     </td>
                                 </tr>
                             )}

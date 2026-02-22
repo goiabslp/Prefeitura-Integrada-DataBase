@@ -128,8 +128,8 @@ export interface ContentData {
   signatures?: { name: string; role: string; sector: string; id?: string }[];
   licitacaoStages?: {
     id: string;
-    title: string;
-    body: string;
+    title?: string; // Retained existing property
+    body?: string; // Retained existing property
     signatureName?: string;
     signatureRole?: string;
     signatureSector?: string;

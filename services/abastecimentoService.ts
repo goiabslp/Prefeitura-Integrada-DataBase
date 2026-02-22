@@ -24,7 +24,24 @@ export interface AbastecimentoRecord {
     userId?: string;
     userName?: string;
     sectorId?: string;
+    payment_status?: string;
     created_at?: string;
+}
+
+export interface AbastecimentoReportHistory {
+    id: string;
+    created_at: string;
+    report_type: 'simplified' | 'complete' | 'listagem';
+    start_date?: string;
+    end_date?: string;
+    station?: string;
+    sector?: string;
+    vehicle?: string;
+    fuel_type?: string;
+    payment_status: string;
+    user_id?: string;
+    user_name?: string;
+    record_ids?: string[];
 }
 
 export interface GasStation {
@@ -97,6 +114,7 @@ export const AbastecimentoService = {
             sector?: string;
             vehicle?: string;
             fuelType?: string;
+            paymentStatus?: string;
         }
     ): Promise<{ data: AbastecimentoRecord[], count: number }> => {
         try {
@@ -130,6 +148,9 @@ export const AbastecimentoService = {
                 }
                 if (filters.fuelType && filters.fuelType !== 'all') {
                     query = query.ilike('fuel_type', `%${filters.fuelType}%`);
+                }
+                if (filters.paymentStatus && filters.paymentStatus !== 'all') {
+                    query = query.eq('payment_status', filters.paymentStatus);
                 }
                 if (filters.sector && filters.sector !== 'all') {
                     const { data: sectorVehicles, error: secError } = await supabase
@@ -178,6 +199,7 @@ export const AbastecimentoService = {
                 userId: item.user_id,
                 userName: item.user_name,
                 sectorId: item.sector_id,
+                payment_status: item.payment_status,
                 created_at: item.created_at
             })) || [];
 
@@ -186,6 +208,94 @@ export const AbastecimentoService = {
             const appError = handleSupabaseError(error);
             console.error('[AbastecimentoService] getAbastecimentos Error:', appError.message);
             return { data: [], count: 0 };
+        }
+    },
+
+    getReportHistory: async (): Promise<AbastecimentoReportHistory[]> => {
+        try {
+            const { data, error } = await supabase
+                .from('abastecimento_reports_history')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('[AbastecimentoService] getReportHistory Error:', error);
+            return [];
+        }
+    },
+
+    saveReportHistory: async (report: Partial<AbastecimentoReportHistory>): Promise<AbastecimentoReportHistory | null> => {
+        try {
+            // Check for existing identical report
+            let query = supabase
+                .from('abastecimento_reports_history')
+                .select('id')
+                .eq('report_type', report.report_type);
+
+            if (report.start_date) query = query.eq('start_date', report.start_date);
+            else query = query.is('start_date', null);
+
+            if (report.end_date) query = query.eq('end_date', report.end_date);
+            else query = query.is('end_date', null);
+
+            if (report.station) query = query.eq('station', report.station);
+            else query = query.is('station', null);
+
+            if (report.sector) query = query.eq('sector', report.sector);
+            else query = query.is('sector', null);
+
+            if (report.vehicle) query = query.eq('vehicle', report.vehicle);
+            else query = query.is('vehicle', null);
+
+            if (report.fuel_type) query = query.eq('fuel_type', report.fuel_type);
+            else query = query.is('fuel_type', null);
+
+            const { data: existing } = await query;
+
+            if (existing && existing.length > 0) {
+                // Report with same filters already exists, do not duplicate
+                return null;
+            }
+
+            const { data, error } = await supabase
+                .from('abastecimento_reports_history')
+                .insert([report])
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('[AbastecimentoService] saveReportHistory Error:', error);
+            return null;
+        }
+    },
+
+    updateReportPaymentStatus: async (reportId: string, newStatus: string, recordIds: string[]): Promise<void> => {
+        try {
+            // Update the report payment status
+            const { error: reportError } = await supabase
+                .from('abastecimento_reports_history')
+                .update({ payment_status: newStatus })
+                .eq('id', reportId);
+
+            if (reportError) throw reportError;
+
+            // Cascade the update to the associated abastecimento records
+            if (recordIds && recordIds.length > 0) {
+                const { error: recordsError } = await supabase
+                    .from('abastecimentos')
+                    .update({ payment_status: newStatus })
+                    .in('id', recordIds);
+
+                if (recordsError) throw recordsError;
+            }
+
+        } catch (error) {
+            console.error('[AbastecimentoService] updateReportPaymentStatus Error:', error);
+            throw error;
         }
     },
 
@@ -228,7 +338,8 @@ export const AbastecimentoService = {
                 fiscal: record.fiscal,
                 user_id: record.userId,
                 user_name: record.userName,
-                sector_id: record.sectorId
+                sector_id: record.sectorId,
+                payment_status: record.payment_status || 'Em Aberto'
             };
 
             const { error } = await supabase

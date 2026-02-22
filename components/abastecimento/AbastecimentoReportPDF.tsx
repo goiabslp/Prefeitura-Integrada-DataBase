@@ -42,7 +42,7 @@ interface AbastecimentoReportPDFProps {
     };
     state: AppState;
     onClose: () => void;
-    mode: 'simplified' | 'complete';
+    mode: 'simplified' | 'complete' | 'listagem';
 }
 
 export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
@@ -188,15 +188,91 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
         plateSummaryItems.push({ type: 'item', ...item });
     });
 
-    const totalPlatePages = Math.ceil(plateSummaryItems.length / PLATE_ITEMS_PER_PAGE) || 1;
+    const totalPlatePages = mode === 'listagem' ? 0 : (Math.ceil(plateSummaryItems.length / PLATE_ITEMS_PER_PAGE) || 1);
     const totalDetailPages = mode === 'complete' ? (Math.ceil(detailedItems.length / ITEMS_PER_PAGE) || 1) : 0;
 
     // 3. Prepare Consolidated Items
     const CONSOLIDATED_ITEMS_PER_PAGE = 26;
     const consolidatedItems = [...data.records].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const totalConsolidatedPages = Math.ceil(consolidatedItems.length / CONSOLIDATED_ITEMS_PER_PAGE) || 1;
+    const totalConsolidatedPages = mode === 'listagem' ? 0 : (Math.ceil(consolidatedItems.length / CONSOLIDATED_ITEMS_PER_PAGE) || 1);
 
-    const globalTotalPages = 1 + totalPlatePages + totalDetailPages + totalConsolidatedPages; // Summary + Plate Summary + Details (if complete) + Consolidated
+    // 4. Prepare Listagem Items (Grouped by Sector)
+    const listagemRecords = [...data.records].sort((a, b) => {
+        if (a.derivedSector < b.derivedSector) return -1;
+        if (a.derivedSector > b.derivedSector) return 1;
+        if (a.vehicle < b.vehicle) return -1;
+        if (a.vehicle > b.vehicle) return 1;
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+
+    const LISTAGEM_ITEMS_PER_PAGE = 18;
+    const listagemPages: Array<Array<any>> = [];
+    let currentListagemPage: Array<any> = [];
+
+    let lSector = '';
+    let lSectorLiters = 0;
+    let lSectorCost = 0;
+    let sectorPageCount = 1;
+
+    listagemRecords.forEach((r, index) => {
+        const isNewSector = r.derivedSector !== lSector;
+
+        if (isNewSector) {
+            // Close previous sector
+            if (lSector !== '') {
+                currentListagemPage.push({ type: 'sectorSummary', sector: lSector, liters: lSectorLiters, cost: lSectorCost });
+                listagemPages.push([...currentListagemPage]);
+                currentListagemPage = [];
+            }
+            lSector = r.derivedSector;
+            lSectorLiters = 0;
+            lSectorCost = 0;
+            sectorPageCount = 1;
+
+            currentListagemPage.push({ type: 'sectorHeader', sector: lSector, sectorPage: sectorPageCount });
+            currentListagemPage.push({ type: 'tableHeader' });
+        } else if (currentListagemPage.length >= LISTAGEM_ITEMS_PER_PAGE) {
+            // Overflow within the same sector, force a new page
+            listagemPages.push([...currentListagemPage]);
+            currentListagemPage = [];
+            sectorPageCount++;
+            // Re-add headers for continuity
+            currentListagemPage.push({ type: 'sectorHeader', sector: lSector, sectorPage: sectorPageCount });
+            currentListagemPage.push({ type: 'tableHeader' });
+        }
+
+        lSectorLiters += r.liters;
+        lSectorCost += r.cost;
+
+        currentListagemPage.push({ type: 'record', ...r });
+
+        if (index === listagemRecords.length - 1) {
+            currentListagemPage.push({ type: 'sectorSummary', sector: lSector, liters: lSectorLiters, cost: lSectorCost });
+            listagemPages.push([...currentListagemPage]);
+        }
+    });
+
+    // Second pass: Update sectorHeader items with total pages for that sector
+    const sectorTotalPagesMap = new Map<string, number>();
+    listagemPages.forEach(page => {
+        page.forEach(item => {
+            if (item.type === 'sectorHeader') {
+                sectorTotalPagesMap.set(item.sector, Math.max(sectorTotalPagesMap.get(item.sector) || 0, item.sectorPage));
+            }
+        });
+    });
+
+    listagemPages.forEach(page => {
+        page.forEach(item => {
+            if (item.type === 'sectorHeader') {
+                item.sectorTotalPages = sectorTotalPagesMap.get(item.sector) || 1;
+            }
+        });
+    });
+
+    const totalListagemPages = mode === 'listagem' ? (listagemPages.length || 1) : 0;
+
+    const globalTotalPages = 1 + totalPlatePages + totalDetailPages + totalListagemPages + totalConsolidatedPages; // Summary + Plate Summary + Details (complete/listagem) + Consolidated
 
     // Create a state copy without watermark for the report
     const reportState = {
@@ -509,6 +585,97 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
         return pages;
     };
 
+    const renderListagemPages = () => {
+        if (listagemPages.length === 0) return [];
+        return listagemPages.map((pageItems, idx) => {
+            const pageIndex = idx + 1 + totalPlatePages + totalDetailPages;
+
+            return (
+                <PageWrapper key={`list-${pageIndex}`} state={reportState} pageIndex={pageIndex} totalPages={globalTotalPages} isGenerating={isGenerating}>
+                    <div className="flex flex-col h-full">
+                        <div className="pb-4 border-b border-slate-200 mb-6">
+                            <h2 className="text-[12pt] font-black uppercase text-slate-900">Listagem Agrupada por Setor</h2>
+                            <p className="text-[8pt] text-slate-500 font-bold uppercase tracking-widest leading-none">Página {pageIndex}</p>
+                        </div>
+
+                        <table className="w-full border-collapse table-fixed">
+                            <colgroup>
+                                <col className="w-[7%]" />
+                                <col className="w-[12%]" />
+                                <col className="w-[28%]" />
+                                <col className="w-[23%]" />
+                                <col className="w-[15%]" />
+                                <col className="w-[15%]" />
+                            </colgroup>
+                            <tbody className="divide-y divide-slate-100">
+                                {pageItems.map((item, idx) => {
+                                    if (item.type === 'spacer') {
+                                        return <tr key={`spc-${idx}`} className="h-4 border-none bg-transparent"><td colSpan={6}></td></tr>;
+                                    }
+                                    if (item.type === 'sectorHeader') {
+                                        const paginationText = item.sectorTotalPages > 1 ? ` - Pág ${item.sectorPage} de ${item.sectorTotalPages}` : '';
+                                        return (
+                                            <tr key={`sh-${idx}`} className="bg-slate-100 border-y-2 border-slate-200">
+                                                <td colSpan={6} className="px-4 py-3 text-[10pt] font-black text-slate-900 uppercase tracking-widest flex items-center gap-3 whitespace-nowrap">
+                                                    <Building2 className="w-4 h-4 text-slate-500 shrink-0" />
+                                                    {item.sector}{paginationText}
+                                                </td>
+                                            </tr>
+                                        );
+                                    }
+                                    if (item.type === 'tableHeader') {
+                                        return (
+                                            <tr key={`th-${idx}`} className="bg-slate-50 border-b border-slate-200 text-[5.5pt] font-black uppercase tracking-widest text-slate-500">
+                                                <th className="px-2 py-2 text-center w-[7%]">Nº Nota</th>
+                                                <th className="px-2 py-2 text-center w-[12%]">Data</th>
+                                                <th className="px-2 py-2 text-left w-[28%]">Veículo/Motorista</th>
+                                                <th className="px-2 py-2 text-left w-[23%]">Combustível</th>
+                                                <th className="px-2 py-2 text-right w-[15%]">Vol (L)</th>
+                                                <th className="px-2 py-2 text-right w-[15%]">Valor (R$)</th>
+                                            </tr>
+                                        );
+                                    }
+                                    if (item.type === 'sectorSummary') {
+                                        return (
+                                            <tr key={`ss-${idx}`} className="bg-slate-800 border-t-2 border-slate-900">
+                                                <td colSpan={4} className="px-3 py-3 text-right text-[7pt] font-black text-white uppercase">Total do Setor</td>
+                                                <td className="px-3 py-3 text-right text-[7.5pt] font-black text-white whitespace-nowrap">{formatNumber(item.liters)}</td>
+                                                <td className="px-3 py-3 text-right text-[7.5pt] font-black text-white whitespace-nowrap">{formatCurrency(item.cost)}</td>
+                                            </tr>
+                                        );
+                                    }
+
+                                    const formatDriver = (name: string) => {
+                                        if (!name) return '-';
+                                        const parts = name.trim().split(' ');
+                                        return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0];
+                                    };
+
+                                    // Regular record
+                                    return (
+                                        <tr key={idx} className="text-[7pt] font-medium text-slate-700">
+                                            <td className="px-2 py-2 font-mono text-[8.5px] text-center whitespace-nowrap">{item.invoiceNumber || '-'}</td>
+                                            <td className="px-2 py-2 whitespace-nowrap text-center text-[6.5pt]">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
+                                            <td className="px-2 py-2 uppercase">
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-slate-900 leading-none truncate max-w-[130px]" title={item.vehicle}>{item.vehicle}</span>
+                                                    <span className="text-[6pt] text-slate-500 font-bold mt-0.5 truncate max-w-[130px]">{formatDriver(item.driver)}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-2 py-2 uppercase text-[6pt] text-slate-500 font-bold max-w-[90px] break-words" title={item.fuelType}>{item.fuelType}</td>
+                                            <td className="px-2 py-2 text-right font-bold whitespace-nowrap text-[7.5pt]">{formatNumber(item.liters)}</td>
+                                            <td className="px-2 py-2 text-right font-black text-slate-900 whitespace-nowrap text-[7.5pt]">{formatCurrency(item.cost)}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </PageWrapper>
+            );
+        });
+    };
+
     const renderConsolidatedPages = () => {
         const pages = [];
         for (let i = 0; i < consolidatedItems.length; i += CONSOLIDATED_ITEMS_PER_PAGE) {
@@ -609,9 +776,10 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
             <div className={`${isGenerating ? 'absolute top-0 left-0 w-full bg-white z-[9999]' : 'fixed inset-0 overflow-y-auto w-full'} flex items-start justify-center p-4 md:p-8 ${isGenerating ? 'p-0' : ''}`}>
                 <div id="report-pdf-content" className={`relative flex flex-col items-center py-12 ${isGenerating ? 'py-0 w-min origin-top-left items-start' : 'w-full max-w-5xl'}`}>
                     {renderSummaryPage()}
-                    {renderPlateSummaryPages()}
+                    {mode !== 'listagem' && renderPlateSummaryPages()}
                     {mode === 'complete' && renderRecordPages()}
-                    {renderConsolidatedPages()}
+                    {mode === 'listagem' && renderListagemPages()}
+                    {mode !== 'listagem' && renderConsolidatedPages()}
                 </div>
             </div>
         </div>,
