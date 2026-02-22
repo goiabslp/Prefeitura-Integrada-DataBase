@@ -81,6 +81,7 @@ import { ObrasModule } from './components/obras/ObrasModule';
 import { OrderDetailsScreen } from './components/OrderDetailsScreen';
 import { TasksDashboard } from './components/dashboard/TasksDashboard';
 import { PurchaseItemsScreen } from './components/PurchaseItemsScreen';
+import { Calendario } from './components/calendario/Calendario';
 
 const VIEW_TO_PATH: Record<string, string> = {
   'login': '/Login',
@@ -126,7 +127,8 @@ const VIEW_TO_PATH: Record<string, string> = {
   'order-details': '/Historico/Compras/Visualizar',
   'tarefas': '/Tarefas',
   'tarefas:new': '/Tarefas/NovaTarefa',
-  'tarefas:dashboard': '/Tarefas/MinhasTarefas'
+  'tarefas:dashboard': '/Tarefas/MinhasTarefas',
+  'home:calendario': '/Calendario'
 };
 
 const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
@@ -137,7 +139,7 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 );
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details' | 'tasks-dashboard' | 'purchase-inventory'>('login');
+  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details' | 'tasks-dashboard' | 'purchase-inventory' | 'calendario'>('login');
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
   const [appState, setAppState] = useState<AppState>(INITIAL_STATE);
   const [activeBlock, setActiveBlock] = useState<BlockType | null>(null);
@@ -3252,6 +3254,7 @@ const App: React.FC = () => {
                   setActiveBlock('compras');
                   setCurrentView('purchase-inventory');
                 }}
+                onCalendario={() => setCurrentView('calendario')}
                 onOpenAdmin={(tab) => {
                   setCurrentView('admin');
                   setAdminTab(tab || 'users');
@@ -3579,6 +3582,14 @@ const App: React.FC = () => {
                   fullScreen={true}
                 />
               </div>
+            )}
+
+            {currentView === 'calendario' && (
+              <Calendario
+                onBack={handleGoHome}
+                userRole={currentUser?.role || 'collaborator'}
+                currentUserId={currentUser?.id || ''}
+              />
             )}
 
             {/* LOADING OVERLAY */}
