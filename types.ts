@@ -163,13 +163,15 @@ export interface AppState {
   content: ContentData;
   ui: UIConfig;
   view?: string; // Add optional view property for compatibility
+  sub?: string;
+  selectedId?: string;
 }
 
 export type UserRole = 'admin' | 'collaborator' | 'licitacao' | 'compras';
 
-export type AppPermission = 'parent_criar_oficio' | 'parent_admin' | 'parent_compras' | 'parent_licitacao' | 'parent_diarias' | 'parent_compras_pedidos' | 'parent_frotas' | 'parent_agendamento_veiculo' | 'parent_licitacao_triagem' | 'parent_licitacao_processos' | 'parent_abastecimento' | 'parent_abastecimento_novo' | 'parent_abastecimento_gestao' | 'parent_abastecimento_dashboard' | 'parent_agricultura' | 'parent_obras' | 'parent_tarefas' | 'parent_calendario' | 'parent_rh';
+export type AppPermission = 'parent_criar_oficio' | 'parent_admin' | 'parent_compras' | 'parent_licitacao' | 'parent_diarias' | 'parent_compras_pedidos' | 'parent_frotas' | 'parent_agendamento_veiculo' | 'parent_licitacao_triagem' | 'parent_licitacao_processos' | 'parent_abastecimento' | 'parent_abastecimento_novo' | 'parent_abastecimento_gestao' | 'parent_abastecimento_dashboard' | 'parent_agricultura' | 'parent_obras' | 'parent_tarefas' | 'parent_calendario' | 'parent_rh' | 'parent_projetos';
 
-export type BlockType = 'oficio' | 'compras' | 'licitacao' | 'diarias' | 'agendamento' | 'abastecimento' | 'vs_calendar' | 'vs_history' | 'vs_approvals' | 'licitacao_screening' | 'agricultura' | 'obras' | 'tarefas' | 'calendario' | 'rh';
+export type BlockType = 'oficio' | 'compras' | 'licitacao' | 'diarias' | 'agendamento' | 'abastecimento' | 'vs_calendar' | 'vs_history' | 'vs_approvals' | 'licitacao_screening' | 'agricultura' | 'obras' | 'tarefas' | 'calendario' | 'rh' | 'projetos';
 
 export interface User {
   id: string;
@@ -356,4 +358,33 @@ export interface CrewMember {
   departureLocation: string;
   appointmentTime: string;
   appointmentLocation: string;
+}
+
+export type ProjetoStatus = 'Aguardando Admin' | 'Em Andamento' | 'Concluído' | 'Cancelado';
+export type ProjetoHistoryAction = 'Criado' | 'Encaminhado' | 'Mensagem' | 'Anexo' | 'Status Alterado';
+
+export interface Projeto {
+  id: string;
+  name: string;
+  description?: string;
+  responsible_id: string;
+  status: ProjetoStatus;
+  start_date?: string;
+  end_date?: string;
+  current_owner_id?: string;
+  current_sector_id?: string;
+  created_by: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProjetoHistory {
+  id: string;
+  project_id: string;
+  user_id: string;
+  sector_id?: string;
+  action: ProjetoHistoryAction;
+  message?: string;
+  attachments?: { url: string; name: string; caption?: string }[];
+  created_at?: string;
 }
