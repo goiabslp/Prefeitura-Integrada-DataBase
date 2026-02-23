@@ -271,8 +271,9 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
     });
 
     const totalListagemPages = mode === 'listagem' ? (listagemPages.length || 1) : 0;
+    const totalSectorBreakdownPages = 1;
 
-    const globalTotalPages = 1 + totalPlatePages + totalDetailPages + totalListagemPages + totalConsolidatedPages; // Summary + Plate Summary + Details (complete/listagem) + Consolidated
+    const globalTotalPages = 1 + totalSectorBreakdownPages + totalPlatePages + totalDetailPages + totalListagemPages + totalConsolidatedPages;
 
     // Create a state copy without watermark for the report
     const reportState = {
@@ -354,7 +355,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                     </div>
                 </div>
 
-                {/* Breakdowns Grid */}
+                {/* Breakdown Grid - Fuel Summary Only */}
                 <div className="flex flex-col gap-8">
                     {/* Fuel Breakdown - Top Small Table */}
                     <div className="space-y-4">
@@ -382,47 +383,59 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                             </table>
                         </div>
                     </div>
-
-                    {/* Sector Breakdown - Full Width Detailed Table */}
-                    <div className="space-y-4">
-                        <h3 className="text-[10pt] font-black uppercase tracking-[0.15em] text-slate-900 flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-indigo-600" /> Por Secretaria / Setor (Detalhamento de Combustível)
-                        </h3>
-                        <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-slate-50 border-b border-slate-200 text-[6pt] font-black uppercase tracking-widest text-slate-500">
-                                    <tr>
-                                        <th className="px-3 py-3 border-r border-slate-100" rowSpan={2}>Secretaria / Setor</th>
-                                        <th className="px-3 py-1 text-center border-r border-indigo-200 bg-indigo-900 text-white" colSpan={2}>Diesel</th>
-                                        <th className="px-3 py-1 text-center border-r border-sky-100 bg-sky-50 text-sky-900" colSpan={2}>Gasolina</th>
-                                        <th className="px-3 py-3 text-right" rowSpan={2}>Gasto Total</th>
-                                    </tr>
-                                    <tr className="text-[5pt]">
-                                        <th className="px-2 py-1 text-right border-r border-indigo-50 bg-indigo-50/30 text-indigo-900">L (Litros)</th>
-                                        <th className="px-2 py-1 text-right border-r border-indigo-50 bg-indigo-50/30 text-indigo-900">R$ (Valor)</th>
-                                        <th className="px-2 py-1 text-right border-r border-sky-50 bg-sky-50/50 text-sky-700">L (Litros)</th>
-                                        <th className="px-2 py-1 text-right border-r border-sky-50 bg-sky-50/50 text-sky-700">R$ (Valor)</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {(Object.entries(data.sectorFuelBreakdown || {}) as [string, any][])
-                                        .sort((a, b) => b[1].totalValue - a[1].totalValue)
-                                        .map(([sector, details]) => (
-                                            <tr key={sector} className="text-[7pt] font-bold text-slate-700">
-                                                <td className="px-3 py-2 uppercase border-r border-slate-50 font-black text-slate-900 whitespace-nowrap">{sector}</td>
-                                                <td className="px-2 py-2 text-right border-r border-indigo-50 bg-indigo-50/20 text-indigo-950 whitespace-nowrap">{formatNumber(details.dieselLiters)}</td>
-                                                <td className="px-2 py-2 text-right border-r border-indigo-50 bg-indigo-50/20 text-indigo-950 whitespace-nowrap">{formatCurrency(details.dieselValue)}</td>
-                                                <td className="px-2 py-2 text-right border-r border-sky-50 bg-sky-50/20 text-sky-600 whitespace-nowrap">{formatNumber(details.gasolinaLiters)}</td>
-                                                <td className="px-2 py-2 text-right border-r border-sky-50 bg-sky-50/20 text-sky-600 whitespace-nowrap">{formatCurrency(details.gasolinaValue)}</td>
-                                                <td className="px-3 py-2 text-right font-black text-slate-900 bg-slate-100/50 whitespace-nowrap">{formatCurrency(details.totalValue)}</td>
-                                            </tr>
-                                        ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
                 </div>
 
+            </div>
+        </PageWrapper>
+    );
+
+    const renderSectorBreakdownPage = () => (
+        <PageWrapper state={reportState} pageIndex={1} totalPages={globalTotalPages} isGenerating={isGenerating}>
+            <div className="flex flex-col gap-6">
+                <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4">
+                    <h2 className="text-[14pt] font-black uppercase tracking-tighter text-slate-900 flex items-center gap-3">
+                        <Building2 className="w-6 h-6 text-indigo-600" /> Detalhamento por Secretaria / Setor
+                    </h2>
+                    <p className="text-[8pt] text-slate-500 font-bold uppercase tracking-widest leading-none">Página 2 de {globalTotalPages}</p>
+                </div>
+
+                <div className="space-y-4">
+                    <h3 className="text-[10pt] font-black uppercase tracking-[0.15em] text-slate-900 flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-indigo-600" /> Por Secretaria / Setor (Detalhamento de Combustível)
+                    </h3>
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-slate-50 border-b border-slate-200 text-[6pt] font-black uppercase tracking-widest text-slate-500">
+                                <tr>
+                                    <th className="px-3 py-3 border-r border-slate-100" rowSpan={2}>Secretaria / Setor</th>
+                                    <th className="px-3 py-1 text-center border-r border-indigo-200 bg-indigo-900 text-white" colSpan={2}>Diesel</th>
+                                    <th className="px-3 py-1 text-center border-r border-sky-100 bg-sky-50 text-sky-900" colSpan={2}>Gasolina</th>
+                                    <th className="px-3 py-3 text-right" rowSpan={2}>Gasto Total</th>
+                                </tr>
+                                <tr className="text-[5pt]">
+                                    <th className="px-2 py-1 text-right border-r border-indigo-50 bg-indigo-50/30 text-indigo-900">L (Litros)</th>
+                                    <th className="px-2 py-1 text-right border-r border-indigo-50 bg-indigo-50/30 text-indigo-900">R$ (Valor)</th>
+                                    <th className="px-2 py-1 text-right border-r border-sky-50 bg-sky-50/50 text-sky-700">L (Litros)</th>
+                                    <th className="px-2 py-1 text-right border-r border-sky-50 bg-sky-50/50 text-sky-700">R$ (Valor)</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {(Object.entries(data.sectorFuelBreakdown || {}) as [string, any][])
+                                    .sort((a, b) => b[1].totalValue - a[1].totalValue)
+                                    .map(([sector, details]) => (
+                                        <tr key={sector} className="text-[7pt] font-bold text-slate-700">
+                                            <td className="px-3 py-2 uppercase border-r border-slate-50 font-black text-slate-900 whitespace-nowrap">{sector}</td>
+                                            <td className="px-2 py-2 text-right border-r border-indigo-50 bg-indigo-50/20 text-indigo-950 whitespace-nowrap">{formatNumber(details.dieselLiters)}</td>
+                                            <td className="px-2 py-2 text-right border-r border-indigo-50 bg-indigo-50/20 text-indigo-950 whitespace-nowrap">{formatCurrency(details.dieselValue)}</td>
+                                            <td className="px-2 py-2 text-right border-r border-sky-50 bg-sky-50/20 text-sky-600 whitespace-nowrap">{formatNumber(details.gasolinaLiters)}</td>
+                                            <td className="px-2 py-2 text-right border-r border-sky-50 bg-sky-50/20 text-sky-600 whitespace-nowrap">{formatCurrency(details.gasolinaValue)}</td>
+                                            <td className="px-3 py-2 text-right font-black text-slate-900 bg-slate-100/50 whitespace-nowrap">{formatCurrency(details.totalValue)}</td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </PageWrapper>
     );
@@ -431,7 +444,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
         const pages = [];
         for (let i = 0; i < plateSummaryItems.length; i += PLATE_ITEMS_PER_PAGE) {
             const pageItems = plateSummaryItems.slice(i, i + PLATE_ITEMS_PER_PAGE);
-            const pageIndex = Math.floor(i / PLATE_ITEMS_PER_PAGE) + 1;
+            const pageIndex = Math.floor(i / PLATE_ITEMS_PER_PAGE) + 1 + totalSectorBreakdownPages;
 
             pages.push(
                 <PageWrapper key={`plate-${pageIndex}`} state={reportState} pageIndex={pageIndex} totalPages={globalTotalPages} isGenerating={isGenerating}>
@@ -492,7 +505,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
 
         for (let i = 0; i < detailedItems.length; i += ITEMS_PER_PAGE) {
             const pageItems = detailedItems.slice(i, i + ITEMS_PER_PAGE);
-            const pageIndex = Math.floor(i / ITEMS_PER_PAGE) + 1 + totalPlatePages;
+            const pageIndex = Math.floor(i / ITEMS_PER_PAGE) + 1 + totalSectorBreakdownPages + totalPlatePages;
 
             pages.push(
                 <PageWrapper key={`rec-${pageIndex}`} state={reportState} pageIndex={pageIndex} totalPages={globalTotalPages} isGenerating={isGenerating}>
@@ -588,7 +601,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
     const renderListagemPages = () => {
         if (listagemPages.length === 0) return [];
         return listagemPages.map((pageItems, idx) => {
-            const pageIndex = idx + 1 + totalPlatePages + totalDetailPages;
+            const pageIndex = idx + 1 + totalSectorBreakdownPages + totalPlatePages + totalDetailPages;
 
             return (
                 <PageWrapper key={`list-${pageIndex}`} state={reportState} pageIndex={pageIndex} totalPages={globalTotalPages} isGenerating={isGenerating}>
@@ -680,7 +693,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
         const pages = [];
         for (let i = 0; i < consolidatedItems.length; i += CONSOLIDATED_ITEMS_PER_PAGE) {
             const pageItems = consolidatedItems.slice(i, i + CONSOLIDATED_ITEMS_PER_PAGE);
-            const pageIndex = Math.floor(i / CONSOLIDATED_ITEMS_PER_PAGE) + 1 + totalPlatePages + totalDetailPages;
+            const pageIndex = Math.floor(i / CONSOLIDATED_ITEMS_PER_PAGE) + 1 + totalSectorBreakdownPages + totalPlatePages + totalDetailPages;
 
             pages.push(
                 <PageWrapper key={`cons-${pageIndex}`} state={reportState} pageIndex={pageIndex} totalPages={globalTotalPages} isGenerating={isGenerating}>
@@ -731,25 +744,25 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
         <div className={`fixed inset-0 z-[9999] bg-slate-900/40 backdrop-blur-xl animate-fade-in ${isGenerating ? 'bg-white' : ''}`}>
             {/* Action Bar */}
             {!isGenerating && (
-                <div className="hidden xl:block">
-                    <div className="fixed left-12 top-12 z-[100]">
+                <div className="fixed top-4 left-4 right-4 md:top-8 md:left-8 md:right-8 flex items-center justify-between z-[100] pointer-events-none">
+                    <div className="pointer-events-auto">
                         <button
                             onClick={handleDownloadPdf}
                             disabled={isGenerating}
-                            className="group px-6 py-4 bg-slate-900 hover:bg-black text-white font-black uppercase tracking-widest text-[11px] rounded-2xl transition-all shadow-2xl active:scale-95 flex items-center gap-3 border border-white/10 disabled:opacity-50"
+                            className="group px-4 py-3 md:px-6 md:py-4 bg-slate-900 hover:bg-black text-white font-black uppercase tracking-widest text-[9px] md:text-[11px] rounded-xl md:rounded-2xl transition-all shadow-2xl active:scale-95 flex items-center gap-2 md:gap-3 border border-white/10 disabled:opacity-50"
                         >
-                            <Printer className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                            <span>{isGenerating ? 'Gerando...' : 'Baixar Relatório PDF'}</span>
+                            <Printer className="w-4 h-4 md:w-5 md:h-5 group-hover:scale-110 transition-transform" />
+                            <span>{isGenerating ? 'Gerando...' : 'Baixar PDF'}</span>
                         </button>
                     </div>
 
-                    <div className="fixed right-12 top-12 z-[100]">
+                    <div className="pointer-events-auto">
                         <button
                             onClick={onClose}
-                            className="group px-6 py-4 bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 font-black uppercase tracking-widest text-[11px] rounded-2xl transition-all shadow-2xl border border-slate-200 active:scale-95 flex items-center gap-3"
+                            className="group px-4 py-3 md:px-6 md:py-4 bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 font-black uppercase tracking-widest text-[9px] md:text-[11px] rounded-xl md:rounded-2xl transition-all shadow-2xl border border-slate-200 active:scale-95 flex items-center gap-2 md:gap-3"
                         >
-                            <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-                            <span>Fechar Relatório</span>
+                            <X className="w-4 h-4 md:w-5 md:h-5 group-hover:rotate-90 transition-transform" />
+                            <span>Fechar</span>
                         </button>
                     </div>
                 </div>
@@ -776,6 +789,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
             <div className={`${isGenerating ? 'absolute top-0 left-0 w-full bg-white z-[9999]' : 'fixed inset-0 overflow-y-auto w-full'} flex items-start justify-center p-4 md:p-8 ${isGenerating ? 'p-0' : ''}`}>
                 <div id="report-pdf-content" className={`relative flex flex-col items-center py-12 ${isGenerating ? 'py-0 w-min origin-top-left items-start' : 'w-full max-w-5xl'}`}>
                     {renderSummaryPage()}
+                    {renderSectorBreakdownPage()}
                     {mode !== 'listagem' && renderPlateSummaryPages()}
                     {mode === 'complete' && renderRecordPages()}
                     {mode === 'listagem' && renderListagemPages()}

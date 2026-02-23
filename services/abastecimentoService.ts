@@ -299,12 +299,13 @@ export const AbastecimentoService = {
         }
     },
 
-    checkInvoiceExists: async (invoiceNumber: string, excludeId?: string): Promise<boolean> => {
+    checkInvoiceExists: async (invoiceNumber: string, station: string, excludeId?: string): Promise<boolean> => {
         try {
             let query = supabase
                 .from('abastecimentos')
                 .select('id')
-                .eq('invoice_number', invoiceNumber);
+                .eq('invoice_number', invoiceNumber)
+                .eq('station', station);
 
             if (excludeId) {
                 query = query.neq('id', excludeId);
@@ -323,6 +324,12 @@ export const AbastecimentoService = {
 
     saveAbastecimento: async (record: AbastecimentoRecord): Promise<void> => {
         try {
+            // Backend validation: check if odometer is less than or equal to the latest recorded
+            const latestOdometer = await AbastecimentoService.getLatestOdometerByVehicle(record.vehicle);
+            if (latestOdometer !== null && record.odometer <= latestOdometer) {
+                throw new Error(`BLOQUEIO: O Horímetro/Odômetro informado (${record.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) é menor ou igual ao último registro (${latestOdometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}). O cadastro não pode ser realizado.`);
+            }
+
             const dbRecord = {
                 id: record.id,
                 protocol: record.protocol,
@@ -348,7 +355,7 @@ export const AbastecimentoService = {
 
             if (error) throw error;
         } catch (error) {
-            const appError = handleSupabaseError(error);
+            const appError = error instanceof Error ? error : handleSupabaseError(error);
             console.error('[AbastecimentoService] saveAbastecimento Error:', appError.message);
             throw appError;
         }

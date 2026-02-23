@@ -15,8 +15,8 @@ export const LoadingModal: React.FC<LoadingModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 max-w-sm w-full mx-4 border border-slate-100 animate-scale-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-fade-in p-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 flex flex-col items-center gap-4 max-w-sm w-full border border-slate-100 animate-scale-in max-h-[90vh] overflow-hidden">
 
                 {/* Spinner Container */}
                 <div className="relative">

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Fuel, Calendar, User, Truck, DollarSign, Clock, Save, X, MapPin, FileText } from 'lucide-react';
+import { Fuel, User, Truck, DollarSign, Save, X, MapPin, FileText, Clock } from 'lucide-react';
 import { AbastecimentoService, AbastecimentoRecord } from '../../services/abastecimentoService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Vehicle, Person } from '../../types';
 import { CustomSelect, Option } from '../common/CustomSelect';
+import { parseFormattedNumber, formatNumberInput } from '../../utils/numberUtils';
 
 import { CustomDateTimeInput } from '../common/CustomDateTimeInput';
 import { AbastecimentoConfirmationModal } from '../modals/AbastecimentoConfirmationModal';
@@ -49,29 +50,11 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [cost, setCost] = useState(0);
     const [formattedCost, setFormattedCost] = useState('R$ 0,00');
+    const [lastOdometer, setLastOdometer] = useState<number | null>(null);
 
 
     // Formatting Helpers
-    const formatNumberInput = (value: string, decimals: number) => {
-        // Remove non-digits
-        const digits = value.replace(/\D/g, '');
-        if (!digits) return '';
-
-        // Convert to float based on precision
-        const floatVal = parseInt(digits) / Math.pow(10, decimals);
-
-        // Format with thousands separator and correct decimal places
-        return floatVal.toLocaleString('pt-BR', {
-            minimumFractionDigits: decimals,
-            maximumFractionDigits: decimals
-        });
-    };
-
-    const parseFormattedNumber = (value: string) => {
-        if (!value) return 0;
-        // Remove dots, replace comma with dot
-        return parseFloat(value.replace(/\./g, '').replace(',', '.'));
-    };
+    // Formatting Helpers removed: now using numberUtils
 
     const handleOdometerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         // Odometer: 1 decimal place
@@ -146,6 +129,19 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             setFuelPrices(globalPrices);
         }
     }, [station, gasStations, globalPrices]);
+
+    // Fetch latest odometer when vehicle changes
+    useEffect(() => {
+        const fetchLastOdometer = async () => {
+            if (vehicle) {
+                const latest = await AbastecimentoService.getLatestOdometerByVehicle(vehicle);
+                setLastOdometer(latest);
+            } else {
+                setLastOdometer(null);
+            }
+        };
+        fetchLastOdometer();
+    }, [vehicle]);
 
     // Load initial data for editing
     useEffect(() => {
@@ -226,11 +222,11 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             return;
         }
 
-        // Check for duplicate invoice number
-        if (invoiceNumber) {
-            const isDuplicate = await AbastecimentoService.checkInvoiceExists(invoiceNumber, initialData?.id);
+        // Check for duplicate invoice number (Combination: Station + Invoice)
+        if (invoiceNumber && station) {
+            const isDuplicate = await AbastecimentoService.checkInvoiceExists(invoiceNumber, station, initialData?.id);
             if (isDuplicate) {
-                alert('ERRO: Já existe um registro com este Número da Nota. Por favor, verifique.');
+                alert(`ERRO: Já existe um registro com a Nota ${invoiceNumber} para o posto ${station}. Por favor, verifique.`);
                 return;
             }
         }
@@ -338,9 +334,9 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
 
     return (
         <div className="flex-1 h-full bg-slate-50 p-4 wide:p-6 overflow-auto custom-scrollbar">
-            <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in">
+            <div className="w-full max-w-6xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in">
                 {/* Compact Header */}
-                <div className="bg-slate-900 px-6 py-5 flex items-center justify-between relative overflow-hidden">
+                <div className="bg-slate-900 px-4 sm:px-6 py-3 sm:py-5 flex items-center justify-between relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-cyan-400 via-blue-500 to-slate-900"></div>
                     <div className="relative z-10 flex items-center gap-4">
                         <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 shadow-lg">
@@ -353,7 +349,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6">
+                <form onSubmit={handleSubmit} className="p-4 sm:p-6">
                     <div className="grid grid-cols-12 gap-x-4 gap-y-5">
                         {/* Row 1: Data, Hora, Nota (Compact) - Mobile: Date/Time hidden */}
                         <div className="hidden wide:block wide:col-span-3">
@@ -417,9 +413,9 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                         </div>
 
                         {/* Row 3: Odômetro, Combustível, Litros (Grouped) */}
-                        <div className="col-span-12 grid grid-cols-12 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <div className="col-span-12 grid grid-cols-12 gap-4 bg-slate-50 p-3 sm:p-4 rounded-2xl border border-slate-100">
                             <div className="col-span-12 wide:col-span-4 space-y-1">
-                                <label className={labelClass}>Odômetro (KM)</label>
+                                <label className={labelClass}>Horímetro/Odômetro (KM/H)</label>
                                 <div className="relative group">
                                     <input
                                         type="text"
@@ -431,9 +427,14 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                         className="w-full font-bold text-slate-800 bg-white border border-slate-200 rounded-xl px-3 py-2.5 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all outline-none"
                                     />
                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-bold text-slate-400">
-                                        KM
+                                        KM/H
                                     </div>
                                 </div>
+                                {lastOdometer !== null && (
+                                    <p className="text-[10px] text-slate-400 mt-1 ml-1">
+                                        Último registro: <span className="font-bold">{lastOdometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                    </p>
+                                )}
                             </div>
 
                             <div className="col-span-6 wide:col-span-4">
@@ -537,7 +538,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                     fuelType: pendingData.fuelType,
                     liters: pendingData.liters,
                     cost: pendingData.cost,
-                    odometer: odometer // Passing formatted string directly
+                    odometer: odometer, // Passing formatted string directly
+                    lastOdometer: lastOdometer
                 } : null}
                 isSaving={isSaving}
             />

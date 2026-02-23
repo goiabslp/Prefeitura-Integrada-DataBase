@@ -1050,8 +1050,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const renderSectorView = () => (
         <div className="space-y-6 animate-fade-in pb-20">
             {/* Sector Filters */}
-            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 wide:p-8">
-                <div className="flex flex-col wide:flex-row wide:items-center justify-between gap-6">
+            <div className="bg-white rounded-[1.5rem] sm:rounded-[2rem] shadow-sm border border-slate-200 p-4 sm:p-6 wide:p-8">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
                             <Factory className="w-6 h-6" />
@@ -1062,7 +1062,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         </div>
                     </div>
 
-                    <div className="w-full wide:w-72">
+                    <div className="w-full lg:w-72">
                         <ModernSelect
                             label="Selecione o Setor"
                             value={selectedSector}
@@ -1080,14 +1080,14 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 wide:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {/* Total Cost */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
+                <div className="bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
                     <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                         <DollarSign className="w-24 h-24" />
                     </div>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Gasto Total</p>
-                    <p className="text-2xl font-black text-slate-900">{formatCurrency(sectorStats.current.totalCost)}</p>
+                    <p className="text-xl sm:text-2xl font-black text-slate-900">{formatCurrency(sectorStats.current.totalCost)}</p>
                     <div className={`text-xs font-bold mt-2 flex items-center gap-1 ${sectorStats.costDiff > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
                         {sectorStats.costDiff > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
                         {Math.abs(sectorStats.costDiff).toFixed(1)}% vs anterior
@@ -1095,12 +1095,12 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 </div>
 
                 {/* Avg Cost per Vehicle */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
+                <div className="bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
                     <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                         <Car className="w-24 h-24" />
                     </div>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Custo Médio / Veículo</p>
-                    <p className="text-2xl font-black text-slate-900">{formatCurrency(sectorStats.avgCostPerVehicle)}</p>
+                    <p className="text-xl sm:text-2xl font-black text-slate-900">{formatCurrency(sectorStats.avgCostPerVehicle)}</p>
                     <div className={`text-xs font-bold mt-2 flex items-center gap-1 ${sectorStats.avgCostDiff > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
                         {sectorStats.avgCostDiff > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
                         {Math.abs(sectorStats.avgCostDiff).toFixed(1)}% vs anterior
@@ -1108,12 +1108,12 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 </div>
 
                 {/* Total KM */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
+                <div className="bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
                     <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                         <MapPin className="w-24 h-24" />
                     </div>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total Percorrido</p>
-                    <p className="text-2xl font-black text-slate-900">{sectorStats.totalKmSector.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km</p>
+                    <p className="text-xl sm:text-2xl font-black text-slate-900">{sectorStats.totalKmSector.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km</p>
                     <div className={`text-xs font-bold mt-2 flex items-center gap-1 ${sectorStats.kmDiff > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                         {sectorStats.kmDiff > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
                         {Math.abs(sectorStats.kmDiff).toFixed(1)}% vs anterior
@@ -1121,12 +1121,12 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 </div>
 
                 {/* Active Vehicles */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
+                <div className="bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
                     <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                         <Truck className="w-24 h-24" />
                     </div>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Veículos Ativos</p>
-                    <p className="text-2xl font-black text-slate-900">{sectorStats.activeVehiclesCount}</p>
+                    <p className="text-xl sm:text-2xl font-black text-slate-900">{sectorStats.activeVehiclesCount}</p>
                     <p className="text-[10px] text-slate-400 font-medium mt-2">
                         De {sectorStats.activeVehiclesCount} veículos vinculados
                     </p>
@@ -1134,7 +1134,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-1 wide:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Ranking Vehicle Cost */}
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-6 flex items-center gap-2">
@@ -1226,9 +1226,9 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const renderOverview = () => (
         <div className="space-y-6 animate-fade-in pb-10">
             {/* 1. Top KPI Row */}
-            <div className="grid grid-cols-1 wide:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Custo Total */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                         <DollarSign className="w-24 h-24 text-emerald-600" />
                     </div>
@@ -1239,7 +1239,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Custo Total</span>
                     </div>
                     <div className="relative z-10">
-                        <h3 className="text-3xl font-black text-emerald-900 tracking-tight">
+                        <h3 className="text-2xl sm:text-3xl font-black text-emerald-900 tracking-tight">
                             {formatCurrency(stats.totalCost)}
                         </h3>
                         <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${stats.costDiff > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
@@ -1250,7 +1250,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 </div>
 
                 {/* Litros */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                         <Droplet className="w-24 h-24 text-cyan-600" />
                     </div>
@@ -1261,7 +1261,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Volume Total</span>
                     </div>
                     <div className="relative z-10">
-                        <h3 className="text-3xl font-black text-cyan-900 tracking-tight">
+                        <h3 className="text-2xl sm:text-3xl font-black text-cyan-900 tracking-tight">
                             {formatNumber(stats.totalLiters)} L
                         </h3>
                         <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${stats.litersDiff > 0 ? 'text-cyan-500' : 'text-slate-400'}`}>
@@ -1271,7 +1271,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 </div>
 
                 {/* Avg KM/L */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                         <BarChart3 className="w-24 h-24 text-violet-600" />
                     </div>
@@ -1282,15 +1282,15 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Média Geral</span>
                     </div>
                     <div className="relative z-10">
-                        <h3 className="text-3xl font-black text-violet-900 tracking-tight">
-                            {formatNumber(stats.avgKmL, 1)} <span className="text-lg text-slate-400 font-bold">Km/L</span>
+                        <h3 className="text-2xl sm:text-3xl font-black text-violet-900 tracking-tight">
+                            {formatNumber(stats.avgKmL, 1)} <span className="text-sm sm:text-lg text-slate-400 font-bold">Km/L</span>
                         </h3>
                         <p className="text-xs font-medium text-slate-400 mt-1">Eficiência da frota (S/ Arla)</p>
                     </div>
                 </div>
 
                 {/* Total KM */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                         <MapPin className="w-24 h-24 text-amber-600" />
                     </div>
@@ -1301,8 +1301,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Rodagem Total</span>
                     </div>
                     <div className="relative z-10">
-                        <h3 className="text-3xl font-black text-amber-900 tracking-tight">
-                            {formatNumber(stats.totalKmPeriod, 2)} <span className="text-lg text-slate-400 font-bold">Km</span>
+                        <h3 className="text-2xl sm:text-3xl font-black text-amber-900 tracking-tight">
+                            {formatNumber(stats.totalKmPeriod, 2)} <span className="text-sm sm:text-lg text-slate-400 font-bold">Km</span>
                         </h3>
                         <p className="text-xs font-medium text-slate-400 mt-1">Estimado no período</p>
                     </div>
@@ -1310,9 +1310,9 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             </div>
 
             {/* 2. Charts Row: Evolution & Fuel Dist */}
-            <div className="grid grid-cols-1 wide:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                 {/* Evolution Chart */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                <div className="lg:col-span-2 xl:col-span-3 2xl:col-span-3 bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm">
                     <div className="mb-6">
                         <h3 className="text-lg font-black text-slate-800">Evolução de Gastos</h3>
                         <p className="text-sm text-slate-400 font-medium">Histórico dos últimos 6 meses</p>
@@ -1358,7 +1358,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 </div>
 
                 {/* Fuel Distribution */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                <div className="xl:col-span-1 2xl:col-span-2 bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm">
                     <div className="mb-6">
                         <h3 className="text-lg font-black text-slate-800">Por Combustível</h3>
                         <p className="text-sm text-slate-400 font-medium">Distribuição de volume (L)</p>
@@ -1389,9 +1389,9 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             </div>
 
             {/* 3. Charts Row: Sector & Ranking */}
-            <div className="grid grid-cols-1 wide:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 {/* Spending by Sector */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                <div className="xl:col-span-2 bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm">
                     <div className="mb-6">
                         <h3 className="text-lg font-black text-slate-800">Gastos por Secretaria</h3>
                         <p className="text-sm text-slate-400 font-medium">Top 5 setores com maior consumo</p>
@@ -1421,7 +1421,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 </div>
 
                 {/* Vehicle Ranking */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                <div className="xl:col-span-1 bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm">
                     <div className="mb-6 flex justify-between items-center">
                         <div>
                             <h3 className="text-lg font-black text-slate-800">Ranking de Veículos</h3>
@@ -1620,15 +1620,15 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 </div>
 
                 {/* Detail KPIs */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 wide:grid-cols-4 gap-4">
-                    <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
                             <DollarSign className="w-4 h-4 text-emerald-500" />
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Custo Total</span>
                         </div>
                         <p className="text-2xl font-black text-slate-900">{formatCurrency(totalVehicleCost)}</p>
                     </div>
-                    <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
                             <Droplet className="w-4 h-4 text-blue-500" />
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Consumo Total</span>
@@ -1637,7 +1637,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">{vehicleFuelTypes}</p>
                     </div>
                     {/* New Metric: Avg Consumption */}
-                    <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
                             <TrendingUp className="w-4 h-4 text-amber-500" />
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Consumo Médio</span>
@@ -1650,7 +1650,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         </p>
                     </div>
                     {/* New Metric: Avg Cost/Km */}
-                    <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
                             <CreditCard className="w-4 h-4 text-purple-500" />
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Custo Médio</span>
@@ -1662,7 +1662,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 </div>
 
                 {/* Charts Area */}
-                <div className="grid grid-cols-1 wide:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm min-h-[300px] flex flex-col">
                         <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-6 flex items-center gap-2">
                             <TrendingUp className="w-4 h-4 text-cyan-500" /> Histórico de Consumo (Litros)
@@ -1923,7 +1923,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     const renderReportsView = () => (
         <div className="space-y-6 animate-fade-in pb-20">
             {/* Filters Section */}
-            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 wide:p-8">
+            <div className="bg-white rounded-[1.5rem] sm:rounded-[2rem] shadow-sm border border-slate-200 p-4 sm:p-6 wide:p-8">
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
                     <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
                         <Filter className="w-6 h-6" />
@@ -1934,7 +1934,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 wide:grid-cols-3 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
                     {/* Date inputs */}
                     <div>
                         <ModernDateInput
@@ -2023,7 +2023,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                         />
                     </div>
 
-                    <div className="wide:col-span-1 lg:col-span-1 flex items-end">
+                    <div className="sm:col-span-2 lg:col-span-1 flex items-end">
                         <button
                             onClick={() => setAppliedFilters({ ...pendingFilters })}
                             className="w-full md:w-auto px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95 flex items-center justify-center gap-2 h-[46px]"
@@ -2036,9 +2036,9 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             </div>
 
             {/* Summary Row */}
-            <div className="grid grid-cols-1 wide:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Liters and Value Totals */}
-                <div className="bg-slate-900 text-white rounded-[2rem] border border-slate-800 p-8 shadow-xl relative overflow-hidden">
+                <div className="bg-slate-900 text-white rounded-[1.5rem] sm:rounded-[2rem] border border-slate-800 p-6 sm:p-8 shadow-xl relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-6 opacity-10">
                         <FileSpreadsheet className="w-32 h-32" />
                     </div>
@@ -2048,11 +2048,11 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             <div className="space-y-6">
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Volume Total</p>
-                                    <p className="text-4xl font-black tracking-tighter">{formatNumber(reportData.grandTotalLiters)} <span className="text-xl text-slate-500">L</span></p>
+                                    <p className="text-2xl sm:text-4xl font-black tracking-tighter">{formatNumber(reportData.grandTotalLiters)} <span className="text-sm sm:text-xl text-slate-500">L</span></p>
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valor Total</p>
-                                    <p className="text-4xl font-black tracking-tighter text-emerald-400">{formatCurrency(reportData.grandTotalValue)}</p>
+                                    <p className="text-2xl sm:text-4xl font-black tracking-tighter text-emerald-400">{formatCurrency(reportData.grandTotalValue)}</p>
                                 </div>
                             </div>
                         </div>
@@ -2298,7 +2298,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
 
     return (
         <div className="flex-1 h-full bg-slate-50 p-4 wide:p-6 overflow-auto custom-scrollbar">
-            <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
+            <div className="w-full space-y-8 animate-fade-in">
                 <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8">
                     <div className="flex items-center gap-4">
                         <button onClick={onBack} className="p-2 -ml-2 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-all shadow-sm ring-1 ring-slate-200 bg-white">
