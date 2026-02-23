@@ -1,5 +1,5 @@
 import React from 'react';
-import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange, FileSearch, Droplet, Fuel, BarChart3, TrendingUp, LogOut, Sprout, HardHat, Activity, Car, ChevronDown, CalendarDays } from 'lucide-react';
+import { FilePlus, Package, History, FileText, ArrowRight, ArrowLeft, ShoppingCart, Gavel, Wallet, Inbox, CalendarRange, FileSearch, Droplet, Fuel, BarChart3, TrendingUp, LogOut, Sprout, HardHat, Activity, Car, ChevronDown, CalendarDays, Users } from 'lucide-react';
 import { UserRole, UIConfig, AppPermission, BlockType } from '../types';
 import { TasksDashboard } from './dashboard/TasksDashboard';
 import { QuickTaskCreation } from './dashboard/QuickTaskCreation';
@@ -20,6 +20,7 @@ interface HomeScreenProps {
     onAbastecimento?: (sub: string) => void;
     onAgricultura?: () => void;
     onObras?: () => void;
+    onRH?: () => void;
     onViewTasksDashboard?: () => void;
     userRole: UserRole;
     userName: string;
@@ -61,6 +62,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     onAbastecimento,
     onAgricultura,
     onObras,
+    onRH,
     onLogout,
     onViewTasksDashboard,
     orders = [], // Receive orders for Tasks Dashboard
@@ -89,6 +91,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     const canAccessObras = (permissions.includes('parent_obras') || userRole === 'admin') && isModuleActive('parent_obras');
     const canAccessTarefas = permissions.includes('parent_tarefas') && isModuleActive('parent_tarefas');
     const canAccessCalendario = (permissions.includes('parent_calendario') || userRole === 'admin') && isModuleActive('parent_calendario');
+    const canAccessRh = (permissions.includes('parent_rh') || userRole === 'admin') && isModuleActive('parent_rh');
     const firstName = userName.split(' ')[0];
 
     // --- Helper Functions for Card Styling ---
@@ -378,6 +381,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                 {/* Management Modules */}
                                 {canAccessTarefas && renderModuleButton(() => setActiveBlock('tarefas'), 'pink', Activity, 'Tarefas', 'Gestão de atividades', '225ms', true)}
                                 {canAccessCalendario && renderModuleButton(() => onCalendario?.(), 'rose', CalendarDays, 'Calendário', 'Agenda e Eventos', '235ms', true)}
+                                {canAccessRh && renderModuleButton(() => onRH?.(), 'fuchsia', Users, 'RH', 'Horas extras e gestão', '240ms', true)}
 
                                 {canAccessScheduling && renderModuleButton(() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }, 'violet', CalendarRange, 'Veículos', 'Agendamento de frota', '250ms', true)}
                                 {canAccessAbastecimento && renderModuleButton(() => setActiveBlock('abastecimento'), 'cyan', Droplet, 'Abastecimento', 'Controle de combustível', '300ms', false)}

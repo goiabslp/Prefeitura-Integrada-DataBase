@@ -33,8 +33,8 @@ import * as vehicleSchedulingService from './services/vehicleSchedulingService';
 import * as licitacaoService from './services/licitacaoService';
 import { AbastecimentoService } from './services/abastecimentoService';
 import * as taskService from './services/taskService';
+import { saveRhHorasExtras } from './services/rhService';
 import { Send, CheckCircle2, X, Download, Save, FilePlus, Package, History, FileText, Settings, LogOut, ChevronRight, ChevronDown, Search, Filter, Upload, Trash2, Printer, Edit, ArrowLeft, Loader2, ShieldAlert } from 'lucide-react';
-
 
 // Components
 import { LoginScreen } from './components/LoginScreen';
@@ -82,6 +82,7 @@ import { OrderDetailsScreen } from './components/OrderDetailsScreen';
 import { TasksDashboard } from './components/dashboard/TasksDashboard';
 import { PurchaseItemsScreen } from './components/PurchaseItemsScreen';
 import { Calendario } from './components/calendario/Calendario';
+import { RHModule } from './components/rh/RHModule';
 
 const VIEW_TO_PATH: Record<string, string> = {
   'login': '/Login',
@@ -128,7 +129,9 @@ const VIEW_TO_PATH: Record<string, string> = {
   'tarefas': '/Tarefas',
   'tarefas:new': '/Tarefas/NovaTarefa',
   'tarefas:dashboard': '/Tarefas/MinhasTarefas',
-  'calendario': '/Calendario'
+  'calendario': '/Calendario',
+  'rh': '/RH',
+  'rh:horas-extras': '/RH/HorasExtras'
 };
 
 const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
@@ -139,7 +142,7 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 );
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details' | 'tasks-dashboard' | 'purchase-inventory' | 'calendario'>('login');
+  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details' | 'tasks-dashboard' | 'purchase-inventory' | 'calendario' | 'rh'>('login');
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
   const { moduleStatus } = useSystemSettings();
   const isModuleActive = (key: string) => moduleStatus[key] !== false;
@@ -1474,10 +1477,10 @@ const App: React.FC = () => {
               const stage0 = content.licitacaoStages[0];
               restrictedContent = {
                 ...restrictedContent,
-                body: stage0.body,
-                signatureName: stage0.signatureName,
-                signatureRole: stage0.signatureRole,
-                signatureSector: stage0.signatureSector,
+                body: stage0.body || '',
+                signatureName: stage0.signatureName || '',
+                signatureRole: stage0.signatureRole || '',
+                signatureSector: stage0.signatureSector || '',
                 signatures: stage0.signatures || []
               };
             }
@@ -1514,10 +1517,10 @@ const App: React.FC = () => {
               const stage0 = content.licitacaoStages[0];
               restrictedContent = {
                 ...restrictedContent,
-                body: stage0.body,
-                signatureName: stage0.signatureName,
-                signatureRole: stage0.signatureRole,
-                signatureSector: stage0.signatureSector,
+                body: stage0.body || '',
+                signatureName: stage0.signatureName || '',
+                signatureRole: stage0.signatureRole || '',
+                signatureSector: stage0.signatureSector || '',
                 signatures: stage0.signatures || []
               };
             }
@@ -1869,10 +1872,10 @@ const App: React.FC = () => {
       if (historicalStage) {
         stageContent = {
           ...content,
-          body: historicalStage.body,
-          signatureName: historicalStage.signatureName,
-          signatureRole: historicalStage.signatureRole,
-          signatureSector: historicalStage.signatureSector,
+          body: historicalStage.body || '',
+          signatureName: historicalStage.signatureName || '',
+          signatureRole: historicalStage.signatureRole || '',
+          signatureSector: historicalStage.signatureSector || '',
           licitacaoStages: [] // Mask history to show only this one
         };
       }
@@ -2539,10 +2542,10 @@ const App: React.FC = () => {
                           if (isCurrent) {
                             // Check active content
                             body = appState.content.body;
-                            hasSig = !!appState.content.signatureName || (appState.content.signatures && appState.content.signatures.length > 0);
+                            hasSig = !!appState.content.signatureName || !!(appState.content.signatures && appState.content.signatures.length > 0);
                           } else if (hist) {
                             body = hist.body || '';
-                            hasSig = !!hist.signatureName || (hist.signatures && hist.signatures.length > 0);
+                            hasSig = !!hist.signatureName || !!(hist.signatures && hist.signatures.length > 0);
                           }
 
                           const hasContent = body && body.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
@@ -2700,11 +2703,11 @@ const App: React.FC = () => {
                                 }
 
                                 try {
-                                  if (activeBlock === 'licitacao') {
+                                  if (activeBlock === 'licitacao' && orderToSave) {
                                     if (orderToSave.status === 'approved') {
                                       orderToSave.status = 'in_progress';
                                     }
-                                    await licitacaoService.saveLicitacaoProcess(orderToSave!);
+                                    await licitacaoService.saveLicitacaoProcess(orderToSave);
                                   }
                                   // else ... others not handled here as this is Licitacao context
 
@@ -3269,6 +3272,7 @@ const App: React.FC = () => {
                 }}
                 onAgricultura={() => setCurrentView('agricultura')}
                 onObras={() => setCurrentView('obras')}
+                onRH={() => setCurrentView('rh')}
                 activeBlock={activeBlock}
                 setActiveBlock={(block) => {
                   setActiveBlock(block);
@@ -3493,6 +3497,91 @@ const App: React.FC = () => {
               />
             )}
 
+            {currentView === 'rh' && (
+              <RHModule
+                currentView={currentView}
+                subView={appState.view}
+                userRole={currentUser?.role || 'collaborator'}
+                userName={currentUser?.name || ''}
+                userId={currentUser?.id || ''}
+                users={users}
+                persons={persons}
+                jobs={jobs}
+                sectors={sectors}
+                appState={appState}
+                onNavigate={(view) => {
+                  if (view === 'home') {
+                    setCurrentView('home');
+                    setActiveBlock(null);
+                    window.history.pushState({}, '', '/PaginaInicial');
+                  } else if (view === 'rh:horas-extras') {
+                    setAppState(prev => ({ ...prev, view: 'horas-extras' }));
+                    window.history.pushState({}, '', '/RH/HorasExtras');
+                  } else if (view === 'rh') {
+                    setAppState(prev => ({ ...prev, view: undefined }));
+                    window.history.pushState({}, '', '/RH');
+                  }
+                }}
+                onLogout={signOut}
+                onSaveForm={(data) => {
+                  // Simulate save process with 2FA
+                  setAppState(prev => ({
+                    ...prev,
+                    content: {
+                      ...prev.content,
+                      useDigitalSignature: true,
+                      signatureName: currentUser?.name || '',
+                      signatureRole: currentUser?.jobTitle || '',
+                      signatureSector: currentUser?.sector || ''
+                    }
+                  }));
+
+                  const executeSave = async () => {
+                    try {
+                      // Start saving process and open the animated modal blocking the screen
+                      setActionProcessing({ isOpen: true, stage: 'sending' });
+                      await advanceActionStep('sending', 500);
+
+                      const savedRecord = await saveRhHorasExtras({
+                        month: data.month,
+                        sector: currentUser?.sector || 'Geral',
+                        entries: data.entries,
+                        user_id: currentUser?.id || '',
+                        user_name: currentUser?.name || 'Sistema',
+                        signature_name: currentUser?.name || 'Sistema',
+                        signature_role: currentUser?.jobTitle || '',
+                        signature_sector: currentUser?.sector || ''
+                      });
+
+                      await advanceActionStep('validating', 1000); // Use 'validating' instead of 'processing'
+                      await advanceActionStep('confirming', 500); // Use 'confirming' instead of 'finalizing'
+                      await advanceActionStep('success', 1500);
+
+                      setActionProcessing(prev => ({ ...prev, isOpen: false }));
+                      showToast(`Horas extras salvas com sucesso para o mês de ${data.month}!`, "success");
+
+                      // Dispatch event to switch to the historico tab and highlight the new record
+                      window.dispatchEvent(new CustomEvent('rh-force-historico', { detail: { id: savedRecord.id } }));
+                    } catch (error) {
+                      console.error("Error saving horas extras:", error);
+                      setActionProcessing(prev => ({ ...prev, isOpen: false }));
+                      showToast("Erro ao arquivar as horas extras no banco de dados.", "error");
+                    }
+                  };
+
+                  if (currentUser && (currentUser.twoFactorEnabled || currentUser.twoFactorEnabled2)) {
+                    setTwoFASecret(currentUser.twoFactorEnabled ? (currentUser.twoFactorSecret || '') : '');
+                    setTwoFASecret2(currentUser.twoFactorEnabled2 ? (currentUser.twoFactorSecret2 || null) : null);
+                    setTwoFASignatureName(currentUser.name);
+                    setPending2FAAction(() => async () => executeSave());
+                    setIs2FAModalOpen(true);
+                  } else {
+                    executeSave();
+                  }
+                }}
+              />
+            )}
+
             {currentView === 'tracking' && currentUser && (
               <TrackingScreen
                 onBack={handleBackToModule}
@@ -3670,9 +3759,9 @@ const App: React.FC = () => {
                     const s = sectors.find(sec => sec.name === currentUser.sector);
                     return s ? s.id : null;
                   })()}
-                  sectorName={currentUser.sector}
                   title={activeBlock === 'compras' ? "Gerando Pedido" : "Gerando Número"}
                   label={activeBlock === 'compras' ? "PRÓXIMO PEDIDO COMPRA" : "PRÓXIMO OFÍCIO DO SETOR"}
+                  sectorName={currentUser.sector || ''}
                 />
               )
             }
