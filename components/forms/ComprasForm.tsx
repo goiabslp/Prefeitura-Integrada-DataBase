@@ -100,7 +100,13 @@ const AccountSelectionEmbedded: React.FC<{
               <button
                 key={acc.id}
                 type="button"
-                onClick={() => onSelect(label)}
+                onClick={() => {
+                  if (isSelected) {
+                    onSelect('');
+                  } else {
+                    onSelect(label);
+                  }
+                }}
                 className={`
                   w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all group
                   ${isSelected
@@ -839,17 +845,21 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
                     <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0">
                       <CreditCard className="w-6 h-6 text-emerald-600" />
                     </div>
-                    <div className="space-y-0.5">
-                      <span className="text-lg font-black text-slate-900 tracking-tight leading-tight block">
-                        {content.selectedAccount || 'Nenhuma selecionada'}
+                    <div className={`space-y-0.5 ${!content.selectedAccount ? 'opacity-60 grayscale' : ''}`}>
+                      <span className="text-[16px] sm:text-lg font-black text-slate-900 tracking-tight leading-tight block max-w-full truncate">
+                        {content.selectedAccount || 'Nenhuma Conta Selecionada'}
                       </span>
-                      <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Vinculação Orçamentária</p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-400 font-bold uppercase tracking-wider">Vinculação Orçamentária (Opcional)</p>
                     </div>
                   </div>
-                  {content.selectedAccount && (
-                    <div className="px-3 py-1 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-md shadow-emerald-500/10 flex items-center gap-1.5 self-end">
+                  {content.selectedAccount ? (
+                    <div className="px-2.5 sm:px-3 py-1 bg-emerald-500 text-white text-[8px] sm:text-[9px] font-black uppercase tracking-widest rounded-full shadow-md shadow-emerald-500/10 flex items-center gap-1.5 self-start sm:self-center shrink-0">
                       <CheckCircle2 className="w-3 h-3" />
                       Confirmada
+                    </div>
+                  ) : (
+                    <div className="px-2.5 sm:px-3 py-1 bg-slate-100 text-slate-400 text-[8px] sm:text-[9px] font-black uppercase tracking-widest rounded-full border border-slate-200 flex items-center gap-1.5 self-start sm:self-center shrink-0">
+                      Vazio
                     </div>
                   )}
                 </div>
@@ -859,7 +869,9 @@ export const ComprasForm: React.FC<ComprasFormProps> = ({
             {/* RIGHT SIDE: Embedded Selection List */}
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Clique para Alterar</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
+                  {content.selectedAccount ? 'Clique para Alterar ou Desmarcar' : 'Clique para Selecionar'}
+                </span>
                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-600 flex items-center gap-1">
                   <Layers className="w-2.5 h-2.5" /> Contas Ativas
                 </span>
