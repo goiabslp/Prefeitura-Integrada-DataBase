@@ -74,6 +74,7 @@ export const INITIAL_STATE: AppState = {
     paymentForecast: '',
     protocol: '',
     digitalSignature: undefined,
+    selectedAccount: '',
     licitacaoStages: [],
     licitacaoActiveDraft: undefined,
     currentStageIndex: 0,

@@ -360,6 +360,7 @@ export const PurchaseItemsScreen: React.FC<PurchaseItemsScreenProps> = ({ onBack
                                         <option value="Kg" />
                                         <option value="Litro" />
                                         <option value="Serviço" />
+                                        <option value="Metro Cúbico (m³)" />
                                     </datalist>
                                 </div>
                             </div>

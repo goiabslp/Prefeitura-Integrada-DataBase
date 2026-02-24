@@ -62,7 +62,7 @@ export interface PurchaseItem {
   id: string;
   name: string;
   quantity: number;
-  unit: 'Pacote' | 'Caixa' | 'Kg' | 'Unidade' | 'Serviço';
+  unit: 'Pacote' | 'Caixa' | 'Kg' | 'Unidade' | 'Serviço' | 'Metro Cúbico (m³)';
   brand?: string;
   details?: string;
   isTendered?: boolean; // false = Não Licitado (Item de Inventário)
@@ -117,6 +117,7 @@ export interface ContentData {
   descriptionReason?: string;
   description?: string; // Add description
   paymentForecast?: string;
+  selectedAccount?: string;
   useDigitalSignature?: boolean;
   digitalSignature?: {
     enabled: boolean;
@@ -124,6 +125,8 @@ export interface ContentData {
     ip: string;
     date: string;
     id: string; // Add ID as required
+    signerName?: string;
+    signerRole?: string;
   };
   signatures?: { name: string; role: string; sector: string; id?: string }[];
   licitacaoStages?: {
@@ -274,6 +277,18 @@ export interface RhHorasExtras {
   signature_name: string;
   signature_role: string;
   signature_sector: string;
+}
+
+export type AccountStatus = 'Ativa' | 'Pendente';
+
+export interface PurchaseAccount {
+  id: string;
+  account_number: string;
+  description: string;
+  sector: string;
+  status: AccountStatus;
+  created_at: string;
+  created_by?: string;
 }
 
 // Fleet Module Types

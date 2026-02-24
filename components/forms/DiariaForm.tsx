@@ -14,7 +14,7 @@ interface DiariaFormProps {
   content: ContentData;
   allowedSignatures: Signature[];
   handleUpdate: (section: keyof AppState, key: string, value: any) => void;
-  onUpdate: (newState: AppState) => void;
+  onUpdate: React.Dispatch<React.SetStateAction<AppState>>;
   persons: Person[];
   sectors: Sector[];
   jobs: Job[];
@@ -209,10 +209,10 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
 
     const protocolText = `Solicitação Nº: ${protocolString}`;
 
-    onUpdate({
-      ...state,
+    onUpdate(prev => ({
+      ...prev,
       content: {
-        ...state.content,
+        ...prev.content,
         subType: type,
         title: newTitle,
         protocol: protocolString, // Persist the assigned protocol
@@ -224,11 +224,11 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
         body: ''
       },
       document: {
-        ...state.document,
+        ...prev.document,
         showSignature: false,
         showLeftBlock: true
       }
-    });
+    }));
   };
 
   const handlePersonSelect = (personId: string) => {
@@ -237,25 +237,25 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
       const job = jobs.find(j => j.id === person.jobId)?.name || '';
       const sector = sectors.find(s => s.id === person.sectorId)?.name || '';
 
-      onUpdate({
-        ...state,
+      onUpdate(prev => ({
+        ...prev,
         content: {
-          ...state.content,
+          ...prev.content,
           requesterName: person.name,
           requesterRole: job,
           requesterSector: sector
         }
-      });
+      }));
     } else {
-      onUpdate({
-        ...state,
+      onUpdate(prev => ({
+        ...prev,
         content: {
-          ...state.content,
+          ...prev.content,
           requesterName: '',
           requesterRole: '',
           requesterSector: ''
         }
-      });
+      }));
     }
     setIsRequesterOpen(false);
     setRequesterSearch('');
@@ -759,7 +759,7 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
                 return (
                   <button
                     key={sig.id}
-                    onClick={() => onUpdate({ ...state, content: { ...state.content, signatureName: sig.name, signatureRole: sig.role, signatureSector: sig.sector } })}
+                    onClick={() => onUpdate(prev => ({ ...prev, content: { ...prev.content, signatureName: sig.name, signatureRole: sig.role, signatureSector: sig.sector } }))}
                     className={`text-left p-4 rounded-2xl border transition-all duration-300 ${isSelected ? 'bg-indigo-50 border-indigo-500 shadow-md' : 'bg-white border-slate-200 hover:border-indigo-300'}`}
                   >
                     <div className="flex items-center justify-between">

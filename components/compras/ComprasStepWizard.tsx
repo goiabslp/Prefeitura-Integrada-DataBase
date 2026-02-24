@@ -3,6 +3,7 @@ import { ComprasStepper, StepStatus } from './ComprasStepper';
 import { AppState, ContentData, DocumentConfig, Signature, Person, Sector, Job } from '../../types';
 import { ComprasForm } from '../forms/ComprasForm';
 import { ChevronRight, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import { User } from '../../types';
 
 interface ComprasStepWizardProps {
     state: AppState;
@@ -10,19 +11,21 @@ interface ComprasStepWizardProps {
     docConfig: DocumentConfig;
     allowedSignatures: Signature[];
     handleUpdate: (section: keyof AppState, key: string, value: any) => void;
-    onUpdate: (newState: AppState) => void;
+    onUpdate: React.Dispatch<React.SetStateAction<AppState>>;
     persons: Person[];
     sectors: Sector[];
     jobs: Job[];
     onFinish: () => Promise<boolean | void>;
     onBack?: () => void;
     isLoading?: boolean;
+    currentUser: User;
 }
 
 export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
-    state, content, docConfig, allowedSignatures, handleUpdate, onUpdate, persons, sectors, jobs, onFinish, onBack, isLoading = false
+    state, content, docConfig, allowedSignatures, handleUpdate, onUpdate, persons, sectors, jobs, onFinish, onBack, isLoading = false, currentUser
 }) => {
     const [currentStep, setCurrentStep] = useState(1);
+    const [showAccountWarning, setShowAccountWarning] = useState(false);
 
     // --- Status Calculation Logic ---
     const stepsStatus = useMemo(() => {
@@ -33,13 +36,15 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
         const s2Valid = !!(content.purchaseItems && content.purchaseItems.length > 0);
         const s3Valid = !!(content.body && content.body.length > 0);
         const s4Valid = true; // Optional (Anexos)
-        const s5Valid = !!(content.signatureName); // Assinar
+        const s5Valid = !!(content.selectedAccount); // Conta - used for status, but not mandatory to advance
+        const s6Valid = !!(content.signatureName); // Assinar
 
         // Helper to check "started" (partial) - simple check if ANY field is filled
         const s1Started = !!(content.title || content.requesterName || content.priority);
         const s2Started = false; // Hard to be "partial" on items list, either have items or not
         const s3Started = !!(content.body && content.body.length > 0);
-        const s5Started = false;
+        const s5Started = !!(content.selectedAccount);
+        const s6Started = false;
 
         const getStatus = (id: number, isValid: boolean, isStarted: boolean): StepStatus => {
             if (currentStep === id) return 'current';
@@ -53,6 +58,7 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
         statuses[3] = getStatus(3, s3Valid, s3Started);
         statuses[4] = currentStep === 4 ? 'current' : (content.attachments && content.attachments.length > 0 ? 'completed' : 'empty'); // Anexos: Green if has files, else empty
         statuses[5] = getStatus(5, s5Valid, s5Started);
+        statuses[6] = getStatus(6, s6Valid, s6Started);
 
         return statuses;
     }, [content, currentStep]);
@@ -63,14 +69,20 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
             content.title && content.requesterName && content.priority && // Step 1
             content.purchaseItems && content.purchaseItems.length > 0 && // Step 2
             content.body && // Step 3
-            content.signatureName // Step 5
+            // Step 5 removed from mandatory
+            content.signatureName // Step 6
         );
     }, [content]);
 
 
     const nextStep = () => {
+        if (currentStep === 5 && !content.selectedAccount) {
+            setShowAccountWarning(true);
+            return;
+        }
+
         if (validateStep(currentStep)) {
-            setCurrentStep(prev => Math.min(prev + 1, 5));
+            setCurrentStep(prev => Math.min(prev + 1, 6));
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     };
@@ -128,8 +140,8 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
 
                 {/* 3. Botão de Ação (Avançar/Finalizar) */}
                 <div className="min-w-[140px] flex justify-end">
-                    {/* Hide Button in Step 5 (Assinar) - Form handles it */}
-                    {currentStep !== 5 && (
+                    {/* Hide Button in Step 6 (Assinar) - Form handles it */}
+                    {currentStep !== 6 && (
                         !isAllMandatoryCompleted ? (
                             <button
                                 onClick={nextStep}
@@ -153,11 +165,9 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
                 </div>
             </div>
 
-            {/* CONTENT AREA - Expanded (No pb-32 anymore) */}
-            <div className={`flex-1 ${currentStep === 5 ? 'overflow-hidden flex flex-col justify-center' : 'overflow-y-auto'} p-4 md:p-8 bg-slate-50 relative`}>
-                <div className={`max-w-5xl mx-auto ${currentStep === 5 ? 'w-full h-full flex flex-col justify-center' : 'space-y-8'} animate-fade-in`}>
-
-                    {/* Main Form handles all steps now */}
+            {/* CONTENT AREA */}
+            <div className={`flex-1 ${currentStep === 6 ? 'overflow-hidden flex flex-col justify-center' : 'overflow-y-auto'} p-4 md:p-8 bg-slate-50 relative`}>
+                <div className={`max-w-7xl mx-auto ${currentStep === 6 ? 'w-full h-full flex flex-col justify-center' : 'space-y-8'} animate-fade-in`}>
                     <ComprasForm
                         state={state}
                         content={content}
@@ -168,14 +178,56 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
                         persons={persons}
                         sectors={sectors}
                         jobs={jobs}
+                        currentUser={currentUser}
                         currentStep={currentStep}
                         onFinish={onFinish}
                         canFinish={isAllMandatoryCompleted}
                         isLoading={isLoading}
                     />
-
                 </div>
             </div>
+
+            {/* ACCOUNT WARNING MODAL */}
+            {showAccountWarning && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+                    <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-in flex flex-col p-10 border border-slate-100">
+                        <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center mx-auto mb-8">
+                            <DollarSign className="w-10 h-10 text-amber-500" />
+                        </div>
+
+                        <div className="text-center space-y-4 mb-10">
+                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Seleção de Conta</h3>
+                            <div className="space-y-4 text-slate-500 font-medium leading-relaxed">
+                                <p>
+                                    Informar a conta é um passo essencial para agilizar e organizar a distribuição dos recursos.
+                                </p>
+                                <p className="text-sm bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                    A solicitação será registrada normalmente, porém será necessário informar a conta posteriormente para que o pedido seja efetivamente realizado.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowAccountWarning(false);
+                                    setCurrentStep(6);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-95"
+                            >
+                                Confirmar e Continuar
+                            </button>
+                            <button
+                                onClick={() => setShowAccountWarning(false)}
+                                className="w-full py-4 bg-white text-slate-400 font-bold rounded-2xl hover:bg-slate-50 transition-all border border-transparent"
+                            >
+                                Voltar para selecionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

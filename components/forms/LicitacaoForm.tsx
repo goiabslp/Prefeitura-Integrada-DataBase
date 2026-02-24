@@ -9,7 +9,7 @@ interface LicitacaoFormProps {
   content: ContentData;
   allowedSignatures: Signature[];
   handleUpdate: (section: keyof AppState, key: string, value: any) => void;
-  onUpdate: (newState: AppState) => void;
+  onUpdate: React.Dispatch<React.SetStateAction<AppState>>;
   onFinish?: () => void;
   isReadOnly?: boolean;
   currentUser?: User | null;
@@ -23,6 +23,7 @@ const UNIT_OPTIONS = [
   { value: 'Caixa', label: 'Caixa', icon: Archive },
   { value: 'Kg', label: 'Kg', icon: Scale },
   { value: 'Serviço', label: 'Serviço', icon: Briefcase },
+  { value: 'Metro Cúbico (m³)', label: 'Metro Cúbico (m³)', icon: Box },
 ] as const;
 
 const PRIORITY_OPTIONS = [
@@ -88,7 +89,7 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
         // ALWAYS EDITABLE - the App.tsx logic handles swapping the data
         if (isStageChange) {
           if (viewingIndex < currentStageIndex && historicStages[viewingIndex]) {
-            editorRef.current.innerHTML = historicStages[viewingIndex].body;
+            editorRef.current.innerHTML = historicStages[viewingIndex].body || '';
           } else if (viewingIndex === currentStageIndex) {
             editorRef.current.innerHTML = content.body;
           }
@@ -444,17 +445,17 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
                     return (
                       <button
                         key={sig.id}
-                        onClick={() => onUpdate({
-                          ...state,
-                          document: { ...state.document, showSignature: true },
+                        onClick={() => onUpdate(prev => ({
+                          ...prev,
+                          document: { ...prev.document, showSignature: true },
                           content: {
-                            ...state.content,
+                            ...prev.content,
                             signatureName: sig.name,
                             signatureRole: sig.role,
                             signatureSector: sig.sector,
                             signatures: [] // Clear array if switching to single
                           }
-                        })}
+                        }))}
                         className={`text-left p-4 rounded-2xl border transition-all ${isSelected ? 'bg-indigo-50 border-indigo-500 shadow-md' : 'bg-white border-slate-200 hover:border-indigo-300'}`}
                       >
                         <div className="flex items-center justify-between">
@@ -504,13 +505,13 @@ export const LicitacaoForm: React.FC<LicitacaoFormProps> = ({
                         }
 
                         // 2. Update State
-                        onUpdate({
-                          ...state,
+                        onUpdate(prev => ({
+                          ...prev,
                           content: {
-                            ...state.content,
+                            ...prev.content,
                             body: newBody
                           }
-                        });
+                        }));
                       }}
                       className="text-left p-4 rounded-2xl border bg-white border-slate-200 hover:border-blue-300 hover:shadow-md transition-all active:scale-[0.98]"
 

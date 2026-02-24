@@ -2164,6 +2164,7 @@ const App: React.FC = () => {
                 mergedContent.title = 'Requisição de Diária';
               }
 
+
               return {
                 ...prev,
                 content: mergedContent
@@ -2257,6 +2258,7 @@ const App: React.FC = () => {
         leftBlockText: leftBlockContent,
         body: defaultBody,
       };
+
 
       // Special handling for Licitação defaults
       if (currentBlock === 'licitacao') {

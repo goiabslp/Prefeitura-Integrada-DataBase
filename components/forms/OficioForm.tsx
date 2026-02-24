@@ -11,7 +11,7 @@ interface OficioFormProps {
   docConfig: DocumentConfig;
   allowedSignatures: Signature[];
   handleUpdate: (section: keyof AppState, key: string, value: any) => void;
-  onUpdate: (newState: AppState) => void;
+  onUpdate: React.Dispatch<React.SetStateAction<AppState>>;
 }
 
 export const OficioForm: React.FC<OficioFormProps> = ({
@@ -166,10 +166,10 @@ export const OficioForm: React.FC<OficioFormProps> = ({
           images: [...(content.images || []), newImage]
         };
 
-        onUpdate({
-          ...state,
+        onUpdate(prev => ({
+          ...prev,
           content: updatedContent
-        });
+        }));
       }
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -325,16 +325,16 @@ export const OficioForm: React.FC<OficioFormProps> = ({
             return (
               <button
                 key={sig.id}
-                onClick={() => onUpdate({
-                  ...state,
-                  document: { ...state.document, showSignature: true },
+                onClick={() => onUpdate(prev => ({
+                  ...prev,
+                  document: { ...prev.document, showSignature: true },
                   content: {
-                    ...state.content,
+                    ...prev.content,
                     signatureName: sig.name,
                     signatureRole: sig.role,
                     signatureSector: sig.sector
                   }
-                })}
+                }))}
                 className={`text-left p-4 rounded-2xl border transition-all ${isSelected ? 'bg-indigo-50 border-indigo-500 shadow-md' : 'bg-white border-slate-200 hover:border-indigo-300'}`}
               >
                 <div className="flex items-center justify-between">

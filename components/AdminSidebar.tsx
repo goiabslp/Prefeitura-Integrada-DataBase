@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   X, ArrowLeft, Loader2, Check, Save
 } from 'lucide-react';
@@ -11,10 +11,11 @@ import { DiariaForm } from './forms/DiariaForm';
 import { ComprasForm } from './forms/ComprasForm';
 import { LicitacaoForm } from './forms/LicitacaoForm';
 import { ComprasStepWizard } from './compras/ComprasStepWizard';
+import { AccountManagementTab } from './compras/AccountManagementTab';
 
 interface AdminSidebarProps {
   state: AppState;
-  onUpdate: (newState: AppState) => void;
+  onUpdate: React.Dispatch<React.SetStateAction<AppState>>;
   onPrint: (customState?: AppState) => void;
   isOpen: boolean;
   onClose: () => void;
@@ -66,28 +67,33 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     (currentUser.allowedSignatureIds || []).includes(sig.id)
   );
 
-  const handleUpdate = (section: keyof AppState, key: string, value: any) => {
-    onUpdate({
-      ...state,
-      [section]: {
-        ...state[section],
-        [key]: value
-      }
-    });
-  };
+  const handleUpdate = useCallback((section: keyof AppState, key: string, value: any) => {
+    onUpdate(prev => {
+      const sectionData = prev[section];
+      if (typeof sectionData !== 'object' || sectionData === null) return prev;
 
-  const handleDeepUpdate = (section: keyof AppState, subSection: string, key: string, value: any) => {
-    onUpdate({
-      ...state,
+      return {
+        ...prev,
+        [section]: {
+          ...sectionData,
+          [key]: value
+        }
+      };
+    });
+  }, [onUpdate]);
+
+  const handleDeepUpdate = useCallback((section: keyof AppState, subSection: string, key: string, value: any) => {
+    onUpdate(prev => ({
+      ...prev,
       [section]: {
-        ...(state[section] as any),
+        ...(prev[section] as any),
         [subSection]: {
-          ...(state[section] as any)[subSection],
+          ...(prev[section] as any)[subSection],
           [key]: value
         }
       }
-    } as AppState);
-  };
+    } as AppState));
+  }, [onUpdate]);
 
   const handleFinishWithAnimation = async () => {
     if (activeBlock === 'diarias' && !content.subType) {
@@ -163,7 +169,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             persons={persons}
             sectors={sectors}
             jobs={jobs}
-            onFinish={onFinish ? handleFinishWithAnimation : () => { }}
+            currentUser={currentUser}
+            onFinish={onFinish ? handleFinishWithAnimation : async () => { }}
             onBack={onBack}
             isLoading={isDownloading || finishStatus === 'loading'}
           />
