@@ -194,7 +194,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
     // 3. Prepare Consolidated Items
     const CONSOLIDATED_ITEMS_PER_PAGE = 26;
     const consolidatedItems = [...data.records].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const totalConsolidatedPages = mode === 'listagem' ? 0 : (Math.ceil(consolidatedItems.length / CONSOLIDATED_ITEMS_PER_PAGE) || 1);
+    const totalConsolidatedPages = mode === 'complete' ? (Math.ceil(consolidatedItems.length / CONSOLIDATED_ITEMS_PER_PAGE) || 1) : 0;
 
     // 4. Prepare Listagem Items (Grouped by Sector)
     const listagemRecords = [...data.records].sort((a, b) => {
@@ -793,7 +793,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                     {mode !== 'listagem' && renderPlateSummaryPages()}
                     {mode === 'complete' && renderRecordPages()}
                     {mode === 'listagem' && renderListagemPages()}
-                    {mode !== 'listagem' && renderConsolidatedPages()}
+                    {mode === 'complete' && renderConsolidatedPages()}
                 </div>
             </div>
         </div>,
