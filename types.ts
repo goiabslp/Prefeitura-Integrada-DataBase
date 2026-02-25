@@ -384,6 +384,7 @@ export interface ProjetoObjective {
   responsible: string;
   details: string;
   status: 'Não Iniciado' | 'Em Andamento' | 'Concluído';
+  attachments?: { url: string; name: string; caption?: string }[];
 }
 
 export interface Projeto {

@@ -2,7 +2,7 @@
 import { supabase } from './supabaseClient';
 import { Order } from '../types';
 
-export const getAllLicitacaoProcesses = async (lightweight = true, page = 0, limit = 50): Promise<Order[]> => {
+export const getAllLicitacaoProcesses = async (lightweight = true, page = 0, limit = 1000): Promise<Order[]> => {
     const columns = lightweight
         ? 'id, protocol, title, status, stage, requesting_sector, created_at, user_id, user_name'
         : '*';

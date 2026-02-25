@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 import { Order } from '../types';
 import * as counterService from './counterService';
 
-export const getAllServiceRequests = async (lightweight = true, page = 0, pageSize = 20): Promise<Order[]> => {
+export const getAllServiceRequests = async (lightweight = true, page = 0, pageSize = 1000): Promise<Order[]> => {
     let query = supabase
         .from('service_requests')
         .select(`

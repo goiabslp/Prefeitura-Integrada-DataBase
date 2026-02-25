@@ -5,7 +5,7 @@ import { notificationService } from './notificationService';
 
 import { handleSupabaseError } from '../utils/errorUtils';
 
-export const getAllPurchaseOrders = async (lightweight = true, page = 0, limit = 50): Promise<Order[]> => {
+export const getAllPurchaseOrders = async (lightweight = true, page = 0, limit = 1000): Promise<Order[]> => {
     // Select specific columns to reduce payload
     // We join with profiles using user_id foreign key to get the sector name
     const columns = lightweight

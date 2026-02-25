@@ -74,6 +74,11 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
         status: 'Não Iniciado' | 'Em Andamento' | 'Concluído';
     }[]>([]);
 
+    // Objective Attachments State
+    const [isObjAttachmentsModalOpen, setIsObjAttachmentsModalOpen] = useState(false);
+    const [currentObjForAttachments, setCurrentObjForAttachments] = useState<string | null>(null);
+    const [objectiveAttachments, setObjectiveAttachments] = useState<Record<string, AttachmentFile[]>>({});
+
     // Objective Modal State
     const [isObjectiveModalOpen, setIsObjectiveModalOpen] = useState(false);
     const [newObjective, setNewObjective] = useState({
@@ -89,6 +94,42 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
 
     const adminUser = users.find(u => u.role === 'admin');
 
+    const handleObjFileChange = (e: React.ChangeEvent<HTMLInputElement>, objId: string) => {
+        if (e.target.files) {
+            const files = Array.from(e.target.files);
+            const newAttachments: AttachmentFile[] = files.map(file => ({
+                file,
+                preview: URL.createObjectURL(file),
+                caption: ''
+            }));
+            setObjectiveAttachments(prev => ({
+                ...prev,
+                [objId]: [...(prev[objId] || []), ...newAttachments]
+            }));
+        }
+    };
+
+    const removeObjAttachment = (objId: string, index: number) => {
+        setObjectiveAttachments(prev => {
+            const updated = { ...prev };
+            const objFiles = [...updated[objId]];
+            URL.revokeObjectURL(objFiles[index].preview);
+            objFiles.splice(index, 1);
+            updated[objId] = objFiles;
+            return updated;
+        });
+    };
+
+    const updateObjCaption = (objId: string, index: number, caption: string) => {
+        setObjectiveAttachments(prev => {
+            const updated = { ...prev };
+            const objFiles = [...updated[objId]];
+            objFiles[index] = { ...objFiles[index], caption };
+            updated[objId] = objFiles;
+            return updated;
+        });
+    };
+
     const validateStep = (step: number) => {
         const newErrors: Record<string, string> = {};
 
@@ -97,7 +138,24 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
             if (!responsibleId) newErrors.responsibleId = 'O responsável é obrigatório.';
         }
 
+        if (step === 1) {
+            if (!description.trim() || description.length < 10) {
+                newErrors.description = 'A descrição deve conter pelo menos 10 caracteres.';
+            }
+        }
+
         if (step === 2) {
+            // Check captions for objective-specific attachments
+            Object.keys(objectiveAttachments).forEach(objId => {
+                objectiveAttachments[objId].forEach((att, index) => {
+                    if (!att.caption.trim()) {
+                        newErrors[`obj-${objId}-caption-${index}`] = 'A legenda é obrigatória.';
+                    }
+                });
+            });
+        }
+
+        if (step === 3) {
             attachments.forEach((att, index) => {
                 if (!att.caption.trim()) {
                     newErrors[`caption-${index}`] = 'A legenda é obrigatória.';
@@ -105,9 +163,40 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
             });
         }
 
+        if (step === 4) {
+            if (!initialMessage.trim()) {
+                newErrors.initialMessage = 'A mensagem de encaminhamento é obrigatória.';
+            }
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
+
+    const handleStepClick = (targetStep: number) => {
+        // If jumping forward, validate all intermediate steps
+        if (targetStep > currentStep) {
+            for (let i = currentStep; i < targetStep; i++) {
+                if (!validateStep(i)) {
+                    addNotification('Por favor, preencha as informações obrigatórias da etapa atual.', 'error');
+                    return;
+                }
+            }
+        }
+        setCurrentStep(targetStep);
+    };
+
+    const NextButton = () => (
+        <div className="pt-8 flex justify-end">
+            <button
+                onClick={handleNext}
+                className="flex items-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-2xl font-black hover:bg-slate-800 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-95 group shadow-md"
+            >
+                Próxima Etapa
+                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+        </div>
+    );
 
     const handleNext = () => {
         if (validateStep(currentStep)) {
@@ -151,7 +240,10 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
     };
 
     const handleSave = async () => {
-        if (!validateStep(currentStep)) return;
+        if (!validateStep(currentStep)) {
+            addNotification('Por favor, preencha a mensagem de encaminhamento.', 'error');
+            return;
+        }
 
         if (!adminUser) {
             addNotification('Nenhum administrador encontrado no sistema para receber o projeto.', 'error');
@@ -160,7 +252,29 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
 
         setIsSaving(true);
         try {
-            // Upload attachments
+            // Upload objective-specific attachments
+            const objectivesWithAttachments = await Promise.all(objectives.map(async (obj) => {
+                const objAtts = objectiveAttachments[obj.id] || [];
+                const uploadedObjAtts = [];
+
+                for (const att of objAtts) {
+                    const url = await uploadFile(att.file, 'project_attachments');
+                    if (url) {
+                        uploadedObjAtts.push({
+                            url,
+                            name: att.file.name,
+                            caption: att.caption
+                        });
+                    }
+                }
+
+                return {
+                    ...obj,
+                    attachments: uploadedObjAtts
+                };
+            }));
+
+            // Upload general attachments
             const uploadedAttachments = [];
             for (const att of attachments) {
                 const url = await uploadFile(att.file, 'project_attachments');
@@ -183,7 +297,7 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                 current_owner_id: adminUser.id,
                 current_sector_id: adminUser.sectorId || undefined,
                 created_by: userId,
-                objectives: objectives as any // TypeScript might need cast if types don't match perfectly
+                objectives: objectivesWithAttachments as any
             };
 
             await createProjeto(newProjetoData, initialMessage, uploadedAttachments);
@@ -285,6 +399,7 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                                 />
                             </div>
                         </div>
+                        <NextButton />
                     </motion.div>
                 );
             case 1:
@@ -296,10 +411,19 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                         className="flex flex-col h-full"
                     >
                         <div className="space-y-4 flex flex-col h-full">
-                            <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2 flex-shrink-0">
-                                <FileText className="w-4 h-4 text-fuchsia-500" />
-                                Descrição do Projeto
-                            </label>
+                            <div className="flex items-center justify-between flex-shrink-0">
+                                <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                                    <FileText className="w-4 h-4 text-fuchsia-500" />
+                                    Descrição do Projeto
+                                </label>
+                                <button
+                                    onClick={handleNext}
+                                    className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-black hover:bg-slate-800 transition-all active:scale-95 group shadow-sm"
+                                >
+                                    Avançar
+                                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                </button>
+                            </div>
                             <div className="flex-1 relative min-h-[400px]">
                                 <textarea
                                     value={description}
@@ -309,6 +433,7 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                                 />
                             </div>
                             <p className="text-xs text-slate-400 italic flex-shrink-0">Uma descrição clara ajuda o administrador a tomar decisões mais rápidas.</p>
+                            {errors.description && <p className="text-red-500 text-xs font-medium ml-1 flex items-center gap-1 mt-2"><AlertCircle className="w-3 h-3" /> {errors.description}</p>}
                         </div>
                     </motion.div>
                 );
@@ -325,13 +450,22 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                                 <h3 className="text-xl font-black text-slate-800 tracking-tight">Objetivos do Projeto</h3>
                                 <p className="text-sm text-slate-500 font-medium">Defina metas claras e responsáveis para o sucesso da execução.</p>
                             </div>
-                            <button
-                                onClick={() => setIsObjectiveModalOpen(true)}
-                                className="flex items-center gap-2 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white px-6 py-3 rounded-2xl text-sm font-black hover:shadow-lg hover:shadow-fuchsia-200 transition-all active:scale-95 group"
-                            >
-                                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-                                Adicionar Objetivo
-                            </button>
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => setIsObjectiveModalOpen(true)}
+                                    className="flex items-center gap-2 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white px-6 py-3 rounded-2xl text-sm font-black hover:shadow-lg hover:shadow-fuchsia-200 transition-all active:scale-95 group"
+                                >
+                                    <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+                                    Adicionar Objetivo
+                                </button>
+                                <button
+                                    onClick={handleNext}
+                                    className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl text-sm font-black hover:bg-slate-800 transition-all active:scale-95 group shadow-sm"
+                                >
+                                    Avançar
+                                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex-1 overflow-hidden bg-slate-50/50 rounded-[32px] border-2 border-slate-100 p-4">
@@ -361,6 +495,23 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                                             </div>
 
                                             <div className="flex items-center gap-4">
+                                                {/* Botão de Anexos do Objetivo */}
+                                                <button
+                                                    onClick={() => {
+                                                        setCurrentObjForAttachments(obj.id);
+                                                        setIsObjAttachmentsModalOpen(true);
+                                                    }}
+                                                    className={`p-2 rounded-xl transition-all relative group/att ${objectiveAttachments[obj.id]?.length > 0 ? 'bg-fuchsia-50 text-fuchsia-600' : 'text-slate-300 hover:text-slate-600 hover:bg-slate-50'}`}
+                                                    title="Anexos do Objetivo"
+                                                >
+                                                    <Paperclip className="w-4 h-4" />
+                                                    {objectiveAttachments[obj.id]?.length > 0 && (
+                                                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-fuchsia-600 text-white text-[8px] font-black rounded-full flex items-center justify-center shadow-sm">
+                                                            {objectiveAttachments[obj.id].length}
+                                                        </span>
+                                                    )}
+                                                </button>
+
                                                 <div className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${obj.status === 'Concluído' ? 'bg-emerald-50 text-emerald-600' :
                                                     obj.status === 'Em Andamento' ? 'bg-amber-50 text-amber-600' :
                                                         'bg-slate-100 text-slate-500'
@@ -372,7 +523,12 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                                                 </div>
 
                                                 <button
-                                                    onClick={() => setObjectives(prev => prev.filter(o => o.id !== obj.id))}
+                                                    onClick={() => {
+                                                        const updatedFiles = { ...objectiveAttachments };
+                                                        delete updatedFiles[obj.id];
+                                                        setObjectiveAttachments(updatedFiles);
+                                                        setObjectives(prev => prev.filter(o => o.id !== obj.id));
+                                                    }}
                                                     className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                                                 >
                                                     <X className="w-4 h-4" />
@@ -398,13 +554,22 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                                 <h3 className="text-lg font-bold text-slate-800">Documentos e Imagens</h3>
                                 <p className="text-sm text-slate-500 mt-1">Anexe arquivos relevantes e adicione uma legenda obrigatória.</p>
                             </div>
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition-all active:scale-95"
-                            >
-                                <Upload className="w-4 h-4" />
-                                Adicionar Arquivos
-                            </button>
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition-all active:scale-95 shadow-sm"
+                                >
+                                    <Upload className="w-4 h-4" />
+                                    Adicionar Arquivos
+                                </button>
+                                <button
+                                    onClick={handleNext}
+                                    className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-black hover:bg-slate-800 transition-all active:scale-95 group shadow-sm"
+                                >
+                                    Avançar
+                                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                </button>
+                            </div>
                             <input
                                 type="file"
                                 ref={fileInputRef}
@@ -495,8 +660,9 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                                 value={initialMessage}
                                 onChange={(e) => setInitialMessage(e.target.value)}
                                 placeholder="Escreva uma mensagem de apresentação para o administrador. Explique o contexto inicial para facilitar a aprovação..."
-                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-3xl px-6 py-5 text-slate-700 outline-none focus:border-fuchsia-500 focus:bg-white transition-all min-h-[180px] resize-none font-medium leading-relaxed shadow-sm"
+                                className={`w-full bg-slate-50 border-2 ${errors.initialMessage ? 'border-red-300' : 'border-slate-200'} rounded-3xl px-6 py-5 text-slate-700 outline-none focus:border-fuchsia-500 focus:bg-white transition-all min-h-[180px] resize-none font-medium leading-relaxed shadow-sm`}
                             />
+                            {errors.initialMessage && <p className="text-red-500 text-xs font-medium ml-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.initialMessage}</p>}
                         </div>
 
                         <div className="bg-slate-50 rounded-3xl p-6 border-2 border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -573,18 +739,24 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                             const isCompleted = index < currentStep;
 
                             return (
-                                <div key={index} className="flex-1 flex flex-col items-center relative z-10 group">
-                                    <div
-                                        onClick={() => index < currentStep ? setCurrentStep(index) : null}
+                                <div key={index} className="flex-1 flex flex-col items-center relative z-10">
+                                    <button
+                                        onClick={() => handleStepClick(index)}
                                         className={`
-                                            w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-sm transform
-                                            ${isActive ? 'bg-slate-900 text-white scale-110 shadow-md' :
-                                                isCompleted ? 'bg-gradient-to-br from-fuchsia-500 to-purple-600 text-white cursor-pointer hover:scale-105' :
-                                                    'bg-white text-slate-300 border border-slate-100'}
+                                            w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-sm transform group
+                                            ${isActive ? 'bg-slate-900 text-white scale-110 shadow-lg ring-4 ring-slate-100' :
+                                                isCompleted ? 'bg-gradient-to-br from-fuchsia-500 to-purple-600 text-white hover:scale-110' :
+                                                    'bg-white text-slate-300 border border-slate-100 hover:border-slate-300'}
                                         `}
+                                        title={step.title}
                                     >
                                         {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Icon className="w-4 h-4" />}
-                                    </div>
+
+                                        {/* Tooltip on hover */}
+                                        <span className="absolute -top-10 scale-0 group-hover:scale-100 transition-all bg-slate-900 text-white text-[10px] py-1.5 px-3 rounded-lg font-bold pointer-events-none whitespace-nowrap z-50">
+                                            {step.title}
+                                        </span>
+                                    </button>
                                     <span className={`absolute -bottom-4 text-[8px] font-black uppercase tracking-widest whitespace-nowrap transition-colors duration-500 ${isActive ? 'text-slate-900' : 'text-slate-300'}`}>
                                         {step.title}
                                     </span>
@@ -757,6 +929,118 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                                     className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     Adicionar à Lista
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Modal de Anexos do Objetivo */}
+            <AnimatePresence>
+                {isObjAttachmentsModalOpen && currentObjForAttachments && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsObjAttachmentsModalOpen(false)}
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="w-full max-w-2xl bg-white rounded-[32px] shadow-2xl overflow-hidden relative z-10"
+                        >
+                            <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-fuchsia-100 text-fuchsia-600 rounded-2xl">
+                                        <Paperclip className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-900">Anexos do Objetivo</h3>
+                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider truncate max-w-[300px]">
+                                            {objectives.find(o => o.id === currentObjForAttachments)?.name}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setIsObjAttachmentsModalOpen(false)}
+                                    className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                                {/* Botão de Upload */}
+                                <div className="flex items-center justify-center">
+                                    <label className="w-full flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl p-10 hover:border-fuchsia-500 hover:bg-fuchsia-50/30 transition-all cursor-pointer group">
+                                        <div className="p-4 bg-fuchsia-50 rounded-2xl text-fuchsia-600 mb-4 group-hover:scale-110 transition-transform">
+                                            <Upload className="w-8 h-8" />
+                                        </div>
+                                        <p className="text-sm font-black text-slate-700">Clique para anexar arquivos</p>
+                                        <p className="text-xs text-slate-400 font-medium mt-1">PDF, Imagens ou Documentos</p>
+                                        <input
+                                            type="file"
+                                            multiple
+                                            className="hidden"
+                                            onChange={(e) => handleObjFileChange(e, currentObjForAttachments)}
+                                        />
+                                    </label>
+                                </div>
+
+                                {/* Lista de Anexos com Legendas */}
+                                <div className="space-y-4">
+                                    {objectiveAttachments[currentObjForAttachments]?.map((att, index) => (
+                                        <div key={index} className="bg-slate-50 rounded-2xl p-4 flex gap-4 items-start border-2 border-transparent hover:border-fuchsia-100 transition-all group/item">
+                                            <div className="w-20 h-20 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 shadow-sm">
+                                                {att.file.type.startsWith('image/') ? (
+                                                    <img src={att.preview} alt="Preview" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50">
+                                                        <FileText className="w-8 h-8" />
+                                                        <span className="text-[8px] font-black uppercase">{att.file.name.split('.').pop()}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-xs font-black text-slate-800 truncate max-w-[150px]">{att.file.name}</p>
+                                                    <button
+                                                        onClick={() => removeObjAttachment(currentObjForAttachments, index)}
+                                                        className="p-1 px-2 text-red-500 hover:bg-red-50 rounded-lg text-[10px] font-black transition-all"
+                                                    >
+                                                        Remover
+                                                    </button>
+                                                </div>
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        value={att.caption}
+                                                        onChange={(e) => updateObjCaption(currentObjForAttachments, index, e.target.value)}
+                                                        placeholder="Adicione uma legenda obrigatória..."
+                                                        className={`w-full bg-white border-2 ${errors[`obj-${currentObjForAttachments}-caption-${index}`] ? 'border-red-300' : 'border-slate-100'} rounded-xl px-3 py-2 text-xs text-slate-700 outline-none focus:border-fuchsia-500 transition-all font-medium`}
+                                                    />
+                                                    {errors[`obj-${currentObjForAttachments}-caption-${index}`] && (
+                                                        <p className="text-red-500 text-[10px] font-bold mt-1 flex items-center gap-1">
+                                                            <AlertCircle className="w-3 h-3" /> {errors[`obj-${currentObjForAttachments}-caption-${index}`]}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="p-8 bg-slate-50 flex justify-end">
+                                <button
+                                    onClick={() => setIsObjAttachmentsModalOpen(false)}
+                                    className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black hover:bg-slate-800 transition-all active:scale-95"
+                                >
+                                    Concluir
                                 </button>
                             </div>
                         </motion.div>
