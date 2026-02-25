@@ -1613,6 +1613,15 @@ const App: React.FC = () => {
       return;
     }
 
+    // RULE: Admin approval/rejection only allowed if current status is "Em Aprovação"
+    if (orderToUpdate.blockType === 'compras' && (status === 'approved' || status === 'rejected')) {
+      const isEmAprovacao = !orderToUpdate.status || orderToUpdate.status === 'pending' || orderToUpdate.status === 'awaiting_approval';
+      if (!isEmAprovacao) {
+        showToast('Ação Bloqueada: O fluxo deste pedido já avançou para compras e não permite reavaliação administrativa.', 'error');
+        return;
+      }
+    }
+
     // 1. Snapshot previous state
     const prevOrders = orders;
     const prevSpecificList = orderToUpdate.blockType === 'compras' ? purchaseOrders :
@@ -3694,6 +3703,7 @@ const App: React.FC = () => {
                 totalCounter={globalCounter}
                 onUpdatePaymentStatus={handleUpdatePaymentStatus}
                 onUpdateOrderStatus={handleUpdateOrderStatus}
+                onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
                 onViewOrder={handleViewOrder}
               />
             )}
@@ -3712,6 +3722,7 @@ const App: React.FC = () => {
                 totalCounter={globalCounter}
                 onUpdatePaymentStatus={handleUpdatePaymentStatus}
                 onUpdateOrderStatus={handleUpdateOrderStatus}
+                onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
                 onViewOrder={handleViewOrder}
               />
             )}

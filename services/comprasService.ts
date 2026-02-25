@@ -212,12 +212,18 @@ export const updateOrderStatus = async (id: string, status: string, historyEntry
         .single();
 
     if (fetchError) throw fetchError;
-    if (current?.status === 'rejected') {
+
+    // RULE: Rejection is final
+    if (current?.status === 'rejected' && status !== 'rejected') {
         throw new Error("Validação de Segurança: Pedido rejeitado não pode ser alterado.");
     }
 
+    // RULE: Admin approval/rejection only allowed if current status is "Em Aprovação" (pending/awaiting_approval)
     if (status === 'approved' || status === 'rejected') {
-        throw new Error(`Ação desativada: O status "${status}" não é mais utilizado pelo sistema administrativo.`);
+        const isEmAprovacao = !current?.status || current.status === 'pending' || current.status === 'awaiting_approval';
+        if (!isEmAprovacao) {
+            throw new Error("Validação de Segurança: A aprovação ou rejeição só é permitida enquanto o pedido está em fase de aprovação inicial.");
+        }
     }
 
     const newHistory = [...(current?.status_history || []), historyEntry];

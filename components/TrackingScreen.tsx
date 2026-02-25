@@ -5,7 +5,7 @@ import {
     FileDown, Calendar, Edit3, TrendingUp, Loader2,
     CheckCircle2, AlertCircle, CalendarCheck, Check, RotateCcw,
     Paperclip, PackageCheck, FileSearch, Scale, Landmark, ShoppingCart, CheckCircle, XCircle,
-    Eye, History, X, Lock, User, MessageCircle, Sparkles, Plus, Upload, Download, AlertTriangle, ShieldAlert, Zap, Info, Network, Trash, ArrowRight, Edit2, MapPin
+    Eye, History, X, Lock, User, MessageCircle, Sparkles, Plus, Upload, Download, AlertTriangle, ShieldAlert, Zap, Info, Network, Trash, ArrowRight, Edit2, MapPin, ChevronRight, MousePointer2
 } from 'lucide-react';
 import { User as UserType, Order, AppState, BlockType, Attachment } from '../types';
 import { DocumentPreview } from './DocumentPreview';
@@ -36,7 +36,8 @@ interface TrackingScreenProps {
     onUpdateAttachments?: (orderId: string, attachments: Attachment[]) => void;
     totalCounter: number;
     onUpdatePaymentStatus?: (orderId: string, status: 'pending' | 'paid') => void;
-    onUpdateOrderStatus?: (orderId: string, status: Order['status']) => Promise<void>;
+    onUpdateOrderStatus?: (orderId: string, status: Order['status'], justification?: string) => Promise<void>;
+    onUpdatePurchaseStatus?: (orderId: string, status: Order['purchaseStatus'], justification?: string, budgetFileUrl?: string) => Promise<void>;
     showAllProcesses?: boolean;
     onViewOrder?: (order: Order) => void;
 }
@@ -54,6 +55,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     totalCounter,
     onUpdatePaymentStatus,
     onUpdateOrderStatus,
+    onUpdatePurchaseStatus,
     showAllProcesses = false,
     onViewOrder
 }) => {
@@ -141,6 +143,10 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     const [historyOrder, setHistoryOrder] = useState<Order | null>(null);
     const [attachmentManagerOrder, setAttachmentManagerOrder] = useState<Order | null>(null);
     const [priorityJustificationOrder, setPriorityJustificationOrder] = useState<Order | null>(null);
+    const [adminApprovalOrder, setAdminApprovalOrder] = useState<Order | null>(null);
+    const [adminRejectionOrder, setAdminRejectionOrder] = useState<Order | null>(null);
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [statusSelectionOrder, setStatusSelectionOrder] = useState<Order | null>(null);
     const [isUploading, setIsUploading] = useState(false);
 
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, title: string, message: string, onConfirm: () => void, type: 'danger' | 'warning' }>({
@@ -157,6 +163,21 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     const genericAttachmentRef = useRef<HTMLInputElement>(null);
 
     const isAdmin = currentUser.role === 'admin';
+    const isComprasUser = currentUser.role === 'compras';
+
+    const getStatusBadge = (status: Order['status']) => {
+        switch (status) {
+            case 'approved':
+                return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 text-[9px] font-black uppercase tracking-wider"><CheckCircle2 className="w-3 h-3" /> Aprovado</span>;
+            case 'rejected':
+                return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-100 text-[9px] font-black uppercase tracking-wider"><XCircle className="w-3 h-3" /> Rejeitado</span>;
+            case 'pending':
+            case 'awaiting_approval':
+                return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-100 text-[9px] font-black uppercase tracking-wider"><Clock className="w-3 h-3 animate-pulse" /> Em Aprovação</span>;
+            default:
+                return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-50 text-slate-700 border border-slate-100 text-[9px] font-black uppercase tracking-wider"><AlertCircle className="w-3 h-3" /> Recebido</span>;
+        }
+    };
     const isDiarias = activeBlock === 'diarias';
     const isCompras = activeBlock === 'compras';
     const isLicitacao = activeBlock === 'licitacao';
@@ -321,6 +342,59 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
         realizado: { label: 'Pedido Realizado', icon: ShoppingCart, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
         concluido: { label: 'Concluído', icon: CheckCircle, color: 'text-slate-600 bg-slate-50 border-slate-100' },
         cancelado: { label: 'Cancelado', icon: XCircle, color: 'text-rose-600 bg-rose-50 border-rose-100' },
+    };
+
+    const PurchaseStatusSelector = ({ order }: { order: Order }) => {
+        const currentStatus = order.purchaseStatus || 'recebido';
+        const config = purchaseStatusMap[currentStatus as keyof typeof purchaseStatusMap] || purchaseStatusMap.recebido;
+        const isApproved = order.status === 'approved';
+        const isEmAprovacao = !order.status || order.status === 'pending' || order.status === 'awaiting_approval';
+
+        const isLockedForUser = currentStatus === 'aprovacao_orcamento' && !isAdmin;
+        const canClick = (isAdmin && isEmAprovacao) || (isComprasUser && !isLockedForUser && isApproved);
+
+        const handleClick = (e: React.MouseEvent) => {
+            if (!canClick) return;
+            e.stopPropagation();
+
+            if (isAdmin) {
+                setAdminApprovalOrder(order);
+            } else if (isComprasUser && isApproved) {
+                setStatusSelectionOrder(order);
+            }
+        };
+
+        if (isApproved) {
+            return (
+                <button
+                    onClick={handleClick}
+                    disabled={isLockedForUser}
+                    className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-full border transition-all duration-300 group
+                        ${canClick ? 'cursor-pointer hover:shadow-md active:scale-95' : 'cursor-default'}
+                        ${isLockedForUser ? 'bg-purple-50 text-purple-700 border-purple-200 opacity-80' : `${config.color}`}
+                    `}
+                >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <config.icon className={`w-3.5 h-3.5 shrink-0 ${isLockedForUser ? 'animate-pulse' : ''}`} />
+                        <span className="text-[9px] font-black uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">{config.label}</span>
+                    </div>
+                    {isLockedForUser ? (
+                        <Lock className="w-2.5 h-2.5 text-purple-400 shrink-0" />
+                    ) : canClick ? (
+                        <ChevronRight className="w-3 h-3 opacity-40 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    ) : null}
+                </button>
+            );
+        }
+
+        return (
+            <button
+                onClick={handleClick}
+                className={`transition-all ${isAdmin && order.status !== 'rejected' ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'}`}
+            >
+                {getStatusBadge(order.status)}
+            </button>
+        );
     };
 
     const priorityStyles = {
@@ -769,36 +843,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                             )}
                                                         </div>
                                                         <div className="md:col-span-2 flex justify-center">
-                                                            {pStatus ? (
-                                                                <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-wider ${pStatus.color}`}>
-                                                                    <pStatus.icon className="w-3.5 h-3.5" />
-                                                                    {pStatus.label}
-                                                                </div>
-                                                            ) : (
-                                                                // CASE: awaiting_approval or special pending
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        if (order.status === 'pending' && isLicitacao) {
-                                                                            onUpdateOrderStatus?.(order.id, 'awaiting_approval');
-                                                                        }
-                                                                    }}
-                                                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${order.status === 'awaiting_approval'
-                                                                        ? 'bg-amber-50 text-amber-700 border-amber-100 cursor-default'
-                                                                        : 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100 transition-colors'
-                                                                        }`}
-                                                                >
-                                                                    {order.status === 'awaiting_approval' ? (
-                                                                        <>
-                                                                            <Clock className="w-3 h-3 animate-pulse" /> Aguardando Aprovação
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <CheckCircle className="w-3 h-3" /> Enviar para Aprovação
-                                                                        </>
-                                                                    )}
-                                                                </button>
-                                                            )}
+                                                            <PurchaseStatusSelector order={order} />
                                                         </div>
                                                     </>
                                                 )}
@@ -1200,6 +1245,185 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                 </div>
                             </div>
                             <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-center"><button onClick={() => setHistoryOrder(null)} className="px-8 py-3 bg-slate-900 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-slate-900/20 hover:bg-indigo-600 transition-all active:scale-95">Fechar Auditoria</button></div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+
+                {/* MODAL DE SELEÇÃO DE STATUS */}
+                {statusSelectionOrder && createPortal(
+                    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+                        <div className="w-full max-w-3xl bg-white rounded-[2rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-slide-up max-h-[90vh]">
+                            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                                        <MousePointer2 className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase leading-none">Alterar Status</h3>
+                                        <p className="text-xs font-bold text-indigo-600 font-mono mt-1 tracking-wider">{statusSelectionOrder.protocol}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setStatusSelectionOrder(null)} className="p-3 hover:bg-white hover:shadow-sm rounded-2xl text-slate-400 hover:text-slate-900 transition-all active:scale-90"><X className="w-6 h-6" /></button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {(Object.keys(purchaseStatusMap) as Array<keyof typeof purchaseStatusMap>).map((key) => {
+                                    const cfg = purchaseStatusMap[key];
+                                    const isActive = statusSelectionOrder.purchaseStatus === key;
+                                    const isDisabled = key === 'aprovacao_orcamento' && !isAdmin;
+
+                                    return (
+                                        <button
+                                            key={key}
+                                            onClick={() => {
+                                                if (isDisabled) return;
+                                                onUpdatePurchaseStatus?.(statusSelectionOrder.id, key, `Alteração via Histórico por ${currentUser.name}`);
+                                                setStatusSelectionOrder(null);
+                                            }}
+                                            disabled={isDisabled}
+                                            className={`p-6 rounded-[1.5rem] border-2 text-left transition-all relative group overflow-hidden ${isActive ? 'bg-indigo-50 border-indigo-600 text-indigo-900' :
+                                                isDisabled ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-50' :
+                                                    'bg-white border-slate-100 text-slate-600 hover:border-indigo-300 hover:bg-slate-50 active:scale-[0.98]'
+                                                }`}
+                                        >
+                                            <div className="flex items-start gap-4 h-full relative z-10">
+                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' :
+                                                    isDisabled ? 'bg-slate-100 text-slate-300' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600'}`}>
+                                                    <cfg.icon className="w-6 h-6" />
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-black uppercase tracking-widest text-[11px] leading-none mb-1">{cfg.label}</span>
+                                                        {isActive && <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />}
+                                                        {isDisabled && <Lock className="w-3.5 h-3.5 text-slate-300" />}
+                                                    </div>
+                                                    <p className="text-xs font-medium leading-relaxed opacity-70">
+                                                        {isDisabled ? 'Requer autorização administrativa para prosseguir.' : (key === statusSelectionOrder.purchaseStatus ? 'Status atual deste processo de compra.' : 'Clique para atualizar o processo para esta etapa.')}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div className="p-6 bg-slate-50 border-t border-slate-100 text-center"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Movimentação registrada auditada automaticamente</p></div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+
+                {/* MODAL DE DECISÃO ADMINISTRATIVA (APROVAR/REPROVAR) */}
+                {adminApprovalOrder && createPortal(
+                    <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+                        <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-slide-up">
+                            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                                        <ShieldAlert className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Decisão Administrativa</h3>
+                                        <p className="text-[10px] font-bold text-indigo-600 font-mono tracking-widest">{adminApprovalOrder.protocol}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setAdminApprovalOrder(null)} className="p-3 hover:bg-white hover:shadow-md rounded-2xl text-slate-400 transition-all">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <div className="p-8 text-center">
+                                <p className="text-slate-500 text-sm font-medium leading-relaxed mb-6">
+                                    Selecione a ação definitiva para este pedido. A aprovação permitirá que o setor de compras prossiga, enquanto a rejeição encerrará o processo.
+                                </p>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button
+                                        onClick={() => {
+                                            onUpdateOrderStatus?.(adminApprovalOrder.id, 'approved', 'Aprovação Administrativa via Histórico');
+                                            setAdminApprovalOrder(null);
+                                        }}
+                                        className="flex flex-col items-center justify-center gap-3 p-6 bg-emerald-50 border border-emerald-100 rounded-3xl hover:bg-emerald-600 group transition-all"
+                                    >
+                                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm group-hover:scale-110 transition-transform">
+                                            <CheckCircle2 className="w-6 h-6" />
+                                        </div>
+                                        <span className="text-xs font-black uppercase tracking-widest text-emerald-700 group-hover:text-white text-center">Aprovar</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            setAdminApprovalOrder(null);
+                                            setAdminRejectionOrder(adminApprovalOrder);
+                                            setRejectionReason('');
+                                        }}
+                                        className="flex flex-col items-center justify-center gap-3 p-6 bg-rose-50 border border-rose-100 rounded-3xl hover:bg-rose-600 group transition-all"
+                                    >
+                                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-rose-600 shadow-sm group-hover:scale-110 transition-transform">
+                                            <XCircle className="w-6 h-6" />
+                                        </div>
+                                        <span className="text-xs font-black uppercase tracking-widest text-rose-700 group-hover:text-white text-center">Reprovar</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-center">
+                                <button onClick={() => setAdminApprovalOrder(null)} className="px-8 py-3 bg-white text-slate-400 font-bold text-xs uppercase tracking-widest rounded-xl border border-slate-200 hover:bg-slate-100 transition-all">Cancelar</button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+
+                {/* MODAL DE JUSTIFICATIVA DE REJEIÇÃO ADMINISTRATIVA */}
+                {adminRejectionOrder && createPortal(
+                    <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+                        <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-slide-up">
+                            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center shadow-lg shadow-rose-600/20">
+                                        <XCircle className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Justificar Rejeição</h3>
+                                        <p className="text-[10px] font-bold text-rose-600 font-mono tracking-widest">{adminRejectionOrder.protocol}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setAdminRejectionOrder(null)} className="p-3 hover:bg-white hover:shadow-md rounded-2xl text-slate-400 transition-all">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <div className="p-8">
+                                <div className="space-y-4">
+                                    <p className="text-slate-500 text-sm font-medium leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100 italic">
+                                        "A rejeição administrativa interrompe permanentemente o fluxo deste processo."
+                                    </p>
+
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Motivo do Descarte (Obrigatório)</label>
+                                        <textarea
+                                            value={rejectionReason}
+                                            onChange={(e) => setRejectionReason(e.target.value)}
+                                            className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-rose-500 transition-all resize-none font-medium text-sm"
+                                            placeholder="Descreva detalhadamente o motivo pelo qual este pedido não poderá ser atendido..."
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col gap-3">
+                                <button
+                                    disabled={!rejectionReason.trim()}
+                                    onClick={() => {
+                                        onUpdateOrderStatus?.(adminRejectionOrder.id, 'rejected', rejectionReason);
+                                        setAdminRejectionOrder(null);
+                                    }}
+                                    className="w-full py-4 bg-rose-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-rose-600/20 hover:bg-rose-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    <XCircle className="w-4 h-4" /> Confirmar Rejeição
+                                </button>
+                                <button onClick={() => { setAdminRejectionOrder(null); setAdminApprovalOrder(adminRejectionOrder); }} className="w-full py-4 bg-white text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl border border-slate-200 hover:bg-slate-50 hover:text-slate-600 transition-all">Voltar</button>
+                            </div>
                         </div>
                     </div>,
                     document.body
