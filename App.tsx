@@ -1566,6 +1566,12 @@ const App: React.FC = () => {
     const orderToUpdate = orders.find(o => o.id === orderId);
     if (!orderToUpdate) return;
 
+    // STRICT BLOCK: Rejected Purchase Orders are definitively locked
+    if (orderToUpdate.blockType === 'compras' && orderToUpdate.status === 'rejected') {
+      showToast('Ação Bloqueada: Pedido definitivamente rejeitado e bloqueado.', 'error');
+      return;
+    }
+
     // 1. Snapshot previous state
     const prevOrders = orders;
     const prevSpecificList = orderToUpdate.blockType === 'compras' ? purchaseOrders :
@@ -1649,6 +1655,11 @@ const App: React.FC = () => {
     const orderToUpdate = orders.find(o => o.id === orderId);
     if (!orderToUpdate) return;
 
+    if (orderToUpdate.blockType === 'compras' && orderToUpdate.status === 'rejected') {
+      showToast('Ação Bloqueada: Pedido definitivamente rejeitado e bloqueado.', 'error');
+      return;
+    }
+
     // 1. Snapshot
     const prevOrders = orders;
     // const prevPurchaseOrders = purchaseOrders; // Derived
@@ -1700,6 +1711,10 @@ const App: React.FC = () => {
   const handleUpdateCompletionForecast = async (orderId: string, date: string) => {
     const updatedOrders = orders.map(o => {
       if (o.id === orderId) {
+        if (o.blockType === 'compras' && o.status === 'rejected') {
+          showToast('Ação Bloqueada: Pedido definitivamente rejeitado e bloqueado.', 'error');
+          return o;
+        }
         const updated = { ...o, completionForecast: date };
         comprasService.savePurchaseOrder(updated);
         // setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p)); // Derived
@@ -1713,6 +1728,10 @@ const App: React.FC = () => {
   const handleUpdateOrderAttachments = async (orderId: string, attachments: Attachment[]) => {
     const updatedOrders = orders.map(o => {
       if (o.id === orderId) {
+        if (o.blockType === 'compras' && o.status === 'rejected') {
+          showToast('Ação Bloqueada: Pedido definitivamente rejeitado e bloqueado.', 'error');
+          return o;
+        }
         const updated = { ...o, attachments };
         if (updated.blockType === 'compras') {
           comprasService.updateAttachments(updated.id, updated.attachments || []);
@@ -3676,13 +3695,27 @@ const App: React.FC = () => {
                 currentUser={currentUser}
                 orders={purchaseOrders}
                 sectors={sectors}
-                onDownloadPdf={(snapshot, forcedBlockType, order) => { const target = order || orders.find(o => o.documentSnapshot === snapshot); if (target) handleDownloadFromHistory(target, forcedBlockType, snapshot); }}
+                onDownloadPdf={(snapshot, forcedBlockType, order) => {
+                  const target = order || orders.find(o => o.id === order?.id) || orders.find(o => o.documentSnapshot === snapshot);
+                  if (target) handleDownloadFromHistory(target, forcedBlockType, snapshot);
+                }}
                 onUpdateStatus={handleUpdateOrderStatus}
                 onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
                 onUpdateCompletionForecast={handleUpdateCompletionForecast}
                 onUpdateAttachments={handleUpdateOrderAttachments}
                 onDeleteOrder={handleDeleteOrder}
-                onFetchOrderDetails={handleFetchOrderDetails}
+                onFetchOrderDetails={async (order) => {
+                  try {
+                    const fetched = await comprasService.getPurchaseOrderById(order.id);
+                    if (fetched) {
+                      setOrders(prev => prev.map(o => o.id === fetched.id ? fetched : o));
+                      return fetched;
+                    }
+                  } catch (err) {
+                    console.error("Local preview fetch err:", err);
+                  }
+                  return null;
+                }}
               />
             )}
 

@@ -139,6 +139,14 @@ export const savePurchaseOrder = async (order: Order): Promise<void> => {
         completion_forecast: order.completionForecast
     };
 
+    // Backend Validation
+    if (order.id) {
+        const { data: current } = await supabase.from('purchase_orders').select('status').eq('id', order.id).single();
+        if (current?.status === 'rejected' && order.status !== 'rejected') {
+            throw new Error("Validação de Segurança: Pedido de compra rejeitado não pode ser editado nem modificado.");
+        }
+    }
+
     const { error } = await supabase.from('purchase_orders').upsert(dbOrder);
     if (error) throw error;
 };
@@ -168,6 +176,13 @@ export const uploadPurchaseAttachment = async (blob: Blob, fileName: string): Pr
 };
 
 export const updateAttachments = async (id: string, attachments: any[]): Promise<void> => {
+    // Backend Validation
+    const { data: current, error: fetchError } = await supabase.from('purchase_orders').select('status').eq('id', id).single();
+    if (fetchError) throw fetchError;
+    if (current?.status === 'rejected') {
+        throw new Error("Validação de Segurança: Ação bloqueada em pedido rejeitado.");
+    }
+
     const { error } = await supabase
         .from('purchase_orders')
         .update({ attachments: attachments })
@@ -176,14 +191,17 @@ export const updateAttachments = async (id: string, attachments: any[]): Promise
 };
 
 export const updatePurchaseStatus = async (id: string, status: string, historyEntry: any | null, budgetFileUrl?: string): Promise<void> => {
-    // 1. Fetch current history to ensure we append to the latest version (Atomicity improvement)
+    // 1. Fetch current history to ensure we append to the latest version + Backend Validation
     const { data: current, error: fetchError } = await supabase
         .from('purchase_orders')
-        .select('status_history')
+        .select('status_history, status')
         .eq('id', id)
         .single();
 
     if (fetchError) throw fetchError;
+    if (current?.status === 'rejected') {
+        throw new Error("Validação de Segurança: Não é possível avançar etapas nem interagir com um pedido já rejeitado.");
+    }
 
     const currentHistory = current?.status_history || [];
     const newHistory = historyEntry ? [...currentHistory, historyEntry] : currentHistory;

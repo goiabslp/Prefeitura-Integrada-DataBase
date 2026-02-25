@@ -135,9 +135,29 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
 
   console.log(`[PurchaseManagementScreen] Filtered Orders: ${filteredOrders.length}`);
 
-  const handleDownload = (order: Order) => {
+  const handleDownload = async (order: Order) => {
     setDownloadingId(order.id);
-    onDownloadPdf(order.documentSnapshot!, order.blockType);
+
+    const isLightweight = order.blockType === 'compras' && (!order.documentSnapshot?.content?.purchaseItems || order.documentSnapshot.content.purchaseItems.length === 0);
+
+    let snapshotToUse = order.documentSnapshot;
+    let fullOrder = order;
+
+    if (isLightweight && onFetchOrderDetails) {
+      try {
+        const fetchedOrder = await onFetchOrderDetails(order);
+        if (fetchedOrder && fetchedOrder.documentSnapshot) {
+          fullOrder = fetchedOrder;
+          snapshotToUse = fetchedOrder.documentSnapshot;
+        }
+      } catch (err) {
+        console.error("Local fetch error during download:", err);
+      }
+    }
+
+    if (snapshotToUse) {
+      onDownloadPdf(snapshotToUse, order.blockType, fullOrder);
+    }
     setTimeout(() => setDownloadingId(null), 2000);
   };
 
@@ -484,7 +504,12 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                       {/* Ações */}
                       <div className="w-72 flex items-center justify-center gap-2 shrink-0">
                         {/* Botões Movidos */}
-                        <button onClick={() => setAttachmentManagerOrder(order)} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all relative" title="Anexos">
+                        <button
+                          onClick={() => setAttachmentManagerOrder(order)}
+                          disabled={order.status === 'rejected'}
+                          className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all relative ${order.status === 'rejected' ? 'text-slate-300 cursor-not-allowed opacity-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                          title={order.status === 'rejected' ? "Bloqueado" : "Anexos"}
+                        >
                           <Paperclip className="w-4 h-4" />
                           {(order.attachments?.length || 0) > 0 && (
                             <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white text-[8px] font-black flex items-center justify-center rounded-full shadow-sm ring-2 ring-white">{order.attachments?.length}</span>
@@ -500,7 +525,12 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                         {isAdmin && (
                           <>
                             {order.purchaseStatus === 'aprovacao_orcamento' && (
-                              <button onClick={() => setConfirmApprovalOrder(order)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-purple-100 text-purple-600 hover:bg-purple-600 hover:text-white transition-all shadow-sm" title="Liberar Pedido">
+                              <button
+                                onClick={() => setConfirmApprovalOrder(order)}
+                                disabled={order.status === 'rejected'}
+                                className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all shadow-sm ${order.status === 'rejected' ? 'bg-slate-100 text-slate-300 opacity-50 cursor-not-allowed' : 'bg-purple-100 text-purple-600 hover:bg-purple-600 hover:text-white'}`}
+                                title={order.status === 'rejected' ? "Bloqueado" : "Liberar Pedido"}
+                              >
                                 <ClipboardCheck className="w-4 h-4" />
                               </button>
                             )}
@@ -510,9 +540,9 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                                 isOpen: true, title: "Aprovar Pedido", message: `Deseja formalizar a aprovação do pedido ${order.protocol}?`, type: 'warning',
                                 onConfirm: () => { onUpdateStatus(order.id, 'approved'); setConfirmModal({ ...confirmModal, isOpen: false }); }
                               })}
-                              disabled={order.status === 'approved'}
-                              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${order.status === 'approved' ? 'bg-emerald-100 text-emerald-600 opacity-50 cursor-default' : 'text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'}`}
-                              title="Aprovar"
+                              disabled={order.status === 'approved' || order.status === 'rejected'}
+                              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${order.status === 'approved' ? 'bg-emerald-100 text-emerald-600 opacity-50 cursor-default' : order.status === 'rejected' ? 'text-slate-300 opacity-50 cursor-not-allowed' : 'text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                              title={order.status === 'rejected' ? "Bloqueado" : "Aprovar"}
                             >
                               <CheckCircle2 className="w-4 h-4" />
                             </button>
@@ -521,7 +551,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                               onClick={() => setRejectionModal({ isOpen: true, orderId: order.id, reason: '' })}
                               disabled={order.status === 'rejected'}
                               className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${order.status === 'rejected' ? 'bg-rose-100 text-rose-600 opacity-50 cursor-default' : 'text-slate-400 hover:bg-rose-50 hover:text-rose-600'}`}
-                              title="Rejeitar"
+                              title={order.status === 'rejected' ? "Bloqueado (Já Rejeitado)" : "Rejeitar"}
                             >
                               <XCircle className="w-4 h-4" />
                             </button>
@@ -993,7 +1023,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
           <div className="w-full h-full max-w-6xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative animate-slide-up">
             <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
               <div className="flex items-center gap-4"><div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center"><Eye className="w-5 h-5 text-white" /></div><div><h3 className="text-lg font-extrabold text-slate-900">Visualização do Documento</h3><p className="text-xs text-slate-500 font-medium">{previewOrder.protocol} • {previewOrder.documentSnapshot.content.requesterSector || 'Sem Setor'}</p></div></div>
-              <div className="flex items-center gap-3"><button onClick={() => onDownloadPdf(previewOrder.documentSnapshot!, previewOrder.blockType)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-all"><FileDown className="w-4 h-4" /> Download PDF</button><button onClick={() => setPreviewOrder(null)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><X className="w-6 h-6" /></button></div>
+              <div className="flex items-center gap-3"><button onClick={() => onDownloadPdf(previewOrder.documentSnapshot!, previewOrder.blockType, previewOrder)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-all"><FileDown className="w-4 h-4" /> Download PDF</button><button onClick={() => setPreviewOrder(null)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><X className="w-6 h-6" /></button></div>
             </div>
             <div className="flex-1 overflow-hidden relative bg-slate-200/50"><div className="h-full overflow-y-auto custom-scrollbar p-8"><div className="flex justify-center"><DocumentPreview state={previewOrder.documentSnapshot} mode="admin" blockType={previewOrder.blockType} /></div></div><div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-2 bg-slate-900/90 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl border border-white/10 pointer-events-none flex items-center gap-2"><Lock className="w-3.5 h-3.5" /> Modo de Visualização Protegido</div></div>
           </div>
