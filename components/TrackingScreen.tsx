@@ -1072,7 +1072,10 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                         >
                             <div className="relative shadow-[0_20px_50px_rgba(0,0,0,0.3)] animate-scale-up origin-top">
                                 {/* Show Loading if fetching full details for Lightweight modules */}
-                                {(((activeBlock === 'compras' || activeBlock === 'diarias' || activeBlock === 'oficio') && previewOrder && !effectivePreviewOrder?.documentSnapshot) || (activeBlock === 'oficio' && previewOrder && !fullOficio)) ? (
+                                {(((activeBlock === 'compras' && previewOrder && (!effectivePreviewOrder?.documentSnapshot?.content?.purchaseItems || effectivePreviewOrder.documentSnapshot.content.purchaseItems.length === 0)) ||
+                                    (activeBlock === 'diarias' && previewOrder && !effectivePreviewOrder?.documentSnapshot?.content?.requestedValue) ||
+                                    (activeBlock === 'oficio' && previewOrder && !effectivePreviewOrder?.documentSnapshot?.content?.body)) ||
+                                    (activeBlock === 'oficio' && previewOrder && !fullOficio)) ? (
                                     <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                                         <div className="relative">
                                             <div className="w-16 h-16 rounded-full border-4 border-slate-900/20 border-t-slate-900 animate-spin"></div>

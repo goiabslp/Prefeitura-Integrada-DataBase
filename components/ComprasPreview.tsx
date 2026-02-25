@@ -125,7 +125,7 @@ export const ComprasPreview: React.FC<ComprasPreviewProps> = ({ state, isGenerat
               <div className="bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-xl flex justify-between items-center">
                 <span className="font-black text-[7pt] uppercase tracking-[0.2em] text-emerald-800">Pedido de Compra Administrativo</span>
                 <span className="font-mono text-[8pt] text-black">
-                  Protocolo: <span className="font-normal">{content.protocol || 'AGUARDANDO FINALIZAÇÃO'}</span>
+                  Protocolo: <span className="font-normal">{content.protocol || state.content?.protocol || 'AGUARDANDO FINALIZAÇÃO'}</span>
                 </span>
               </div>
 
@@ -154,7 +154,7 @@ export const ComprasPreview: React.FC<ComprasPreviewProps> = ({ state, isGenerat
               <div className="flex items-center gap-3 border-b-2 border-emerald-100 pb-2 mt-6">
                 <div className="flex-1 flex flex-col gap-1">
                   <h1 className="font-bold leading-tight tracking-tight text-[16pt] text-black">
-                    {content.title}
+                    {content.title || state.content?.title || 'Pedido sem Título'}
                   </h1>
                 </div>
                 <div className={`px-3 py-1 rounded-full text-[8pt] font-black uppercase tracking-widest border shrink-0 ${priorityStyles[content.priority || 'Normal']}`}>

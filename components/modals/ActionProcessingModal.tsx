@@ -15,12 +15,13 @@ interface ActionProcessingModalProps {
     isOpen: boolean;
     stage: ProcessingStage;
     title?: string;
+    customLabels?: Partial<Record<ProcessingStage, { label: string; description: string }>>;
 }
 
-const stageConfig = {
+const defaultStageConfig = {
     sending: {
-        label: 'Enviando Pedido',
-        description: 'Iniciando transmissão segura dos dados...',
+        label: 'Enviando Dados',
+        description: 'Iniciando transmissão segura...',
         icon: Send,
         color: 'indigo'
     },
@@ -38,7 +39,7 @@ const stageConfig = {
     },
     success: {
         label: 'Operação Concluída',
-        description: 'Tudo pronto! O pedido seguiu para o próximo setor.',
+        description: 'Tudo pronto! Ação realizada com sucesso.',
         icon: CheckCircle,
         color: 'emerald'
     }
@@ -47,10 +48,16 @@ const stageConfig = {
 export const ActionProcessingModal: React.FC<ActionProcessingModalProps> = ({
     isOpen,
     stage,
-    title = 'Processando Operação'
+    title = 'Processando Operação',
+    customLabels = {}
 }) => {
     const [displayText, setDisplayText] = useState('');
-    const config = stageConfig[stage];
+
+    // Merge default and custom configs
+    const config = {
+        ...defaultStageConfig[stage],
+        ...(customLabels[stage] || {})
+    };
     const Icon = config.icon;
 
     useEffect(() => {

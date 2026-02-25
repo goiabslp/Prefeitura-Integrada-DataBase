@@ -94,6 +94,8 @@ export const getAllPurchaseOrders = async (lightweight = true, page = 0, limit =
                 homeLogoPosition: 'left' as any
             },
             content: {
+                protocol: item.protocol,
+                title: item.title,
                 requesterName: item.requester_name,
                 requesterSector: item.requester_sector || item.profiles?.sector,
                 priority: item.priority
@@ -197,6 +199,51 @@ export const updateAttachments = async (id: string, attachments: any[]): Promise
     const { error } = await supabase
         .from('purchase_orders')
         .update({ attachments: attachments })
+        .eq('id', id);
+    if (error) throw error;
+};
+
+export const updateOrderStatus = async (id: string, status: string, historyEntry: any): Promise<void> => {
+    // 1. Fetch current status/history for validation and merging
+    const { data: current, error: fetchError } = await supabase
+        .from('purchase_orders')
+        .select('status, status_history')
+        .eq('id', id)
+        .single();
+
+    if (fetchError) throw fetchError;
+    if (current?.status === 'rejected') {
+        throw new Error("Validação de Segurança: Pedido rejeitado não pode ser alterado.");
+    }
+
+    if (status === 'approved' || status === 'rejected') {
+        throw new Error(`Ação desativada: O status "${status}" não é mais utilizado pelo sistema administrativo.`);
+    }
+
+    const newHistory = [...(current?.status_history || []), historyEntry];
+
+    const { error } = await supabase
+        .from('purchase_orders')
+        .update({
+            status,
+            status_history: newHistory
+        })
+        .eq('id', id);
+
+    if (error) throw error;
+};
+
+export const updateCompletionForecast = async (id: string, forecast: string): Promise<void> => {
+    // Validate not rejected
+    const { data: current, error: fetchError } = await supabase.from('purchase_orders').select('status').eq('id', id).single();
+    if (fetchError) throw fetchError;
+    if (current?.status === 'rejected') {
+        throw new Error("Validação de Segurança: Ação bloqueada em pedido rejeitado.");
+    }
+
+    const { error } = await supabase
+        .from('purchase_orders')
+        .update({ completion_forecast: forecast })
         .eq('id', id);
     if (error) throw error;
 };

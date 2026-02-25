@@ -55,12 +55,14 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
   const [budgetPreviewUrl, setBudgetPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null);
 
   const handleLocalPreview = async (order: Order) => {
     // Check if it's lightweight (skeleton has keys but lacks items)
     const isLightweight = order.blockType === 'compras' && (!order.documentSnapshot?.content?.purchaseItems || order.documentSnapshot.content.purchaseItems.length === 0);
 
     if (isLightweight && onFetchOrderDetails) {
+      setLoadingPreviewId(order.id);
       setIsLoadingDetails(true);
       try {
         const fullOrder = await onFetchOrderDetails(order);
@@ -74,6 +76,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
         setPreviewOrder(order);
       } finally {
         setIsLoadingDetails(false);
+        setLoadingPreviewId(null);
       }
     } else {
       setPreviewOrder(order);
@@ -81,7 +84,6 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
   };
 
   // Estados para modais de entrada (Substituindo Prompt/Confirm)
-  const [rejectionModal, setRejectionModal] = useState<{ isOpen: boolean, orderId: string, reason: string }>({ isOpen: false, orderId: '', reason: '' });
   const [cancelModal, setCancelModal] = useState<{ isOpen: boolean, orderId: string, reason: string }>({ isOpen: false, orderId: '', reason: '' });
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, title: string, message: string, onConfirm: () => void, type: 'danger' | 'warning' }>({
     isOpen: false, title: '', message: '', onConfirm: () => { }, type: 'warning'
@@ -120,9 +122,10 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
       if (statusFilter === 'all') {
         matchesStatus = true;
       } else if (statusFilter === 'pending') {
-        matchesStatus = order.status === 'pending' || order.purchaseStatus === 'aprovacao_orcamento';
+        matchesStatus = order.status === 'pending' || order.status === 'awaiting_approval' || order.purchaseStatus === 'aprovacao_orcamento';
       } else if (statusFilter === 'approved') {
-        matchesStatus = order.status === 'approved' && order.purchaseStatus !== 'aprovacao_orcamento';
+        // "Finalizados" contains orders that are concluded in the purchase process or were historically approved
+        matchesStatus = order.purchaseStatus === 'concluido' || order.status === 'approved';
       } else {
         matchesStatus = order.status === statusFilter;
       }
@@ -254,7 +257,8 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
       case 'rejected':
         return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-100 text-[10px] font-black uppercase tracking-widest"><XCircle className="w-3 h-3" /> Rejeitado</span>;
       case 'pending':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-black uppercase tracking-widest"><Clock className="w-3 h-3 animate-pulse" /> Aguardando Aprovação</span>;
+      case 'awaiting_approval':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-black uppercase tracking-widest"><Clock className="w-3 h-3 animate-pulse" /> Em Aprovação</span>;
       default:
         return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-50 text-slate-700 border border-slate-100 text-[10px] font-black uppercase tracking-widest"><AlertCircle className="w-3 h-3" /> Recebido</span>;
     }
@@ -401,7 +405,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                       className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${statusFilter === s ? 'bg-white shadow-sm text-emerald-600 border border-emerald-100' : 'text-slate-400 hover:bg-white/30'
                         }`}
                     >
-                      {s === 'all' ? 'Todos' : s === 'pending' ? 'Pendentes' : s === 'approved' ? 'Aprovados' : 'Rejeitados'}
+                      {s === 'all' ? 'Todos' : s === 'pending' ? 'Em Aprovação' : s === 'approved' ? 'Finalizados' : 'Rejeitados'}
                     </button>
                   ))}
               </div>
@@ -551,27 +555,6 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                               </button>
                             )}
 
-                            <button
-                              onClick={() => setConfirmModal({
-                                isOpen: true, title: "Aprovar Pedido", message: `Deseja formalizar a aprovação do pedido ${order.protocol}?`, type: 'warning',
-                                onConfirm: () => { onUpdateStatus(order.id, 'approved'); setConfirmModal({ ...confirmModal, isOpen: false }); }
-                              })}
-                              disabled={order.status === 'approved' || order.status === 'rejected'}
-                              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${order.status === 'approved' ? 'bg-emerald-100 text-emerald-600 opacity-50 cursor-default' : order.status === 'rejected' ? 'text-slate-300 opacity-50 cursor-not-allowed' : 'text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'}`}
-                              title={order.status === 'rejected' ? "Bloqueado" : "Aprovar"}
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </button>
-
-                            <button
-                              onClick={() => setRejectionModal({ isOpen: true, orderId: order.id, reason: '' })}
-                              disabled={order.status === 'rejected'}
-                              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${order.status === 'rejected' ? 'bg-rose-100 text-rose-600 opacity-50 cursor-default' : 'text-slate-400 hover:bg-rose-50 hover:text-rose-600'}`}
-                              title={order.status === 'rejected' ? "Bloqueado (Já Rejeitado)" : "Rejeitar"}
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-
                             <div className="w-px h-4 bg-slate-200 mx-1"></div>
 
                             <button onClick={() => setConfirmModal({
@@ -591,10 +574,10 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                         )}
 
                         <button onClick={() => handleLocalPreview(order)} disabled={isLoadingDetails} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all disabled:opacity-50" title="Visualizar">
-                          {isLoadingDetails && previewOrder?.id === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                          {loadingPreviewId === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
                         </button>
 
-                        <button onClick={() => onDownloadPdf(order.documentSnapshot!, order.blockType, order)} disabled={downloadingId === order.id} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all" title="Baixar PDF">
+                        <button onClick={() => handleDownload(order)} disabled={downloadingId === order.id} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all" title="Baixar PDF">
                           {downloadingId === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
                         </button>
                       </div>
@@ -640,43 +623,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
           )}
         </div>
 
-        {/* MODAL DE REJEIÇÃO */}
-        {rejectionModal.isOpen && createPortal(
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
-            <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-slide-up">
-              <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center shadow-lg"><XCircle className="w-6 h-6 text-white" /></div>
-                  <div><h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Justificar Rejeição</h3></div>
-                </div>
-                <button onClick={() => setRejectionModal({ ...rejectionModal, isOpen: false })} className="p-3 hover:bg-white hover:shadow-md rounded-2xl text-slate-400 transition-all"><X className="w-6 h-6" /></button>
-              </div>
-              <div className="p-8">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Motivo da Rejeição Administrativa</label>
-                <textarea
-                  value={rejectionModal.reason}
-                  onChange={(e) => setRejectionModal({ ...rejectionModal, reason: e.target.value })}
-                  className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-rose-500 transition-all resize-none font-medium"
-                  placeholder="Descreva o motivo para que o solicitante possa corrigir..."
-                />
-              </div>
-              <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                <button onClick={() => setRejectionModal({ ...rejectionModal, isOpen: false })} className="px-6 py-3 font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-colors">Voltar</button>
-                <button
-                  disabled={!rejectionModal.reason.trim()}
-                  onClick={() => {
-                    onUpdateStatus(rejectionModal.orderId, 'rejected', rejectionModal.reason);
-                    setRejectionModal({ isOpen: false, orderId: '', reason: '' });
-                  }}
-                  className="px-8 py-3 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 shadow-xl disabled:opacity-50 flex items-center gap-2 transition-all"
-                >
-                  <XCircle className="w-5 h-5" /> Rejeitar Pedido
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+
 
         {/* MODAL DE CANCELAMENTO */}
         {cancelModal.isOpen && createPortal(
@@ -752,9 +699,8 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
 
         <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
           <div className="flex gap-4">
-            {!isComprasUser && <span>Pendentes: {purchaseOrders.filter(o => o.status === 'pending' || !o.status).length}</span>}
-            <span className="text-emerald-500">Aprovados: {purchaseOrders.filter(o => o.status === 'approved').length}</span>
-            <span className="text-rose-500">Rejeitados: {purchaseOrders.filter(o => o.status === 'rejected').length}</span>
+            {!isComprasUser && <span>Fluxo de Aprovação: {purchaseOrders.filter(o => o.status === 'pending' || o.status === 'awaiting_approval' || !o.status).length}</span>}
+            <span className="text-emerald-500">Concluídos: {purchaseOrders.filter(o => o.purchaseStatus === 'concluido').length}</span>
           </div>
           <span>Atendimento de Compras • Sistema de Rastreabilidade Integrado</span>
         </div>
@@ -1062,7 +1008,7 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
           <div className="w-full h-full max-w-6xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative animate-slide-up">
             <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
               <div className="flex items-center gap-4"><div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center"><Eye className="w-5 h-5 text-white" /></div><div><h3 className="text-lg font-extrabold text-slate-900">Visualização do Documento</h3><p className="text-xs text-slate-500 font-medium">{previewOrder.protocol} • {previewOrder.documentSnapshot.content.requesterSector || 'Sem Setor'}</p></div></div>
-              <div className="flex items-center gap-3"><button onClick={() => onDownloadPdf(previewOrder.documentSnapshot!, previewOrder.blockType, previewOrder)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-all"><FileDown className="w-4 h-4" /> Download PDF</button><button onClick={() => setPreviewOrder(null)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><X className="w-6 h-6" /></button></div>
+              <div className="flex items-center gap-3"><button onClick={() => handleDownload(previewOrder)} disabled={downloadingId === previewOrder.id} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-all"><FileDown className="w-4 h-4" /> Download PDF</button><button onClick={() => setPreviewOrder(null)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><X className="w-6 h-6" /></button></div>
             </div>
             <div className="flex-1 overflow-hidden relative bg-slate-200/50"><div className="h-full overflow-y-auto custom-scrollbar p-8"><div className="flex justify-center"><DocumentPreview state={previewOrder.documentSnapshot} mode="admin" blockType={previewOrder.blockType} /></div></div><div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-2 bg-slate-900/90 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl border border-white/10 pointer-events-none flex items-center gap-2"><Lock className="w-3.5 h-3.5" /> Modo de Visualização Protegido</div></div>
           </div>

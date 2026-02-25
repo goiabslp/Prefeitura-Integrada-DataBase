@@ -4,7 +4,7 @@ import * as oficiosService from '../services/oficiosService';
 import { Order } from '../types';
 import { supabase } from '../services/supabaseClient';
 
-const oficioKeys = {
+export const oficioKeys = {
     all: ['oficios'] as const,
     lists: () => [...oficioKeys.all, 'list'] as const,
     // You can add more specific keys if needed, e.g.,

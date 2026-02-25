@@ -2,8 +2,11 @@ import {
   useOficios,
   useCreateOficio,
   useUpdateOficio,
-  useDeleteOficio
+  useDeleteOficio,
+  oficioKeys
 } from './hooks/useOficios';
+import { serviceRequestKeys } from './hooks/useServiceRequests';
+import { licitacaoKeys } from './hooks/useLicitacao';
 
 import {
   User, Order, AppState, BlockType, Attachment, Person, Sector, Job,
@@ -69,6 +72,8 @@ import { AbastecimentoDashboard } from './components/abastecimento/Abastecimento
 import { ForcePasswordChangeModal } from './components/ForcePasswordChangeModal';
 import { NotificationProvider, useNotification } from './contexts/NotificationContext';
 import { SystemSettingsProvider, useSystemSettings } from './contexts/SystemSettingsContext';
+import { useQueryClient } from '@tanstack/react-query';
+import { purchaseOrderKeys } from './hooks/usePurchaseOrders';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -147,6 +152,7 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details' | 'tasks-dashboard' | 'purchase-inventory' | 'calendario' | 'rh' | 'projetos'>('login');
+  const queryClient = useQueryClient();
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
   const { moduleStatus } = useSystemSettings();
   const isModuleActive = (key: string) => moduleStatus[key] !== false;
@@ -257,6 +263,7 @@ const App: React.FC = () => {
   const [actionProcessing, setActionProcessing] = useState<{
     isOpen: boolean;
     stage: ProcessingStage;
+    customLabels?: any;
   }>({
     isOpen: false,
     stage: 'sending'
@@ -1068,7 +1075,7 @@ const App: React.FC = () => {
         id: Date.now().toString(),
         protocol: protocolString,
         title: appState.content.title,
-        status: 'pending',
+        status: activeBlock === 'compras' ? 'awaiting_approval' : 'pending',
         createdAt: new Date().toISOString(),
         userId: currentUser.id,
         userName: currentUser.name,
@@ -1299,18 +1306,19 @@ const App: React.FC = () => {
     const isPurchaseAction = activeBlock === 'compras';
 
     if (isPurchaseAction) {
-      setActionProcessing({ isOpen: true, stage: 'sending' });
+      setActionProcessing({
+        isOpen: true,
+        stage: 'sending',
+        customLabels: {
+          sending: { label: 'Iniciando Exclusão', description: 'Preparando remoção segura do pedido...' },
+          validating: { label: 'Verificando Permissões', description: 'Confirmando autorização para excluir...' },
+          confirming: { label: 'Excluindo do Banco', description: 'Removendo registro permanentemente...' },
+          success: { label: 'Excluído com Sucesso', description: 'O pedido foi removido permanentemente da base de dados.' }
+        }
+      });
       await new Promise(resolve => setTimeout(resolve, 800));
       await advanceActionStep('validating', 1200);
     }
-
-    setOrders(p => p.filter(o => o.id !== id));
-    if (activeBlock === 'compras') {
-      // Derived state updates automatically
-    }
-    else if (activeBlock === 'diarias') setServiceRequests(p => p.filter(o => o.id !== id));
-    else if (activeBlock === 'licitacao') setLicitacaoProcesses(p => p.filter(o => o.id !== id));
-    else setOficios(p => p.filter(o => o.id !== id));
 
     try {
       if (isPurchaseAction) {
@@ -1326,11 +1334,42 @@ const App: React.FC = () => {
       } else {
         await deleteOficioMutation.mutateAsync(id);
       }
+
+      // 4. Success UI Update (After confirm)
+      setOrders(p => p.filter(o => o.id !== id));
+      if (activeBlock === 'diarias') setServiceRequests(p => p.filter(o => o.id !== id));
+      else if (activeBlock === 'licitacao') setLicitacaoProcesses(p => p.filter(o => o.id !== id));
+      else if (activeBlock !== 'compras') setOficios(p => p.filter(o => o.id !== id));
+
+      // 5. Force React Query Update (Immediate + Refetch)
+      const queryKeyMap: Record<string, any> = {
+        'compras': purchaseOrderKeys.lists(),
+        'oficio': oficioKeys.lists(),
+        'diarias': serviceRequestKeys.lists(),
+        'licitacao': licitacaoKeys.lists()
+      };
+
+      const targetKey = queryKeyMap[activeBlock || 'oficio'];
+
+      if (targetKey) {
+        // Manually remove from infinite query cache for immediate UI feedback
+        queryClient.setQueriesData({ queryKey: targetKey }, (oldData: any) => {
+          if (!oldData || !oldData.pages) return oldData;
+          return {
+            ...oldData,
+            pages: oldData.pages.map((page: any[]) => page.filter(o => o.id !== id))
+          };
+        });
+
+        // Final invalidation to ensure sync with DB
+        await queryClient.invalidateQueries({ queryKey: targetKey });
+      }
+
       showToast("Item excluído com sucesso", "success");
       syncOrders(activeBlock || 'oficio');
 
       if (isPurchaseAction) {
-        await advanceActionStep('success', 1500);
+        await advanceActionStep('success', 2000);
         setActionProcessing(prev => ({ ...prev, isOpen: false }));
       }
     } catch (error) {
@@ -1389,7 +1428,8 @@ const App: React.FC = () => {
     }
 
     // LAZY LOAD DETAILS (Optimized Compras)
-    if (order.blockType === 'compras' && (!order.documentSnapshot || Object.keys(order.documentSnapshot).length === 0)) {
+    // CRITICAL: We check for purchaseItems existence to distinguish full data from "skeleton" lightweight data
+    if (order.blockType === 'compras' && (!order.documentSnapshot?.content?.purchaseItems || order.documentSnapshot.content.purchaseItems.length === 0)) {
       setIsLoadingDetails(true);
       try {
         const fetched = await comprasService.getPurchaseOrderById(order.id);
@@ -1438,7 +1478,8 @@ const App: React.FC = () => {
     }
 
     // LAZY LOAD DETAILS (Optimized Licitacao)
-    if (order.blockType === 'licitacao' && (!order.documentSnapshot || Object.keys(order.documentSnapshot).length === 0)) {
+    // CRITICAL: Check for stages to distinguish from skeleton
+    if (order.blockType === 'licitacao' && (!order.documentSnapshot?.content?.licitacaoStages || order.documentSnapshot.content.licitacaoStages.length === 0)) {
       setIsLoadingDetails(true);
       try {
         const fetched = await licitacaoService.getLicitacaoProcessById(order.id);
@@ -1616,7 +1657,7 @@ const App: React.FC = () => {
       }
       // 4. API Sync
       if (updatedOrder.blockType === 'compras') {
-        await comprasService.savePurchaseOrder(updatedOrder);
+        await comprasService.updateOrderStatus(updatedOrder.id, updatedOrder.status, newMovement);
       } else if (updatedOrder.blockType === 'diarias') {
         await diariasService.saveServiceRequest(updatedOrder);
       } else if (updatedOrder.blockType === 'licitacao') {
@@ -1716,7 +1757,9 @@ const App: React.FC = () => {
           return o;
         }
         const updated = { ...o, completionForecast: date };
-        comprasService.savePurchaseOrder(updated);
+        if (updated.blockType === 'compras') {
+          comprasService.updateCompletionForecast(updated.id, updated.completionForecast);
+        }
         // setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p)); // Derived
         return updated;
       }
@@ -1862,7 +1905,9 @@ const App: React.FC = () => {
       }
     }
 
-    const snapshot = forcedSnapshot || fullOrder.documentSnapshot;
+    // CRITICAL: If we needed a fetch, we MUST use the fresh snapshot from fullOrder
+    // instead of any potentially lightweight snapshot passed as 'forcedSnapshot'
+    const snapshot = (needsFetch ? fullOrder.documentSnapshot : forcedSnapshot) || fullOrder.documentSnapshot;
     if (!snapshot) return;
 
     setIsDownloading(true);
@@ -3696,7 +3741,7 @@ const App: React.FC = () => {
                 orders={purchaseOrders}
                 sectors={sectors}
                 onDownloadPdf={(snapshot, forcedBlockType, order) => {
-                  const target = order || orders.find(o => o.id === order?.id) || orders.find(o => o.documentSnapshot === snapshot);
+                  const target = (order ? (orders.find(o => o.id === order.id) || order) : orders.find(o => o.documentSnapshot === snapshot));
                   if (target) handleDownloadFromHistory(target, forcedBlockType, snapshot);
                 }}
                 onUpdateStatus={handleUpdateOrderStatus}
@@ -3860,6 +3905,7 @@ const App: React.FC = () => {
       <ActionProcessingModal
         isOpen={actionProcessing.isOpen}
         stage={actionProcessing.stage}
+        customLabels={actionProcessing.customLabels}
       />
     </NotificationProvider >
   );
