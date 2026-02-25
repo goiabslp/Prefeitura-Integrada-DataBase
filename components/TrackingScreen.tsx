@@ -13,6 +13,7 @@ import { uploadFile } from '../services/storageService';
 import { useOficios, useOficio, useUpdateOficioDescription, useInfiniteOficios } from '../hooks/useOficios';
 import { usePurchaseOrders, usePurchaseOrder, useInfinitePurchaseOrders } from '../hooks/usePurchaseOrders';
 import { useServiceRequests, useServiceRequest, useInfiniteServiceRequests } from '../hooks/useServiceRequests';
+import { useInfiniteLicitacao } from '../hooks/useLicitacao';
 
 const HashIcon = ({ className }: { className?: string }) => (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -57,26 +58,65 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     onViewOrder
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    // const { data: oficiosData } = useOficios(); // Deprecated for infinite scroll
-    const { data: infiniteOficios, fetchNextPage: fetchNextOficios, hasNextPage: hasNextOficios, isFetchingNextPage: isFetchingStrictOficios, isLoading: isOficiosLoading } = useInfiniteOficios(20);
-    const oficiosData = infiniteOficios?.pages.flat() || [];
 
-    // REMOVED local purchase fetching to enforce Single Source of Truth from App.tsx
-    const isPurchaseError = false;
-    const isInfiniteLoading = false;
+    // OFICIOS
+    const {
+        data: infiniteOficios,
+        fetchNextPage: fetchNextOficios,
+        hasNextPage: hasNextOficios,
+        isFetchingNextPage: isFetchingStrictOficios,
+        isLoading: isOficiosLoading,
+        isError: isOficiosError
+    } = useInfiniteOficios(20, searchTerm);
 
-    // const { data: serviceRequestsData } = useServiceRequests(); // Deprecated for infinite scroll
+    const oficiosData = React.useMemo(() => {
+        return infiniteOficios?.pages.flat() || [];
+    }, [infiniteOficios]);
+
+    // COMPRAS
+    const {
+        data: infinitePurchaseOrders,
+        fetchNextPage: fetchNextPurchaseOrders,
+        hasNextPage: hasNextPurchaseOrders,
+        isFetchingNextPage: isFetchingNextPurchaseOrders,
+        isLoading: isLoadingPurchaseOrders,
+        isError: isPurchaseError
+    } = useInfinitePurchaseOrders(20, searchTerm);
+
+    const purchaseOrdersData = React.useMemo(() => {
+        return infinitePurchaseOrders?.pages.flat() || [];
+    }, [infinitePurchaseOrders]);
+
+    // LICITACAO
+    const {
+        data: infiniteLicitacao,
+        fetchNextPage: fetchNextLicitacao,
+        hasNextPage: hasNextLicitacao,
+        isFetchingNextPage: isFetchingNextLicitacao,
+        isLoading: isLoadingLicitacao,
+        isError: isLicitacaoError
+    } = useInfiniteLicitacao(20, searchTerm);
+
+    const licitacaoData = React.useMemo(() => {
+        return infiniteLicitacao?.pages.flat() || [];
+    }, [infiniteLicitacao]);
+
+    // DIARIAS
     const {
         data: infiniteServiceRequests,
         fetchNextPage: fetchNextServiceRequests,
         hasNextPage: hasNextServiceRequests,
         isFetchingNextPage: isFetchingNextServiceRequests,
-        isLoading: isLoadingServiceRequests
-    } = useInfiniteServiceRequests(20);
+        isLoading: isLoadingServiceRequests,
+        isError: isServiceRequestsError
+    } = useInfiniteServiceRequests(20, searchTerm);
 
     const serviceRequestsData = React.useMemo(() => {
         return infiniteServiceRequests?.pages.flatMap(page => page) || [];
     }, [infiniteServiceRequests]);
+
+    const isInfiniteLoading = isOficiosLoading || isLoadingPurchaseOrders || isLoadingLicitacao || isLoadingServiceRequests;
+
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
     const [previewOrder, setPreviewOrder] = useState<Order | null>(null);
 
@@ -122,9 +162,10 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     const isLicitacao = activeBlock === 'licitacao';
 
     const getSourceOrders = () => {
-        if (activeBlock === 'oficio') return oficiosData || [];
-        if (activeBlock === 'compras') return orders.filter(o => o.blockType === 'compras'); // Use Global Prop
-        if (activeBlock === 'diarias') return serviceRequestsData || [];
+        if (activeBlock === 'oficio') return oficiosData;
+        if (activeBlock === 'compras') return purchaseOrdersData;
+        if (activeBlock === 'diarias') return serviceRequestsData;
+        if (activeBlock === 'licitacao') return licitacaoData;
         return orders;
     };
 
@@ -158,10 +199,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
             if (!allowed.includes(order.status)) return false;
         }
 
-        const matchesSearch = (order.protocol || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (order.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (order.userName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (order.documentSnapshot?.content.requesterSector || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = true; // Handled Server-Side
 
         return matchesSearch;
     });
@@ -204,9 +242,9 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                     currentStageIndex: 0,
                     viewingStageIndex: 0,
                     body: inicioData.body,
-                    signatureName: inicioData.signatureName,
-                    signatureRole: inicioData.signatureRole,
-                    signatureSector: inicioData.signatureSector,
+                    signatureName: inicioData.signatureName || '',
+                    signatureRole: inicioData.signatureRole || '',
+                    signatureSector: inicioData.signatureSector || '',
                     signatures: inicioData.signatures,
                     licitacaoStages: [
                         {
@@ -368,7 +406,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                     </div>
 
                     <div className="flex-1 overflow-auto custom-scrollbar">
-                        {(isInfiniteLoading && activeBlock === 'compras') || (isOficiosLoading && activeBlock === 'oficio') ? (
+                        {isInfiniteLoading ? (
                             <div className="h-full flex flex-col items-center justify-center space-y-4">
                                 <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
                                 <p className="text-slate-400 font-medium text-sm animate-pulse">Carregando histórico...</p>
@@ -430,22 +468,6 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                 )}
 
                                 <div className={`${isLicitacao ? 'space-y-4' : 'divide-y divide-slate-100'}`}>
-                                    {isCompras && isPurchaseError && (
-                                        <div className="p-12 flex flex-col items-center justify-center text-center animate-fade-in col-span-full">
-                                            <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mb-4 border border-rose-100 shadow-sm animate-pulse">
-                                                <AlertTriangle className="w-8 h-8 text-rose-500" />
-                                            </div>
-                                            <h3 className="text-lg font-black text-slate-800 mb-2 uppercase tracking-tight">Erro ao carregar pedidos</h3>
-                                            <p className="text-sm text-slate-500 font-medium max-w-sm mb-6 leading-relaxed">
-                                                Não foi possível carregar a lista de compras. Uma atualização de banco de dados é necessária para corrigir as permissões.
-                                            </p>
-                                            <div className="text-[10px] bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono text-slate-500 mb-6 w-full max-w-md text-left">
-                                                <span className="font-bold text-rose-500 block mb-1">Diagnóstico:</span>
-                                                Possible missing Foreign Key: purchase_orders &rarr; profiles.<br />
-                                                Error Code: PGRST200 / 400
-                                            </div>
-                                        </div>
-                                    )}
                                     {filteredOrders.map((order) => {
                                         const content = order.documentSnapshot?.content;
                                         const isPaid = order.paymentStatus === 'paid';
@@ -929,29 +951,36 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                         );
                                     })}
 
-                                    {/* Infinite Scroll Trigger for Oficios & Diarias */}
-                                    {((activeBlock === 'oficio' && hasNextOficios) || (activeBlock === 'diarias' && hasNextServiceRequests)) && (
-                                        <div ref={(node) => {
-                                            if (node && ((activeBlock === 'oficio' && hasNextOficios && !isFetchingStrictOficios) || (activeBlock === 'diarias' && hasNextServiceRequests && !isFetchingNextServiceRequests))) {
-                                                const observer = new IntersectionObserver((entries) => {
-                                                    if (entries[0].isIntersecting) {
+                                    {/* CONSOLIDATED LOAD MORE BUTTON */}
+                                    {(hasNextOficios && activeBlock === 'oficio' ||
+                                        hasNextPurchaseOrders && activeBlock === 'compras' ||
+                                        hasNextLicitacao && activeBlock === 'licitacao' ||
+                                        hasNextServiceRequests && activeBlock === 'diarias') && (
+                                            <div className="py-8 flex justify-center border-t border-slate-100 bg-slate-50/30">
+                                                <button
+                                                    onClick={() => {
                                                         if (activeBlock === 'oficio') fetchNextOficios();
-                                                        if (activeBlock === 'diarias') fetchNextServiceRequests();
-                                                    }
-                                                });
-                                                observer.observe(node);
-                                                return () => observer.disconnect();
-                                            }
-                                        }} className="py-4 flex justify-center w-full">
-                                            {(activeBlock === 'oficio' ? isFetchingStrictOficios : isFetchingNextServiceRequests) ? (
-                                                <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
-                                                    <Loader2 className="w-4 h-4 animate-spin" /> Carregando mais...
-                                                </div>
-                                            ) : (activeBlock === 'oficio' ? hasNextOficios : hasNextServiceRequests) ? (
-                                                <span className="text-slate-300 text-[10px] font-bold uppercase tracking-widest">Role para ver mais</span>
-                                            ) : null}
-                                        </div>
-                                    )}
+                                                        else if (activeBlock === 'compras') fetchNextPurchaseOrders();
+                                                        else if (activeBlock === 'licitacao') fetchNextLicitacao();
+                                                        else if (activeBlock === 'diarias') fetchNextServiceRequests();
+                                                    }}
+                                                    disabled={isFetchingStrictOficios || isFetchingNextPurchaseOrders || isFetchingNextLicitacao || isFetchingNextServiceRequests}
+                                                    className="px-8 py-3 bg-white border border-slate-200 rounded-2xl text-slate-600 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all shadow-sm flex items-center gap-3 group disabled:opacity-50 active:scale-95"
+                                                >
+                                                    {(isFetchingStrictOficios || isFetchingNextPurchaseOrders || isFetchingNextLicitacao || isFetchingNextServiceRequests) ? (
+                                                        <>
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                            Carregando...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+                                                            Carregar Mais Registros
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        )}
                                 </div>
                             </div>
                         ) : (

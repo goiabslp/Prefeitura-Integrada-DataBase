@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 import { Order } from '../types';
 import * as counterService from './counterService';
 
-export const getAllServiceRequests = async (lightweight = true, page = 0, pageSize = 1000): Promise<Order[]> => {
+export const getAllServiceRequests = async (lightweight = true, page = 0, pageSize = 1000, searchTerm = ''): Promise<Order[]> => {
     let query = supabase
         .from('service_requests')
         .select(`
@@ -13,6 +13,10 @@ export const getAllServiceRequests = async (lightweight = true, page = 0, pageSi
                 : ', document_snapshot'}
         `)
         .order('created_at', { ascending: false });
+
+    if (searchTerm) {
+        query = query.or(`protocol.ilike.%${searchTerm}%,title.ilike.%${searchTerm}%,user_name.ilike.%${searchTerm}%`);
+    }
 
     if (lightweight) {
         const from = page * pageSize;

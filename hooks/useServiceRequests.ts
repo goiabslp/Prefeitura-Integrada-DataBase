@@ -44,11 +44,11 @@ export const useServiceRequests = () => {
     });
 };
 
-export const useInfiniteServiceRequests = (pageSize = 20) => {
+export const useInfiniteServiceRequests = (pageSize = 20, searchTerm = '') => {
     return useInfiniteQuery({
-        queryKey: [...serviceRequestKeys.lists(), 'infinite'],
+        queryKey: [...serviceRequestKeys.lists(), 'infinite', { searchTerm }],
         queryFn: async ({ pageParam = 0 }) => {
-            return diariasService.getAllServiceRequests(true, pageParam as number, pageSize);
+            return diariasService.getAllServiceRequests(true, pageParam as number, pageSize, searchTerm);
         },
         getNextPageParam: (lastPage, allPages) => {
             // If the last page has fewer items than pageSize, we've reached the end.

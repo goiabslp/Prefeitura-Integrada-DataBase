@@ -43,11 +43,11 @@ export const useOficios = () => {
     });
 };
 
-export const useInfiniteOficios = (pageSize = 20) => {
+export const useInfiniteOficios = (pageSize = 20, searchTerm = '') => {
     return useInfiniteQuery({
-        queryKey: [...oficioKeys.lists(), 'infinite'],
+        queryKey: [...oficioKeys.lists(), 'infinite', { searchTerm }],
         queryFn: async ({ pageParam = 0 }) => {
-            return oficiosService.getAllOficios(true, pageParam as number, pageSize);
+            return oficiosService.getAllOficios(true, pageParam as number, pageSize, searchTerm);
         },
         getNextPageParam: (lastPage, allPages) => {
             return lastPage.length === pageSize ? allPages.length : undefined;

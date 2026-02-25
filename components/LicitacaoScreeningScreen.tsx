@@ -4,6 +4,8 @@ import {
     RotateCcw, Network, Edit3, Trash2, Eye, Filter, Inbox
 } from 'lucide-react';
 import { Order, User, BlockType } from '../types';
+import { useInfiniteLicitacao } from '../hooks/useLicitacao';
+import { Loader2, Plus } from 'lucide-react';
 
 interface LicitacaoScreeningScreenProps {
     onBack: () => void;
@@ -23,22 +25,20 @@ export const LicitacaoScreeningScreen: React.FC<LicitacaoScreeningScreenProps> =
     onUpdateOrderStatus
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'awaiting_approval'>('awaiting_approval');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'awaiting_approval' | 'finishing'>('awaiting_approval');
 
-    // Filter for LICITACAO block only (redundant if passed pre-filtered, but safe)
-    // And search logic
-    const filteredOrders = orders.filter(order => {
-        if (order.blockType !== 'licitacao') return false;
+    // useInfiniteLicitacao Hook
+    const {
+        data: infiniteData,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+        isLoading: isInfiniteLoading
+    } = useInfiniteLicitacao(20, searchTerm, statusFilter === 'all' ? undefined : statusFilter);
 
-        const matchesSearch = order.protocol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (order.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (order.requestingSector || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (order.userName || '').toLowerCase().includes(searchTerm.toLowerCase());
-
-        const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-
-        return matchesSearch && matchesStatus;
-    });
+    const filteredOrders = React.useMemo(() => {
+        return infiniteData?.pages.flat() || [];
+    }, [infiniteData]);
 
     return (
         <div className="min-h-screen w-full bg-slate-100/50 backdrop-blur-sm font-sans flex items-center justify-center p-4 md:p-8 overflow-hidden animate-fade-in">
@@ -103,7 +103,12 @@ export const LicitacaoScreeningScreen: React.FC<LicitacaoScreeningScreenProps> =
 
                 {/* Table Content */}
                 <div className="flex-1 overflow-auto custom-scrollbar">
-                    {filteredOrders.length > 0 ? (
+                    {isInfiniteLoading ? (
+                        <div className="h-full flex flex-col items-center justify-center space-y-4">
+                            <Loader2 className="w-10 h-10 text-amber-600 animate-spin" />
+                            <p className="text-slate-400 font-medium text-sm animate-pulse">Carregando processos...</p>
+                        </div>
+                    ) : filteredOrders.length > 0 ? (
                         <div className="min-w-full">
                             <div className="border-b border-slate-100 bg-slate-50/50 hidden md:grid md:grid-cols-12 gap-4 px-8 py-4 sticky top-0 z-10">
                                 <div className="md:col-span-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
@@ -227,6 +232,29 @@ export const LicitacaoScreeningScreen: React.FC<LicitacaoScreeningScreenProps> =
                                     </div>
                                 ))}
                             </div>
+
+                            {/* LOAD MORE BUTTON */}
+                            {hasNextPage && (
+                                <div className="py-8 flex justify-center border-t border-slate-100 bg-slate-50/30">
+                                    <button
+                                        onClick={() => fetchNextPage()}
+                                        disabled={isFetchingNextPage}
+                                        className="px-8 py-3 bg-white border border-slate-200 rounded-2xl text-slate-600 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-amber-600 hover:text-white hover:border-amber-600 transition-all shadow-sm flex items-center gap-3 group disabled:opacity-50 active:scale-95"
+                                    >
+                                        {isFetchingNextPage ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Carregando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+                                                Carregar Mais Processos
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-slate-400 p-12">

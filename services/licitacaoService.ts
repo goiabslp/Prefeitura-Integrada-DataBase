@@ -2,7 +2,7 @@
 import { supabase } from './supabaseClient';
 import { Order } from '../types';
 
-export const getAllLicitacaoProcesses = async (lightweight = true, page = 0, limit = 1000): Promise<Order[]> => {
+export const getAllLicitacaoProcesses = async (lightweight = true, page = 0, limit = 1000, searchTerm = '', status?: string): Promise<Order[]> => {
     const columns = lightweight
         ? 'id, protocol, title, status, stage, requesting_sector, created_at, user_id, user_name'
         : '*';
@@ -11,6 +11,14 @@ export const getAllLicitacaoProcesses = async (lightweight = true, page = 0, lim
         .from('licitacao_processes')
         .select(columns)
         .order('created_at', { ascending: false });
+
+    if (searchTerm) {
+        query = query.or(`protocol.ilike.%${searchTerm}%,title.ilike.%${searchTerm}%,user_name.ilike.%${searchTerm}%`);
+    }
+
+    if (status) {
+        query = query.eq('status', status);
+    }
 
     if (lightweight) {
         const from = page * limit;

@@ -47,11 +47,11 @@ export const usePurchaseOrders = () => {
 // Hook for Infinite Scroll History (No Realtime, Optimized)
 import { useInfiniteQuery } from '@tanstack/react-query';
 
-export const useInfinitePurchaseOrders = (pageSize = 20) => {
+export const useInfinitePurchaseOrders = (pageSize = 20, searchTerm = '', status?: string, purchaseStatus?: string) => {
     return useInfiniteQuery({
-        queryKey: [...purchaseOrderKeys.lists(), 'infinite'],
+        queryKey: [...purchaseOrderKeys.lists(), 'infinite', { searchTerm, status, purchaseStatus }],
         queryFn: async ({ pageParam = 0 }) => {
-            return comprasService.getAllPurchaseOrders(true, pageParam as number, pageSize);
+            return comprasService.getAllPurchaseOrders(true, pageParam as number, pageSize, searchTerm, status, purchaseStatus);
         },
         getNextPageParam: (lastPage, allPages) => {
             return lastPage.length === pageSize ? allPages.length : undefined;

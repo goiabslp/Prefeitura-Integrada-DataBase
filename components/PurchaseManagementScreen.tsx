@@ -12,6 +12,7 @@ import {
 import { User as UserType, Order, AppState, StatusMovement, Attachment, BlockType, Sector } from '../types';
 import { DocumentPreview } from './DocumentPreview';
 import { uploadFile } from '../services/storageService';
+import { useInfinitePurchaseOrders } from '../hooks/usePurchaseOrders';
 
 interface PurchaseManagementScreenProps {
   onBack: () => void;
@@ -97,41 +98,51 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
   // Debug Logs
   console.log(`[PurchaseManagementScreen] Rendering. Total Orders: ${purchaseOrders.length}, Status Filter: ${statusFilter}, User: ${currentUser?.name} (${currentUser?.role})`);
 
-  const filteredOrders = purchaseOrders.filter(order => {
-    const sector = order.documentSnapshot?.content.requesterSector || '';
-    const matchesSearch = order.protocol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sector.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.userName || '').toLowerCase().includes(searchTerm.toLowerCase());
+  // useInfinitePurchaseOrders Hook
+  const {
+    data: infiniteData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: isInfiniteLoading
+  } = useInfinitePurchaseOrders(20, searchTerm);
 
-    let matchesStatus = false;
-    if (statusFilter === 'all') {
-      matchesStatus = true;
-    } else if (statusFilter === 'pending') {
-      matchesStatus = order.status === 'pending' || order.purchaseStatus === 'aprovacao_orcamento';
-    } else if (statusFilter === 'approved') {
-      matchesStatus = order.status === 'approved' && order.purchaseStatus !== 'aprovacao_orcamento';
-    } else {
-      matchesStatus = order.status === statusFilter;
-    }
+  const hookOrders = React.useMemo(() => {
+    return infiniteData?.pages.flat() || [];
+  }, [infiniteData]);
 
-    if (isComprasUser) {
-      // Compras user sees all finalized orders (approved/rejected) + In Progress + Pending + Awaiting Approval
-      const isFinalized =
-        order.status === 'approved' ||
-        order.status === 'rejected' ||
-        order.status === 'in_progress' ||
-        order.status === 'completed' ||
-        order.status === 'pending' ||
-        order.status === 'awaiting_approval';
+  // Combine hook results with existing prop if needed (or just use hook)
+  // To preserve "Single Source of Truth", we use hookOrders as the primary source for the list
+  const filteredOrders = React.useMemo(() => {
+    return hookOrders.filter(order => {
+      // Local status filtering still applies to the results from server
+      let matchesStatus = false;
+      if (statusFilter === 'all') {
+        matchesStatus = true;
+      } else if (statusFilter === 'pending') {
+        matchesStatus = order.status === 'pending' || order.purchaseStatus === 'aprovacao_orcamento';
+      } else if (statusFilter === 'approved') {
+        matchesStatus = order.status === 'approved' && order.purchaseStatus !== 'aprovacao_orcamento';
+      } else {
+        matchesStatus = order.status === statusFilter;
+      }
 
-      const isAprovacaoOrcamento = order.purchaseStatus === 'aprovacao_orcamento';
+      if (isComprasUser) {
+        const isFinalized =
+          order.status === 'approved' ||
+          order.status === 'rejected' ||
+          order.status === 'in_progress' ||
+          order.status === 'completed' ||
+          order.status === 'pending' ||
+          order.status === 'awaiting_approval';
 
-      // Also include if they are the handler
-      return matchesSearch && matchesStatus && (isFinalized || isAprovacaoOrcamento);
-    }
+        const isAprovacaoOrcamento = order.purchaseStatus === 'aprovacao_orcamento';
+        return matchesStatus && (isFinalized || isAprovacaoOrcamento);
+      }
 
-    return matchesSearch && matchesStatus;
-  });
+      return matchesStatus;
+    });
+  }, [hookOrders, statusFilter, isComprasUser]);
 
   console.log(`[PurchaseManagementScreen] Filtered Orders: ${filteredOrders.length}`);
 
@@ -399,7 +410,12 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
         </div>
 
         <div className="flex-1 overflow-auto custom-scrollbar">
-          {filteredOrders.length > 0 ? (
+          {isInfiniteLoading ? (
+            <div className="h-full flex flex-col items-center justify-center space-y-4">
+              <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
+              <p className="text-slate-400 font-medium text-sm animate-pulse">Carregando histórico de compras...</p>
+            </div>
+          ) : filteredOrders.length > 0 ? (
             <div className="min-w-[1000px]">
               {/* Table Header */}
               <div className="flex items-center px-6 py-2.5 border-b border-slate-200 bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest gap-6 sticky top-0 backdrop-blur-md z-10">
@@ -587,6 +603,29 @@ export const PurchaseManagementScreen: React.FC<PurchaseManagementScreenProps> =
                   </div>
                 ))}
               </div>
+
+              {/* LOAD MORE BUTTON */}
+              {hasNextPage && (
+                <div className="py-8 flex justify-center border-t border-slate-100 bg-slate-50/30">
+                  <button
+                    onClick={() => fetchNextPage()}
+                    disabled={isFetchingNextPage}
+                    className="px-8 py-3 bg-white border border-slate-200 rounded-2xl text-slate-600 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all shadow-sm flex items-center gap-3 group disabled:opacity-50 active:scale-95"
+                  >
+                    {isFetchingNextPage ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Carregando...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+                        Carregar Mais Pedidos
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 p-12 text-center">

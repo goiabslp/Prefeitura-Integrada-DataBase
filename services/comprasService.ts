@@ -5,9 +5,8 @@ import { notificationService } from './notificationService';
 
 import { handleSupabaseError } from '../utils/errorUtils';
 
-export const getAllPurchaseOrders = async (lightweight = true, page = 0, limit = 1000): Promise<Order[]> => {
-    // Select specific columns to reduce payload
-    // We join with profiles using user_id foreign key to get the sector name
+export const getAllPurchaseOrders = async (lightweight = true, page = 0, limit = 1000, searchTerm = '', status?: string, purchaseStatus?: string): Promise<Order[]> => {
+    // ... select specific columns
     const columns = lightweight
         ? `id, protocol, title, status, purchase_status, status_history, created_at, user_id, user_name, completion_forecast, budget_file_url,
            requester_name:document_snapshot->content->>requesterName,
@@ -20,6 +19,18 @@ export const getAllPurchaseOrders = async (lightweight = true, page = 0, limit =
         .from('purchase_orders')
         .select(columns)
         .order('created_at', { ascending: false });
+
+    if (searchTerm) {
+        query = query.or(`protocol.ilike.%${searchTerm}%,title.ilike.%${searchTerm}%,user_name.ilike.%${searchTerm}%`);
+    }
+
+    if (status) {
+        query = query.eq('status', status);
+    }
+
+    if (purchaseStatus) {
+        query = query.eq('purchase_status', purchaseStatus);
+    }
 
     if (lightweight) {
         const from = page * limit;
