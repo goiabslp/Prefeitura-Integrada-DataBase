@@ -378,6 +378,14 @@ export interface CrewMember {
 export type ProjetoStatus = 'Aguardando Admin' | 'Em Andamento' | 'Concluído' | 'Cancelado';
 export type ProjetoHistoryAction = 'Criado' | 'Encaminhado' | 'Mensagem' | 'Anexo' | 'Status Alterado';
 
+export interface ProjetoObjective {
+  id: string;
+  name: string;
+  responsible: string;
+  details: string;
+  status: 'Não Iniciado' | 'Em Andamento' | 'Concluído';
+}
+
 export interface Projeto {
   id: string;
   name: string;
@@ -388,6 +396,7 @@ export interface Projeto {
   end_date?: string;
   current_owner_id?: string;
   current_sector_id?: string;
+  objectives?: ProjetoObjective[];
   created_by: string;
   created_at?: string;
   updated_at?: string;

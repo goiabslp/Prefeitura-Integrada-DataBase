@@ -14,7 +14,12 @@ import {
     X,
     FileText,
     Upload,
-    LayoutDashboard
+    LayoutDashboard,
+    Plus,
+    Target,
+    ClipboardList,
+    Clock,
+    CheckCircle
 } from 'lucide-react';
 import { useNotification } from '../../contexts/NotificationContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -36,7 +41,8 @@ interface AttachmentFile {
 
 const STEPS = [
     { title: 'Informações Gerais', icon: LayoutDashboard },
-    { title: 'Descrição Detalhada', icon: FileText },
+    { title: 'Descrição', icon: FileText },
+    { title: 'Objetivos', icon: Target },
     { title: 'Anexos', icon: Paperclip },
     { title: 'Encaminhamento', icon: Send },
 ];
@@ -60,6 +66,21 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
     const [responsibleId, setResponsibleId] = useState('');
     const [initialMessage, setInitialMessage] = useState('');
     const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+    const [objectives, setObjectives] = useState<{
+        id: string;
+        name: string;
+        responsible: string;
+        details: string;
+        status: 'Não Iniciado' | 'Em Andamento' | 'Concluído';
+    }[]>([]);
+
+    // Objective Modal State
+    const [isObjectiveModalOpen, setIsObjectiveModalOpen] = useState(false);
+    const [newObjective, setNewObjective] = useState({
+        name: '',
+        responsible: '',
+        details: ''
+    });
 
     // Validation state
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -161,7 +182,8 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                 end_date: endDate || undefined,
                 current_owner_id: adminUser.id,
                 current_sector_id: adminUser.sectorId || undefined,
-                created_by: userId
+                created_by: userId,
+                objectives: objectives as any // TypeScript might need cast if types don't match perfectly
             };
 
             await createProjeto(newProjetoData, initialMessage, uploadedAttachments);
@@ -271,24 +293,99 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
-                        className="space-y-6"
+                        className="flex flex-col h-full"
                     >
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                        <div className="space-y-4 flex flex-col h-full">
+                            <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2 flex-shrink-0">
                                 <FileText className="w-4 h-4 text-fuchsia-500" />
-                                Escopo e Objetivos
+                                Descrição do Projeto
                             </label>
-                            <textarea
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                placeholder="Descreva detalhadamente o que este projeto pretende alcançar, as etapas principais e qualquer informação relevante para a análise inicial..."
-                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-5 text-slate-700 outline-none focus:border-fuchsia-500 focus:bg-white transition-all min-h-[300px] resize-none font-medium leading-relaxed shadow-sm"
-                            />
-                            <p className="text-xs text-slate-400 italic">Uma descrição clara ajuda o administrador a tomar decisões mais rápidas.</p>
+                            <div className="flex-1 relative min-h-[400px]">
+                                <textarea
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    placeholder="Descreva detalhadamente o que este projeto pretende alcançar, as etapas principais e qualquer informação relevante para a análise inicial..."
+                                    className="absolute inset-0 w-full h-full bg-slate-50 border-2 border-slate-200 rounded-3xl px-6 py-5 text-slate-700 outline-none focus:border-fuchsia-500 focus:bg-white transition-all resize-none font-medium leading-relaxed shadow-sm custom-scrollbar"
+                                />
+                            </div>
+                            <p className="text-xs text-slate-400 italic flex-shrink-0">Uma descrição clara ajuda o administrador a tomar decisões mais rápidas.</p>
                         </div>
                     </motion.div>
                 );
             case 2:
+                return (
+                    <motion.div
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        className="flex flex-col h-full space-y-6"
+                    >
+                        <div className="flex items-center justify-between flex-shrink-0">
+                            <div>
+                                <h3 className="text-xl font-black text-slate-800 tracking-tight">Objetivos do Projeto</h3>
+                                <p className="text-sm text-slate-500 font-medium">Defina metas claras e responsáveis para o sucesso da execução.</p>
+                            </div>
+                            <button
+                                onClick={() => setIsObjectiveModalOpen(true)}
+                                className="flex items-center gap-2 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white px-6 py-3 rounded-2xl text-sm font-black hover:shadow-lg hover:shadow-fuchsia-200 transition-all active:scale-95 group"
+                            >
+                                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+                                Adicionar Objetivo
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-hidden bg-slate-50/50 rounded-[32px] border-2 border-slate-100 p-4">
+                            {objectives.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 opacity-60">
+                                    <div className="p-8 bg-white rounded-full shadow-sm">
+                                        <Target className="w-16 h-16" />
+                                    </div>
+                                    <p className="font-bold text-lg">Nenhum objetivo definido</p>
+                                    <p className="text-sm max-w-xs text-center">Clique no botão acima para começar a estruturar os objetivos deste projeto.</p>
+                                </div>
+                            ) : (
+                                <div className="h-full overflow-y-auto pr-2 custom-scrollbar space-y-1.5">
+                                    {objectives.map((obj) => (
+                                        <div key={obj.id} className="bg-white border border-slate-100 p-2.5 px-5 rounded-xl shadow-sm hover:border-fuchsia-200 transition-all flex items-center justify-between group">
+                                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                <div className="w-8 h-8 rounded-lg bg-fuchsia-100/50 flex items-center justify-center text-fuchsia-500 flex-shrink-0">
+                                                    <ClipboardList className="w-4 h-4" />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <h4 className="font-black text-slate-800 text-sm truncate leading-tight">{obj.name}</h4>
+                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5 leading-none mt-1">
+                                                        <span className="opacity-50">Respon:</span>
+                                                        <span className="text-slate-600 truncate max-w-[150px]">{obj.responsible}</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-4">
+                                                <div className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${obj.status === 'Concluído' ? 'bg-emerald-50 text-emerald-600' :
+                                                    obj.status === 'Em Andamento' ? 'bg-amber-50 text-amber-600' :
+                                                        'bg-slate-100 text-slate-500'
+                                                    }`}>
+                                                    {obj.status === 'Concluído' && <CheckCircle className="w-2.5 h-2.5" />}
+                                                    {obj.status === 'Em Andamento' && <Clock className="w-2.5 h-2.5" />}
+                                                    {obj.status === 'Não Iniciado' && <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />}
+                                                    {obj.status}
+                                                </div>
+
+                                                <button
+                                                    onClick={() => setObjectives(prev => prev.filter(o => o.id !== obj.id))}
+                                                    className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                );
+            case 3:
                 return (
                     <motion.div
                         initial={{ opacity: 0, x: 20 }}
@@ -368,7 +465,7 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                         )}
                     </motion.div>
                 );
-            case 3:
+            case 4:
                 return (
                     <motion.div
                         initial={{ opacity: 0, x: 20 }}
@@ -428,32 +525,40 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-50/95 backdrop-blur-sm z-[100] flex flex-col items-center justify-center p-4">
-            <div className="w-full max-w-5xl bg-white rounded-[40px] shadow-2xl border border-slate-100 flex flex-col h-[90vh] overflow-hidden relative">
+        <div className="w-full min-h-screen bg-slate-50/50 flex flex-col items-center py-8 px-4 animate-fade-in">
+            {/* Form Container */}
+            <div className="w-full max-w-7xl bg-white rounded-[40px] shadow-[0_20px_70px_-15px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-col min-h-[85vh] overflow-hidden relative">
 
-                {/* Header with Stepper */}
-                <div className="p-8 border-b border-slate-50 bg-white/80 backdrop-blur-md sticky top-0 z-20">
-                    <div className="flex items-center justify-between mb-8">
-                        <div className="flex items-center gap-5">
-                            <div className="p-4 bg-gradient-to-br from-fuchsia-500 to-purple-600 rounded-3xl shadow-lg shadow-fuchsia-200">
-                                <LayoutDashboard className="w-8 h-8 text-white" />
-                            </div>
-                            <div>
-                                <h1 className="text-3xl font-black tracking-tight text-slate-900 leading-none">Novo Projeto</h1>
-                                <p className="text-slate-400 mt-2 font-bold uppercase text-[10px] tracking-[0.2em]">Fluxo de Criação e Validação</p>
-                            </div>
-                        </div>
+                {/* Compact Header: Back Button + Title + Stepper on same line */}
+                <div className="px-8 py-6 border-b border-slate-50 bg-white/80 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between gap-8">
+                    <div className="flex items-center gap-6">
+                        {/* Botão Voltar */}
                         <button
                             onClick={onCancel}
-                            className="p-3 hover:bg-slate-100 rounded-full transition-all text-slate-400 hover:text-slate-900 group"
+                            className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-all font-bold uppercase tracking-widest group text-xs p-2 hover:bg-slate-50 rounded-xl -ml-2"
+                            title="Voltar para Projetos"
                         >
-                            <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+                            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                            <span>Voltar</span>
                         </button>
+
+                        <div className="h-8 w-px bg-slate-100 hidden md:block"></div>
+
+                        <div className="flex items-center gap-4 flex-shrink-0">
+                            <div className="p-3 bg-gradient-to-br from-fuchsia-500 to-purple-600 rounded-2xl shadow-lg shadow-fuchsia-100">
+                                <LayoutDashboard className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-black tracking-tight text-slate-900 leading-tight">Novo Projeto</h1>
+                                <p className="text-slate-400 font-bold uppercase text-[8px] tracking-[0.2em] leading-none">Criação & Validação</p>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="flex items-center justify-between max-w-3xl mx-auto relative px-4">
+                    {/* Stepper on the same line */}
+                    <div className="flex-1 flex items-center justify-center max-w-3xl relative px-4">
                         {/* Progress Line */}
-                        <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -translate-y-1/2 z-0">
+                        <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 -translate-y-1/2 z-0 mx-4" style={{ width: 'calc(100% - 32px)' }}>
                             <motion.div
                                 className="h-full bg-gradient-to-r from-fuchsia-500 to-purple-600 rounded-full"
                                 initial={{ width: '0%' }}
@@ -468,89 +573,196 @@ export const ProjetoForm: React.FC<ProjetoFormProps> = ({
                             const isCompleted = index < currentStep;
 
                             return (
-                                <div key={index} className="flex flex-col items-center gap-3 relative z-10 group cursor-default">
+                                <div key={index} className="flex-1 flex flex-col items-center relative z-10 group">
                                     <div
                                         onClick={() => index < currentStep ? setCurrentStep(index) : null}
                                         className={`
-                                            w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-md transform
-                                            ${isActive ? 'bg-slate-900 text-white scale-110 shadow-lg' :
+                                            w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-sm transform
+                                            ${isActive ? 'bg-slate-900 text-white scale-110 shadow-md' :
                                                 isCompleted ? 'bg-gradient-to-br from-fuchsia-500 to-purple-600 text-white cursor-pointer hover:scale-105' :
-                                                    'bg-white text-slate-300 border-2 border-slate-100'}
+                                                    'bg-white text-slate-300 border border-slate-100'}
                                         `}
                                     >
-                                        {isCompleted ? <CheckCircle2 className="w-6 h-6" /> : <Icon className="w-5 h-5" />}
+                                        {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Icon className="w-4 h-4" />}
                                     </div>
-                                    <span className={`text-[10px] font-black uppercase tracking-widest transition-colors duration-500 ${isActive ? 'text-slate-900' : 'text-slate-300'}`}>
+                                    <span className={`absolute -bottom-4 text-[8px] font-black uppercase tracking-widest whitespace-nowrap transition-colors duration-500 ${isActive ? 'text-slate-900' : 'text-slate-300'}`}>
                                         {step.title}
                                     </span>
                                 </div>
                             );
                         })}
                     </div>
+
                 </div>
 
-                {/* Main Content Area */}
-                <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
-                    <div className="max-w-4xl mx-auto">
+                {/* Content Area - Maximized */}
+                <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-slate-50/30">
+                    <div className="max-w-5xl mx-auto h-full">
                         <AnimatePresence mode="wait">
-                            <div key={currentStep}>
+                            <motion.div
+                                key={currentStep}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="h-full"
+                            >
                                 {renderStepContent()}
-                            </div>
+                            </motion.div>
                         </AnimatePresence>
                     </div>
                 </div>
+            </div>
 
-                {/* Fixed Footer */}
-                <div className="p-8 border-t border-slate-50 bg-slate-50/50 backdrop-blur-md sticky bottom-0 z-20 flex items-center justify-between">
-                    <button
-                        onClick={currentStep === 0 ? onCancel : handleBack}
-                        className="flex items-center gap-3 px-8 py-4 font-bold text-slate-500 hover:text-slate-900 hover:bg-white rounded-2xl transition-all group"
-                        disabled={isSaving}
-                    >
-                        {currentStep === 0 ? (
-                            <>
-                                <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-                                Cancelar Criação
-                            </>
-                        ) : (
-                            <>
-                                <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                                Etapa Anterior
-                            </>
-                        )}
-                    </button>
+            {/* EXTERNAL FOOTER: Navigation Buttons Outside the Form Container */}
+            <div className="w-full max-w-7xl mt-6 flex items-center justify-between px-4 z-20 pb-12">
+                <button
+                    onClick={currentStep === 0 ? onCancel : handleBack}
+                    className="flex items-center gap-3 px-8 py-4 font-bold text-slate-500 hover:text-slate-900 bg-white/50 hover:bg-white rounded-2xl transition-all group backdrop-blur-sm shadow-sm"
+                    disabled={isSaving}
+                >
+                    {currentStep === 0 ? (
+                        <>
+                            <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+                            Cancelar
+                        </>
+                    ) : (
+                        <>
+                            <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                            Etapa Anterior
+                        </>
+                    )}
+                </button>
 
-                    <div className="flex items-center gap-4">
-                        {currentStep < STEPS.length - 1 ? (
-                            <button
-                                onClick={handleNext}
-                                className="flex items-center gap-3 bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold hover:bg-slate-800 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-95 group"
-                            >
-                                Próxima Etapa
-                                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                            </button>
-                        ) : (
-                            <button
-                                onClick={handleSave}
-                                disabled={isSaving}
-                                className="flex items-center gap-3 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white px-12 py-4 rounded-2xl font-bold hover:shadow-[0_10px_30px_-10px_rgba(192,38,211,0.5)] hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed group"
-                            >
-                                {isSaving ? (
-                                    <>
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Processando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Send className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                                        Finalizar e Enviar para Admin
-                                    </>
-                                )}
-                            </button>
-                        )}
-                    </div>
+                <div className="flex items-center gap-4">
+                    {currentStep < STEPS.length - 1 ? (
+                        <button
+                            onClick={handleNext}
+                            className="flex items-center gap-3 bg-slate-900 text-white px-10 py-5 rounded-2xl font-bold hover:bg-slate-800 hover:shadow-2xl hover:-translate-y-1 transition-all active:scale-95 group shadow-lg"
+                        >
+                            Próxima Etapa
+                            <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="flex items-center gap-3 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white px-12 py-5 rounded-2xl font-bold hover:shadow-[0_20px_40px_-10px_rgba(192,38,211,0.5)] hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed group shadow-lg"
+                        >
+                            {isSaving ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Processando...
+                                </>
+                            ) : (
+                                <>
+                                    <Send className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                                    Finalizar e Enviar
+                                </>
+                            )}
+                        </button>
+                    )}
                 </div>
             </div>
+
+            {/* Objective Modal */}
+            <AnimatePresence>
+                {isObjectiveModalOpen && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsObjectiveModalOpen(false)}
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="w-full max-w-xl bg-white rounded-[32px] shadow-2xl overflow-hidden relative z-10"
+                        >
+                            <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-fuchsia-100 text-fuchsia-600 rounded-2xl">
+                                        <Plus className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-900">Novo Objetivo</h3>
+                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Adicionar meta ao roteiro</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setIsObjectiveModalOpen(false)}
+                                    className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="p-8 space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Nome do Objetivo</label>
+                                    <input
+                                        type="text"
+                                        value={newObjective.name}
+                                        onChange={(e) => setNewObjective({ ...newObjective, name: e.target.value })}
+                                        placeholder="Ex: Definir planta arquitetônica"
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-4 text-slate-700 outline-none focus:border-fuchsia-500 focus:bg-white transition-all font-bold"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Responsável pela execução</label>
+                                    <input
+                                        type="text"
+                                        value={newObjective.responsible}
+                                        onChange={(e) => setNewObjective({ ...newObjective, responsible: e.target.value })}
+                                        placeholder="Ex: Nome da Pessoa ou Setor"
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-4 text-slate-700 outline-none focus:border-fuchsia-500 focus:bg-white transition-all font-bold"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Detalhamento do objetivo</label>
+                                    <textarea
+                                        value={newObjective.details}
+                                        onChange={(e) => setNewObjective({ ...newObjective, details: e.target.value })}
+                                        placeholder="Descreva as ações necessárias para concluir este objetivo..."
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-4 text-slate-700 outline-none focus:border-fuchsia-500 focus:bg-white transition-all min-h-[140px] resize-none font-medium"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="p-8 pt-0 flex gap-4">
+                                <button
+                                    onClick={() => setIsObjectiveModalOpen(false)}
+                                    className="flex-1 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    disabled={!newObjective.name || !newObjective.responsible}
+                                    onClick={() => {
+                                        setObjectives(prev => [...prev, {
+                                            id: crypto.randomUUID(),
+                                            name: newObjective.name,
+                                            responsible: newObjective.responsible,
+                                            details: newObjective.details,
+                                            status: 'Não Iniciado'
+                                        }]);
+                                        setNewObjective({ name: '', responsible: '', details: '' });
+                                        setIsObjectiveModalOpen(false);
+                                    }}
+                                    className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Adicionar à Lista
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             <style dangerouslySetInnerHTML={{
                 __html: `

@@ -64,6 +64,7 @@ export const ProjetosModule: React.FC<ProjetosModuleProps> = ({
                     sectors={sectors}
                     onNew={() => navigateTo('new')}
                     onViewProjeto={(id: string) => navigateTo('details', id)}
+                    onBack={onBack}
                 />
             )}
 

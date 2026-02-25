@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Projeto, User, Sector } from '../../types';
 import { getProjetos } from '../../services/projetosService';
-import { Plus, Search, Filter, LayoutGrid, Clock, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
+import { Plus, Search, Filter, LayoutGrid, Clock, CheckCircle2, AlertCircle, Trash2, ArrowLeft } from 'lucide-react';
 
 interface ProjetosListProps {
     userId: string;
@@ -11,6 +11,7 @@ interface ProjetosListProps {
     sectors: Sector[];
     onNew: () => void;
     onViewProjeto: (id: string) => void;
+    onBack?: () => void;
 }
 
 export const ProjetosList: React.FC<ProjetosListProps> = ({
@@ -20,7 +21,8 @@ export const ProjetosList: React.FC<ProjetosListProps> = ({
     users,
     sectors,
     onNew,
-    onViewProjeto
+    onViewProjeto,
+    onBack
 }) => {
     const [projetos, setProjetos] = useState<Projeto[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -80,11 +82,23 @@ export const ProjetosList: React.FC<ProjetosListProps> = ({
     };
 
     return (
-        <div className="p-6 md:p-8 max-w-7xl mx-auto animate-fade-in space-y-8">
+        <div className="p-6 md:p-8 max-w-7xl mx-auto animate-fade-in space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900 border-b-4 border-fuchsia-500 pb-1 inline-block">Projetos</h1>
-                    <p className="text-slate-500 mt-2 font-medium">Gerencie e acompanhe todos os projetos da sua unidade.</p>
+                <div className="flex flex-col gap-4">
+                    {onBack && (
+                        <button
+                            onClick={onBack}
+                            className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-all font-bold uppercase tracking-widest group text-[10px] p-2 hover:bg-slate-50 rounded-lg -ml-2"
+                            title="Voltar ao Menu"
+                        >
+                            <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
+                            <span>Voltar ao Menu</span>
+                        </button>
+                    )}
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight text-slate-900 border-b-4 border-fuchsia-500 pb-1 inline-block">Projetos</h1>
+                        <p className="text-slate-500 mt-2 font-medium">Gerencie e acompanhe todos os projetos da sua unidade.</p>
+                    </div>
                 </div>
                 <button
                     onClick={onNew}
