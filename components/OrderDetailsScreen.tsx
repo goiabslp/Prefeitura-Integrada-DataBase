@@ -407,7 +407,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="bg-slate-50/80 border-b border-slate-200">
+                                <tr className="bg-slate-50 border-b border-slate-200">
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-16">#</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Item / Descrição</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Marca/Modelo</th>
