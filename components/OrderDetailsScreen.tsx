@@ -212,10 +212,17 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
         </div>
     );
 
-    // Helper to render Overview Tab Content
     const renderOverview = () => (
         <div className="p-8 w-full animate-fade-in">
             <div className="max-w-4xl mx-auto">
+                {/* Compact & Discreet Title Section */}
+                <div className="mb-8 px-6 py-5 bg-white border border-slate-100 rounded-3xl shadow-sm border-l-4 border-l-indigo-500">
+                    <span className="text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 mb-1 block">Objeto / Título</span>
+                    <h2 className="text-xl desktop:text-2xl font-black text-slate-800 leading-tight">
+                        {order.title || 'Detalhes do Pedido'}
+                    </h2>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Protocolo */}
                     <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-2 group hover:border-indigo-200 transition-all">
@@ -459,31 +466,28 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
     return (
         <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden h-full animate-fade-in">
             {/* Header / Nav */}
-            <div className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-                <div className="w-full px-6 py-4">
+            <div className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm flex flex-col shrink-0">
+                {/* Protocol & Info Row */}
+                <div className="w-full px-6 py-2 border-b border-slate-100/50">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
                             <button
                                 onClick={onBack}
-                                className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-all font-bold uppercase tracking-widest group text-xs hover:bg-slate-50 p-2 rounded-xl -ml-2"
+                                className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-all font-bold uppercase tracking-widest group text-[10px] hover:bg-slate-50 p-2 rounded-xl"
                                 title="Voltar"
                             >
-                                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                                <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
                                 <span className="hidden sm:inline">Voltar</span>
                             </button>
-                            <div className="h-8 w-px bg-slate-100 mx-2"></div>
-                            <div>
-                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                    <span className="font-mono text-xs font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-                                        {order.protocol}
-                                    </span>
-                                    {order.status === 'approved' && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 uppercase tracking-wide flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Aprovado</span>}
-                                    {order.status === 'pending' && <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200 uppercase tracking-wide flex items-center gap-1"><Clock className="w-3 h-3" /> Pendente</span>}
-                                    {order.priority === 'Alta' && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100 uppercase tracking-wide flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Alta Prioridade</span>}
-                                </div>
-                                <h1 className="text-xl desktop:text-2xl font-black text-slate-800 leading-tight">
-                                    {order.title || 'Detalhes do Pedido'}
-                                </h1>
+
+                            <div className="h-4 w-px bg-slate-200 mx-1"></div>
+
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono text-xs font-black text-indigo-600 bg-indigo-50/50 px-2 py-0.5 rounded-lg border border-indigo-100 uppercase tracking-tighter">
+                                    {order.protocol}
+                                </span>
+                                {order.status === 'approved' && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-wide flex items-center gap-1"><CheckCircle2 className="w-2.5 h-2.5" /> Aprovado</span>}
+                                {order.status === 'pending' && <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 uppercase tracking-wide flex items-center gap-1"><Clock className="w-2.5 h-2.5" /> Pendente</span>}
                             </div>
                         </div>
 
@@ -491,16 +495,18 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                             {order.documentSnapshot && (
                                 <button
                                     onClick={() => onDownloadPdf(order.documentSnapshot!, 'compras')}
-                                    className="hidden desktop:flex px-5 py-2.5 bg-white text-indigo-600 border border-indigo-100 hover:bg-indigo-50 hover:border-indigo-200 rounded-xl font-bold text-xs uppercase tracking-wide items-center gap-2 transition-all active:scale-95 shadow-sm"
+                                    className="px-3 py-1.5 bg-white text-indigo-600 border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50 rounded-lg font-bold text-[10px] uppercase tracking-wide flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
                                 >
-                                    <Download className="w-4 h-4" /> Baixar PDF
+                                    <Download className="w-3 h-3" /> <span className="hidden sm:inline">PDF</span>
                                 </button>
                             )}
                         </div>
                     </div>
+                </div>
 
-                    {/* Tabs in Header */}
-                    <div className="flex items-center gap-1.5 mt-8 overflow-x-auto no-scrollbar scroll-smooth pb-1">
+                {/* Tabs Row */}
+                <div className="w-full px-6 py-2 bg-white overflow-x-auto no-scrollbar">
+                    <div className="flex items-center gap-1.5 scroll-smooth">
                         {[
                             { id: 'overview', label: 'Visão Geral', icon: FileText },
                             { id: 'items', label: 'Itens', icon: ShoppingCart },
@@ -511,15 +517,15 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as TabType)}
-                                className={`px-6 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2.5 shrink-0 active:scale-95 ${activeTab === tab.id
-                                    ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/30'
-                                    : 'bg-white border border-slate-100 text-slate-400 hover:bg-slate-50 hover:border-slate-200 hover:text-slate-600'
+                                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 active:scale-95 ${activeTab === tab.id
+                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                                    : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
                                     }`}
                             >
                                 <tab.icon className={`w-3.5 h-3.5 ${activeTab === tab.id ? 'text-white' : 'text-slate-300'}`} />
                                 {tab.label}
                                 {tab.count !== undefined && tab.count > 0 && (
-                                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-mono font-black border ${activeTab === tab.id ? 'bg-white/20 border-white/20 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'
+                                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-black border ${activeTab === tab.id ? 'bg-white/20 border-white/20 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'
                                         }`}>
                                         {tab.count}
                                     </span>
