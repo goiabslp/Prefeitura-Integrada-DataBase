@@ -217,7 +217,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             return;
         }
 
-        if (odometerVal <= 0) {
+        // Only validate odometer for NEW records
+        if (!initialData && odometerVal <= 0) {
             alert('O odômetro deve ser maior que zero.');
             return;
         }
@@ -271,7 +272,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                 Timestamp: ${new Date().toISOString()}`
             );
 
-            await AbastecimentoService.saveAbastecimento(pendingData);
+            await AbastecimentoService.saveAbastecimento(pendingData, !!initialData);
 
             onSave(pendingData);
             setConfirmModalOpen(false);
@@ -430,7 +431,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                         KM/H
                                     </div>
                                 </div>
-                                {lastOdometer !== null && (
+                                {lastOdometer !== null && !initialData && (
                                     <p className="text-[10px] text-slate-400 mt-1 ml-1">
                                         Último registro: <span className="font-bold">{lastOdometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                     </p>
@@ -541,6 +542,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                     odometer: odometer, // Passing formatted string directly
                     lastOdometer: lastOdometer
                 } : null}
+                isEdit={!!initialData}
                 isSaving={isSaving}
             />
         </div >

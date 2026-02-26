@@ -1646,21 +1646,22 @@ const App: React.FC = () => {
     // If it's a purchase action, show the rich modal
     const isPurchaseAction = updatedOrder.blockType === 'compras';
 
-    if (isPurchaseAction) {
-      setActionProcessing({ isOpen: true, stage: 'sending' });
-      await new Promise(resolve => setTimeout(resolve, 800));
-      await advanceActionStep('validating', 1200);
-    }
-
+    // TRIGGER IMMEDIATE UI UPDATE
     setOrders(updateList);
     if (updatedOrder.blockType === 'compras') { /* Derived */ }
     else if (updatedOrder.blockType === 'diarias') setServiceRequests(updateList);
     else if (updatedOrder.blockType === 'licitacao') setLicitacaoProcesses(updateList);
     else setOficios(updateList);
 
+    if (isPurchaseAction) {
+      setActionProcessing({ isOpen: true, stage: 'sending' });
+      await advanceActionStep('sending', 400); // Reduced delay
+      await advanceActionStep('validating', 600); // Reduced delay
+    }
+
     try {
       if (isPurchaseAction) {
-        await advanceActionStep('confirming', 1500);
+        await advanceActionStep('confirming', 400); // Reduced delay
       }
       // 4. API Sync
       if (updatedOrder.blockType === 'compras') {
@@ -1676,7 +1677,7 @@ const App: React.FC = () => {
       syncOrders(updatedOrder.blockType);
 
       if (isPurchaseAction) {
-        await advanceActionStep('success', 1500);
+        await advanceActionStep('success', 800); // reduced delay
         setActionProcessing(prev => ({ ...prev, isOpen: false }));
       }
     } catch (error: any) {
@@ -1728,23 +1729,26 @@ const App: React.FC = () => {
       statusHistory: [...(orderToUpdate.statusHistory || []), newMovement]
     } as Order;
 
-    // 3. Optimistic Update
+    // 3. Optimistic Update (IMMEDIATE)
     const updateList = (list: Order[]) => list.map(o => o.id === updatedOrder.id ? updatedOrder : o);
 
-    setActionProcessing({ isOpen: true, stage: 'sending' });
-    await new Promise(resolve => setTimeout(resolve, 800));
-    await advanceActionStep('validating', 1200);
-
+    // Set UI state immediately
     setOrders(updateList);
-    // setPurchaseOrders(updateList); // Removed derived setter
+
+    // Start modal feedback
+    setActionProcessing({ isOpen: true, stage: 'sending' });
 
     try {
-      await advanceActionStep('confirming', 1500);
+      // Background operation with visual feedback stages
+      await advanceActionStep('sending', 400);
+      await advanceActionStep('validating', 600);
+      await advanceActionStep('confirming', 400);
+
       await comprasService.updatePurchaseStatus(orderId, purchaseStatus as string, newMovement, budgetFileUrl, completionForecast);
       showToast("Status de compra atualizado!", "success");
       syncOrders('compras');
 
-      await advanceActionStep('success', 1500);
+      await advanceActionStep('success', 800);
       setActionProcessing(prev => ({ ...prev, isOpen: false }));
     } catch (error: any) {
       // 5. Rollback

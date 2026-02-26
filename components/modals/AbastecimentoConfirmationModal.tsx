@@ -17,6 +17,7 @@ interface AbastecimentoConfirmationModalProps {
         lastOdometer?: number | null;
     } | null;
     isSaving?: boolean;
+    isEdit?: boolean;
 }
 
 export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationModalProps> = ({
@@ -24,7 +25,8 @@ export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationM
     onClose,
     onConfirm,
     data,
-    isSaving = false
+    isSaving = false,
+    isEdit = false
 }) => {
     if (!isOpen || !data) return null;
 
@@ -32,7 +34,7 @@ export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationM
         ? parseFormattedNumber(data.odometer)
         : data.odometer || 0;
 
-    const isInvalidOdometer = data.lastOdometer !== null && data.lastOdometer !== undefined && currentOdometer <= data.lastOdometer;
+    const isInvalidOdometer = !isEdit && data.lastOdometer !== null && data.lastOdometer !== undefined && currentOdometer <= data.lastOdometer;
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-end wide:items-center justify-center p-0 wide:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
@@ -125,14 +127,16 @@ export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationM
                         <div className="space-y-4 wide:space-y-6">
                             {/* Odometer Comparison */}
                             <div className="bg-slate-50/50 rounded-2xl p-4 wide:p-6 space-y-4 border border-slate-100">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[9px] wide:text-xs uppercase font-bold text-slate-400 tracking-wider">Último: {data.lastOdometer?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</span>
-                                    {data.lastOdometer !== null && data.lastOdometer !== undefined && (
-                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${currentOdometer > data.lastOdometer ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                            {currentOdometer > data.lastOdometer ? '+' : ''}{(currentOdometer - data.lastOdometer).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KM/L
-                                        </span>
-                                    )}
-                                </div>
+                                {!isEdit && (
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[9px] wide:text-xs uppercase font-bold text-slate-400 tracking-wider">Último: {data.lastOdometer?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</span>
+                                        {data.lastOdometer !== null && data.lastOdometer !== undefined && (
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${currentOdometer > data.lastOdometer ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                                {currentOdometer > data.lastOdometer ? '+' : ''}{(currentOdometer - data.lastOdometer).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KM/L
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                                 <div className="flex flex-col">
                                     <span className="text-[9px] wide:text-xs uppercase font-bold text-indigo-400 tracking-widest mb-1">Novo Horímetro</span>
                                     <div className="flex items-baseline gap-2">

@@ -322,12 +322,15 @@ export const AbastecimentoService = {
         }
     },
 
-    saveAbastecimento: async (record: AbastecimentoRecord): Promise<void> => {
+    saveAbastecimento: async (record: AbastecimentoRecord, isEdit: boolean = false): Promise<void> => {
         try {
             // Backend validation: check if odometer is less than or equal to the latest recorded
-            const latestOdometer = await AbastecimentoService.getLatestOdometerByVehicle(record.vehicle);
-            if (latestOdometer !== null && record.odometer <= latestOdometer) {
-                throw new Error(`BLOQUEIO: O Horímetro/Odômetro informado (${record.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) é menor ou igual ao último registro (${latestOdometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}). O cadastro não pode ser realizado.`);
+            // Only validate if NOT editing and NOT a legacy update (which we can check by record.id existence, but isEdit is more explicit)
+            if (!isEdit) {
+                const latestOdometer = await AbastecimentoService.getLatestOdometerByVehicle(record.vehicle);
+                if (latestOdometer !== null && record.odometer <= latestOdometer) {
+                    throw new Error(`BLOQUEIO: O Horímetro/Odômetro informado (${record.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) é menor ou igual ao último registro (${latestOdometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}). O cadastro não pode ser realizado.`);
+                }
             }
 
             const dbRecord = {
