@@ -18,11 +18,12 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 ALTER TABLE public.purchase_orders 
 ADD COLUMN IF NOT EXISTS search_index text 
 GENERATED ALWAYS AS (
-    normalize_search_text(protocol) || ' ' || 
-    normalize_search_text(title) || ' ' || 
-    normalize_search_text(user_name) || ' ' ||
+    normalize_search_text(COALESCE(protocol, '')) || ' ' || 
+    normalize_search_text(COALESCE(title, '')) || ' ' || 
+    normalize_search_text(COALESCE(user_name, '')) || ' ' ||
     normalize_search_text(COALESCE(document_snapshot->'content'->>'requesterName', '')) || ' ' ||
-    normalize_search_text(COALESCE(document_snapshot->'content'->>'requesterSector', ''))
+    normalize_search_text(COALESCE(document_snapshot->'content'->>'requesterSector', '')) || ' ' ||
+    normalize_search_text(COALESCE(document_snapshot->>'title', '')) -- Fallback title at top level
 ) STORED;
 
 -- 4. Create Trigram Index for High Performance Partial Matching (LIKE/ILIKE)
