@@ -457,18 +457,19 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
     );
 
     return (
-        <div className="fixed inset-0 bg-slate-50 flex flex-col animate-fade-in z-[100]">
+        <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden h-full animate-fade-in">
             {/* Header / Nav */}
-            <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-                <div className="w-full px-4 py-4">
+            <div className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+                <div className="w-full px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={onBack}
-                                className="p-3 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-2xl transition-all active:scale-95 group"
-                                title="Voltar para lista"
+                                className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-all font-bold uppercase tracking-widest group text-xs hover:bg-slate-50 p-2 rounded-xl -ml-2"
+                                title="Voltar"
                             >
-                                <ArrowLeft className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
+                                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                                <span className="hidden sm:inline">Voltar</span>
                             </button>
                             <div className="h-8 w-px bg-slate-100 mx-2"></div>
                             <div>

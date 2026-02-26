@@ -2093,9 +2093,10 @@ const App: React.FC = () => {
   };
 
   const handleBackToTracking = () => {
+    const block = viewingOrder?.blockType || activeBlock || 'compras';
     setViewingOrder(null);
     setCurrentView('tracking');
-    setActiveBlock('compras');
+    setActiveBlock(block);
   };
 
   const handleGoHome = () => {

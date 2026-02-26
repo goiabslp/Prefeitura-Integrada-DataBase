@@ -72,6 +72,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const getModuleTitle = () => {
     if (currentView === 'admin') return "Painel Administrativo";
+    if (currentView === 'order-details') return "Detalhes do Pedido";
     if (currentView === 'tracking') {
       if (activeBlock === 'licitacao') return "Histórico de Processos";
       if (activeBlock === 'oficio') return "Histórico de Ofícios";
