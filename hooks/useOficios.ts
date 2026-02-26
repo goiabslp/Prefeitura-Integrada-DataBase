@@ -7,8 +7,18 @@ import { supabase } from '../services/supabaseClient';
 export const oficioKeys = {
     all: ['oficios'] as const,
     lists: () => [...oficioKeys.all, 'list'] as const,
-    // You can add more specific keys if needed, e.g.,
-    // detail: (id: string) => [...oficioKeys.all, 'detail', id] as const,
+    details: () => [...oficioKeys.all, 'detail'] as const,
+    detail: (id: string) => [...oficioKeys.details(), id] as const,
+};
+
+// Update useOficio to use the key
+export const useOficio = (id: string | null) => {
+    return useQuery({
+        queryKey: oficioKeys.detail(id || ''),
+        queryFn: () => oficiosService.getOficioById(id!),
+        enabled: !!id,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
 };
 
 // Hook to fetch all oficios
@@ -55,16 +65,6 @@ export const useInfiniteOficios = (pageSize = 20, searchTerm = '') => {
         initialPageParam: 0,
         staleTime: 1000 * 60 * 10, // 10 minutes cache
         refetchOnWindowFocus: false,
-    });
-};
-
-// Hook to fetch single oficio
-export const useOficio = (id: string | null) => {
-    return useQuery({
-        queryKey: ['oficios', 'detail', id],
-        queryFn: () => oficiosService.getOficioById(id!),
-        enabled: !!id,
-        staleTime: 1000 * 60 * 5, // 5 minutes
     });
 };
 

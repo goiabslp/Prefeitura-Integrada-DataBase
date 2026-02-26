@@ -37,9 +37,9 @@ interface TrackingScreenProps {
     onDeleteOrder: (id: string) => void;
     onUpdateAttachments?: (orderId: string, attachments: Attachment[]) => void;
     totalCounter: number;
-    onUpdatePaymentStatus?: (orderId: string, status: 'pending' | 'paid') => void;
-    onUpdateOrderStatus?: (orderId: string, status: Order['status'], justification?: string) => Promise<void>;
-    onUpdatePurchaseStatus?: (orderId: string, status: string, justification?: string, budgetFileUrl?: string, completionForecast?: string) => Promise<void>;
+    onUpdatePaymentStatus?: (orderOrId: string | Order, status: 'pending' | 'paid') => void;
+    onUpdateOrderStatus?: (orderOrId: string | Order, status: Order['status'], justification?: string) => Promise<void>;
+    onUpdatePurchaseStatus?: (orderOrId: string | Order, status: string, justification?: string, budgetFileUrl?: string, completionForecast?: string) => Promise<void>;
     showAllProcesses?: boolean;
     onViewOrder?: (order: Order) => void;
 }
@@ -93,8 +93,13 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     } = useInfiniteOficios(20, searchTerm);
 
     const oficiosData = React.useMemo(() => {
-        return infiniteOficios?.pages.flat() || [];
-    }, [infiniteOficios]);
+        const remote = infiniteOficios?.pages.flat() || [];
+        if (!orders || orders.length === 0) return remote;
+        return remote.map(order => {
+            const local = orders.find(o => o.id === order.id);
+            return local ? { ...order, ...local } : order;
+        });
+    }, [infiniteOficios, orders]);
 
     // COMPRAS
     const {
@@ -111,7 +116,15 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
         (purchaseStatusFilter !== 'all' && purchaseStatusFilter !== 'pending_approval' && purchaseStatusFilter !== 'rejected') ? purchaseStatusFilter : undefined
     );
 
-    const { data: allPurchaseOrders } = usePurchaseOrders();
+    const { data: remoteAllPurchaseOrders } = usePurchaseOrders();
+    const allPurchaseOrders = React.useMemo(() => {
+        if (!remoteAllPurchaseOrders) return [];
+        if (!orders || orders.length === 0) return remoteAllPurchaseOrders;
+        return remoteAllPurchaseOrders.map(order => {
+            const local = orders.find(o => o.id === order.id);
+            return local ? { ...order, ...local } : order;
+        });
+    }, [remoteAllPurchaseOrders, orders]);
 
     const purchaseStatusCounts = React.useMemo(() => {
         const counts: Record<string, number> = { all: 0 };
@@ -134,8 +147,13 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     }, [allPurchaseOrders]);
 
     const purchaseOrdersData = React.useMemo(() => {
-        return infinitePurchaseOrders?.pages.flat() || [];
-    }, [infinitePurchaseOrders]);
+        const remote = infinitePurchaseOrders?.pages.flat() || [];
+        if (!orders || orders.length === 0) return remote;
+        return remote.map(order => {
+            const local = orders.find(o => o.id === order.id);
+            return local ? { ...order, ...local } : order;
+        });
+    }, [infinitePurchaseOrders, orders]);
 
     // LICITACAO
     const {
@@ -148,8 +166,13 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     } = useInfiniteLicitacao(20, searchTerm);
 
     const licitacaoData = React.useMemo(() => {
-        return infiniteLicitacao?.pages.flat() || [];
-    }, [infiniteLicitacao]);
+        const remote = infiniteLicitacao?.pages.flat() || [];
+        if (!orders || orders.length === 0) return remote;
+        return remote.map(order => {
+            const local = orders.find(o => o.id === order.id);
+            return local ? { ...order, ...local } : order;
+        });
+    }, [infiniteLicitacao, orders]);
 
     // DIARIAS
     const {
@@ -162,8 +185,13 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     } = useInfiniteServiceRequests(20, searchTerm);
 
     const serviceRequestsData = React.useMemo(() => {
-        return infiniteServiceRequests?.pages.flatMap(page => page) || [];
-    }, [infiniteServiceRequests]);
+        const remote = infiniteServiceRequests?.pages.flatMap(page => page) || [];
+        if (!orders || orders.length === 0) return remote;
+        return remote.map(order => {
+            const local = orders.find(o => o.id === order.id);
+            return local ? { ...order, ...local } : order;
+        });
+    }, [infiniteServiceRequests, orders]);
 
     const isInfiniteLoading = isOficiosLoading || isLoadingPurchaseOrders || isLoadingLicitacao || isLoadingServiceRequests;
 
@@ -767,7 +795,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                             <div className="flex items-center gap-2 flex-nowrap">
                                                                 {order.status === 'pending' ? (
                                                                     <button
-                                                                        onClick={() => onUpdateOrderStatus?.(order.id, 'awaiting_approval')}
+                                                                        onClick={() => onUpdateOrderStatus?.(order, 'awaiting_approval')}
                                                                         className={`inline-flex px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide border shadow-sm whitespace-nowrap transition-all hover:scale-105 active:scale-95 cursor-pointer ${sConf.class}`}
                                                                         title="Clique para enviar para aprovação"
                                                                     >
@@ -977,7 +1005,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                         {isAdmin ? (
                                                             <div className="flex flex-col gap-1">
                                                                 <button
-                                                                    onClick={() => onUpdatePaymentStatus?.(order.id, isPaid ? 'pending' : 'paid')}
+                                                                    onClick={() => onUpdatePaymentStatus?.(order, isPaid ? 'pending' : 'paid')}
                                                                     className={`relative group flex items-center justify-between w-full max-w-[120px] px-3 py-2 rounded-xl border transition-all duration-300 active:scale-95 ${isPaid
                                                                         ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm shadow-emerald-500/10'
                                                                         : 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm shadow-emerald-500/10'
@@ -1408,7 +1436,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                             setForecastDate(statusSelectionOrder.completionForecast || '');
                                                             return;
                                                         }
-                                                        onUpdatePurchaseStatus?.(statusSelectionOrder.id, key, `Alteração via Histórico por ${currentUser.name}`);
+                                                        onUpdatePurchaseStatus?.(statusSelectionOrder, key, `Alteração via Histórico por ${currentUser.name}`);
                                                         setStatusSelectionOrder(null);
                                                     }}
                                                     disabled={isDisabled}
@@ -1466,7 +1494,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                     disabled={!forecastDate}
                                                     onClick={() => {
                                                         onUpdatePurchaseStatus?.(
-                                                            statusSelectionOrder.id,
+                                                            statusSelectionOrder,
                                                             'realizado',
                                                             `Pedido realizado com previsão para ${new Date(forecastDate).toLocaleDateString('pt-BR')}`,
                                                             undefined,
@@ -1528,7 +1556,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                 <div className="grid grid-cols-2 gap-4">
                                     <button
                                         onClick={() => {
-                                            onUpdateOrderStatus?.(adminApprovalOrder.id, 'approved', 'Aprovação Administrativa via Histórico');
+                                            onUpdateOrderStatus?.(adminApprovalOrder, 'approved', 'Aprovação Administrativa via Histórico');
                                             setAdminApprovalOrder(null);
                                         }}
                                         className="flex flex-col items-center justify-center gap-3 p-6 bg-emerald-50 border border-emerald-100 rounded-3xl hover:bg-emerald-600 group transition-all"
@@ -1604,7 +1632,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                 <button
                                     disabled={!rejectionReason.trim()}
                                     onClick={() => {
-                                        onUpdateOrderStatus?.(adminRejectionOrder.id, 'rejected', rejectionReason);
+                                        onUpdateOrderStatus?.(adminRejectionOrder, 'rejected', rejectionReason);
                                         setAdminRejectionOrder(null);
                                     }}
                                     className="w-full py-4 bg-rose-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-rose-600/20 hover:bg-rose-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"

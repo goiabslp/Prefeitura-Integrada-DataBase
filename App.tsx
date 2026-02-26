@@ -1246,6 +1246,18 @@ const App: React.FC = () => {
   // Helper for Realtime Sync & Fallback Refetching
   const syncOrders = useCallback(async (targetBlock: string) => {
     try {
+      // Invalidate React Query Cache for specialized lists to ensure hooks are in sync
+      const keys: Record<string, any> = {
+        compras: purchaseOrderKeys.all,
+        oficio: oficioKeys.all,
+        diarias: serviceRequestKeys.all,
+        licitacao: licitacaoKeys.all
+      };
+
+      if (keys[targetBlock]) {
+        queryClient.invalidateQueries({ queryKey: keys[targetBlock] });
+      }
+
       let updatedList: Order[] = [];
       if (targetBlock === 'compras') {
         updatedList = await comprasService.getAllPurchaseOrders();
@@ -1599,11 +1611,20 @@ const App: React.FC = () => {
     setIsReopeningStage(false); // Reset reopening state
   };
 
-  const handleUpdateOrderStatus = async (orderId: string, status: Order['status'], justification?: string) => {
+  const handleUpdateOrderStatus = async (orderOrId: string | Order, status: Order['status'], justification?: string) => {
     if (!currentUser) return;
 
-    const orderToUpdate = orders.find(o => o.id === orderId);
-    if (!orderToUpdate) return;
+    let orderToUpdate: Order | undefined;
+    if (typeof orderOrId === 'string') {
+      orderToUpdate = orders.find(o => o.id === orderOrId);
+    } else {
+      orderToUpdate = orderOrId;
+    }
+
+    if (!orderToUpdate) {
+      console.warn("Order not found for update:", orderOrId);
+      return;
+    }
 
     // STRICT BLOCK: Rejected Purchase Orders are definitively locked
     if (orderToUpdate.blockType === 'compras' && orderToUpdate.status === 'rejected') {
@@ -1628,7 +1649,7 @@ const App: React.FC = () => {
 
     // 2. Prepare new data
     const newMovement: StatusMovement = {
-      statusLabel: status === 'approved' ? 'Aprovação Administrativa' : 'Rejeição',
+      statusLabel: status === 'approved' ? 'Aprovação Administrativa' : (status === 'rejected' ? 'Rejeição' : `Status alterado para ${status}`),
       date: new Date().toISOString(),
       userName: currentUser.name,
       justification
@@ -1641,10 +1662,11 @@ const App: React.FC = () => {
     };
 
     // 3. Optimistic Update (Immediate UI Refresh)
-    const updateList = (list: Order[]) => list.map(o => o.id === updatedOrder.id ? updatedOrder : o);
-
-    // If it's a purchase action, show the rich modal
-    const isPurchaseAction = updatedOrder.blockType === 'compras';
+    const updateList = (list: Order[]) => {
+      const exists = list.some(o => o.id === updatedOrder.id);
+      if (!exists) return [updatedOrder, ...list];
+      return list.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+    };
 
     // TRIGGER IMMEDIATE UI UPDATE
     setOrders(updateList);
@@ -1653,16 +1675,44 @@ const App: React.FC = () => {
     else if (updatedOrder.blockType === 'licitacao') setLicitacaoProcesses(updateList);
     else setOficios(updateList);
 
+    // Sync React Query Infinite Cache for Immediate UI Consistency
+    const blockKey = updatedOrder.blockType === 'compras' ? purchaseOrderKeys.lists() :
+      updatedOrder.blockType === 'diarias' ? serviceRequestKeys.lists() :
+        updatedOrder.blockType === 'licitacao' ? licitacaoKeys.lists() : oficioKeys.lists();
+
+    const detailKey = updatedOrder.blockType === 'compras' ? purchaseOrderKeys.detail(updatedOrder.id) :
+      updatedOrder.blockType === 'diarias' ? serviceRequestKeys.detail(updatedOrder.id) :
+        updatedOrder.blockType === 'licitacao' ? licitacaoKeys.detail(updatedOrder.id) : oficioKeys.detail(updatedOrder.id);
+
+    // 1. Update Infinite Queries (Fuzzy match)
+    queryClient.setQueriesData({ queryKey: [...blockKey, 'infinite'] }, (oldData: any) => {
+      if (!oldData) return oldData;
+      return {
+        ...oldData,
+        pages: oldData.pages.map((page: any) =>
+          page.map((order: any) => order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order)
+        )
+      };
+    });
+
+    // 2. Update Base List Queries (Exact/Fuzzy match)
+    queryClient.setQueriesData({ queryKey: blockKey }, (oldData: any) => {
+      if (!oldData || !Array.isArray(oldData)) return oldData;
+      return oldData.map((order: any) => order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order);
+    });
+
+    // 3. Update Detail Query
+    queryClient.setQueriesData({ queryKey: detailKey }, (oldData: any) => {
+      if (!oldData) return oldData;
+      return { ...oldData, ...updatedOrder };
+    });
+
+    const isPurchaseAction = updatedOrder.blockType === 'compras';
     if (isPurchaseAction) {
       setActionProcessing({ isOpen: true, stage: 'sending' });
-      await advanceActionStep('sending', 400); // Reduced delay
-      await advanceActionStep('validating', 600); // Reduced delay
     }
 
     try {
-      if (isPurchaseAction) {
-        await advanceActionStep('confirming', 400); // Reduced delay
-      }
       // 4. API Sync
       if (updatedOrder.blockType === 'compras') {
         await comprasService.updateOrderStatus(updatedOrder.id, updatedOrder.status, newMovement);
@@ -1673,22 +1723,22 @@ const App: React.FC = () => {
       } else {
         await oficiosService.saveOficio(updatedOrder);
       }
-      showToast(status === 'approved' ? "Pedido Aprovado" : "Pedido Rejeitado", "success");
+      showToast(status === 'approved' ? "Pedido Aprovado" : (status === 'rejected' ? "Pedido Rejeitado" : "Status Atualizado"), "success");
+
+      // Background sync to ensure consistency
       syncOrders(updatedOrder.blockType);
 
-      if (isPurchaseAction) {
-        await advanceActionStep('success', 800); // reduced delay
-        setActionProcessing(prev => ({ ...prev, isOpen: false }));
-      }
     } catch (error: any) {
       // 5. Rollback
-      console.error("Failed to update status:", error);
       console.error("Failed to update status:", error);
       setOrders(prevOrders);
       if (updatedOrder.blockType === 'compras') { /* Derived */ }
       else if (updatedOrder.blockType === 'diarias') setServiceRequests(prevSpecificList);
       else if (updatedOrder.blockType === 'licitacao') setLicitacaoProcesses(prevSpecificList);
       else setOficios(prevSpecificList);
+
+      // Rollback React Query Cache
+      queryClient.invalidateQueries({ queryKey: blockKey });
 
       showToast("Erro ao atualizar status. As alterações foram desfeitas.", "error");
     } finally {
@@ -1698,11 +1748,20 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdatePurchaseStatus = async (orderId: string, purchaseStatus: any, justification?: string, budgetFileUrl?: string, completionForecast?: string) => {
+  const handleUpdatePurchaseStatus = async (orderOrId: string | Order, purchaseStatus: any, justification?: string, budgetFileUrl?: string, completionForecast?: string) => {
     if (!currentUser) return;
 
-    const orderToUpdate = orders.find(o => o.id === orderId);
-    if (!orderToUpdate) return;
+    let orderToUpdate: Order | undefined;
+    if (typeof orderOrId === 'string') {
+      orderToUpdate = orders.find(o => o.id === orderOrId);
+    } else {
+      orderToUpdate = orderOrId;
+    }
+
+    if (!orderToUpdate) {
+      console.warn("Order not found for purchase status update:", orderOrId);
+      return;
+    }
 
     if (orderToUpdate.blockType === 'compras' && orderToUpdate.status === 'rejected') {
       showToast('Ação Bloqueada: Pedido definitivamente rejeitado e bloqueado.', 'error');
@@ -1711,7 +1770,6 @@ const App: React.FC = () => {
 
     // 1. Snapshot
     const prevOrders = orders;
-    // const prevPurchaseOrders = purchaseOrders; // Derived
 
     // 2. Prepare new data
     const newMovement: StatusMovement = {
@@ -1730,31 +1788,48 @@ const App: React.FC = () => {
     } as Order;
 
     // 3. Optimistic Update (IMMEDIATE)
-    const updateList = (list: Order[]) => list.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+    const updateList = (list: Order[]) => {
+      const exists = list.some(o => o.id === updatedOrder.id);
+      if (!exists) return [updatedOrder, ...list];
+      return list.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+    };
 
     // Set UI state immediately
     setOrders(updateList);
 
-    // Start modal feedback
+    // Sync React Query Infinite Cache for Immediate UI Consistency
+    queryClient.setQueriesData({ queryKey: [...purchaseOrderKeys.lists(), 'infinite'] }, (oldData: any) => {
+      if (!oldData) return oldData;
+      return {
+        ...oldData,
+        pages: oldData.pages.map((page: any) =>
+          page.map((order: any) => order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order)
+        )
+      };
+    });
+
+    queryClient.setQueriesData({ queryKey: purchaseOrderKeys.lists() }, (oldData: any) => {
+      if (!oldData || !Array.isArray(oldData)) return oldData;
+      return oldData.map((order: any) => order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order);
+    });
+
+    queryClient.setQueriesData({ queryKey: purchaseOrderKeys.detail(updatedOrder.id) }, (oldData: any) => {
+      if (!oldData) return oldData;
+      return { ...oldData, ...updatedOrder };
+    });
+
+    // Start modal feedback (non-blocking for logic)
     setActionProcessing({ isOpen: true, stage: 'sending' });
 
     try {
-      // Background operation with visual feedback stages
-      await advanceActionStep('sending', 400);
-      await advanceActionStep('validating', 600);
-      await advanceActionStep('confirming', 400);
-
-      await comprasService.updatePurchaseStatus(orderId, purchaseStatus as string, newMovement, budgetFileUrl, completionForecast);
+      await comprasService.updatePurchaseStatus(updatedOrder.id, purchaseStatus as string, newMovement, budgetFileUrl, completionForecast);
       showToast("Status de compra atualizado!", "success");
-      syncOrders('compras');
 
-      await advanceActionStep('success', 800);
-      setActionProcessing(prev => ({ ...prev, isOpen: false }));
+      syncOrders('compras');
     } catch (error: any) {
-      // 5. Rollback
       console.error("Failed to update purchase status:", error);
       setOrders(prevOrders);
-      // setPurchaseOrders(prevPurchaseOrders); // Removed derived rollback
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
       showToast("Erro ao atualizar status de compra: " + (error.message || "Unknown"), "error");
     } finally {
       setActionProcessing(prev => ({ ...prev, isOpen: false }));
@@ -1822,8 +1897,13 @@ const App: React.FC = () => {
     });
   };
 
-  const handleUpdatePaymentStatus = async (orderId: string, status: 'pending' | 'paid') => {
-    const orderToUpdate = orders.find(o => o.id === orderId);
+  const handleUpdatePaymentStatus = async (orderOrId: string | Order, status: 'pending' | 'paid') => {
+    let orderToUpdate: Order | undefined;
+    if (typeof orderOrId === 'string') {
+      orderToUpdate = orders.find(o => o.id === orderOrId);
+    } else {
+      orderToUpdate = orderOrId;
+    }
     if (!orderToUpdate) return;
 
     // 1. Snapshot
@@ -1838,19 +1918,47 @@ const App: React.FC = () => {
     };
 
     // 3. Optimistic Update
-    const updateList = (list: Order[]) => list.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+    const updateList = (list: Order[]) => {
+      const exists = list.some(o => o.id === updatedOrder.id);
+      if (!exists) return [updatedOrder, ...list];
+      return list.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+    };
+
     setOrders(updateList);
     setServiceRequests(updateList);
+
+    // Sync React Query
+    queryClient.setQueriesData({ queryKey: [...serviceRequestKeys.lists(), 'infinite'] }, (oldData: any) => {
+      if (!oldData) return oldData;
+      return {
+        ...oldData,
+        pages: oldData.pages.map((page: any) =>
+          page.map((order: any) => order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order)
+        )
+      };
+    });
+
+    queryClient.setQueriesData({ queryKey: serviceRequestKeys.lists() }, (oldData: any) => {
+      if (!oldData || !Array.isArray(oldData)) return oldData;
+      return oldData.map((order: any) => order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order);
+    });
+
+    queryClient.setQueriesData({ queryKey: serviceRequestKeys.detail(updatedOrder.id) }, (oldData: any) => {
+      if (!oldData) return oldData;
+      return { ...oldData, ...updatedOrder };
+    });
 
     try {
       // 4. API Sync
       await diariasService.saveServiceRequest(updatedOrder);
       showToast("Pagamento atualizado!", "success");
+      syncOrders('diarias');
     } catch (e) {
       // 5. Rollback
       console.error("Failed to update payment status:", e);
       setOrders(prevOrders);
       setServiceRequests(prevServiceRequests);
+      queryClient.invalidateQueries({ queryKey: serviceRequestKeys.lists() });
       showToast("Erro ao atualizar pagamento. Revertendo...", "error");
     }
   };
