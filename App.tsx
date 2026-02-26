@@ -1697,7 +1697,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdatePurchaseStatus = async (orderId: string, purchaseStatus: Order['purchaseStatus'], justification?: string, budgetFileUrl?: string) => {
+  const handleUpdatePurchaseStatus = async (orderId: string, purchaseStatus: any, justification?: string, budgetFileUrl?: string, completionForecast?: string) => {
     if (!currentUser) return;
 
     const orderToUpdate = orders.find(o => o.id === orderId);
@@ -1722,10 +1722,11 @@ const App: React.FC = () => {
 
     const updatedOrder = {
       ...orderToUpdate,
-      purchaseStatus,
-      budgetFile: budgetFileUrl || orderToUpdate.budgetFileUrl, // Use correct field name budgetFileUrl or budgetFile? Check type. Order type usually has budgetFile? Previous code had budgetFileUrl || orderToUpdate.budgetFileUrl
+      purchaseStatus: purchaseStatus as Order['purchaseStatus'],
+      budgetFile: budgetFileUrl || orderToUpdate.budgetFileUrl,
+      completionForecast: completionForecast || orderToUpdate.completionForecast,
       statusHistory: [...(orderToUpdate.statusHistory || []), newMovement]
-    };
+    } as Order;
 
     // 3. Optimistic Update
     const updateList = (list: Order[]) => list.map(o => o.id === updatedOrder.id ? updatedOrder : o);
@@ -1739,7 +1740,7 @@ const App: React.FC = () => {
 
     try {
       await advanceActionStep('confirming', 1500);
-      await comprasService.updatePurchaseStatus(orderId, purchaseStatus as string, newMovement, budgetFileUrl);
+      await comprasService.updatePurchaseStatus(orderId, purchaseStatus as string, newMovement, budgetFileUrl, completionForecast);
       showToast("Status de compra atualizado!", "success");
       syncOrders('compras');
 

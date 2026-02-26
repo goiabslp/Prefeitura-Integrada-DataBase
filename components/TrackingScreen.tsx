@@ -37,7 +37,7 @@ interface TrackingScreenProps {
     totalCounter: number;
     onUpdatePaymentStatus?: (orderId: string, status: 'pending' | 'paid') => void;
     onUpdateOrderStatus?: (orderId: string, status: Order['status'], justification?: string) => Promise<void>;
-    onUpdatePurchaseStatus?: (orderId: string, status: Order['purchaseStatus'], justification?: string, budgetFileUrl?: string) => Promise<void>;
+    onUpdatePurchaseStatus?: (orderId: string, status: string, justification?: string, budgetFileUrl?: string, completionForecast?: string) => Promise<void>;
     showAllProcesses?: boolean;
     onViewOrder?: (order: Order) => void;
 }
@@ -147,6 +147,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     const [adminRejectionOrder, setAdminRejectionOrder] = useState<Order | null>(null);
     const [rejectionReason, setRejectionReason] = useState('');
     const [statusSelectionOrder, setStatusSelectionOrder] = useState<Order | null>(null);
+    const [forecastDate, setForecastDate] = useState('');
+    const [pendingStatus, setPendingStatus] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
 
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, title: string, message: string, onConfirm: () => void, type: 'danger' | 'warning' }>({
@@ -1266,47 +1268,112 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                 </div>
                                 <button onClick={() => setStatusSelectionOrder(null)} className="p-3 hover:bg-white hover:shadow-sm rounded-2xl text-slate-400 hover:text-slate-900 transition-all active:scale-90"><X className="w-6 h-6" /></button>
                             </div>
-                            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {(Object.keys(purchaseStatusMap) as Array<keyof typeof purchaseStatusMap>).map((key) => {
-                                    const cfg = purchaseStatusMap[key];
-                                    const isActive = statusSelectionOrder.purchaseStatus === key;
-                                    const isDisabled = key === 'aprovacao_orcamento' && !isAdmin;
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+                                {!pendingStatus ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {(Object.keys(purchaseStatusMap) as Array<keyof typeof purchaseStatusMap>).map((key) => {
+                                            const cfg = purchaseStatusMap[key];
+                                            const isActive = statusSelectionOrder.purchaseStatus === key;
+                                            const isDisabled = key === 'aprovacao_orcamento' && !isAdmin;
 
-                                    return (
-                                        <button
-                                            key={key}
-                                            onClick={() => {
-                                                if (isDisabled) return;
-                                                onUpdatePurchaseStatus?.(statusSelectionOrder.id, key, `Alteração via Histórico por ${currentUser.name}`);
-                                                setStatusSelectionOrder(null);
-                                            }}
-                                            disabled={isDisabled}
-                                            className={`p-6 rounded-[1.5rem] border-2 text-left transition-all relative group overflow-hidden ${isActive ? 'bg-indigo-50 border-indigo-600 text-indigo-900' :
-                                                isDisabled ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-50' :
-                                                    'bg-white border-slate-100 text-slate-600 hover:border-indigo-300 hover:bg-slate-50 active:scale-[0.98]'
-                                                }`}
-                                        >
-                                            <div className="flex items-start gap-4 h-full relative z-10">
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' :
-                                                    isDisabled ? 'bg-slate-100 text-slate-300' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600'}`}>
-                                                    <cfg.icon className="w-6 h-6" />
-                                                </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-black uppercase tracking-widest text-[11px] leading-none mb-1">{cfg.label}</span>
-                                                        {isActive && <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />}
-                                                        {isDisabled && <Lock className="w-3.5 h-3.5 text-slate-300" />}
+                                            return (
+                                                <button
+                                                    key={key}
+                                                    onClick={() => {
+                                                        if (isDisabled) return;
+                                                        if (key === 'realizado') {
+                                                            setPendingStatus('realizado');
+                                                            setForecastDate(statusSelectionOrder.completionForecast || '');
+                                                            return;
+                                                        }
+                                                        onUpdatePurchaseStatus?.(statusSelectionOrder.id, key, `Alteração via Histórico por ${currentUser.name}`);
+                                                        setStatusSelectionOrder(null);
+                                                    }}
+                                                    disabled={isDisabled}
+                                                    className={`p-6 rounded-[1.5rem] border-2 text-left transition-all relative group overflow-hidden ${isActive ? 'bg-indigo-50 border-indigo-600 text-indigo-900' :
+                                                        isDisabled ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-50' :
+                                                            'bg-white border-slate-100 text-slate-600 hover:border-indigo-300 hover:bg-slate-50 active:scale-[0.98]'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-start gap-4 h-full relative z-10">
+                                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' :
+                                                            isDisabled ? 'bg-slate-100 text-slate-300' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600'}`}>
+                                                            <cfg.icon className="w-6 h-6" />
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-black uppercase tracking-widest text-[11px] leading-none mb-1">{cfg.label}</span>
+                                                                {isActive && <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />}
+                                                                {isDisabled && <Lock className="w-3.5 h-3.5 text-slate-300" />}
+                                                            </div>
+                                                            <p className="text-xs font-medium leading-relaxed opacity-70">
+                                                                {isDisabled ? 'Requer autorização administrativa para prosseguir.' : (key === statusSelectionOrder.purchaseStatus ? 'Status atual deste processo de compra.' : 'Clique para atualizar o processo para esta etapa.')}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <p className="text-xs font-medium leading-relaxed opacity-70">
-                                                        {isDisabled ? 'Requer autorização administrativa para prosseguir.' : (key === statusSelectionOrder.purchaseStatus ? 'Status atual deste processo de compra.' : 'Clique para atualizar o processo para esta etapa.')}
-                                                    </p>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="max-w-md mx-auto py-8">
+                                        <div className="text-center mb-8">
+                                            <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-[2rem] flex items-center justify-center mx-auto mb-4 border-2 border-emerald-100 shadow-xl shadow-emerald-500/10">
+                                                <CalendarCheck className="w-10 h-10" />
+                                            </div>
+                                            <h4 className="text-2xl font-black text-slate-900 uppercase">Previsão de Entrega</h4>
+                                            <p className="text-slate-500 font-medium mt-2">Informe a data prevista para a conclusão/entrega deste pedido para prosseguir.</p>
+                                        </div>
+
+                                        <div className="space-y-6">
+                                            <div className="relative group">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-2">Data da Previsão (Obrigatório)</label>
+                                                <div className="relative">
+                                                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
+                                                    <input
+                                                        type="date"
+                                                        value={forecastDate}
+                                                        onChange={(e) => setForecastDate(e.target.value)}
+                                                        className="w-full pl-12 pr-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:bg-white focus:border-emerald-500 transition-all font-bold text-slate-700"
+                                                    />
                                                 </div>
                                             </div>
-                                        </button>
-                                    );
-                                })}
+
+                                            <div className="flex flex-col gap-3 pt-4">
+                                                <button
+                                                    disabled={!forecastDate}
+                                                    onClick={() => {
+                                                        onUpdatePurchaseStatus?.(
+                                                            statusSelectionOrder.id,
+                                                            'realizado',
+                                                            `Pedido realizado com previsão para ${new Date(forecastDate).toLocaleDateString('pt-BR')}`,
+                                                            undefined,
+                                                            forecastDate
+                                                        );
+                                                        setStatusSelectionOrder(null);
+                                                        setPendingStatus(null);
+                                                        setForecastDate('');
+                                                    }}
+                                                    className="w-full py-5 bg-emerald-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                                                >
+                                                    <CheckCircle2 className="w-5 h-5" /> Confirmar Realização
+                                                </button>
+                                                <button
+                                                    onClick={() => setPendingStatus(null)}
+                                                    className="w-full py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-900 transition-colors"
+                                                >
+                                                    Voltar para a lista de status
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            <div className="p-6 bg-slate-50 border-t border-slate-100 text-center"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Movimentação registrada auditada automaticamente</p></div>
+                            <div className="p-6 bg-slate-50 border-t border-slate-100 text-center">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                                    {pendingStatus ? 'Informação obrigatória para conformidade do processo' : 'Movimentação registrada auditada automaticamente'}
+                                </p>
+                            </div>
                         </div>
                     </div>,
                     document.body
