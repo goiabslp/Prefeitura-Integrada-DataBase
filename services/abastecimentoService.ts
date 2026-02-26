@@ -333,6 +333,20 @@ export const AbastecimentoService = {
                 }
             }
 
+            if (isEdit) {
+                // Fetch existing record to preserve protected fields
+                const { data: existing, error: fetchError } = await supabase
+                    .from('abastecimentos')
+                    .select('station, invoice_number')
+                    .eq('id', record.id)
+                    .single();
+
+                if (!fetchError && existing) {
+                    record.station = existing.station;
+                    record.invoiceNumber = existing.invoice_number;
+                }
+            }
+
             const dbRecord = {
                 id: record.id,
                 protocol: record.protocol,

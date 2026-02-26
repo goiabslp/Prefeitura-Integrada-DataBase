@@ -21,6 +21,7 @@ interface CustomSelectProps {
     mobileThreshold?: number;
     disableMobileModal?: boolean;
     forceDirection?: 'up' | 'down';
+    disabled?: boolean;
 }
 
 // Sub-component for options to enable granular memoization
@@ -74,7 +75,8 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
     className,
     mobileThreshold = 700,
     disableMobileModal = false,
-    forceDirection
+    forceDirection,
+    disabled = false
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -285,17 +287,17 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
             {label && <label className={labelClass}>{label}</label>}
 
             <div
-                className="group relative"
-                onClick={() => setIsOpen(!isOpen)}
+                className={`group relative ${disabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+                onClick={() => !disabled && setIsOpen(!isOpen)}
             >
-                <div className={`${inputClass} ${isOpen ? 'border-cyan-500 ring-2 ring-cyan-500/20 bg-white' : ''}`}>
-                    <span className={`block truncate ${!selectedOption ? 'text-slate-400' : 'font-medium'}`}>
+                <div className={`${inputClass} ${isOpen ? 'border-cyan-500 ring-2 ring-cyan-500/20 bg-white' : ''} ${disabled ? 'bg-slate-100 hover:border-slate-200 pointer-events-none' : ''}`}>
+                    <span className={`block truncate ${!selectedOption ? 'text-slate-400' : 'font-medium'} ${disabled ? 'text-slate-500' : ''}`}>
                         {selectedOption ? selectedOption.label : placeholder}
                     </span>
 
                     <div className="flex items-center gap-2 text-slate-400">
-                        {Icon && <Icon className={`w-5 h-5 transition-colors ${isOpen || selectedOption ? 'text-cyan-500' : 'group-hover:text-cyan-500'}`} />}
-                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180 text-cyan-500' : ''}`} />
+                        {Icon && <Icon className={`w-5 h-5 transition-colors ${isOpen || selectedOption ? 'text-cyan-500' : 'group-hover:text-cyan-500'} ${disabled ? 'text-slate-300' : ''}`} />}
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180 text-cyan-500' : ''} ${disabled ? 'text-slate-200' : ''}`} />
                     </div>
                 </div>
 

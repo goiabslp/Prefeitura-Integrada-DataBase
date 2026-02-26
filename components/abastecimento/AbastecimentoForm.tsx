@@ -381,7 +381,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                     placeholder="000.000"
                                     value={invoiceNumber}
                                     onChange={(e) => setInvoiceNumber(e.target.value)}
-                                    className={inputClass}
+                                    disabled={!!initialData}
+                                    className={`${inputClass} ${initialData ? 'bg-slate-100 cursor-not-allowed opacity-70' : ''}`}
                                 />
                                 <FileText className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             </div>
@@ -484,6 +485,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                     icon={MapPin}
                                     required
                                     mobileThreshold={1201}
+                                    disabled={!!initialData}
                                 />
                                 {gasStations.length === 0 && (
                                     <p className="text-[10px] text-amber-600 mt-1 ml-1 flex items-center gap-1">
