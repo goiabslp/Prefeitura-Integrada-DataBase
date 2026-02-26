@@ -25,7 +25,11 @@ export const getAllPurchaseOrders = async (lightweight = true, page = 0, limit =
     }
 
     if (status) {
-        query = query.eq('status', status);
+        if (status === 'pending_approval') {
+            query = query.or('status.eq.pending,status.eq.awaiting_approval');
+        } else {
+            query = query.eq('status', status);
+        }
     }
 
     if (purchaseStatus) {

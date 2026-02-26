@@ -60,6 +60,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     onViewOrder
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [purchaseStatusFilter, setPurchaseStatusFilter] = useState('all');
 
     // OFICIOS
     const {
@@ -83,7 +84,34 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
         isFetchingNextPage: isFetchingNextPurchaseOrders,
         isLoading: isLoadingPurchaseOrders,
         isError: isPurchaseError
-    } = useInfinitePurchaseOrders(20, searchTerm);
+    } = useInfinitePurchaseOrders(
+        20,
+        searchTerm,
+        purchaseStatusFilter === 'pending_approval' ? 'pending_approval' : (purchaseStatusFilter === 'rejected' ? 'rejected' : undefined),
+        (purchaseStatusFilter !== 'all' && purchaseStatusFilter !== 'pending_approval' && purchaseStatusFilter !== 'rejected') ? purchaseStatusFilter : undefined
+    );
+
+    const { data: allPurchaseOrders } = usePurchaseOrders();
+
+    const purchaseStatusCounts = React.useMemo(() => {
+        const counts: Record<string, number> = { all: 0 };
+        if (!allPurchaseOrders) return counts;
+
+        counts.all = allPurchaseOrders.length;
+        allPurchaseOrders.forEach(order => {
+            const status = order.status;
+            const pStatus = order.purchaseStatus || (status === 'approved' ? 'recebido' : null);
+
+            if (status === 'pending' || status === 'awaiting_approval') {
+                counts['pending_approval'] = (counts['pending_approval'] || 0) + 1;
+            } else if (status === 'rejected') {
+                counts['rejected'] = (counts['rejected'] || 0) + 1;
+            } else if (pStatus) {
+                counts[pStatus] = (counts[pStatus] || 0) + 1;
+            }
+        });
+        return counts;
+    }, [allPurchaseOrders]);
 
     const purchaseOrdersData = React.useMemo(() => {
         return infinitePurchaseOrders?.pages.flat() || [];
@@ -479,6 +507,41 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                 )}
                             </div>
                         </div>
+
+                        {isCompras && (
+                            <div className="mt-4 flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 px-2 scroll-smooth animate-fade-in">
+                                {[
+                                    { id: 'all', label: 'Todos' },
+                                    { id: 'pending_approval', label: 'Em Aprovação', color: 'amber' },
+                                    { id: 'recebido', label: 'Pedido Recebido', color: 'indigo' },
+                                    { id: 'coletando_orcamento', label: 'Orçamento', color: 'amber' },
+                                    { id: 'aprovacao_orcamento', label: 'Aprovação Orç.', color: 'purple' },
+                                    { id: 'coletando_dotacao', label: 'Dotação', color: 'blue' },
+                                    { id: 'realizado', label: 'Pedido Realizado', color: 'emerald' },
+                                    { id: 'concluido', label: 'Concluído', color: 'slate' },
+                                    { id: 'rejected', label: 'Rejeitado', color: 'rose' },
+                                    { id: 'cancelado', label: 'Cancelado', color: 'rose' },
+                                ].map(filter => {
+                                    const count = purchaseStatusCounts[filter.id] || 0;
+                                    const isActive = purchaseStatusFilter === filter.id;
+                                    return (
+                                        <button
+                                            key={filter.id}
+                                            onClick={() => setPurchaseStatusFilter(filter.id)}
+                                            className={`flex items-center gap-2 px-4 py-2 bg-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 active:scale-95 border-2 ${isActive
+                                                ? `bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20`
+                                                : 'border-slate-100 text-slate-400 hover:border-indigo-100 hover:text-indigo-600'
+                                                }`}
+                                        >
+                                            {filter.label}
+                                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-black ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                {count}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex-1 overflow-auto custom-scrollbar">
