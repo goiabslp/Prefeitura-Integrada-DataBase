@@ -170,6 +170,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             if (foundType) setFuelType(foundType.key);
 
             setStation(initialData.station || '');
+            setInvoiceNumber(initialData.invoiceNumber || '');
             const initialCost = initialData.cost;
             setCost(initialCost);
             setFormattedCost(`R$ ${initialCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
