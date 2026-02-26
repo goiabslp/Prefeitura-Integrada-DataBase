@@ -54,7 +54,6 @@ import { VehicleSchedulingScreen } from './components/VehicleSchedulingScreen';
 import { UIPreviewScreen } from './components/UIPreviewScreen';
 import { AppHeader } from './components/AppHeader';
 import { FinalizedActionBar } from './components/FinalizedActionBar';
-import { PurchaseManagementScreen } from './components/PurchaseManagementScreen';
 import { AdminDashboard } from './components/AdminDashboard';
 import { TwoFactorAuthScreen } from './components/TwoFactorAuthScreen';
 import { TwoFactorModal } from './components/TwoFactorModal';
@@ -118,7 +117,6 @@ const VIEW_TO_PATH: Record<string, string> = {
   'editor:oficio': '/Editor/Oficio',
   'editor:compras': '/Editor/Compras',
   'editor:diarias': '/Editor/Diarias',
-  'purchase-management': '/GestaoCompras',
   'purchase-inventory': '/Compras/Itens',
   'vehicle-scheduling': '/AgendamentoVeiculos',
   'vehicle-scheduling:agendamento': '/AgendamentoVeiculos',
@@ -151,7 +149,7 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 );
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'purchase-management' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details' | 'tasks-dashboard' | 'purchase-inventory' | 'calendario' | 'rh' | 'projetos'>('login');
+  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details' | 'tasks-dashboard' | 'purchase-inventory' | 'calendario' | 'rh' | 'projetos'>('login');
   const queryClient = useQueryClient();
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
   const { moduleStatus } = useSystemSettings();
@@ -2421,11 +2419,6 @@ const App: React.FC = () => {
     setCurrentView('licitacao-all');
   };
 
-  const handleManagePurchaseOrders = () => {
-    setOrders(purchaseOrders);
-    setCurrentView('purchase-management');
-  };
-
   // Helper for self-updates or other minor updates
   const handleUpdateUserInApp = async (u: User) => {
     // PREVENT DB ERROR: Do not try to update mock users (non-UUID ids) in Supabase
@@ -3322,10 +3315,6 @@ const App: React.FC = () => {
                   if (activeBlock) setCurrentView('tracking');
                   else setCurrentView('tracking');
                 }}
-                onManagePurchaseOrders={() => {
-                  setActiveBlock('compras');
-                  setCurrentView('purchase-management');
-                }}
                 onViewAllLicitacao={() => setCurrentView('licitacao-all')}
                 onManageLicitacaoScreening={() => setCurrentView('licitacao-screening')}
                 onVehicleScheduling={() => setCurrentView('vehicle-scheduling')}
@@ -3742,36 +3731,6 @@ const App: React.FC = () => {
                 order={viewingOrder}
                 onBack={handleBackToTracking}
                 onDownloadPdf={(snapshot, blockType) => handleDownloadFromHistory({ ...viewingOrder, documentSnapshot: snapshot }, blockType)}
-              />
-            )}
-
-            {currentView === 'purchase-management' && currentUser && (
-              <PurchaseManagementScreen
-                onBack={handleBackToModule}
-                currentUser={currentUser}
-                orders={purchaseOrders}
-                sectors={sectors}
-                onDownloadPdf={(snapshot, forcedBlockType, order) => {
-                  const target = (order ? (orders.find(o => o.id === order.id) || order) : orders.find(o => o.documentSnapshot === snapshot));
-                  if (target) handleDownloadFromHistory(target, forcedBlockType, snapshot);
-                }}
-                onUpdateStatus={handleUpdateOrderStatus}
-                onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
-                onUpdateCompletionForecast={handleUpdateCompletionForecast}
-                onUpdateAttachments={handleUpdateOrderAttachments}
-                onDeleteOrder={handleDeleteOrder}
-                onFetchOrderDetails={async (order) => {
-                  try {
-                    const fetched = await comprasService.getPurchaseOrderById(order.id);
-                    if (fetched) {
-                      setOrders(prev => prev.map(o => o.id === fetched.id ? fetched : o));
-                      return fetched;
-                    }
-                  } catch (err) {
-                    console.error("Local preview fetch err:", err);
-                  }
-                  return null;
-                }}
               />
             )}
 

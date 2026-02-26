@@ -10,7 +10,6 @@ import { Order, User } from '../types';
 interface HomeScreenProps {
     onNewOrder: (block?: BlockType) => void;
     onTrackOrder: () => void;
-    onManagePurchaseOrders?: () => void;
     onManageLicitacaoScreening?: () => void;
     onViewAllLicitacao?: () => void;
     onVehicleScheduling?: () => void;
@@ -47,7 +46,6 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({
     onNewOrder,
     onTrackOrder,
-    onManagePurchaseOrders,
     onVehicleScheduling,
     onCalendario,
     onOpenAdmin,
@@ -83,7 +81,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     const canAccessCompras = permissions.includes('parent_compras') && isModuleActive('parent_compras');
     const canAccessLicitacao = permissions.includes('parent_licitacao') && isModuleActive('parent_licitacao');
     const canAccessDiarias = permissions.includes('parent_diarias') && isModuleActive('parent_diarias');
-    const canManagePurchaseOrders = permissions.includes('parent_compras_pedidos'); // Sub-feature, dependent on Compras usually
     const canAccessScheduling = permissions.includes('parent_agendamento_veiculo') && isModuleActive('parent_agendamento_veiculo');
     const canAccessFleet = permissions.includes('parent_frotas') && isModuleActive('parent_frotas');
     const canAccessLicitacaoTriagem = permissions.includes('parent_licitacao_triagem');
@@ -213,10 +210,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         const config = getBlockConfig();
 
-        // Count for Compras
-        const pendingComprasCount = (activeBlock === 'compras' && canManagePurchaseOrders)
-            ? (orders?.filter(o => o.blockType === 'compras' && (o.status === 'pending' || o.purchaseStatus === 'aprovacao_orcamento')).length || 0)
-            : 0;
+        const pendingComprasCount = 0;
 
         // Define Action Buttons for Active Block
         const actionButtons: Array<any> = [];
@@ -262,8 +256,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         }
 
         // Specific Extra Buttons
-        if (activeBlock === 'compras' && canManagePurchaseOrders) {
-            actionButtons.push({ label: 'Pedidos', desc: 'Gestão Administrativa', icon: Inbox, onClick: onManagePurchaseOrders, color: 'emerald', badge: pendingComprasCount });
+        if (activeBlock === 'compras') {
             actionButtons.push({ label: 'Itens', desc: 'Catálogo e Inventário', icon: Package, onClick: onManageInventory, color: 'amber' });
         }
         if (activeBlock === 'licitacao') {
@@ -377,7 +370,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             <div className="grid grid-cols-1 sm:grid-cols-2 desktop:grid-cols-3 xl:grid-cols-4 gap-5 desktop:gap-6">
                                 {/* Operational Modules */}
                                 {canAccessOficio && renderModuleButton(() => setActiveBlock('oficio'), 'indigo', FileText, 'Ofícios', 'Geração e trâmite', '50ms', true)}
-                                {canAccessCompras && renderModuleButton(() => setActiveBlock('compras'), 'emerald', ShoppingCart, 'Compras', 'Pedidos e requisições', '100ms', true, canManagePurchaseOrders ? (orders?.filter(o => o.blockType === 'compras' && (o.status === 'pending' || o.purchaseStatus === 'aprovacao_orcamento')).length || 0) : 0)}
+                                {canAccessCompras && renderModuleButton(() => setActiveBlock('compras'), 'emerald', ShoppingCart, 'Compras', 'Pedidos e requisições', '100ms', true, 0)}
                                 {canAccessDiarias && renderModuleButton(() => setActiveBlock('diarias'), 'amber', Wallet, 'Diárias', 'Gestão de despesas', '150ms', true)}
                                 {canAccessLicitacao && renderModuleButton(() => setActiveBlock('licitacao'), 'blue', Gavel, 'Licitação', 'Processos e editais', '200ms', true)}
 

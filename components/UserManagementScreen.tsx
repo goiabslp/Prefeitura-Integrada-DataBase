@@ -175,7 +175,7 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
     let updatedPermissions = [...(formData.permissions || [])];
 
     if (newRole !== 'admin' && newRole !== 'compras') {
-      updatedPermissions = updatedPermissions.filter(p => p !== 'parent_compras_pedidos');
+      // updatedPermissions filter logic removed as the permission is gone
     }
 
 
@@ -343,7 +343,6 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
     { id: 'parent_admin', label: 'Administrativo' },
     { id: 'parent_licitacao_triagem', label: 'Licitação: Triagem' },
     { id: 'parent_licitacao_processos', label: 'Licitação: Processos' },
-    { id: 'parent_compras_pedidos', label: 'Gestão de Pedidos (Compras)' },
     { id: 'parent_agricultura', label: 'Módulo: Agricultura' },
     { id: 'parent_obras', label: 'Módulo: Obras' },
     { id: 'parent_tarefas', label: 'Módulo: Tarefas' },

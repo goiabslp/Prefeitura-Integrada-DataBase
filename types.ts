@@ -172,7 +172,7 @@ export interface AppState {
 
 export type UserRole = 'admin' | 'collaborator' | 'licitacao' | 'compras';
 
-export type AppPermission = 'parent_criar_oficio' | 'parent_admin' | 'parent_compras' | 'parent_licitacao' | 'parent_diarias' | 'parent_compras_pedidos' | 'parent_frotas' | 'parent_agendamento_veiculo' | 'parent_licitacao_triagem' | 'parent_licitacao_processos' | 'parent_abastecimento' | 'parent_abastecimento_novo' | 'parent_abastecimento_gestao' | 'parent_abastecimento_dashboard' | 'parent_agricultura' | 'parent_obras' | 'parent_tarefas' | 'parent_calendario' | 'parent_rh' | 'parent_projetos';
+export type AppPermission = 'parent_criar_oficio' | 'parent_admin' | 'parent_compras' | 'parent_licitacao' | 'parent_diarias' | 'parent_frotas' | 'parent_agendamento_veiculo' | 'parent_licitacao_triagem' | 'parent_licitacao_processos' | 'parent_abastecimento' | 'parent_abastecimento_novo' | 'parent_abastecimento_gestao' | 'parent_abastecimento_dashboard' | 'parent_agricultura' | 'parent_obras' | 'parent_tarefas' | 'parent_calendario' | 'parent_rh' | 'parent_projetos';
 
 export type BlockType = 'oficio' | 'compras' | 'licitacao' | 'diarias' | 'agendamento' | 'abastecimento' | 'vs_calendar' | 'vs_history' | 'vs_approvals' | 'licitacao_screening' | 'agricultura' | 'obras' | 'tarefas' | 'calendario' | 'rh' | 'projetos';
 
