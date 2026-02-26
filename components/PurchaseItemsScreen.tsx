@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { InventoryItem, InventoryCategory } from '../types';
 import { getInventoryItems, addToInventory, updateInventoryItem, deleteInventoryItem, restoreItemToTendered } from '../services/comprasService';
+import { normalizeText } from '../utils/stringUtils';
 
 interface PurchaseItemsScreenProps {
     onBack: () => void;
@@ -110,9 +111,12 @@ export const PurchaseItemsScreen: React.FC<PurchaseItemsScreenProps> = ({ onBack
         setIsModalOpen(true);
     };
 
+    const normalizedSearch = normalizeText(searchTerm);
+
     const filteredItems = items.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (item.brand && item.brand.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchesSearch = !normalizedSearch ||
+            normalizeText(item.name).includes(normalizedSearch) ||
+            (item.brand && normalizeText(item.brand).includes(normalizedSearch));
         const matchesCategory = selectedCategory ? item.category === selectedCategory : true;
         return matchesSearch && matchesCategory;
     });

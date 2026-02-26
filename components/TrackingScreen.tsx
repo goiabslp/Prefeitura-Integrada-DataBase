@@ -580,7 +580,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                         </AnimatePresence>
                                     </div>
                                 )}
-                                {isAdmin && filteredOrders.length > 0 && (
+                                {isAdmin && filteredOrders.length > 0 && !isCompras && (
                                     <button
                                         onClick={() => setConfirmModal({
                                             isOpen: true,

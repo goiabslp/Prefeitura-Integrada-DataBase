@@ -21,7 +21,21 @@ export const getAllPurchaseOrders = async (lightweight = true, page = 0, limit =
         .order('created_at', { ascending: false });
 
     if (searchTerm) {
-        query = query.or(`protocol.ilike.%${searchTerm}%,title.ilike.%${searchTerm}%,user_name.ilike.%${searchTerm}%`);
+        // Normalizing search term for optimal matching (ignoring accents and special characters)
+        const normalizedTerm = searchTerm
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Remove accents
+            .replace(/[^a-z0-9\s]/g, '') // Remove special chars
+            .trim();
+
+        if (normalizedTerm) {
+            // First attempt to use the optimized search_index column (if applied via migration)
+            query = query.or(`search_index.ilike.%${normalizedTerm}%,protocol.ilike.%${searchTerm}%,title.ilike.%${searchTerm}%,user_name.ilike.%${searchTerm}%`);
+        } else {
+            // Fallback for searches containing only special characters
+            query = query.or(`protocol.ilike.%${searchTerm}%,title.ilike.%${searchTerm}%,user_name.ilike.%${searchTerm}%`);
+        }
     }
 
     if (status) {

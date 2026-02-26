@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { PurchaseAccount, User as UserType, Sector } from '../../types';
 import { purchaseAccountService } from '../../services/purchaseAccountService';
+import { normalizeText } from '../../utils/stringUtils';
 
 interface AccountManagementTabProps {
     currentUser: UserType;
@@ -83,9 +84,12 @@ export const AccountManagementTab: React.FC<AccountManagementTabProps> = ({ curr
         }
     };
 
+    const normalizedSearch = normalizeText(searchTerm);
+
     const filteredAccounts = accounts.filter(acc => {
-        const matchesSearch = acc.account_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            acc.description.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = !normalizedSearch ||
+            normalizeText(acc.account_number).includes(normalizedSearch) ||
+            normalizeText(acc.description).includes(normalizedSearch);
         const matchesSector = sectorFilter === 'all' || acc.sector === sectorFilter;
         const matchesStatus = statusFilter === 'all' || acc.status === statusFilter;
         return matchesSearch && matchesSector && matchesStatus;
