@@ -10,21 +10,29 @@ import {
 import { Order, AppState, BlockType, Attachment, InventoryCategory } from '../types';
 import { addToInventory, savePurchaseOrder } from '../services/comprasService';
 
+const HashIcon = ({ className }: { className?: string }) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="4" y1="9" x2="20" y2="9"></line>
+        <line x1="4" y1="15" x2="20" y2="15"></line>
+        <line x1="10" y1="3" x2="8" y2="21"></line>
+        <line x1="16" x2="14" y2="21"></line>
+    </svg>
+);
+
 interface OrderDetailsScreenProps {
     order: Order;
     onBack: () => void;
     onDownloadPdf: (snapshot: AppState, blockType?: BlockType) => void;
 }
 
-type TabType = 'details' | 'history' | 'attachments';
+type TabType = 'overview' | 'items' | 'justification' | 'history' | 'attachments';
 
 export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
     order,
     onBack,
     onDownloadPdf
 }) => {
-    const [activeTab, setActiveTab] = useState<TabType>('details');
-    const [showJustification, setShowJustification] = useState(false);
+    const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [targetItemIndex, setTargetItemIndex] = useState<number | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<InventoryCategory | ''>('');
@@ -194,67 +202,200 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                 </div>
             ) : (
                 <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                    <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mb-6 shadow-xl shadow-slate-200/50">
                         <Paperclip className="w-10 h-10 text-slate-300" />
                     </div>
-                    <p className="text-base font-bold text-slate-500">Nenhum anexo encontrado</p>
-                    <p className="text-xs text-slate-400">Este pedido não possui documentos anexados.</p>
+                    <p className="text-lg font-black text-slate-800 uppercase tracking-widest mb-1">Sem anexos vinculados</p>
+                    <p className="text-xs text-slate-400 font-medium">Nenhum arquivo digital foi anexado a este processo.</p>
                 </div>
             )}
         </div>
     );
 
-    // Helper for Justification Modal
-    const renderJustificationModal = () => (
-        showJustification && createPortal(
-            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
-                <div className="bg-white rounded-[2rem] w-full max-w-2xl p-8 shadow-2xl relative animate-scale-up border border-white/20">
-                    <button
-                        onClick={() => setShowJustification(false)}
-                        className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-800"
-                    >
-                        <XCircle className="w-6 h-6" />
-                    </button>
-
-                    <div className="flex flex-col h-full max-h-[80vh]">
-                        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
-                            <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm shadow-indigo-100/50">
-                                <FileText className="w-7 h-7" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Justificativa do Pedido</h3>
-                                <p className="text-sm font-bold text-slate-400">Detalhamento completo da solicitação ({order.protocol})</p>
-                            </div>
+    // Helper to render Overview Tab Content
+    const renderOverview = () => (
+        <div className="p-8 w-full animate-fade-in">
+            <div className="max-w-4xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Protocolo */}
+                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-2 group hover:border-indigo-200 transition-all">
+                        <div className="flex items-center gap-3 text-slate-400">
+                            <div className="p-2 bg-indigo-50 text-indigo-500 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors"><HashIcon className="w-5 h-5" /></div>
+                            <span className="text-xs uppercase font-black tracking-widest">Protocolo do Pedido</span>
                         </div>
+                        <div className="text-2xl font-black text-slate-900 tracking-tight font-mono ml-12">{order.protocol || '---'}</div>
+                    </div>
 
-                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-6">
-                            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-slate-700 text-base leading-loose font-medium whitespace-pre-wrap shadow-sm">
-                                {content?.body || 'Nenhuma justificativa fornecida.'}
-                            </div>
-
-                            {content?.priority && (content.priority === 'Alta' || content.priority === 'Urgência') && content.priorityJustification && (
-                                <div className="p-6 bg-rose-50 border border-rose-100 rounded-2xl">
-                                    <p className="text-xs font-black text-rose-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                        <AlertTriangle className="w-4 h-4" /> Prioridade: {content.priority}
-                                    </p>
-                                    <p className="text-sm font-bold text-rose-900 leading-relaxed">{content.priorityJustification}</p>
-                                </div>
-                            )}
+                    {/* Data */}
+                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-2 group hover:border-emerald-200 transition-all">
+                        <div className="flex items-center gap-3 text-slate-400">
+                            <div className="p-2 bg-emerald-50 text-emerald-500 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-colors"><Calendar className="w-5 h-5" /></div>
+                            <span className="text-xs uppercase font-black tracking-widest">Data de Criação</span>
                         </div>
-
-                        <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end">
-                            <button
-                                onClick={() => setShowJustification(false)}
-                                className="px-8 py-3 bg-slate-900 text-white font-bold uppercase tracking-widest text-xs rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 active:scale-95"
-                            >
-                                Fechar Leitura
-                            </button>
+                        <div className="text-2xl font-black text-slate-900 ml-12">
+                            {new Date(order.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
                         </div>
                     </div>
+
+                    {/* Previsão */}
+                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-2 group hover:border-amber-200 transition-all">
+                        <div className="flex items-center gap-3 text-slate-400">
+                            <div className="p-2 bg-amber-50 text-amber-500 rounded-xl group-hover:bg-amber-600 group-hover:text-white transition-colors"><Clock className="w-5 h-5" /></div>
+                            <span className="text-xs uppercase font-black tracking-widest">Previsão de Entrega</span>
+                        </div>
+                        <div className="text-2xl font-black text-slate-900 ml-12">
+                            {order.completionForecast ? new Date(order.completionForecast).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '---'}
+                        </div>
+                    </div>
+
+                    {/* Solicitante */}
+                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-2 group hover:border-indigo-200 transition-all">
+                        <div className="flex items-center gap-3 text-slate-400">
+                            <div className="p-2 bg-indigo-50 text-indigo-500 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors"><User className="w-5 h-5" /></div>
+                            <span className="text-xs uppercase font-black tracking-widest">Solicitante</span>
+                        </div>
+                        <div className="text-2xl font-black text-slate-900 ml-12">{content?.requesterName || '---'}</div>
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-12">{content?.requesterRole || 'Cargo não informado'}</div>
+                    </div>
+
+                    {/* Setor */}
+                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-2 group hover:border-indigo-200 transition-all md:col-span-2">
+                        <div className="flex items-center gap-3 text-slate-400">
+                            <div className="p-2 bg-indigo-50 text-indigo-500 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors"><Building2 className="w-5 h-5" /></div>
+                            <span className="text-xs uppercase font-black tracking-widest">Secretaria / Setor Responsável</span>
+                        </div>
+                        <div className="text-2xl font-black text-slate-900 ml-12">{content?.requesterSector || '---'}</div>
+                    </div>
                 </div>
-            </div>,
-            document.body
-        )
+
+                {/* Signatures (Small compact footer in overview) */}
+                <div className="mt-8 pt-8 border-t border-slate-100 flex items-center justify-between opacity-60">
+                    <div className="flex items-center gap-3">
+                        <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Validação Digital Ativa</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-slate-300">ID: {order.id.slice(-12).toUpperCase()}</span>
+                </div>
+            </div>
+        </div>
+    );
+
+    // Helper to render Items Tab Content
+    const renderItems = () => (
+        <div className="p-8 w-full animate-fade-in">
+            <div className="max-w-5xl mx-auto space-y-4">
+                <div className="flex items-center justify-between mb-4 px-4">
+                    <h3 className="font-black text-slate-800 uppercase tracking-wider text-xs flex items-center gap-2">
+                        <PackageCheck className="w-4 h-4 text-emerald-500" />
+                        Relatório Técnico de Itens solicitados
+                    </h3>
+                    <div className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-widest">
+                        Total: {content?.purchaseItems?.length || 0} Itens
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50/80 border-b border-slate-200">
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-16">#</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Item / Descrição</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Marca/Modelo</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Quantidade</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {content?.purchaseItems?.map((item, idx) => (
+                                    <tr key={idx} className={`group hover:bg-slate-50/50 transition-colors ${item.isTendered === false ? 'bg-rose-50/30' : ''}`}>
+                                        <td className="px-6 py-5">
+                                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-xs shadow-sm">
+                                                {idx + 1}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-slate-800 text-sm group-hover:text-indigo-600 transition-colors">{item.name}</span>
+                                                {item.details && <span className="text-xs text-slate-400 font-medium">{item.details}</span>}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <span className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-slate-600 uppercase tracking-tight">
+                                                {item.brand || 'Original'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-5 text-center">
+                                            <div className="inline-flex items-center px-3 py-1 bg-indigo-50 text-indigo-700 font-mono font-bold rounded-lg border border-indigo-100 text-xs">
+                                                {item.quantity} <span className="text-[10px] opacity-60 ml-1">{item.unit}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5 text-right">
+                                            {item.isTendered === false ? (
+                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-600 rounded-full border border-rose-100 text-[9px] font-black uppercase tracking-widest">
+                                                    Não Licitado
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleMarkAsUntendered(idx)}
+                                                    className="p-2 text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"
+                                                    title="Marcar como não licitado"
+                                                >
+                                                    <AlertTriangle className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    // Helper to render Justification Tab Content
+    const renderJustification = () => (
+        <div className="p-8 w-full animate-fade-in">
+            <div className="max-w-4xl mx-auto">
+                <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/40 p-12 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12 pointer-events-none">
+                        <MessageCircle className="w-64 h-64" />
+                    </div>
+
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-4 mb-10 border-b border-slate-100 pb-8">
+                            <div className="w-16 h-16 bg-slate-900 rounded-[1.5rem] flex items-center justify-center text-white shadow-xl shadow-slate-900/20">
+                                <FileText className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Justificativa Técnica</h3>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Finalidade e Motivação do Processo</p>
+                            </div>
+                        </div>
+
+                        <div className="prose prose-slate max-w-none">
+                            <div className="bg-slate-50/50 p-8 rounded-3xl border border-slate-100 text-slate-700 text-lg leading-relaxed font-medium whitespace-pre-wrap shadow-inner italic">
+                                "{content?.body || 'Nenhuma justificativa textual detalhada foi inserida para este pedido.'}"
+                            </div>
+                        </div>
+
+                        {content?.priorityJustification && (
+                            <div className="mt-10 p-8 bg-rose-50/70 border-2 border-dashed border-rose-200 rounded-3xl">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-10 h-10 bg-rose-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-rose-600/20">
+                                        <AlertTriangle className="w-6 h-6" />
+                                    </div>
+                                    <h4 className="text-lg font-black text-rose-900 uppercase tracking-tight">Motivação de Prioridade ({content.priority})</h4>
+                                </div>
+                                <p className="text-rose-800 font-bold leading-relaxed ml-2">{content.priorityJustification}</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 
     const renderCategoryModal = () => (
@@ -315,182 +456,6 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
         )
     );
 
-    // Native UI for Details Tab
-    const renderDetails = () => (
-        <div className="p-4 space-y-4 animate-fade-in w-full">
-            {/* ID & Status Cards */}
-            <div className="grid grid-cols-1 desktop:grid-cols-3 gap-4">
-                <div className="bg-white p-5 rounded-[20px] border border-slate-100 shadow-sm flex flex-col justify-between h-full bg-gradient-to-br from-white to-slate-50/50">
-                    <div className="flex items-center gap-3 text-slate-400 mb-2">
-                        <div className="p-2 bg-indigo-50 text-indigo-500 rounded-lg"><FileText className="w-4 h-4" /></div>
-                        <span className="text-[10px] uppercase font-black tracking-widest">Protocolo</span>
-                    </div>
-                    <div className="text-2xl font-black text-slate-800 tracking-tight font-mono">{content?.protocol || '---'}</div>
-                </div>
-
-                <div className="bg-white p-5 rounded-[20px] border border-slate-100 shadow-sm flex flex-col justify-between h-full bg-gradient-to-br from-white to-slate-50/50">
-                    <div className="flex items-center gap-3 text-slate-400 mb-2">
-                        <div className="p-2 bg-emerald-50 text-emerald-500 rounded-lg"><Calendar className="w-4 h-4" /></div>
-                        <span className="text-[10px] uppercase font-black tracking-widest">Data</span>
-                    </div>
-                    <div className="text-xl font-bold text-slate-700">
-                        {new Date(order.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                    </div>
-                </div>
-
-                <div className="bg-white p-5 rounded-[20px] border border-slate-100 shadow-sm flex flex-col justify-between h-full bg-gradient-to-br from-white to-slate-50/50">
-                    <div className="flex items-center gap-3 text-slate-400 mb-2">
-                        <div className="p-2 bg-amber-50 text-amber-500 rounded-lg"><Clock className="w-4 h-4" /></div>
-                        <span className="text-[10px] uppercase font-black tracking-widest">Previsão</span>
-                    </div>
-                    <div className="text-xl font-bold text-slate-700">
-                        {order.completionForecast ? new Date(order.completionForecast).toLocaleDateString('pt-BR') : 'Não informada'}
-                    </div>
-                </div>
-            </div>
-
-            {/* Main Content Info */}
-            <div className="grid grid-cols-1 desktop:grid-cols-3 gap-6 desktop:gap-8">
-                {/* Main Column: ITEMS (Visual Highlight) */}
-                <div className="desktop:col-span-2 space-y-6 desktop:space-y-8 order-2 desktop:order-1">
-                    {/* Items List */}
-                    <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm flex flex-col h-full min-h-[500px]">
-                        <div className="bg-slate-50/50 px-8 py-6 border-b border-slate-100 flex items-center justify-between">
-                            <h3 className="font-black text-slate-800 uppercase tracking-wider text-sm flex items-center gap-3">
-                                <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600"><ShoppingCart className="w-5 h-5" /></div>
-                                Itens Solicitados <span className="text-slate-400 font-medium ml-1 text-xs normal-case">({content?.purchaseItems?.length || 0} itens)</span>
-                            </h3>
-                            <div className="h-8 px-4 flex items-center justify-center bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-500 shadow-sm">
-                                Lista Completa
-                            </div>
-                        </div>
-                        <div className="flex-1 p-0">
-                            {content?.purchaseItems && content.purchaseItems.length > 0 ? (
-                                <div className="divide-y divide-slate-100">
-                                    {content.purchaseItems.map((item, i) => (
-                                        <div key={i} className={`p-6 transition-colors flex items-center gap-6 group relative ${item.isTendered === false ? 'bg-rose-50/50 hover:bg-rose-50' : 'hover:bg-slate-50'}`}>
-                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shrink-0 border transition-all shadow-sm ${item.isTendered === false ? 'bg-rose-100 text-rose-600 border-rose-200' : 'bg-emerald-50 text-emerald-600 border-emerald-100 group-hover:bg-emerald-500 group-hover:text-white'}`}>
-                                                {i + 1}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className={`font-bold text-lg mb-1 transition-colors ${item.isTendered === false ? 'text-rose-800' : 'text-slate-800 group-hover:text-indigo-600'}`}>
-                                                    {item.name}
-                                                    {item.isTendered === false && <span className="ml-2 text-[10px] bg-rose-200/50 text-rose-700 px-2 py-0.5 rounded border border-rose-200 uppercase tracking-wide">Não Licitado</span>}
-                                                </p>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="bg-slate-100 px-2 py-1 rounded-md text-[10px] uppercase font-bold text-slate-500 border border-slate-200">{item.brand || 'Marca n/a'}</span>
-                                                    {item.details && <span className="text-slate-400 text-xs truncate max-w-[300px]">({item.details})</span>}
-                                                    {item.category && <span className="bg-slate-100 px-2 py-1 rounded-md text-[10px] uppercase font-bold text-slate-500 border border-slate-200">{item.category}</span>}
-                                                </div>
-                                            </div>
-                                            <div className="text-right flex flex-col items-end gap-2">
-                                                <div>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Quantidade</p>
-                                                    <div className="inline-flex items-center px-4 py-1.5 bg-slate-100 text-slate-700 font-mono font-bold rounded-lg border border-slate-200 text-sm">
-                                                        {item.quantity} <span className="text-slate-400 ml-1 text-xs">{item.unit}</span>
-                                                    </div>
-                                                </div>
-                                                {/* Only show button if user has permission (assuming Compras role view here) AND item is not marked yet */}
-                                                {item.isTendered !== false && (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleMarkAsUntendered(i); }}
-                                                        className="px-3 py-1.5 bg-white text-rose-500 border border-rose-100 hover:bg-rose-50 hover:border-rose-200 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100 translate-x-2 group-hover:translate-x-0"
-                                                    >
-                                                        Não Licitado
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="p-20 text-center text-slate-400 flex flex-col items-center justify-center h-full">
-                                    <ShoppingCart className="w-16 h-16 opacity-20 mb-4" />
-                                    <p className="text-sm font-bold uppercase tracking-widest opacity-60">Nenhum item listado</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Secondary Column: Sidebar Info */}
-                <div className="space-y-6 desktop:order-2">
-                    {/* Requester Info */}
-                    <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
-                        <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                            <h3 className="font-black text-slate-800 uppercase tracking-wider text-xs flex items-center gap-2">
-                                <User className="w-4 h-4 text-slate-400" /> Solicitante
-                            </h3>
-                        </div>
-                        <div className="p-6">
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/20">
-                                    <User className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Nome Responsável</p>
-                                    <p className="font-bold text-slate-800 text-base">{content?.requesterName || '---'}</p>
-                                    <p className="text-xs font-medium text-slate-500">{content?.requesterRole}</p>
-                                </div>
-                            </div>
-                            <div className="space-y-3 pt-4 border-t border-slate-50">
-                                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5" /> Setor</span>
-                                    <span className="font-bold text-slate-700 text-xs">{content?.requesterSector || '---'}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Justification Button Card */}
-                    <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-[24px] p-6 text-white shadow-xl shadow-indigo-600/20 relative overflow-hidden group hover:scale-[1.02] transition-transform cursor-pointer" onClick={() => setShowJustification(true)}>
-                        <div className="absolute top-0 right-0 p-8 opacity-10 transform group-hover:scale-110 transition-transform duration-700"><FileText className="w-32 h-32" /></div>
-                        <div className="relative z-10">
-                            <h3 className="font-black uppercase tracking-wider text-sm mb-2 opacity-90">Precisa ver detalhes?</h3>
-                            <p className="text-indigo-100 text-xs font-medium mb-6 leading-relaxed max-w-[80%]">
-                                Consulte a justificativa completa e notas de prioridade deste pedido.
-                            </p>
-                            <button className="flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 font-black text-xs uppercase tracking-wide rounded-xl shadow-lg hover:bg-indigo-50 transition-colors">
-                                <MessageCircle className="w-4 h-4" /> Ler Justificativa
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Signatures */}
-                    <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
-                        <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100">
-                            <h3 className="font-black text-slate-800 uppercase tracking-wider text-xs flex items-center gap-2">
-                                <FileSignature className="w-4 h-4 text-slate-400" /> Assinaturas
-                            </h3>
-                        </div>
-                        <div className="p-6">
-                            {content?.digitalSignature?.enabled ? (
-                                <div className="border border-emerald-100 bg-emerald-50/30 rounded-xl p-5 relative overflow-hidden">
-                                    <div className="relative z-10 flex flex-col gap-1">
-                                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-2 flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> Assinado Digitalmente</p>
-                                        <p className="font-bold text-slate-800 text-sm">{content.signatureName || 'Usuário'}</p>
-                                        <p className="text-xs text-slate-500 font-medium mb-3">{content.signatureRole}</p>
-                                        <div className="flex flex-wrap gap-2 text-[8px] font-mono text-emerald-700 opacity-80">
-                                            <span>IP: {content.digitalSignature.ip}</span> • <span>{new Date(content.digitalSignature.date).toLocaleDateString()}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="border border-dashed border-slate-300 rounded-xl p-6 flex flex-col items-center justify-center text-center opacity-60">
-                                    <p className="font-handwriting text-2xl text-slate-600 mb-2 rotate-[-2deg]">{content?.signatureName || 'Pendente'}</p>
-                                    <div className="w-20 h-px bg-slate-300 mb-1"></div>
-                                    <p className="text-[10px] uppercase font-bold text-slate-400">{content?.signatureRole || 'Cargo'}</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {renderJustificationModal()}
-            {renderCategoryModal()}
-        </div>
-    );
-
     return (
         <div className="fixed inset-0 bg-slate-50 flex flex-col animate-fade-in z-[100]">
             {/* Header / Nav */}
@@ -534,40 +499,47 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                     </div>
 
                     {/* Tabs in Header */}
-                    <div className="flex items-center gap-2 mt-6 overflow-x-auto no-scrollbar">
-                        <button
-                            onClick={() => setActiveTab('details')}
-                            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'details' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-transparent text-slate-500 hover:bg-slate-100'
-                                }`}
-                        >
-                            Visão Geral
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('history')}
-                            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'history' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-transparent text-slate-500 hover:bg-slate-100'
-                                }`}
-                        >
-                            Histórico
-                            {order.statusHistory && order.statusHistory.length > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${activeTab === 'history' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>{order.statusHistory.length}</span>}
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('attachments')}
-                            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'attachments' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-transparent text-slate-500 hover:bg-slate-100'
-                                }`}
-                        >
-                            Anexos
-                            {order.attachments && order.attachments.length > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${activeTab === 'attachments' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>{order.attachments.length}</span>}
-                        </button>
+                    <div className="flex items-center gap-1.5 mt-8 overflow-x-auto no-scrollbar scroll-smooth pb-1">
+                        {[
+                            { id: 'overview', label: 'Visão Geral', icon: FileText },
+                            { id: 'items', label: 'Itens', icon: ShoppingCart },
+                            { id: 'justification', label: 'Justificativa', icon: MessageCircle },
+                            { id: 'history', label: 'Histórico', icon: History, count: order.statusHistory?.length },
+                            { id: 'attachments', label: 'Anexos', icon: Paperclip, count: order.attachments?.length }
+                        ].map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as TabType)}
+                                className={`px-6 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2.5 shrink-0 active:scale-95 ${activeTab === tab.id
+                                    ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/30'
+                                    : 'bg-white border border-slate-100 text-slate-400 hover:bg-slate-50 hover:border-slate-200 hover:text-slate-600'
+                                    }`}
+                            >
+                                <tab.icon className={`w-3.5 h-3.5 ${activeTab === tab.id ? 'text-white' : 'text-slate-300'}`} />
+                                {tab.label}
+                                {tab.count !== undefined && tab.count > 0 && (
+                                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-mono font-black border ${activeTab === tab.id ? 'bg-white/20 border-white/20 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'
+                                        }`}>
+                                        {tab.count}
+                                    </span>
+                                )}
+                            </button>
+                        ))}
                     </div>
                 </div>
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
-                {activeTab === 'details' && renderDetails()}
-                {activeTab === 'history' && renderHistory()}
-                {activeTab === 'attachments' && renderAttachments()}
+            <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
+                <div className="h-full w-full">
+                    {activeTab === 'overview' && renderOverview()}
+                    {activeTab === 'items' && renderItems()}
+                    {activeTab === 'justification' && renderJustification()}
+                    {activeTab === 'history' && renderHistory()}
+                    {activeTab === 'attachments' && renderAttachments()}
+                </div>
             </div>
+            {renderCategoryModal()}
         </div>
     );
 };
