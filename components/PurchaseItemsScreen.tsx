@@ -215,8 +215,16 @@ export const PurchaseItemsScreen: React.FC<PurchaseItemsScreenProps> = ({ onBack
                 ) : filteredItems.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {filteredItems.map(item => (
-                            <div key={item.id} className="bg-white rounded-2xl border border-slate-100 p-5 hover:shadow-lg hover:border-indigo-100 transition-all group relative overflow-hidden">
+                            <div key={item.id} className={`bg-white rounded-2xl p-5 hover:shadow-lg transition-all group relative overflow-hidden border-2 ${item.is_tendered ? 'border-slate-100 hover:border-indigo-100' : 'border-rose-500 shadow-lg shadow-rose-500/10'}`}>
                                 <div className={`absolute top-0 right-0 w-16 h-16 rounded-bl-full opacity-10 transition-colors ${item.is_tendered ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
+
+                                {!item.is_tendered && (
+                                    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+                                        <div className="bg-rose-500 text-white text-[8px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full shadow-lg shadow-rose-500/20 animate-bounce">
+                                            Não Licitado
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="flex items-start justify-between mb-4 relative z-10">
                                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-md ${item.is_tendered ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-rose-500 shadow-rose-500/20'}`}>

@@ -417,7 +417,9 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {content?.purchaseItems?.map((item, idx) => (
-                                    <tr key={idx} className={`group hover:bg-slate-50/50 transition-colors ${item.isTendered === false ? 'bg-rose-50/30' : ''}`}>
+                                    <tr key={idx} className={`group transition-all ${item.isTendered === false
+                                        ? 'bg-rose-50/50 border-l-4 border-l-rose-500'
+                                        : 'hover:bg-slate-50/50 border-l-4 border-l-transparent'}`}>
                                         <td className="px-6 py-5">
                                             <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-xs shadow-sm">
                                                 {idx + 1}
@@ -441,7 +443,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                                         </td>
                                         <td className="px-6 py-5 text-right">
                                             {item.isTendered === false ? (
-                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-600 rounded-full border border-rose-100 text-[9px] font-black uppercase tracking-widest">
+                                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-500 text-white rounded-full shadow-lg shadow-rose-500/20 text-[9px] font-black uppercase tracking-widest animate-pulse">
                                                     Não Licitado
                                                 </div>
                                             ) : (
@@ -596,15 +598,15 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as TabType)}
-                                    className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 active:scale-95 ${activeTab === tab.id
+                                    className={`px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2.5 shrink-0 active:scale-95 ${activeTab === tab.id
                                         ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
                                         : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
                                         }`}
                                 >
-                                    <tab.icon className={`w-3 h-3 ${activeTab === tab.id ? 'text-white' : 'text-slate-300'}`} />
+                                    <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-white' : 'text-slate-300'}`} />
                                     <span className="hidden sm:inline">{tab.label}</span>
                                     {tab.count !== undefined && tab.count > 0 && (
-                                        <span className={`px-1 rounded text-[7px] font-mono font-black border ${activeTab === tab.id ? 'bg-white/20 border-white/20 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'
+                                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-black border ${activeTab === tab.id ? 'bg-white/20 border-white/20 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'
                                             }`}>
                                             {tab.count}
                                         </span>

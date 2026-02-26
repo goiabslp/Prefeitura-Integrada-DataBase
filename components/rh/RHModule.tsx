@@ -112,7 +112,7 @@ export const RHModule: React.FC<RHModuleProps> = ({
                                 <div className="flex bg-slate-200/50 p-1 rounded-xl w-fit">
                                     <button
                                         onClick={() => setActiveTab('novo')}
-                                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'novo'
+                                        className={`flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all ${activeTab === 'novo'
                                             ? 'bg-white text-indigo-700 shadow-sm'
                                             : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100/50'
                                             }`}
@@ -122,7 +122,7 @@ export const RHModule: React.FC<RHModuleProps> = ({
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('historico')}
-                                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'historico'
+                                        className={`flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all ${activeTab === 'historico'
                                             ? 'bg-white text-indigo-700 shadow-sm'
                                             : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100/50'
                                             }`}

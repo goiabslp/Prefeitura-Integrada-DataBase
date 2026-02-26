@@ -89,7 +89,7 @@ export const LicitacaoScreeningScreen: React.FC<LicitacaoScreeningScreenProps> =
                                 <button
                                     key={filter.id}
                                     onClick={() => setStatusFilter(filter.id as any)}
-                                    className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${statusFilter === filter.id
+                                    className={`px-5 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all ${statusFilter === filter.id
                                         ? 'bg-white text-slate-900 shadow-sm'
                                         : 'text-slate-400 hover:text-slate-600'
                                         }`}

@@ -210,7 +210,7 @@ export const VehicleScheduleHistory: React.FC<VehicleScheduleHistoryProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`relative px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2 border-b-2 ${isActive ? 'text-indigo-600 border-indigo-600 bg-indigo-50/50' : 'text-slate-400 border-transparent hover:text-slate-600 hover:bg-slate-50'}`}
+              className={`relative px-6 py-4 text-xs font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap flex items-center gap-2.5 border-b-2 ${isActive ? 'text-indigo-600 border-indigo-600 bg-indigo-50/50' : 'text-slate-400 border-transparent hover:text-slate-600 hover:bg-slate-50'}`}
             >
               {tab.label}
               <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold ${isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>
