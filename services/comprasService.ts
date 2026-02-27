@@ -12,6 +12,7 @@ export const getAllPurchaseOrders = async (lightweight = true, page = 0, limit =
            requester_name:document_snapshot->content->>requesterName,
            requester_sector:document_snapshot->content->>requesterSector,
            priority:document_snapshot->content->>priority,
+           selected_account:document_snapshot->content->>selectedAccount,
            profiles:user_id(sector)`
         : '*, profiles:user_id(sector)';
 
@@ -31,10 +32,10 @@ export const getAllPurchaseOrders = async (lightweight = true, page = 0, limit =
 
         if (normalizedTerm) {
             // First attempt to use the optimized search_index column (if applied via migration)
-            query = query.or(`search_index.ilike.%${normalizedTerm}%,protocol.ilike.%${searchTerm}%,title.ilike.%${searchTerm}%,user_name.ilike.%${searchTerm}%`);
+            query = query.or(`search_index.ilike.% ${normalizedTerm}%, protocol.ilike.% ${searchTerm}%, title.ilike.% ${searchTerm}%, user_name.ilike.% ${searchTerm}% `);
         } else {
             // Fallback for searches containing only special characters
-            query = query.or(`protocol.ilike.%${searchTerm}%,title.ilike.%${searchTerm}%,user_name.ilike.%${searchTerm}%`);
+            query = query.or(`protocol.ilike.% ${searchTerm}%, title.ilike.% ${searchTerm}%, user_name.ilike.% ${searchTerm}% `);
         }
     }
 
@@ -112,11 +113,11 @@ export const getAllPurchaseOrders = async (lightweight = true, page = 0, limit =
                 homeLogoPosition: 'left' as any
             },
             content: {
-                protocol: item.protocol,
                 title: item.title,
                 requesterName: item.requester_name,
                 requesterSector: item.requester_sector || item.profiles?.sector,
-                priority: item.priority
+                priority: item.priority,
+                selectedAccount: item.selected_account
             }
         } as any : item.document_snapshot,
         budgetFileUrl: item.budget_file_url,
@@ -197,7 +198,7 @@ export const uploadPurchaseAttachment = async (blob: Blob, fileName: string): Pr
     // 1. Upload file
     const { data, error } = await supabase.storage
         .from('chat-attachments') // Reusing existing bucket or create 'documents'
-        .upload(`compras/${fileName}`, blob, {
+        .upload(`compras / ${fileName} `, blob, {
             contentType: 'application/pdf',
             upsert: true
         });
@@ -207,7 +208,7 @@ export const uploadPurchaseAttachment = async (blob: Blob, fileName: string): Pr
     // 2. Get Public URL
     const { data: { publicUrl } } = supabase.storage
         .from('chat-attachments')
-        .getPublicUrl(`compras/${fileName}`);
+        .getPublicUrl(`compras / ${fileName} `);
 
     return publicUrl;
 };
@@ -358,7 +359,7 @@ export const updatePurchaseStatus = async (id: string, status: string, historyEn
         await notificationService.createNotification({
             user_id: order.user_id,
             title: 'Atualização de Pedido de Compra',
-            message: `O pedido ${order.protocol} (${order.title}) mudou para: ${status}`,
+            message: `O pedido ${order.protocol} (${order.title}) mudou para: ${status} `,
             type: type as any,
             link: '/Compras' // or specific link
         });
