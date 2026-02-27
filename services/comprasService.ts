@@ -172,9 +172,16 @@ export const savePurchaseOrder = async (order: Order): Promise<void> => {
 
     // Backend Validation
     if (order.id) {
-        const { data: current } = await supabase.from('purchase_orders').select('status').eq('id', order.id).single();
+        const { data: current } = await supabase.from('purchase_orders').select('status, document_snapshot').eq('id', order.id).single();
         if (current?.status === 'rejected' && order.status !== 'rejected') {
             throw new Error("Validação de Segurança: Pedido de compra rejeitado não pode ser editado nem modificado.");
+        }
+
+        // Rule: Mandatory account for active statuses
+        const activeStatuses = ['approved', 'in_progress', 'finishing', 'completed'];
+        const hasAccount = order.documentSnapshot?.content?.selectedAccount || current?.document_snapshot?.content?.selectedAccount;
+        if (activeStatuses.includes(order.status) && !hasAccount) {
+            throw new Error("Validação de Segurança: É obrigatório informar a conta para que o pedido possa avançar.");
         }
     }
 
@@ -225,7 +232,7 @@ export const updateOrderStatus = async (id: string, status: string, historyEntry
     // 1. Fetch current status/history for validation and merging
     const { data: current, error: fetchError } = await supabase
         .from('purchase_orders')
-        .select('status, status_history')
+        .select('status, status_history, document_snapshot')
         .eq('id', id)
         .single();
 
@@ -234,6 +241,25 @@ export const updateOrderStatus = async (id: string, status: string, historyEntry
     // RULE: Rejection is final
     if (current?.status === 'rejected' && status !== 'rejected') {
         throw new Error("Validação de Segurança: Pedido rejeitado não pode ser alterado.");
+    }
+
+    // NEW RULE: Automatic "Conta de Pagamento" if no account is selected on approval
+    let finalStatus = status;
+    const selectedAccount = current?.document_snapshot?.content?.selectedAccount;
+
+    if (status === 'approved' && !selectedAccount) {
+        finalStatus = 'payment_account';
+        // Adjust history entry if it was meant to be approval
+        if (historyEntry.statusLabel === 'Aprovação Administrativa') {
+            historyEntry.statusLabel = 'Aprovação: Pendente de Conta';
+        }
+    }
+
+    // NEW MANDATORY RULE: Cannot progress beyond 'payment_account' or 'pending' without an account
+    // If the user tries to move to 'approved' or any other active status but there's no account
+    const activeStatuses = ['approved', 'in_progress', 'finishing', 'completed'];
+    if (activeStatuses.includes(status) && !selectedAccount) {
+        throw new Error("Validação de Segurança: É obrigatório informar a conta para que o pedido possa avançar.");
     }
 
     // RULE: Admin approval/rejection only allowed if current status is "Em Aprovação" (pending/awaiting_approval)
@@ -249,7 +275,7 @@ export const updateOrderStatus = async (id: string, status: string, historyEntry
     const { error } = await supabase
         .from('purchase_orders')
         .update({
-            status,
+            status: finalStatus,
             status_history: newHistory
         })
         .eq('id', id);
@@ -276,13 +302,18 @@ export const updatePurchaseStatus = async (id: string, status: string, historyEn
     // 1. Fetch current history to ensure we append to the latest version + Backend Validation
     const { data: current, error: fetchError } = await supabase
         .from('purchase_orders')
-        .select('status_history, status, completion_forecast')
+        .select('status_history, status, completion_forecast, document_snapshot')
         .eq('id', id)
         .single();
 
     if (fetchError) throw fetchError;
     if (current?.status === 'rejected') {
         throw new Error("Validação de Segurança: Não é possível avançar etapas nem interagir com um pedido já rejeitado.");
+    }
+
+    // NEW MANDATORY RULE: Must have an account to update purchase status
+    if (!current?.document_snapshot?.content?.selectedAccount) {
+        throw new Error("Validação de Segurança: É obrigatório informar a conta para que o pedido possa avançar para o próximo status.");
     }
 
     // MANDATORY RULE: Pedido Realizado requires Previsão

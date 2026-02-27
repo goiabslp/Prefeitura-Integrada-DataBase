@@ -5,10 +5,12 @@ import {
     CheckCircle2, XCircle, Sparkles, PackageCheck, Landmark,
     FileSearch, ShoppingCart, Clock, MessageCircle, User,
     CheckCircle, AlertTriangle, Eye, ShieldCheck, MapPin,
-    Building2, Briefcase, FileSignature, DollarSign, Fingerprint
+    Building2, Briefcase, FileSignature, DollarSign, Fingerprint,
+    Plus, Search, ChevronRight
 } from 'lucide-react';
-import { Order, AppState, BlockType, Attachment, InventoryCategory } from '../types';
-import { addToInventory, savePurchaseOrder } from '../services/comprasService';
+import { Order, AppState, BlockType, Attachment, InventoryCategory, PurchaseAccount } from '../types';
+import { addToInventory, savePurchaseOrder, updateOrderStatus } from '../services/comprasService';
+import { purchaseAccountService } from '../services/purchaseAccountService';
 
 const HashIcon = ({ className }: { className?: string }) => (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -28,15 +30,24 @@ interface OrderDetailsScreenProps {
 type TabType = 'overview' | 'items' | 'justification' | 'history' | 'attachments' | 'signature' | 'conta';
 
 export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
-    order,
+    order: initialOrder,
     onBack,
     onDownloadPdf
 }) => {
+    const [order, setOrder] = useState<Order>(initialOrder);
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [targetItemIndex, setTargetItemIndex] = useState<number | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<InventoryCategory | ''>('');
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // Account Modal States
+    const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+    const [accounts, setAccounts] = useState<PurchaseAccount[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+    const [newAccountData, setNewAccountData] = useState({ account_number: '', description: '', sector: '' });
+
     const content = order.documentSnapshot?.content;
 
     const handleMarkAsUntendered = (index: number) => {
@@ -96,6 +107,73 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
         }
     };
 
+    const handleSelectAccount = async (account: PurchaseAccount) => {
+        setIsProcessing(true);
+        try {
+            const accountStr = `${account.account_number} – ${account.description}`;
+
+            // 1. Update order content
+            const updatedOrder: Order = {
+                ...order,
+                status: 'approved', // Automatically move back to approved
+                documentSnapshot: {
+                    ...order.documentSnapshot!,
+                    content: {
+                        ...order.documentSnapshot!.content,
+                        selectedAccount: accountStr
+                    }
+                }
+            };
+
+            // 2. Add history movement
+            const newMovement = {
+                statusLabel: 'Conta Vinculada',
+                date: new Date().toISOString(),
+                userName: 'Admin', // Assuming admin action
+                justification: `Conta ${account.account_number} vinculada ao pedido.`
+            };
+            updatedOrder.statusHistory = [...(order.statusHistory || []), newMovement];
+
+            // 3. Save to Supabase
+            await savePurchaseOrder(updatedOrder);
+
+            setOrder(updatedOrder);
+            setIsAccountModalOpen(false);
+        } catch (error) {
+            console.error("Error selecting account:", error);
+            alert("Erro ao vincular conta.");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleCreateAccount = async () => {
+        if (!newAccountData.account_number || !newAccountData.description) {
+            alert("Preencha o número e a descrição da conta.");
+            return;
+        }
+        setIsProcessing(true);
+        try {
+            const created = await purchaseAccountService.requestAccount({
+                account_number: newAccountData.account_number,
+                description: newAccountData.description,
+                sector: newAccountData.sector || content?.requesterSector || 'Geral'
+            });
+
+            if (created) {
+                // Auto-approve since this is an admin/manager flow
+                await purchaseAccountService.approveAccount(created.id);
+                await handleSelectAccount({ ...created, status: 'Ativa' });
+                setIsCreatingAccount(false);
+                setNewAccountData({ account_number: '', description: '', sector: '' });
+            }
+        } catch (error) {
+            console.error("Error creating account:", error);
+            alert("Erro ao criar nova conta.");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
 
     // Helper to render History Tab Content
     const renderHistory = () => (
@@ -385,6 +463,20 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                             {order.status === 'approved' && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 uppercase tracking-wide flex items-center gap-1.5 w-fit"><CheckCircle2 className="w-3 h-3" /> Aprovado</span>}
                             {order.status === 'pending' && <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200 uppercase tracking-wide flex items-center gap-1.5 w-fit"><Clock className="w-3 h-3" /> Pendente</span>}
                             {order.status === 'rejected' && <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-100 uppercase tracking-wide flex items-center gap-1.5 w-fit"><XCircle className="w-3 h-3" /> Rejeitado</span>}
+                            {order.status === 'payment_account' && (
+                                <button
+                                    onClick={async () => {
+                                        setIsProcessing(true);
+                                        const fetched = await purchaseAccountService.getAccounts();
+                                        setAccounts(fetched);
+                                        setIsAccountModalOpen(true);
+                                        setIsProcessing(false);
+                                    }}
+                                    className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200 uppercase tracking-wide flex items-center gap-1.5 w-fit hover:bg-indigo-600 hover:text-white transition-all animate-pulse"
+                                >
+                                    <Landmark className="w-3 h-3" /> Conta de Pagamento
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -626,6 +718,149 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
         )
     );
 
+    const renderAccountModal = () => {
+        const filteredAccounts = accounts.filter(acc =>
+            acc.account_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            acc.description.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        return (
+            isAccountModalOpen && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl relative animate-scale-up border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+                        {/* Header */}
+                        <div className="p-8 border-b border-slate-100 shrink-0">
+                            <button
+                                onClick={() => setIsAccountModalOpen(false)}
+                                className="absolute top-8 right-8 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+                            >
+                                <XCircle className="w-6 h-6" />
+                            </button>
+                            <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                                    <Landmark className="w-8 h-8" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Dotação Orçamentária</h3>
+                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Vincule uma conta para prosseguir</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                            {!isCreatingAccount ? (
+                                <div className="space-y-6">
+                                    {/* Search & Actions */}
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                            <input
+                                                type="text"
+                                                placeholder="Buscar por número ou descrição..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 outline-none transition-all font-medium"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={() => setIsCreatingAccount(true)}
+                                            className="h-12 px-4 bg-indigo-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+                                        >
+                                            <Plus className="w-5 h-5" />
+                                            <span className="hidden sm:inline">Nova</span>
+                                        </button>
+                                    </div>
+
+                                    {/* List */}
+                                    <div className="space-y-2">
+                                        {filteredAccounts.length > 0 ? (
+                                            filteredAccounts.map(acc => (
+                                                <button
+                                                    key={acc.id}
+                                                    onClick={() => handleSelectAccount(acc)}
+                                                    className="w-full p-4 text-left bg-white border border-slate-100 rounded-2xl hover:border-indigo-300 hover:shadow-md transition-all flex items-center justify-between group"
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                                            <Briefcase className="w-5 h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-sm font-black text-slate-800">{acc.account_number}</div>
+                                                            <div className="text-[10px] text-slate-500 font-medium uppercase truncate max-w-[200px] sm:max-w-xs">{acc.description}</div>
+                                                        </div>
+                                                    </div>
+                                                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-600 transition-colors" />
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="py-12 text-center text-slate-400">
+                                                <Search className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                                                <p className="font-bold">Nenhuma conta encontrada</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-5 animate-slide-in-right">
+                                    <h4 className="font-black text-slate-800 uppercase tracking-widest text-xs mb-2">Cadastrar Nova Conta</h4>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Número da Dotação</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Ex: 01.02.03.04"
+                                                value={newAccountData.account_number}
+                                                onChange={(e) => setNewAccountData({ ...newAccountData, account_number: e.target.value })}
+                                                className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 outline-none transition-all font-mono font-bold"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Descrição / Finalidade</label>
+                                            <textarea
+                                                placeholder="Descreva a finalidade desta dotação..."
+                                                value={newAccountData.description}
+                                                onChange={(e) => setNewAccountData({ ...newAccountData, description: e.target.value })}
+                                                className="w-full h-24 p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 outline-none transition-all font-medium resize-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Secretaria / Setor</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Ex: Secretaria de Saúde"
+                                                value={newAccountData.sector}
+                                                onChange={(e) => setNewAccountData({ ...newAccountData, sector: e.target.value })}
+                                                className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 outline-none transition-all font-medium"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3 pt-6">
+                                        <button
+                                            onClick={() => setIsCreatingAccount(false)}
+                                            className="flex-1 h-12 border border-slate-200 text-slate-500 rounded-xl font-bold hover:bg-slate-50 transition-all uppercase text-[10px] tracking-widest"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            onClick={handleCreateAccount}
+                                            disabled={isProcessing}
+                                            className="flex-1 h-12 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 uppercase text-[10px] tracking-widest active:scale-95 disabled:opacity-50"
+                                        >
+                                            {isProcessing ? 'Processando...' : 'Salvar e Vincular'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )
+        );
+    };
+
     return (
         <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden h-full animate-fade-in">
             {/* Header / Nav */}
@@ -703,6 +938,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                 </div>
             </div>
             {renderCategoryModal()}
+            {renderAccountModal()}
         </div>
     );
 };

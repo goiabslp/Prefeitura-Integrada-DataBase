@@ -1648,8 +1648,17 @@ const App: React.FC = () => {
         orderToUpdate.blockType === 'licitacao' ? licitacaoProcesses : oficios;
 
     // 2. Prepare new data
+    let targetStatus = status;
+    const selectedAccount = orderToUpdate.documentSnapshot?.content?.selectedAccount;
+
+    if (status === 'approved' && !selectedAccount) {
+      targetStatus = 'payment_account';
+    }
+
     const newMovement: StatusMovement = {
-      statusLabel: status === 'approved' ? 'Aprovação Administrativa' : (status === 'rejected' ? 'Rejeição' : `Status alterado para ${status}`),
+      statusLabel: targetStatus === 'approved' ? 'Aprovação Administrativa' :
+        (targetStatus === 'payment_account' ? 'Aprovação: Pendente de Conta' :
+          (status === 'rejected' ? 'Rejeição' : `Status alterado para ${status}`)),
       date: new Date().toISOString(),
       userName: currentUser.name,
       justification
@@ -1657,7 +1666,7 @@ const App: React.FC = () => {
 
     const updatedOrder = {
       ...orderToUpdate,
-      status,
+      status: targetStatus,
       statusHistory: [...(orderToUpdate.statusHistory || []), newMovement]
     };
 
