@@ -25,7 +25,7 @@ interface OrderDetailsScreenProps {
     onDownloadPdf: (snapshot: AppState, blockType?: BlockType) => void;
 }
 
-type TabType = 'overview' | 'items' | 'justification' | 'history' | 'attachments' | 'signature';
+type TabType = 'overview' | 'items' | 'justification' | 'history' | 'attachments' | 'signature' | 'conta';
 
 export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
     order,
@@ -241,6 +241,65 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                         Esta assinatura é vinculada à conta autenticada do sistema e protegida por mútla autenticação de fatores (MFA),
                         garantindo a irretratabilidade e integridade deste documento conforme os padrões de segurança institucional.
                     </p>
+                </div>
+            </div>
+        );
+    };
+
+    // Helper to render Account (Conta) Tab Content
+    const renderConta = () => {
+        const selectedAccount = order.documentSnapshot?.content?.selectedAccount;
+
+        let accountNumber = "Não Informada";
+        let accountDescription = "Nenhuma conta vinculada.";
+
+        if (selectedAccount) {
+            const parts = selectedAccount.split(' – ');
+            if (parts.length >= 2) {
+                accountNumber = parts[0];
+                accountDescription = parts[1];
+            } else {
+                accountDescription = selectedAccount;
+            }
+        }
+
+        return (
+            <div className="w-full h-full flex flex-col items-center justify-center p-6 animate-fade-in bg-slate-50/10">
+                <div className="w-full max-w-md bg-white rounded-[2.5rem] border border-slate-200 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.12)] overflow-hidden transition-all duration-300">
+                    <div className="h-1.5 bg-gradient-to-r from-indigo-500 to-indigo-700"></div>
+                    <div className="p-10 desktop:p-14 flex flex-col items-center text-center">
+                        <div className="w-16 h-16 bg-indigo-50 rounded-3xl flex items-center justify-center mb-8 shadow-inner">
+                            <Landmark className="w-8 h-8 text-indigo-600" />
+                        </div>
+
+                        <div className="space-y-8 w-full">
+                            <div className="space-y-2">
+                                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Número da Conta</span>
+                                <div className="bg-slate-50 rounded-2xl py-5 px-6 border border-slate-100">
+                                    <p className="text-3xl font-black text-slate-900 tracking-tight font-mono">
+                                        {accountNumber}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 justify-center">
+                                <div className="h-px flex-1 bg-slate-100"></div>
+                                <div className="w-1.5 h-1.5 rounded-full bg-slate-200"></div>
+                                <div className="h-px flex-1 bg-slate-100"></div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Dotação Orçamentária</span>
+                                <p className="text-xl font-bold text-slate-800 leading-tight">
+                                    {accountDescription}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-10 text-[9px] font-black uppercase tracking-[0.4em] text-slate-300">
+                            Identificação Verificada
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -592,6 +651,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                                 { id: 'items', label: 'Itens', icon: ShoppingCart },
                                 { id: 'justification', label: 'Justificativa', icon: MessageCircle },
                                 { id: 'history', label: 'Histórico', icon: History, count: order.statusHistory?.length },
+                                { id: 'conta', label: 'Conta', icon: Landmark },
                                 { id: 'attachments', label: 'Anexos', icon: Paperclip, count: order.attachments?.length },
                                 { id: 'signature', label: 'Assinatura', icon: FileSignature }
                             ].map((tab) => (
@@ -639,6 +699,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                     {activeTab === 'history' && renderHistory()}
                     {activeTab === 'attachments' && renderAttachments()}
                     {activeTab === 'signature' && renderSignature()}
+                    {activeTab === 'conta' && renderConta()}
                 </div>
             </div>
             {renderCategoryModal()}
