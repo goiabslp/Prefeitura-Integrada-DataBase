@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar as CalendarIcon, Clock, Edit2, Trash2, CalendarDays, AlignLeft, Users, Star, User } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Clock, Edit2, Trash2, CalendarDays, AlignLeft, Users, Star, User, Gift, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CalendarEvent } from '../../services/calendarService';
 import { supabase } from '../../services/supabaseClient';
@@ -37,6 +37,8 @@ export const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
         Feriado: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: 'text-red-500' },
         Reunião: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', icon: 'text-indigo-500' },
         Evento: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: 'text-emerald-500' },
+        Aniversário: { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200', icon: 'text-pink-500' },
+        'Feriado Municipal': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: 'text-red-500' },
         Pessoal: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: 'text-amber-500' }
     };
 
@@ -127,14 +129,17 @@ export const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                         <div className="flex items-start justify-between">
                             <div className="flex gap-4">
                                 <div className={`mt-1 bg-white p-2 text-center rounded-xl shadow-sm border ${theme.border}`}>
-                                    <CalendarIcon className={`w-6 h-6 ${theme.icon}`} />
+                                    {event.type === 'Aniversário' ? <Gift className={`w-6 h-6 ${theme.icon}`} /> : <CalendarIcon className={`w-6 h-6 ${theme.icon}`} />}
                                 </div>
                                 <div>
-                                    <span className={`inline-block px-2 py-0.5 rounded text-[10px] uppercase font-black tracking-widest bg-white border mb-2 shadow-sm ${theme.border} ${theme.text}`}>
+                                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] uppercase font-black tracking-widest bg-white border mb-2 shadow-sm ${theme.border} ${theme.text}`}>
                                         {event.type}
+                                        {(event.is_recurring || event.type === 'Aniversário' || event.type === 'Feriado Municipal') && (
+                                            <Repeat className="w-3 h-3" />
+                                        )}
                                     </span>
                                     <h2 className="text-xl font-bold text-slate-800 leading-tight">
-                                        {event.title}
+                                        {event.type === 'Aniversário' ? `Aniversário de ${event.professional_name || event.title}` : event.title}
                                     </h2>
                                 </div>
                             </div>

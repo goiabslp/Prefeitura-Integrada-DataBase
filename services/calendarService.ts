@@ -22,6 +22,10 @@ export interface CalendarEvent {
     description?: string;
     created_by?: string;
     created_at?: string;
+    professional_id?: string;
+    professional_name?: string; // Virtual field for display
+    birth_date?: string; // Birth date from person for recurrence
+    is_recurring?: boolean;
     invites?: CalendarEventInvite[];
 }
 
@@ -32,20 +36,25 @@ export const calendarService = {
             .from('calendar_events')
             .select(`
                 *,
+                professional:persons (
+                    name,
+                    birth_date
+                ),
                 calendar_event_invites (
                     id, event_id, user_id, status, role, decline_reason,
                     profiles ( name )
                 )
             `)
-            .lte('start_date', endDate)
-            .gte('end_date', startDate)
+            .or(`type.eq.Aniversário,type.eq.Feriado Municipal,is_recurring.eq.true,and(start_date.lte.${endDate},end_date.gte.${startDate})`)
             .order('start_date', { ascending: true });
 
         if (eventsError) throw eventsError;
 
-        // Map data to flatten the profile name
+        // Map data to flatten the profile name and professional name
         return (eventsData || []).map((evt: any) => ({
             ...evt,
+            professional_name: evt.professional?.name,
+            birth_date: evt.professional?.birth_date,
             invites: (evt.calendar_event_invites || []).map((inv: any) => ({
                 id: inv.id,
                 event_id: inv.event_id,

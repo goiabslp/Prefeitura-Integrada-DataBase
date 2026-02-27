@@ -109,7 +109,8 @@ export const getPersons = async (): Promise<Person[]> => {
         id: p.id,
         name: p.name,
         sectorId: p.sector_id,
-        jobId: p.job_id
+        jobId: p.job_id,
+        birth_date: p.birth_date
     })) || [];
 };
 
@@ -119,7 +120,8 @@ export const createPerson = async (person: Person): Promise<Person | null> => {
         .insert([{
             name: person.name,
             sector_id: person.sectorId,
-            job_id: person.jobId
+            job_id: person.jobId,
+            birth_date: person.birth_date
         }])
         .select()
         .single();
@@ -142,7 +144,8 @@ export const updatePerson = async (person: Person): Promise<Person | null> => {
         .update({
             name: person.name,
             sector_id: person.sectorId,
-            job_id: person.jobId
+            job_id: person.jobId,
+            birth_date: person.birth_date
         })
         .eq('id', person.id)
         .select()

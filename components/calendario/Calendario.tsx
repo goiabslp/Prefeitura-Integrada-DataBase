@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, ChevronsLeft, ChevronsRight, Star, Users, Flag } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, ChevronsLeft, ChevronsRight, Star, Users, Flag, Gift, Repeat } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EventModal } from './EventModal';
@@ -317,8 +317,22 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                         }
 
                         const isTodaySlot = isToday(slot.dateStr);
-                        // filter events for this day (if slot date is between start_date and end_date)
+                        // filter events for this day (if slot date is between start_date and end_date OR if it's recurring)
                         const dayEvents = events.filter(e => {
+                            // Annual recurrence rule: same day/month every year
+                            const isRecurringType = e.type === 'Aniversário' || e.type === 'Feriado Municipal' || e.is_recurring;
+
+                            if (isRecurringType) {
+                                let targetDate = e.start_date;
+                                if (e.type === 'Aniversário' && e.birth_date) {
+                                    targetDate = e.birth_date;
+                                }
+
+                                const [by, bm, bd] = targetDate.split('-').map(Number);
+                                const [sy, sm, sd] = slot.dateStr.split('-').map(Number);
+                                return bm === sm && bd === sd;
+                            }
+
                             return slot.dateStr >= e.start_date && slot.dateStr <= e.end_date;
                         });
 
@@ -367,6 +381,9 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                                                     } else if (e.type === 'Feriado') {
                                                         Icon = Flag;
                                                         colorClass = "text-red-600 bg-red-50 border-red-200";
+                                                    } else if (e.type === 'Aniversário') {
+                                                        Icon = Gift;
+                                                        colorClass = "text-pink-600 bg-pink-50 border-pink-200";
                                                     }
 
                                                     return (
@@ -411,12 +428,18 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                                             }}
                                             className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold transition-transform cursor-pointer hover:opacity-80 truncate"
                                             style={{
-                                                backgroundColor: event.type === 'Feriado' ? '#fee2e2' : event.type === 'Reunião' ? '#e0e7ff' : '#dcfce7',
-                                                color: event.type === 'Feriado' ? '#991b1b' : event.type === 'Reunião' ? '#3730a3' : '#166534',
-                                                borderLeft: `2px solid ${event.type === 'Feriado' ? '#ef4444' : event.type === 'Reunião' ? '#6366f1' : '#22c55e'}`
+                                                backgroundColor: event.type === 'Feriado' || event.type === 'Feriado Municipal' ? '#fee2e2' : event.type === 'Reunião' ? '#e0e7ff' : event.type === 'Aniversário' ? '#fdf2f8' : '#dcfce7',
+                                                color: event.type === 'Feriado' || event.type === 'Feriado Municipal' ? '#991b1b' : event.type === 'Reunião' ? '#3730a3' : event.type === 'Aniversário' ? '#9d174d' : '#166534',
+                                                borderLeft: `2px solid ${event.type === 'Feriado' || event.type === 'Feriado Municipal' ? '#ef4444' : event.type === 'Reunião' ? '#6366f1' : event.type === 'Aniversário' ? '#ec4899' : '#22c55e'}`
                                             }}
                                         >
-                                            <span className="truncate block font-bold leading-tight">{event.title}</span>
+                                            <span className="truncate flex items-center gap-1 font-bold leading-tight">
+                                                {event.type === 'Aniversário' && <span>🎂</span>}
+                                                {(event.type === 'Aniversário' || event.type === 'Feriado Municipal' || event.is_recurring) && (
+                                                    <Repeat className="w-1.5 h-1.5 opacity-50 shrink-0" />
+                                                )}
+                                                <span className="truncate">{event.type === 'Aniversário' ? (event.professional_name || event.title) : event.title}</span>
+                                            </span>
                                         </div>
                                     ))}
 
@@ -462,7 +485,19 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                 onClose={() => setIsDayDetailsOpen(false)}
                 dateStr={selectedDate}
                 // Recalculate directly from state so updates bubble gracefully
-                events={events.filter(e => selectedDate >= e.start_date && selectedDate <= e.end_date)}
+                events={events.filter(e => {
+                    const isRecurringType = e.type === 'Aniversário' || e.type === 'Feriado Municipal' || e.is_recurring;
+                    if (isRecurringType) {
+                        let targetDate = e.start_date;
+                        if (e.type === 'Aniversário' && e.birth_date) {
+                            targetDate = e.birth_date;
+                        }
+                        const [by, bm, bd] = targetDate.split('-').map(Number);
+                        const [sy, sm, sd] = selectedDate.split('-').map(Number);
+                        return bm === sm && bd === sd;
+                    }
+                    return selectedDate >= e.start_date && selectedDate <= e.end_date;
+                })}
                 isAdmin={isAdmin}
                 onAddEvent={() => {
                     setEventToEdit(null);

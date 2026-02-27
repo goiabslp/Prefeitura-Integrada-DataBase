@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Calendar as CalendarIcon, Save, Trash2, Loader2, Users, CheckSquare, Square, ChevronDown, Lock, Flag } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Save, Trash2, Loader2, Users, CheckSquare, Square, ChevronDown, Lock, Flag, Gift, Search, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../services/supabaseClient';
 import { calendarService, CalendarEventInvite, CalendarEvent } from '../../services/calendarService';
+import { getPersons } from '../../services/entityService';
+import { Person } from '../../types';
 
 interface Props {
     isOpen: boolean;
@@ -29,6 +31,7 @@ export const EventModal: React.FC<Props> = ({
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
     const [description, setDescription] = useState('');
+    const [isRecurring, setIsRecurring] = useState(false);
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
@@ -37,6 +40,10 @@ export const EventModal: React.FC<Props> = ({
     // Invites State
     const [activeTab, setActiveTab] = useState<'details' | 'invites'>('details');
     const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+    const [persons, setPersons] = useState<Person[]>([]);
+    const [professionalId, setProfessionalId] = useState('');
+    const [personSearch, setPersonSearch] = useState('');
+    const [showPersonDropdown, setShowPersonDropdown] = useState(false);
     const [selectedInvites, setSelectedInvites] = useState<{ user_id: string; role: 'Colaborador' | 'Participante' }[]>([]);
 
     useEffect(() => {
@@ -48,9 +55,10 @@ export const EventModal: React.FC<Props> = ({
                 setStartDate(eventToEdit.start_date);
                 setEndDate(eventToEdit.end_date);
                 setIsAllDay(eventToEdit.is_all_day);
-                setStartTime(eventToEdit.start_time || '');
                 setEndTime(eventToEdit.end_time || '');
                 setDescription(eventToEdit.description || '');
+                setIsRecurring(eventToEdit.is_recurring || false);
+                setProfessionalId(eventToEdit.professional_id || '');
 
                 // Pre-fill invites
                 if (eventToEdit.invites) {
@@ -70,9 +78,12 @@ export const EventModal: React.FC<Props> = ({
                 setStartTime('');
                 setEndTime('');
                 setDescription('');
+                setIsRecurring(false);
+                setProfessionalId('');
                 setSelectedInvites([]);
                 setActiveTab('details');
             }
+            fetchPersons();
         }
     }, [isOpen, eventToEdit, selectedDate]);
 
@@ -92,6 +103,11 @@ export const EventModal: React.FC<Props> = ({
         if (data) {
             setAllUsers(data.filter(u => u.id !== currentUserId)); // exclude self
         }
+    };
+
+    const fetchPersons = async () => {
+        const data = await getPersons();
+        setPersons(data);
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -116,16 +132,18 @@ export const EventModal: React.FC<Props> = ({
 
         setLoading(true);
         try {
-            const payload = {
+            const payload: Partial<CalendarEvent> = {
                 title,
                 type,
                 start_date: startDate,
                 end_date: endDate,
                 is_all_day: isAllDay,
-                start_time: isAllDay ? null : startTime,
-                end_time: isAllDay ? null : endTime,
+                start_time: isAllDay ? undefined : startTime,
+                end_time: isAllDay ? undefined : endTime,
                 description,
-                created_by: currentUserId
+                created_by: currentUserId,
+                professional_id: professionalId || undefined,
+                is_recurring: (type === 'Aniversário' || type === 'Feriado Municipal') ? true : isRecurring
             };
 
             const invitesPayload: Partial<CalendarEventInvite>[] = selectedInvites.map(inv => ({
@@ -333,7 +351,9 @@ export const EventModal: React.FC<Props> = ({
                                                 {type === 'Evento' && <CalendarIcon className="w-4 h-4 text-emerald-500" />}
                                                 {type === 'Reunião' && <Users className="w-4 h-4 text-indigo-500" />}
                                                 {type === 'Feriado' && <Flag className="w-4 h-4 text-rose-500" />}
-                                                {type === 'Pessoal' ? 'Evento Pessoal' : type === 'Evento' ? 'Evento Público' : type === 'Reunião' ? 'Reunião Interna' : 'Feriado / Recesso'}
+                                                {type === 'Feriado Municipal' && <Flag className="w-4 h-4 text-red-500" />}
+                                                {type === 'Aniversário' && <Gift className="w-4 h-4 text-pink-500" />}
+                                                {type === 'Pessoal' ? 'Evento Pessoal' : type === 'Evento' ? 'Evento Público' : type === 'Reunião' ? 'Reunião Interna' : type === 'Aniversário' ? 'Aniversário' : type === 'Feriado Municipal' ? 'Feriado Municipal' : 'Feriado / Recesso'}
                                             </span>
                                             <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isTypeDropdownOpen ? 'rotate-180' : ''}`} />
                                         </button>
@@ -351,6 +371,8 @@ export const EventModal: React.FC<Props> = ({
                                                         { value: 'Pessoal', label: 'Evento Pessoal', icon: Lock, color: 'text-amber-500', bg: 'hover:bg-amber-50' },
                                                         { value: 'Evento', label: 'Evento Público', icon: CalendarIcon, color: 'text-emerald-500', bg: 'hover:bg-emerald-50' },
                                                         { value: 'Reunião', label: 'Reunião Interna', icon: Users, color: 'text-indigo-500', bg: 'hover:bg-indigo-50' },
+                                                        { value: 'Aniversário', label: 'Aniversário', icon: Gift, color: 'text-pink-500', bg: 'hover:bg-pink-50' },
+                                                        { value: 'Feriado Municipal', label: 'Feriado Municipal', icon: Flag, color: 'text-red-500', bg: 'hover:bg-red-50' },
                                                         { value: 'Feriado', label: 'Feriado / Recesso', icon: Flag, color: 'text-rose-500', bg: 'hover:bg-rose-50' }
                                                     ].map(option => (
                                                         <button
@@ -371,6 +393,102 @@ export const EventModal: React.FC<Props> = ({
                                         </AnimatePresence>
                                     </div>
                                 </div>
+
+                                {type === 'Aniversário' && (
+                                    <div className="animate-in slide-in-from-top-2 duration-300">
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                                            Vincular Profissional
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={personSearch}
+                                                onChange={e => {
+                                                    setPersonSearch(e.target.value);
+                                                    setShowPersonDropdown(true);
+                                                }}
+                                                onFocus={() => setShowPersonDropdown(true)}
+                                                placeholder="Buscar profissional..."
+                                                className="w-full px-4 py-3 pl-11 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white transition-all text-slate-700 font-medium outline-none"
+                                            />
+                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                            {professionalId && !personSearch && (
+                                                <div className="absolute left-11 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                                    <span className="text-sm font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">
+                                                        {persons.find(p => p.id === professionalId)?.name}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            <AnimatePresence>
+                                                {showPersonDropdown && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, y: 5 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, y: 5 }}
+                                                        className="absolute z-[3100] top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 max-h-48 overflow-y-auto"
+                                                    >
+                                                        {persons.filter(p => p.name.toLowerCase().includes(personSearch.toLowerCase())).map(p => (
+                                                            <button
+                                                                key={p.id}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setProfessionalId(p.id);
+                                                                    setPersonSearch('');
+                                                                    setShowPersonDropdown(false);
+                                                                    if (!title) setTitle(`Aniversário: ${p.name}`);
+                                                                    if (p.birth_date) {
+                                                                        const birth = new Date(p.birth_date);
+                                                                        const currentYear = new Date(startDate || selectedDate).getFullYear();
+                                                                        const calculatedDate = `${currentYear}-${String(birth.getUTCMonth() + 1).padStart(2, '0')}-${String(birth.getUTCDate()).padStart(2, '0')}`;
+                                                                        setStartDate(calculatedDate);
+                                                                        setEndDate(calculatedDate);
+                                                                    }
+                                                                }}
+                                                                className="w-full text-left px-4 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700 transition-colors border-b border-slate-50 last:border-0"
+                                                            >
+                                                                {p.name}
+                                                                {p.birth_date && <span className="text-[10px] text-slate-400 ml-2 font-mono">({new Date(p.birth_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })})</span>}
+                                                            </button>
+                                                        ))}
+                                                        {persons.filter(p => p.name.toLowerCase().includes(personSearch.toLowerCase())).length === 0 && (
+                                                            <div className="p-4 text-center text-xs text-slate-400 italic">Nenhum profissional encontrado</div>
+                                                        )}
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Recurring Toggle - show for other types but force for requested types */}
+                                {(type !== 'Aniversário' && type !== 'Feriado Municipal') && (
+                                    <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 mb-4">
+                                        <input
+                                            type="checkbox"
+                                            id="isRecurring"
+                                            checked={isRecurring}
+                                            onChange={e => setIsRecurring(e.target.checked)}
+                                            className="w-5 h-5 text-rose-600 rounded border-slate-300 focus:ring-rose-500 cursor-pointer"
+                                        />
+                                        <div className="flex-1">
+                                            <label htmlFor="isRecurring" className="text-sm font-bold text-slate-700 cursor-pointer flex items-center gap-2">
+                                                <Repeat className="w-4 h-4 text-slate-400" />
+                                                Repetir Anualmente
+                                            </label>
+                                            <p className="text-[10px] text-slate-500">Este evento aparecerá todos os anos na mesma data.</p>
+                                        </div>
+                                    </div>
+                                )}
+                                {(type === 'Aniversário' || type === 'Feriado Municipal') && (
+                                    <div className="flex items-center gap-2 p-3 bg-rose-50/50 rounded-xl border border-rose-100/50 mb-4">
+                                        <Repeat className="w-5 h-5 text-rose-500 opacity-60" />
+                                        <div className="flex-1">
+                                            <p className="text-sm font-bold text-rose-700">Recorrência Automática Ativada</p>
+                                            <p className="text-[10px] text-rose-500">Eventos de {type} são repetidos anualmente de forma automática.</p>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 block">

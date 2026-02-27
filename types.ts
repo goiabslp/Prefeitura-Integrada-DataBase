@@ -253,6 +253,7 @@ export interface Person {
   jobId?: string;
   sectorId?: string;
   role?: string;
+  birth_date?: string;
 }
 
 export interface Sector {
