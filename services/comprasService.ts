@@ -242,21 +242,23 @@ export const updateOrderStatus = async (id: string, status: string, historyEntry
         throw new Error("Validação de Segurança: Pedido rejeitado não pode ser alterado.");
     }
 
-    // NEW RULE: Automatic "Conta de Pagamento" if no account is selected on approval
+    // NEW MANDATORY RULE: Admin approval always transitions to "Conta de Pagamento"
     let finalStatus = status;
     const selectedAccount = current?.document_snapshot?.content?.selectedAccount;
 
-    if (status === 'approved' && !selectedAccount) {
+    if (status === 'approved') {
+        // Automatically route the true status to payment_account upon Admin Approval
         finalStatus = 'payment_account';
-        // Adjust history entry if it was meant to be approval
+
+        // Adjust history entry to reflect it is awaiting the account confirmation
         if (historyEntry.statusLabel === 'Aprovação Administrativa') {
-            historyEntry.statusLabel = 'Aprovação: Pendente de Conta';
+            historyEntry.statusLabel = 'Aprovação Administrativa (Aguardando Conta)';
         }
     }
 
     // NEW MANDATORY RULE: Cannot progress beyond 'payment_account' or 'pending' without an account
-    // If the user tries to move to 'approved' or any other active status but there's no account
-    const activeStatuses = ['approved', 'in_progress', 'finishing', 'completed'];
+    // If the user tries to move to 'in_progress' or any other active status but there's no account
+    const activeStatuses = ['in_progress', 'finishing', 'completed'];
     if (activeStatuses.includes(status) && !selectedAccount) {
         throw new Error("Validação de Segurança: É obrigatório informar a conta para que o pedido possa avançar.");
     }
