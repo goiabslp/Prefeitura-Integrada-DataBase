@@ -284,6 +284,7 @@ export type AccountStatus = 'Ativa' | 'Pendente';
 
 export interface PurchaseAccount {
   id: string;
+  agency: string;
   account_number: string;
   description: string;
   sector: string;

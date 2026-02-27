@@ -786,8 +786,9 @@ const App: React.FC = () => {
     if (!currentUser || !activeBlock) return false;
 
     // FRONTEND VALIDATION FOR COMPRAS (ACCOUNT MANDATORY)
+    // Fallback block if somehow the UI step validation is bypassed
     if (activeBlock === 'compras' && !appState.content.selectedAccount) {
-      alert("A conta de pagamento é obrigatória para criar ou editar um pedido.");
+      // alert("A conta de pagamento é obrigatória para criar ou editar um pedido."); // Replaced by beautiful modal in ComprasStepWizard
       return false;
     }
 
@@ -2333,16 +2334,23 @@ const App: React.FC = () => {
 
 
 
-  // MODIFIED handleStartEditing to check for drafts
-  const handleStartEditing = async (blockOverride?: BlockType) => {
+  // MODIFIED handleStartEditing to check for drafts and optionally force a clean reset
+  const handleStartEditing = async (blockOverride?: BlockType, forceReset: boolean = false) => {
     const currentBlock = blockOverride || activeBlock;
     let defaultTitle = INITIAL_STATE.content.title;
     let defaultRightBlock = INITIAL_STATE.content.rightBlockText;
     let leftBlockContent = INITIAL_STATE.content.leftBlockText;
     const currentYear = new Date().getFullYear();
 
+    // FORCE RESET LOGIC
+    if (forceReset && currentBlock) {
+      const draftKey = `draft_${currentBlock}`;
+      localStorage.removeItem(draftKey); // Wipe any stored draft data
+      console.log(`[App.tsx] Forcing explicit state reset for new ${currentBlock} order. Wiped draft.`);
+    }
+
     // CHECK FOR DRAFT FIRST (Skip for Licitacao to always start fresh/auto-create)
-    if (currentBlock && currentBlock !== 'licitacao') {
+    if (currentBlock && currentBlock !== 'licitacao' && !forceReset) {
       const draftKey = `draft_${currentBlock}`;
       const savedDraft = localStorage.getItem(draftKey);
       if (savedDraft) {
@@ -3432,13 +3440,13 @@ const App: React.FC = () => {
             )}
             {currentView === 'home' && (
               <HomeScreen
-                onNewOrder={(block) => {
+                onNewOrder={(block, isForceReset) => {
                   const target = block || 'oficio';
                   if (target === 'abastecimento') {
                     setActiveBlock('abastecimento');
                     setCurrentView('abastecimento');
                   } else {
-                    handleStartEditing(target);
+                    handleStartEditing(target, isForceReset);
                   }
                 }}
                 onTrackOrder={() => {

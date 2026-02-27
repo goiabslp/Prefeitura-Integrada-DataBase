@@ -37,6 +37,7 @@ export const AccountSelectionModal: React.FC<AccountSelectionModalProps> = ({
 
     // New Account Form State
     const [newAccount, setNewAccount] = useState({
+        agency: '',
         account_number: '',
         description: '',
         sector: currentUser.sector || ''
@@ -58,8 +59,8 @@ export const AccountSelectionModal: React.FC<AccountSelectionModalProps> = ({
 
     const handleCreateAccount = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newAccount.account_number || !newAccount.description || !newAccount.sector) {
-            alert('Por favor, preencha todos os campos.');
+        if (!newAccount.agency || !newAccount.account_number || !newAccount.description || !newAccount.sector) {
+            alert('Por favor, preencha todos os campos obrigatórios.');
             return;
         }
 
@@ -72,7 +73,7 @@ export const AccountSelectionModal: React.FC<AccountSelectionModalProps> = ({
         if (result) {
             alert('Solicitação enviada! A conta aparecerá na lista assim que for aprovada por um administrador.');
             setIsCreating(false);
-            setNewAccount({ account_number: '', description: '', sector: currentUser.sector || '' });
+            setNewAccount({ agency: '', account_number: '', description: '', sector: currentUser.sector || '' });
             // Optionally re-fetch, but it will be "Pendente" so it won't show in the selector anyway
         } else {
             alert('Erro ao solicitar cadastro de conta.');
@@ -182,10 +183,13 @@ export const AccountSelectionModal: React.FC<AccountSelectionModalProps> = ({
                                                     </div>
                                                     <div>
                                                         <div className="flex items-center gap-2 mb-1">
-                                                            <span className="font-mono text-sm font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">{acc.account_number}</span>
-                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{acc.sector}</span>
+                                                            <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{acc.description}</span>
                                                         </div>
-                                                        <h4 className="text-base font-black text-slate-700 group-hover:text-slate-900 transition-colors">{acc.description}</h4>
+                                                        <h4 className="text-base font-black text-slate-700 group-hover:text-slate-900 transition-colors">{acc.sector}</h4>
+                                                        <span className="text-xs font-medium text-slate-500 flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                                                            Ag: <span className="font-mono">{acc.agency}</span> / CC: <span className="font-mono">{acc.account_number}</span>
+                                                        </span>
                                                     </div>
                                                 </div>
                                                 <div className="w-10 h-10 rounded-full border border-slate-100 flex items-center justify-center text-slate-300 group-hover:bg-indigo-600 group-hover:border-indigo-600 group-hover:text-white transition-all">
@@ -217,18 +221,27 @@ export const AccountSelectionModal: React.FC<AccountSelectionModalProps> = ({
                                 </p>
                             </div>
 
-                            <div className="grid grid-cols-1 gap-6">
-                                <div>
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block ml-2">Número da Conta</label>
-                                    <div className="relative">
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Agência</label>
+                                        <input
+                                            type="text"
+                                            value={newAccount.agency}
+                                            onChange={(e) => setNewAccount({ ...newAccount, agency: e.target.value })}
+                                            placeholder="EX: 0001"
+                                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-indigo-500 transition-all font-mono font-bold"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Número da Conta</label>
                                         <input
                                             type="text"
                                             value={newAccount.account_number}
                                             onChange={(e) => setNewAccount({ ...newAccount, account_number: e.target.value })}
-                                            placeholder="Ex: 100, 110, 200..."
-                                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-[1.5rem] outline-none focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono font-bold"
+                                            placeholder="EX: 100, 110, 200..."
+                                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-indigo-500 transition-all font-mono font-bold"
                                         />
-                                        <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                                     </div>
                                 </div>
 

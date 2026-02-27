@@ -8,7 +8,7 @@ import { useSystemSettings } from '../contexts/SystemSettingsContext';
 import { Order, User } from '../types';
 
 interface HomeScreenProps {
-    onNewOrder: (block?: BlockType) => void;
+    onNewOrder: (block?: BlockType, forceReset?: boolean) => void;
     onTrackOrder: () => void;
     onManageLicitacaoScreening?: () => void;
     onViewAllLicitacao?: () => void;
@@ -221,7 +221,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 label: activeBlock === 'compras' ? 'Novo Pedido' : activeBlock === 'oficio' ? 'Novo Ofício' : activeBlock === 'diarias' ? 'Nova Solicitação' : activeBlock === 'licitacao' ? 'Novo Processo' : 'Novo Registro',
                 desc: "Criar novo registro",
                 icon: FilePlus,
-                onClick: () => onNewOrder(activeBlock || 'oficio'),
+                onClick: () => onNewOrder(activeBlock || 'oficio', true), // Force state reset always when starting a new flow
                 color: config.color
             });
             // "Track" Button

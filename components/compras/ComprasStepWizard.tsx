@@ -187,22 +187,22 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
                 </div>
             </div>
 
-            {/* ACCOUNT WARNING MODAL */}
+            {/* ACCOUNT REQUIRED BLOCKING MODAL */}
             {showAccountWarning && (
                 <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
                     <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-in flex flex-col p-10 border border-slate-100">
-                        <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center mx-auto mb-8">
-                            <DollarSign className="w-10 h-10 text-amber-500" />
+                        <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center mx-auto mb-8">
+                            <DollarSign className="w-10 h-10 text-rose-500" />
                         </div>
 
                         <div className="text-center space-y-4 mb-10">
-                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Seleção de Conta</h3>
+                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Conta Obrigatória</h3>
                             <div className="space-y-4 text-slate-500 font-medium leading-relaxed">
                                 <p>
-                                    Informar a conta é um passo essencial para agilizar e organizar a distribuição dos recursos.
+                                    É obrigatório informar ou cadastrar a destinação de recurso (Conta) para avançar com o pedido.
                                 </p>
-                                <p className="text-sm bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                    A solicitação será registrada normalmente, porém será necessário informar a conta posteriormente para que o pedido seja efetivamente realizado.
+                                <p className="text-sm bg-rose-50/50 text-rose-700 p-4 rounded-2xl border border-rose-100 font-bold">
+                                    Atenção: Em caso de dúvidas sobre qual conta selecionar, entre em contato imediatamente com o setor de Contabilidade para orientação correta.
                                 </p>
                             </div>
                         </div>

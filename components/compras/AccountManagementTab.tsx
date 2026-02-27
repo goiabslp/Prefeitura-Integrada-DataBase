@@ -22,8 +22,8 @@ export const AccountManagementTab: React.FC<AccountManagementTabProps> = ({ curr
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // New Account Form State
     const [newAccount, setNewAccount] = useState({
+        agency: '',
         account_number: '',
         description: '',
         sector: currentUser.sector || ''
@@ -44,8 +44,8 @@ export const AccountManagementTab: React.FC<AccountManagementTabProps> = ({ curr
 
     const handleCreateAccount = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newAccount.account_number || !newAccount.description || !newAccount.sector) {
-            alert('Por favor, preencha todos os campos.');
+        if (!newAccount.agency || !newAccount.account_number || !newAccount.description || !newAccount.sector) {
+            alert('Por favor, preencha todos os campos obrigatórios.');
             return;
         }
 
@@ -58,7 +58,7 @@ export const AccountManagementTab: React.FC<AccountManagementTabProps> = ({ curr
         if (result) {
             setAccounts(prev => [...prev, result]);
             setIsModalOpen(false);
-            setNewAccount({ account_number: '', description: '', sector: currentUser.sector || '' });
+            setNewAccount({ agency: '', account_number: '', description: '', sector: currentUser.sector || '' });
         } else {
             alert('Erro ao solicitar cadastro de conta.');
         }
@@ -145,7 +145,7 @@ export const AccountManagementTab: React.FC<AccountManagementTabProps> = ({ curr
                         {pendingAccounts.map(acc => (
                             <div key={acc.id} className="bg-white p-4 rounded-2xl border border-amber-200 flex items-center justify-between shadow-sm">
                                 <div className="flex flex-col">
-                                    <span className="text-xs font-black text-slate-900">{acc.account_number} — {acc.description}</span>
+                                    <span className="text-xs font-black text-slate-900">Ag: {acc.agency} | CC: {acc.account_number} — {acc.description}</span>
                                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Setor: {acc.sector}</span>
                                 </div>
                                 <div className="flex gap-2">
@@ -230,7 +230,7 @@ export const AccountManagementTab: React.FC<AccountManagementTabProps> = ({ curr
                                 {filteredAccounts.map(acc => (
                                     <tr key={acc.id} className="group hover:bg-slate-50/80 transition-all">
                                         <td className="px-8 py-5">
-                                            <span className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100">{acc.account_number}</span>
+                                            <span className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100">{acc.agency} / {acc.account_number}</span>
                                         </td>
                                         <td className="px-8 py-5">
                                             <span className="text-sm font-bold text-slate-700">{acc.description}</span>
@@ -288,15 +288,27 @@ export const AccountManagementTab: React.FC<AccountManagementTabProps> = ({ curr
                         </div>
 
                         <form onSubmit={handleCreateAccount} className="p-8 space-y-6">
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Número da Conta</label>
-                                <input
-                                    type="text"
-                                    value={newAccount.account_number}
-                                    onChange={(e) => setNewAccount({ ...newAccount, account_number: e.target.value })}
-                                    placeholder="EX: 100, 110, 200..."
-                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-indigo-500 transition-all font-mono font-bold"
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Agência</label>
+                                    <input
+                                        type="text"
+                                        value={newAccount.agency}
+                                        onChange={(e) => setNewAccount({ ...newAccount, agency: e.target.value })}
+                                        placeholder="EX: 0001"
+                                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-indigo-500 transition-all font-mono font-bold"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Número da Conta</label>
+                                    <input
+                                        type="text"
+                                        value={newAccount.account_number}
+                                        onChange={(e) => setNewAccount({ ...newAccount, account_number: e.target.value })}
+                                        placeholder="EX: 100, 110, 200..."
+                                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-indigo-500 transition-all font-mono font-bold"
+                                    />
+                                </div>
                             </div>
 
                             <div>
