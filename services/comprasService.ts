@@ -176,13 +176,12 @@ export const savePurchaseOrder = async (order: Order): Promise<void> => {
         if (current?.status === 'rejected' && order.status !== 'rejected') {
             throw new Error("Validação de Segurança: Pedido de compra rejeitado não pode ser editado nem modificado.");
         }
+    }
 
-        // Rule: Mandatory account for active statuses
-        const activeStatuses = ['approved', 'in_progress', 'finishing', 'completed'];
-        const hasAccount = order.documentSnapshot?.content?.selectedAccount || current?.document_snapshot?.content?.selectedAccount;
-        if (activeStatuses.includes(order.status) && !hasAccount) {
-            throw new Error("Validação de Segurança: É obrigatório informar a conta para que o pedido possa avançar.");
-        }
+    // Rule: Mandatory account for ALL purchase orders (creation and update)
+    const hasAccount = order.documentSnapshot?.content?.selectedAccount;
+    if (!hasAccount) {
+        throw new Error("Validação de Segurança: A conta de pagamento é obrigatória para o pedido.");
     }
 
     const { error } = await supabase.from('purchase_orders').upsert(dbOrder);
@@ -496,7 +495,12 @@ export const createPurchaseAccount = async (account: Partial<PurchaseAccount>): 
     return data as PurchaseAccount;
 };
 
-export const updateOrderAccount = async (orderId: string, accountDescription: string, userName: string): Promise<void> => {
+export const updateOrderAccount = async (orderId: string, accountDescription: string, userName: string, advanceStatus: boolean = false, isAdmin: boolean = false): Promise<void> => {
+    // Permission Backend Check
+    if (advanceStatus && !isAdmin) {
+        throw new Error("Permissão Negada: Apenas administradores podem aprovar a conta de pagamento.");
+    }
+
     // 1. Fetch current order
     const { data: order, error: fetchError } = await supabase
         .from('purchase_orders')
@@ -515,23 +519,28 @@ export const updateOrderAccount = async (orderId: string, accountDescription: st
         }
     };
 
-    // 3. Prepare status update (advance to approved)
+    // 3. Prepare status update (advance to approved if requested)
     const newMovement = {
-        statusLabel: 'Conta Vinculada: ' + accountDescription,
+        statusLabel: advanceStatus ? 'Conta Vinculada e Aprovada: ' + accountDescription : 'Conta Vinculada/Alterada: ' + accountDescription,
         date: new Date().toISOString(),
         userName: userName
     };
 
     const finalHistory = [...(order.status_history || []), newMovement];
 
+    const updatePayload: any = {
+        document_snapshot: updatedSnapshot,
+        status_history: finalHistory
+    };
+
+    if (advanceStatus) {
+        updatePayload.status = 'approved';
+    }
+
     // 4. Save
     const { error: updateError } = await supabase
         .from('purchase_orders')
-        .update({
-            document_snapshot: updatedSnapshot,
-            status: 'approved',
-            status_history: finalHistory
-        })
+        .update(updatePayload)
         .eq('id', orderId);
 
     if (updateError) throw updateError;

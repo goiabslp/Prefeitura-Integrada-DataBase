@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Calendar as CalendarIcon, X, Clock } from 'lucide-react';
 import { calendarService, CalendarEvent } from '../../services/calendarService';
 import { supabase } from '../../services/supabaseClient';
+import { getLocalISOData } from '../../utils/dateUtils';
 
 export const UpcomingEventsNotification: React.FC = () => {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -24,11 +25,11 @@ export const UpcomingEventsNotification: React.FC = () => {
             try {
                 // Fetch events from today up to 5 days from now
                 const today = new Date();
-                const startDateStr = today.toISOString().split('T')[0];
+                const startDateStr = getLocalISOData(today).date;
 
                 const future = new Date(today);
                 future.setDate(future.getDate() + 5);
-                const endDateStr = future.toISOString().split('T')[0];
+                const endDateStr = getLocalISOData(future).date;
 
                 const allEvents = await calendarService.fetchEvents(startDateStr, endDateStr);
 
@@ -65,7 +66,7 @@ export const UpcomingEventsNotification: React.FC = () => {
     }, [currentUserId]);
 
     const getTodayDateString = () => {
-        return new Date().toISOString().split('T')[0];
+        return getLocalISOData(new Date()).date;
     };
 
     const getNextBusinessDayDateString = () => {
@@ -77,7 +78,7 @@ export const UpcomingEventsNotification: React.FC = () => {
         else if (day === 6) addDays = 2; // Saturday -> Monday
 
         d.setDate(d.getDate() + addDays);
-        return d.toISOString().split('T')[0];
+        return getLocalISOData(d).date;
     };
 
     if (!isVisible || events.length === 0) return null;

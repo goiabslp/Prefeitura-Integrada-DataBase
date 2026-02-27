@@ -491,10 +491,10 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
         );
     };
 
-    const handleSelectAccount = async (account: PurchaseAccount) => {
+    const handleSelectAccount = async (account: PurchaseAccount, advanceStatus: boolean = false) => {
         if (!accountSelectionOrder) return;
         try {
-            await updateOrderAccount(accountSelectionOrder.id, account.description, currentUser.name);
+            await updateOrderAccount(accountSelectionOrder.id, account.description, currentUser.name, advanceStatus, isAdmin);
             setAccountSelectionOrder(null);
             // The order will be updated in the parent state if it's subscribed to realtime or if we trigger a refresh.
             // Since onUpdateOrderStatus is available, maybe we should use it?
@@ -506,12 +506,12 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                 // Trigger a generic status update to force re-fetch if necessary, 
                 // but updateOrderAccount already moved it to 'approved'.
                 // To be safe, let's just alert success and close.
-                alert('Conta vinculada e pedido liberado para o setor de compras!');
+                alert(advanceStatus ? 'Conta vinculada e pedido liberado para o setor de compras!' : 'Conta vinculada atualizada com sucesso!');
                 window.location.reload(); // Quick way to sync for now, or we could pass a refresh function
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error selecting account:", error);
-            alert("Erro ao vincular conta.");
+            alert(error.message || "Erro ao vincular conta.");
         }
     };
 
@@ -1695,6 +1695,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                     onSelect={handleSelectAccount}
                     currentUser={currentUser}
                     sectors={sectors}
+                    order={accountSelectionOrder}
+                    isAdmin={isAdmin}
                 />,
                 document.body
             )}

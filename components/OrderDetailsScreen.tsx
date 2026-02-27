@@ -3,12 +3,12 @@ import { createPortal } from 'react-dom';
 import {
     ArrowLeft, FileText, History, Paperclip, Download, Calendar,
     CheckCircle2, XCircle, Sparkles, PackageCheck, Landmark,
-    FileSearch, ShoppingCart, Clock, MessageCircle, User,
+    FileSearch, ShoppingCart, Clock, MessageCircle, User as UserIcon,
     CheckCircle, AlertTriangle, Eye, ShieldCheck, MapPin,
     Building2, Briefcase, FileSignature, DollarSign, Fingerprint,
-    Plus, Search, ChevronRight
+    Plus, Search, ChevronRight, Loader2
 } from 'lucide-react';
-import { Order, AppState, BlockType, Attachment, InventoryCategory, PurchaseAccount } from '../types';
+import { Order, AppState, BlockType, Attachment, InventoryCategory, PurchaseAccount, User } from '../types';
 import { addToInventory, savePurchaseOrder, updateOrderStatus } from '../services/comprasService';
 import { purchaseAccountService } from '../services/purchaseAccountService';
 import { formatLocalDate } from '../utils/dateUtils';
@@ -26,6 +26,8 @@ interface OrderDetailsScreenProps {
     order: Order;
     onBack: () => void;
     onDownloadPdf: (snapshot: AppState, blockType?: BlockType) => void;
+    currentUser: User;
+    onUpdateOrderStatus?: (orderOrId: string | Order, status: Order['status'], justification?: string) => Promise<void>;
 }
 
 type TabType = 'overview' | 'items' | 'justification' | 'history' | 'attachments' | 'signature' | 'conta';
@@ -33,7 +35,9 @@ type TabType = 'overview' | 'items' | 'justification' | 'history' | 'attachments
 export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
     order: initialOrder,
     onBack,
-    onDownloadPdf
+    onDownloadPdf,
+    currentUser,
+    onUpdateOrderStatus
 }) => {
     const [order, setOrder] = useState<Order>(initialOrder);
     const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -116,7 +120,6 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
             // 1. Update order content
             const updatedOrder: Order = {
                 ...order,
-                status: 'approved', // Automatically move back to approved
                 documentSnapshot: {
                     ...order.documentSnapshot!,
                     content: {
@@ -130,8 +133,8 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
             const newMovement = {
                 statusLabel: 'Conta Vinculada',
                 date: new Date().toISOString(),
-                userName: 'Admin', // Assuming admin action
-                justification: `Conta ${account.account_number} vinculada ao pedido.`
+                userName: currentUser.name || 'Sistema',
+                justification: `Dotação Orçamentária ${account.account_number} selecionada para este pedido.`
             };
             updatedOrder.statusHistory = [...(order.statusHistory || []), newMovement];
 
@@ -143,6 +146,20 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
         } catch (error) {
             console.error("Error selecting account:", error);
             alert("Erro ao vincular conta.");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleApproveAccount = async () => {
+        if (!onUpdateOrderStatus) return;
+        setIsProcessing(true);
+        try {
+            await onUpdateOrderStatus(order, 'approved', 'Dotação Orçamentária conferida e aprovada pela administração.');
+            setOrder(prev => ({ ...prev, status: 'approved' }));
+        } catch (error) {
+            console.error("Error approving account:", error);
+            alert("Erro ao aprovar dotação orçamentária.");
         } finally {
             setIsProcessing(false);
         }
@@ -226,7 +243,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
 
                                 <div className="flex items-center gap-2 pt-2 border-t border-slate-50">
                                     <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500">
-                                        <User className="w-3.5 h-3.5" />
+                                        <UserIcon className="w-3.5 h-3.5" />
                                     </div>
                                     <span className="text-xs font-bold text-slate-500">
                                         Responsável: <span className="text-slate-700">{move.userName || 'Sistema'}</span>
@@ -328,9 +345,11 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
     // Helper to render Account (Conta) Tab Content
     const renderConta = () => {
         const selectedAccount = order.documentSnapshot?.content?.selectedAccount;
+        const isAdmin = currentUser.role === 'admin';
+        const isWaitingAccountApproval = order.status === 'payment_account';
 
         let accountNumber = "Não Informada";
-        let accountDescription = "Nenhuma conta vinculada.";
+        let accountDescription = "Nenhuma dotação orçamentária vinculada a este pedido.";
 
         if (selectedAccount) {
             const parts = selectedAccount.split(' – ');
@@ -343,40 +362,139 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
         }
 
         return (
-            <div className="w-full h-full flex flex-col items-center justify-center p-6 animate-fade-in bg-slate-50/10">
-                <div className="w-full max-w-md bg-white rounded-[2.5rem] border border-slate-200 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.12)] overflow-hidden transition-all duration-300">
-                    <div className="h-1.5 bg-gradient-to-r from-indigo-500 to-indigo-700"></div>
-                    <div className="p-10 desktop:p-14 flex flex-col items-center text-center">
-                        <div className="w-16 h-16 bg-indigo-50 rounded-3xl flex items-center justify-center mb-8 shadow-inner">
-                            <Landmark className="w-8 h-8 text-indigo-600" />
-                        </div>
+            <div className="w-full h-full flex flex-col p-4 desktop:p-8 animate-fade-in bg-slate-50/50 overflow-hidden">
+                <div className="max-w-6xl mx-auto w-full h-full flex flex-col lg:flex-row items-stretch gap-6 lg:gap-8">
 
-                        <div className="space-y-8 w-full">
-                            <div className="space-y-2">
-                                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Número da Conta</span>
-                                <div className="bg-slate-50 rounded-2xl py-5 px-6 border border-slate-100">
-                                    <p className="text-3xl font-black text-slate-900 tracking-tight font-mono">
-                                        {accountNumber}
-                                    </p>
+                    {/* Visual Card Block */}
+                    <div className="flex-[1.2] flex flex-col justify-center gap-6">
+                        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.1)] overflow-hidden transition-all duration-500 hover:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.15)] flex flex-col h-fit">
+                            <div className="h-2 bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-400"></div>
+                            <div className="p-8 desktop:p-12 flex flex-col gap-8">
+                                <div className="flex items-center justify-between">
+                                    <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center shadow-inner">
+                                        <Landmark className="w-7 h-7 text-indigo-600" />
+                                    </div>
+                                    <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border flex items-center gap-2 ${selectedAccount ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'
+                                        }`}>
+                                        <div className={`w-2 h-2 rounded-full animate-pulse ${selectedAccount ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
+                                        {selectedAccount ? "Dotação Vinculada" : "Pendente de Vínculo"}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Número da Conta/Dotação</span>
+                                            <div className="h-px flex-1 bg-slate-100"></div>
+                                        </div>
+                                        <div className="bg-slate-50 rounded-2xl py-6 px-8 border border-slate-200/60 shadow-inner group transition-all">
+                                            <p className="text-3xl desktop:text-4xl font-black text-slate-900 tracking-tighter font-mono group-hover:text-indigo-600 transition-colors">
+                                                {accountNumber}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Descrição Orçamentária</span>
+                                            <div className="h-px flex-1 bg-slate-100"></div>
+                                        </div>
+                                        <div className="min-h-[100px] flex items-center">
+                                            <p className="text-lg desktop:text-xl font-bold text-slate-700 leading-snug">
+                                                {accountDescription}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pt-8 border-t border-slate-50 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.3em] text-slate-300">
+                                    <span>Sistema de Dotação Integrada</span>
+                                    <div className="flex gap-1">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-200"></div>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-100"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Action & Status Block */}
+                    <div className="flex-1 flex flex-col justify-center gap-6">
+                        <div className="space-y-6">
+                            <div className="bg-white/60 backdrop-blur-md p-8 rounded-[2rem] border border-white shadow-xl flex flex-col gap-6">
+                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
+                                    <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                                    Status de Aprovação
+                                </h3>
+
+                                <div className="space-y-4">
+                                    <div className={`p-5 rounded-2xl border-2 flex items-start gap-4 transition-all ${order.status === 'approved' ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100 opacity-60'
+                                        }`}>
+                                        <CheckCircle2 className={`w-6 h-6 shrink-0 ${order.status === 'approved' ? 'text-emerald-500' : 'text-slate-300'}`} />
+                                        <div className="space-y-1">
+                                            <p className={`text-xs font-black uppercase tracking-widest ${order.status === 'approved' ? 'text-emerald-900' : 'text-slate-400'}`}>Dotação Aprovada</p>
+                                            <p className="text-[10px] font-medium text-slate-500 leading-relaxed">A dotação foi conferida e o processo pode seguir para a próxima etapa.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className={`p-5 rounded-2xl border-2 flex items-start gap-4 transition-all ${isWaitingAccountApproval ? 'bg-indigo-50 border-indigo-200 shadow-md shadow-indigo-500/5' : 'bg-slate-50 border-slate-100 opacity-60'
+                                        }`}>
+                                        <Clock className={`w-6 h-6 shrink-0 ${isWaitingAccountApproval ? 'text-indigo-600' : 'text-slate-300'}`} />
+                                        <div className="space-y-1">
+                                            <p className={`text-xs font-black uppercase tracking-widest ${isWaitingAccountApproval ? 'text-indigo-900' : 'text-slate-400'}`}>Aguardando Conferência</p>
+                                            <p className="text-[10px] font-medium text-slate-500 leading-relaxed">A conta foi informada e aguarda a validação da administração.</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-4 justify-center">
-                                <div className="h-px flex-1 bg-slate-100"></div>
-                                <div className="w-1.5 h-1.5 rounded-full bg-slate-200"></div>
-                                <div className="h-px flex-1 bg-slate-100"></div>
-                            </div>
+                            {/* Approval Controls */}
+                            {isAdmin && isWaitingAccountApproval && (
+                                <div className="animate-fade-in space-y-4">
+                                    <div className="p-6 bg-slate-900 rounded-[2rem] shadow-2xl flex flex-col gap-6 overflow-hidden relative group">
+                                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform">
+                                            <Landmark className="w-24 h-24" />
+                                        </div>
+                                        <div className="relative z-10 space-y-2">
+                                            <h4 className="text-white font-black uppercase tracking-widest text-[11px]">Ações do Administrador</h4>
+                                            <p className="text-slate-400 text-[10px] font-medium leading-relaxed">Confirme se a dotação orçamentária informada no pedido está correta.</p>
+                                        </div>
+                                        <div className="flex gap-3 relative z-10">
+                                            <button
+                                                onClick={handleApproveAccount}
+                                                disabled={isProcessing || !selectedAccount}
+                                                className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                                            >
+                                                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                                Aprovar Dotação
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    const fetched = await purchaseAccountService.getAccounts();
+                                                    setAccounts(fetched);
+                                                    setIsAccountModalOpen(true);
+                                                }}
+                                                className="py-4 px-6 bg-white/10 text-white border border-white/20 rounded-2xl font-black uppercase tracking-widest text-[11px] transition-all flex items-center justify-center gap-2 hover:bg-white/20 active:scale-95"
+                                                title="Alterar Dotação"
+                                            >
+                                                Alterar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
-                            <div className="space-y-2">
-                                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Dotação Orçamentária</span>
-                                <p className="text-xl font-bold text-slate-800 leading-tight">
-                                    {accountDescription}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="mt-10 text-[9px] font-black uppercase tracking-[0.4em] text-slate-300">
-                            Identificação Verificada
+                            {!isAdmin && isWaitingAccountApproval && (
+                                <div className="p-6 bg-indigo-600 rounded-[2rem] shadow-lg flex items-center gap-4 animate-pulse">
+                                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white">
+                                        <Clock className="w-6 h-6" />
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <p className="text-white font-black uppercase tracking-widest text-[10px]">Análise Pendente</p>
+                                        <p className="text-white/70 text-[9px] font-medium italic">Aguardando aprovação administrativa da dotação.</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -487,7 +605,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                     {/* Solicitante */}
                     <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-start gap-3 group hover:border-indigo-200 transition-all">
                         <div className="p-2 bg-indigo-50 text-indigo-500 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
-                            <User className="w-4 h-4" />
+                            <UserIcon className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
                             <span className="text-[9px] uppercase font-black tracking-widest text-slate-400 block mb-0.5">Solicitante</span>
@@ -927,7 +1045,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
+            <div className={`flex-1 ${activeTab === 'conta' ? 'overflow-hidden' : 'overflow-y-auto'} custom-scrollbar bg-slate-50/30`}>
                 <div className="h-full w-full">
                     {activeTab === 'overview' && renderOverview()}
                     {activeTab === 'items' && renderItems()}

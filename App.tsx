@@ -785,6 +785,12 @@ const App: React.FC = () => {
   const handleFinish = async (skip2FA = false, digitalSignatureData?: { enabled: boolean, method: string, ip: string, date: string, id: string }, forceOficio = false, customDescription?: string): Promise<boolean> => {
     if (!currentUser || !activeBlock) return false;
 
+    // FRONTEND VALIDATION FOR COMPRAS (ACCOUNT MANDATORY)
+    if (activeBlock === 'compras' && !appState.content.selectedAccount) {
+      alert("A conta de pagamento é obrigatória para criar ou editar um pedido.");
+      return false;
+    }
+
     // 2FA Interception Logic
     // Skip 2FA if we already have a valid digital signature stored (e.g. from ComprasForm Step 5)
     if (!skip2FA && appState.content.useDigitalSignature && !appState.content.digitalSignature?.enabled) {
@@ -1073,7 +1079,7 @@ const App: React.FC = () => {
         id: Date.now().toString(),
         protocol: protocolString,
         title: appState.content.title,
-        status: activeBlock === 'compras' ? 'awaiting_approval' : 'pending',
+        status: activeBlock === 'compras' ? 'payment_account' : 'pending',
         createdAt: new Date().toISOString(),
         userId: currentUser.id,
         userName: currentUser.name,
@@ -1649,9 +1655,10 @@ const App: React.FC = () => {
 
     // 2. Prepare new data
     let targetStatus = status;
-    const selectedAccount = orderToUpdate.documentSnapshot?.content?.selectedAccount;
+    const isPurchase = orderToUpdate.blockType === 'compras';
 
-    if (status === 'approved' && !selectedAccount) {
+    // If admin is approving a new order (pending/awaiting), force it to payment_account status for account verification/selection
+    if (isPurchase && status === 'approved' && (orderToUpdate.status === 'pending' || !orderToUpdate.status || orderToUpdate.status === 'awaiting_approval')) {
       targetStatus = 'payment_account';
     }
 
@@ -3856,6 +3863,8 @@ const App: React.FC = () => {
                 order={viewingOrder}
                 onBack={handleBackToTracking}
                 onDownloadPdf={(snapshot, blockType) => handleDownloadFromHistory({ ...viewingOrder, documentSnapshot: snapshot }, blockType)}
+                currentUser={currentUser}
+                onUpdateOrderStatus={handleUpdateOrderStatus}
               />
             )}
 

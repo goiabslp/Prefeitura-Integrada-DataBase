@@ -173,9 +173,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     };
 
     const getDepartureDate = (order: Order) => {
-        const content = order.documentSnapshot?.content;
-        if (!content?.departureDateTime) return '---';
-        return new Date(content.departureDateTime).toLocaleDateString('pt-BR');
+        return formatLocalDate(order.documentSnapshot?.content?.departureDateTime);
     };
 
     const handleGenericAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -393,7 +391,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                 finishing: { label: 'Finalizando', class: 'bg-purple-50 text-purple-700 border-purple-100 animate-pulse' }
                                             };
                                             const sConf = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.pending;
-                                            const orderDate = new Date(order.createdAt).toLocaleString('pt-BR');
+                                            const orderDate = formatLocalDateTime(order.createdAt);
 
                                             let forecastDisplay = '---';
                                             if (content?.completionForecast) {

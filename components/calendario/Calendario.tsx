@@ -6,6 +6,7 @@ import { EventModal } from './EventModal';
 import { DayDetailsModal } from './DayDetailsModal';
 import { EventDetailsModal } from './EventDetailsModal';
 import { generateHolidaysForYear } from './holidays';
+import { getLocalISOData } from '../../utils/dateUtils';
 import { calendarService, CalendarEvent } from '../../services/calendarService';
 import { MyEventsModal } from './MyEventsModal';
 import { PendingInvitesModal } from './PendingInvitesModal';
@@ -216,7 +217,7 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                         <button
                             onClick={() => {
                                 setEventToEdit(null);
-                                setSelectedDate(new Date().toISOString().split('T')[0]);
+                                setSelectedDate(getLocalISOData(new Date()).date);
                                 setIsModalOpen(true);
                             }}
                             className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold shadow-lg shadow-rose-500/30 hover:shadow-rose-500/50 hover:-translate-y-0.5 transition-all active:scale-95"

@@ -63,13 +63,13 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
         return statuses;
     }, [content, currentStep]);
 
-    // Check Global Completion for "Finalizar" button
+    // Check Global Completion for \"Finalizar\" button
     const isAllMandatoryCompleted = useMemo(() => {
         return !!(
             content.title && content.requesterName && content.priority && // Step 1
             content.purchaseItems && content.purchaseItems.length > 0 && // Step 2
             content.body && // Step 3
-            // Step 5 removed from mandatory
+            content.selectedAccount && // Step 5 - NOW MANDATORY
             content.signatureName // Step 6
         );
     }, [content]);
@@ -209,20 +209,10 @@ export const ComprasStepWizard: React.FC<ComprasStepWizardProps> = ({
 
                         <div className="flex flex-col gap-3">
                             <button
-                                onClick={() => {
-                                    setShowAccountWarning(false);
-                                    setCurrentStep(6);
-                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                }}
+                                onClick={() => setShowAccountWarning(false)}
                                 className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-95"
                             >
-                                Confirmar e Continuar
-                            </button>
-                            <button
-                                onClick={() => setShowAccountWarning(false)}
-                                className="w-full py-4 bg-white text-slate-400 font-bold rounded-2xl hover:bg-slate-50 transition-all border border-transparent"
-                            >
-                                Voltar para selecionar
+                                Selecionar Conta Agora
                             </button>
                         </div>
                     </div>

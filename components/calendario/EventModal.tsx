@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../services/supabaseClient';
 import { calendarService, CalendarEventInvite, CalendarEvent } from '../../services/calendarService';
 import { getPersons } from '../../services/entityService';
+import { getLocalISOData } from '../../utils/dateUtils';
 import { Person } from '../../types';
 
 interface Props {
@@ -72,8 +73,9 @@ export const EventModal: React.FC<Props> = ({
             } else {
                 setTitle('');
                 setType('Pessoal');
-                setStartDate(selectedDate || new Date().toISOString().split('T')[0]);
-                setEndDate(selectedDate || new Date().toISOString().split('T')[0]);
+                const defaultDate = getLocalISOData(new Date()).date;
+                setStartDate(selectedDate || defaultDate);
+                setEndDate(selectedDate || defaultDate);
                 setIsAllDay(true);
                 setStartTime('');
                 setEndTime('');

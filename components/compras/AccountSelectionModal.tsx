@@ -5,15 +5,17 @@ import {
     DollarSign, Briefcase, User, MapPin
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PurchaseAccount, User as UserType, Sector } from '../../types';
+import { PurchaseAccount, User as UserType, Sector, Order } from '../../types';
 import { purchaseAccountService } from '../../services/purchaseAccountService';
 
 interface AccountSelectionModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSelect: (account: PurchaseAccount) => void;
+    onSelect: (account: PurchaseAccount, advanceStatus: boolean) => void;
     currentUser: UserType;
     sectors: Sector[];
+    order?: Order;
+    isAdmin?: boolean;
 }
 
 export const AccountSelectionModal: React.FC<AccountSelectionModalProps> = ({
@@ -21,12 +23,16 @@ export const AccountSelectionModal: React.FC<AccountSelectionModalProps> = ({
     onClose,
     onSelect,
     currentUser,
-    sectors
+    sectors,
+    order,
+    isAdmin = false
 }) => {
+    const currentAccountDesc = order?.documentSnapshot?.content?.selectedAccount;
     const [accounts, setAccounts] = useState<PurchaseAccount[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [isCreating, setIsCreating] = useState(false);
+    const [isSelecting, setIsSelecting] = useState(!currentAccountDesc);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // New Account Form State
@@ -106,7 +112,34 @@ export const AccountSelectionModal: React.FC<AccountSelectionModalProps> = ({
                 </div>
 
                 <div className="flex-1 overflow-hidden flex flex-col">
-                    {!isCreating ? (
+                    {!isSelecting ? (
+                        <div className="flex-1 p-8 flex flex-col items-center justify-center animate-fade-in">
+                            <h4 className="text-xl font-black text-slate-800 uppercase mb-4 tracking-tight">Conta Selecionada</h4>
+                            <div className="w-full max-w-md p-6 bg-indigo-50/50 border border-indigo-100 rounded-[2rem] mb-8 text-center shadow-sm">
+                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-2"><Landmark className="w-4 h-4 inline-block mb-1" /> CONTA</span>
+                                <span className="text-lg font-black text-indigo-900">{currentAccountDesc}</span>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                                <button
+                                    onClick={() => setIsSelecting(true)}
+                                    className="flex-1 py-4 bg-white border border-slate-200 text-slate-600 shadow-sm font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-50 transition-all active:scale-95 text-center flex items-center justify-center gap-2"
+                                >
+                                    Alterar Conta
+                                </button>
+                                {isAdmin && (
+                                    <button
+                                        onClick={() => {
+                                            const approvedAcc = accounts.find(a => a.description === currentAccountDesc) || { description: currentAccountDesc } as PurchaseAccount;
+                                            onSelect(approvedAcc, true);
+                                        }}
+                                        className="flex-1 py-4 bg-emerald-600 border border-emerald-500 text-white shadow-xl shadow-emerald-600/20 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-emerald-700 transition-all active:scale-95 text-center flex items-center justify-center gap-2 block"
+                                    >
+                                        <CheckCircle2 className="w-4 h-4" /> Aprovar Conta
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ) : !isCreating ? (
                         <>
                             {/* SEARCH & ACTION */}
                             <div className="p-8 border-b border-slate-50 flex items-center gap-4">
@@ -140,7 +173,7 @@ export const AccountSelectionModal: React.FC<AccountSelectionModalProps> = ({
                                         {filteredAccounts.map(acc => (
                                             <button
                                                 key={acc.id}
-                                                onClick={() => onSelect(acc)}
+                                                onClick={() => onSelect(acc, false)}
                                                 className="group text-left p-6 bg-white border border-slate-100 rounded-[2rem] hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-500/5 transition-all flex items-center justify-between"
                                             >
                                                 <div className="flex items-center gap-5">
