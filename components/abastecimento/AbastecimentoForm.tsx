@@ -8,6 +8,7 @@ import { parseFormattedNumber, formatNumberInput } from '../../utils/numberUtils
 
 import { CustomDateTimeInput } from '../common/CustomDateTimeInput';
 import { AbastecimentoConfirmationModal } from '../modals/AbastecimentoConfirmationModal';
+import { getLocalISOData } from '../../utils/dateUtils';
 
 interface AbastecimentoFormProps {
     onBack: () => void;
@@ -35,12 +36,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     // Store global prices for fallback
     const [globalPrices, setGlobalPrices] = useState<{ [key: string]: number }>({});
 
-    const [date, setDate] = useState(() => {
-        const d = new Date();
-        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-        return d.toISOString().split('T')[0];
-    });
-    const [time, setTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }));
+    const [date, setDate] = useState(() => getLocalISOData(new Date()).date);
+    const [time, setTime] = useState(() => getLocalISOData(new Date()).time);
     const [vehicle, setVehicle] = useState('');
     const [driver, setDriver] = useState('');
     const [liters, setLiters] = useState('');
@@ -146,10 +143,9 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     // Load initial data for editing
     useEffect(() => {
         if (initialData) {
-            const d = new Date(initialData.date);
-            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-            setDate(d.toISOString().split('T')[0]);
-            setTime(new Date(initialData.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }));
+            const isoData = getLocalISOData(initialData.date);
+            setDate(isoData.date);
+            setTime(isoData.time);
             // Handle legacy data (Model - Brand) vs new data (Plate)
             const savedVehicle = initialData.vehicle;
             const matchedVehicle = vehicles.find(v =>
@@ -199,7 +195,10 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const combinedDate = new Date(`${date}T${time}`);
+        // Parse local date components into a Date object correctly
+        const [year, month, day] = date.split('-').map(Number);
+        const [hours, minutes] = time.split(':').map(Number);
+        const combinedDate = new Date(year, month - 1, day, hours, minutes);
         // If editing, use existing ID and Protocol. Else generate new.
         const recordId = initialData?.id || crypto.randomUUID();
         const protocolId = initialData?.protocol || `ABA-${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`;

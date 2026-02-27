@@ -3,6 +3,7 @@ import { ArrowLeft, Search, Filter, Fuel, Trash2, Calendar, User, Truck, ShieldC
 import { AbastecimentoService, AbastecimentoRecord } from '../../services/abastecimentoService';
 import { supabase } from '../../services/supabaseClient';
 import { GestureItem } from '../common/GestureItem';
+import { formatLocalDateTime, getLocalISOData } from '../../utils/dateUtils';
 
 interface AbastecimentoListProps {
     onBack: () => void;
@@ -54,7 +55,7 @@ const AbastecimentoCard = ({ item, isAdmin, onEdit, onDelete, vehicleModelMap, v
                         <div className="flex-1 grid grid-cols-2 wide:grid-cols-12 gap-4 items-center">
                             {/* Always Visible Fields */}
                             <DataItem label="Nº Nota" value={item.invoiceNumber || '-'} icon={FileText} flex="col-span-1 wide:col-span-1" />
-                            <DataItem label="Data" value={new Date(item.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} icon={Calendar} flex="col-span-1 wide:col-span-2" />
+                            <DataItem label="Data" value={formatLocalDateTime(item.date)} icon={Calendar} flex="col-span-1 wide:col-span-2" />
                             <DataItem label="Veículo" value={vehicleModelMap[item.vehicle] ? `${vehicleModelMap[item.vehicle]}` : item.vehicle} icon={Truck} colorClass="text-slate-900 uppercase tracking-tight" flex="col-span-2 wide:col-span-3" />
                             <DataItem label="Motorista" value={item.driver} icon={User} colorClass="text-slate-600 uppercase tracking-tight" flex="col-span-1 wide:col-span-2" />
                             <DataItem label="Setor" value={vehicleSectorMap[item.vehicle] || '-'} colorClass="text-slate-500 uppercase text-[10px]" flex="col-span-1 wide:col-span-2" />
@@ -178,7 +179,7 @@ export const AbastecimentoList: React.FC<AbastecimentoListProps> = ({ onBack, on
 
             if (filterMode === 'today' || filterMode === 'date') {
                 const baseDateStr = filterMode === 'today'
-                    ? new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD in local time
+                    ? getLocalISOData(new Date()).date
                     : selectedDate;
 
                 filters.date = baseDateStr;

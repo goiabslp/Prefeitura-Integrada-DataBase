@@ -11,6 +11,7 @@ import {
 import { Order, AppState, BlockType, Attachment, InventoryCategory, PurchaseAccount } from '../types';
 import { addToInventory, savePurchaseOrder, updateOrderStatus } from '../services/comprasService';
 import { purchaseAccountService } from '../services/purchaseAccountService';
+import { formatLocalDate } from '../utils/dateUtils';
 
 const HashIcon = ({ className }: { className?: string }) => (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -399,7 +400,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                                     <div className="flex items-center gap-2 text-[10px] font-medium text-slate-400 uppercase tracking-wide">
                                         <span className="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">{att.type.split('/')[1] || 'FILE'}</span>
                                         <span>•</span>
-                                        <span>{new Date(att.date).toLocaleDateString()}</span>
+                                        <span>{formatLocalDate(att.date)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -521,7 +522,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
                             <div>
                                 <span className="text-[9px] uppercase font-black tracking-widest text-slate-400 block mb-0.5">Previsão</span>
                                 <div className="text-sm font-black text-slate-800">
-                                    {order.completionForecast ? new Date(order.completionForecast).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '---'}
+                                    {formatLocalDate(order.completionForecast)}
                                 </div>
                             </div>
                         </div>

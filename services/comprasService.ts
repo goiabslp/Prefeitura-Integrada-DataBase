@@ -1,6 +1,6 @@
 
 import { supabase } from './supabaseClient';
-import { Order, InventoryItem, InventoryCategory } from '../types';
+import { Order, InventoryItem, InventoryCategory, PurchaseAccount } from '../types';
 import { notificationService } from './notificationService';
 
 import { handleSupabaseError } from '../utils/errorUtils';
@@ -475,4 +475,64 @@ export const restoreItemToTendered = async (inventoryItemId: string): Promise<vo
             }
         }
     }
+};
+
+export const getPurchaseAccounts = async (): Promise<PurchaseAccount[]> => {
+    const { data, error } = await supabase
+        .from('purchase_accounts')
+        .select('*')
+        .order('description', { ascending: true });
+    if (error) throw error;
+    return data as PurchaseAccount[];
+};
+
+export const createPurchaseAccount = async (account: Partial<PurchaseAccount>): Promise<PurchaseAccount> => {
+    const { data, error } = await supabase
+        .from('purchase_accounts')
+        .insert([account])
+        .select()
+        .single();
+    if (error) throw error;
+    return data as PurchaseAccount;
+};
+
+export const updateOrderAccount = async (orderId: string, accountDescription: string, userName: string): Promise<void> => {
+    // 1. Fetch current order
+    const { data: order, error: fetchError } = await supabase
+        .from('purchase_orders')
+        .select('document_snapshot, status, status_history')
+        .eq('id', orderId)
+        .single();
+    if (fetchError) throw fetchError;
+
+    // 2. Update snapshot
+    const content = order.document_snapshot.content;
+    const updatedSnapshot = {
+        ...order.document_snapshot,
+        content: {
+            ...content,
+            selectedAccount: accountDescription
+        }
+    };
+
+    // 3. Prepare status update (advance to approved)
+    const newMovement = {
+        statusLabel: 'Conta Vinculada: ' + accountDescription,
+        date: new Date().toISOString(),
+        userName: userName
+    };
+
+    const finalHistory = [...(order.status_history || []), newMovement];
+
+    // 4. Save
+    const { error: updateError } = await supabase
+        .from('purchase_orders')
+        .update({
+            document_snapshot: updatedSnapshot,
+            status: 'approved',
+            status_history: finalHistory
+        })
+        .eq('id', orderId);
+
+    if (updateError) throw updateError;
 };

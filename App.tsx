@@ -3817,6 +3817,7 @@ const App: React.FC = () => {
                 onUpdateOrderStatus={handleUpdateOrderStatus}
                 onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
                 onViewOrder={handleViewOrder}
+                sectors={sectors}
               />
             )}
             {currentView === 'licitacao-all' && currentUser && (
@@ -3836,6 +3837,7 @@ const App: React.FC = () => {
                 onUpdateOrderStatus={handleUpdateOrderStatus}
                 onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
                 onViewOrder={handleViewOrder}
+                sectors={sectors}
               />
             )}
             {currentView === 'licitacao-screening' && currentUser && (

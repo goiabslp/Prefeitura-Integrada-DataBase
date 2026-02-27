@@ -6,6 +6,7 @@ import { PageWrapper } from '../PageWrapper';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Printer, X, FileSpreadsheet, Fuel, Building2, Calendar, LayoutDashboard, Car } from 'lucide-react';
+import { formatLocalDate, formatLocalDateTime } from '../../utils/dateUtils';
 
 interface AbastecimentoReportPDFProps {
     data: {
@@ -312,11 +313,10 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                         </h3>
                     </div>
                     <div>
-                        <p className="text-[7pt] font-black text-slate-400 uppercase">Período</p>
                         <p className="text-[9pt] font-bold text-slate-700">
-                            {filters.startDate ? new Date(filters.startDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'Início'}
+                            {filters.startDate ? formatLocalDate(filters.startDate) : 'Início'}
                             <span className="mx-2 opacity-30">até</span>
-                            {filters.endDate ? new Date(filters.endDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'Hoje'}
+                            {filters.endDate ? formatLocalDate(filters.endDate) : 'Hoje'}
                         </p>
                     </div>
                     <div>
@@ -577,7 +577,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                                     const r = item;
                                     return (
                                         <tr key={idx} className="text-[7.5pt] font-medium text-slate-700">
-                                            <td className="px-3 py-2">{new Date(r.date).toLocaleDateString('pt-BR')}</td>
+                                            <td className="px-3 py-2">{formatLocalDate(r.date)}</td>
                                             <td className="px-3 py-2 uppercase truncate font-mono text-[9px]">{r.invoiceNumber || '-'}</td>
                                             <td className="px-3 py-2 uppercase">
                                                 <p className="font-bold leading-none">{r.vehicle}</p>

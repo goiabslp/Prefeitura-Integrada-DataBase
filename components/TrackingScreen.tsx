@@ -9,9 +9,12 @@ import {
     Filter, ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User as UserType, Order, AppState, BlockType, Attachment } from '../types';
+import { User as UserType, Order, AppState, BlockType, Attachment, Sector, PurchaseAccount } from '../types';
 import { DocumentPreview } from './DocumentPreview';
 import { uploadFile } from '../services/storageService';
+import { AccountSelectionModal } from './compras/AccountSelectionModal';
+import { updateOrderAccount } from '../services/comprasService';
+import { formatLocalDate } from '../utils/dateUtils';
 import { useOficios, useOficio, useUpdateOficioDescription, useInfiniteOficios } from '../hooks/useOficios';
 import { usePurchaseOrders, usePurchaseOrder, useInfinitePurchaseOrders } from '../hooks/usePurchaseOrders';
 import { useServiceRequests, useServiceRequest, useInfiniteServiceRequests } from '../hooks/useServiceRequests';
@@ -42,6 +45,7 @@ interface TrackingScreenProps {
     onUpdatePurchaseStatus?: (orderOrId: string | Order, status: string, justification?: string, budgetFileUrl?: string, completionForecast?: string) => Promise<void>;
     showAllProcesses?: boolean;
     onViewOrder?: (order: Order) => void;
+    sectors?: Sector[];
 }
 
 export const TrackingScreen: React.FC<TrackingScreenProps> = ({
@@ -59,7 +63,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     onUpdateOrderStatus,
     onUpdatePurchaseStatus,
     showAllProcesses = false,
-    onViewOrder
+    onViewOrder,
+    sectors = []
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [purchaseStatusFilter, setPurchaseStatusFilter] = useState('all');
@@ -223,6 +228,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
     const [adminRejectionOrder, setAdminRejectionOrder] = useState<Order | null>(null);
     const [rejectionReason, setRejectionReason] = useState('');
     const [statusSelectionOrder, setStatusSelectionOrder] = useState<Order | null>(null);
+    const [accountSelectionOrder, setAccountSelectionOrder] = useState<Order | null>(null);
     const [forecastDate, setForecastDate] = useState('');
     const [pendingStatus, setPendingStatus] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -247,6 +253,8 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
         switch (status) {
             case 'approved':
                 return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 text-[9px] font-black uppercase tracking-wider"><CheckCircle2 className="w-3 h-3" /> Aprovado</span>;
+            case 'payment_account':
+                return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 text-[9px] font-black uppercase tracking-wider"><RotateCcw className="w-3 h-3 animate-spin-slow" /> Conta de Pagamento</span>;
             case 'rejected':
                 return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-100 text-[9px] font-black uppercase tracking-wider"><XCircle className="w-3 h-3" /> Rejeitado</span>;
             case 'pending':
@@ -362,8 +370,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
     const getDepartureDate = (order: Order) => {
         const content = order.documentSnapshot?.content;
-        if (!content?.departureDateTime) return '---';
-        return new Date(content.departureDateTime).toLocaleDateString('pt-BR');
+        return formatLocalDate(content?.departureDateTime);
     };
 
     const handleGenericAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -429,32 +436,41 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
         const isEmAprovacao = !order.status || order.status === 'pending' || order.status === 'awaiting_approval';
 
         const isLockedForUser = currentStatus === 'aprovacao_orcamento' && !isAdmin;
-        const canClick = (isAdmin && isEmAprovacao) || (isComprasUser && !isLockedForUser && isApproved);
+        const isPaymentAccount = order.status === 'payment_account';
+        const canClick = (isAdmin && isEmAprovacao) || (isComprasUser && !isLockedForUser && isApproved) || isPaymentAccount;
 
         const handleClick = (e: React.MouseEvent) => {
             if (!canClick) return;
             e.stopPropagation();
 
-            if (isAdmin) {
+            if (order.status === 'payment_account') {
+                setAccountSelectionOrder(order);
+            } else if (isAdmin) {
                 setAdminApprovalOrder(order);
             } else if (isComprasUser && isApproved) {
                 setStatusSelectionOrder(order);
             }
         };
 
-        if (isApproved) {
+        if (isApproved || isPaymentAccount) {
+            const displayConfig = isPaymentAccount ? {
+                label: 'Conta de Pagamento',
+                icon: RotateCcw,
+                color: 'text-blue-600 bg-blue-50 border-blue-100'
+            } : config;
+
             return (
                 <button
                     onClick={handleClick}
                     disabled={isLockedForUser}
                     className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-full border transition-all duration-300 group
                         ${canClick ? 'cursor-pointer hover:shadow-md active:scale-95' : 'cursor-default'}
-                        ${isLockedForUser ? 'bg-purple-50 text-purple-700 border-purple-200 opacity-80' : `${config.color}`}
+                        ${isLockedForUser ? 'bg-purple-50 text-purple-700 border-purple-200 opacity-80' : `${displayConfig.color}`}
                     `}
                 >
                     <div className="flex items-center gap-1.5 min-w-0">
-                        <config.icon className={`w-3.5 h-3.5 shrink-0 ${isLockedForUser ? 'animate-pulse' : ''}`} />
-                        <span className="text-[9px] font-black uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">{config.label}</span>
+                        <displayConfig.icon className={`w-3.5 h-3.5 shrink-0 ${isLockedForUser ? 'animate-pulse' : ''} ${isPaymentAccount ? 'animate-spin-slow' : ''}`} />
+                        <span className="text-[9px] font-black uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">{displayConfig.label}</span>
                     </div>
                     {isLockedForUser ? (
                         <Lock className="w-2.5 h-2.5 text-purple-400 shrink-0" />
@@ -468,11 +484,35 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
         return (
             <button
                 onClick={handleClick}
-                className={`transition-all ${isAdmin && order.status !== 'rejected' ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'}`}
+                className={`transition-all ${((isAdmin || order.status === 'payment_account') && order.status !== 'rejected') ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'}`}
             >
                 {getStatusBadge(order.status)}
             </button>
         );
+    };
+
+    const handleSelectAccount = async (account: PurchaseAccount) => {
+        if (!accountSelectionOrder) return;
+        try {
+            await updateOrderAccount(accountSelectionOrder.id, account.description, currentUser.name);
+            setAccountSelectionOrder(null);
+            // The order will be updated in the parent state if it's subscribed to realtime or if we trigger a refresh.
+            // Since onUpdateOrderStatus is available, maybe we should use it?
+            // Actually, updateOrderAccount already does the database work.
+            // If we want the UI to update immediately, we might need a refresh callback.
+            // But usually the parent App handles the state.
+            // For now, let's assume the user will see it after a refresh or if we call onUpdateOrderStatus with specialized trigger.
+            if (onUpdateOrderStatus) {
+                // Trigger a generic status update to force re-fetch if necessary, 
+                // but updateOrderAccount already moved it to 'approved'.
+                // To be safe, let's just alert success and close.
+                alert('Conta vinculada e pedido liberado para o setor de compras!');
+                window.location.reload(); // Quick way to sync for now, or we could pass a refresh function
+            }
+        } catch (error) {
+            console.error("Error selecting account:", error);
+            alert("Erro ao vincular conta.");
+        }
     };
 
     const priorityStyles = {
@@ -1496,7 +1536,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                         onUpdatePurchaseStatus?.(
                                                             statusSelectionOrder,
                                                             'realizado',
-                                                            `Pedido realizado com previsão para ${new Date(forecastDate).toLocaleDateString('pt-BR')}`,
+                                                            `Pedido realizado com previsão para ${formatLocalDate(forecastDate)}`,
                                                             undefined,
                                                             forecastDate
                                                         );
@@ -1647,6 +1687,17 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                 )}
 
             </div >
+
+            {accountSelectionOrder && createPortal(
+                <AccountSelectionModal
+                    isOpen={!!accountSelectionOrder}
+                    onClose={() => setAccountSelectionOrder(null)}
+                    onSelect={handleSelectAccount}
+                    currentUser={currentUser}
+                    sectors={sectors}
+                />,
+                document.body
+            )}
         </>
     );
 };
