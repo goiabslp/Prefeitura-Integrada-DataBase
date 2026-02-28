@@ -88,6 +88,7 @@ import { PurchaseItemsScreen } from './components/PurchaseItemsScreen';
 import { Calendario } from './components/calendario/Calendario';
 import { RHModule } from './components/rh/RHModule';
 import { ProjetosModule } from './components/projetos/ProjetosModule';
+import { MarketingModule } from './components/marketing/MarketingModule';
 
 const VIEW_TO_PATH: Record<string, string> = {
   'login': '/Login',
@@ -138,7 +139,10 @@ const VIEW_TO_PATH: Record<string, string> = {
   'rh:horas-extras': '/RH/HorasExtras',
   'projetos': '/Projetos',
   'projetos:new': '/Projetos/NovoProjeto',
-  'projetos:details': '/Projetos/Detalhes'
+  'projetos:details': '/Projetos/Detalhes',
+  'marketing': '/Marketing',
+  'marketing:new': '/Marketing/Novo',
+  'marketing:details': '/Marketing/Detalhes'
 };
 
 const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
@@ -149,7 +153,7 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 );
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details' | 'tasks-dashboard' | 'purchase-inventory' | 'calendario' | 'rh' | 'projetos'>('login');
+  const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details' | 'tasks-dashboard' | 'purchase-inventory' | 'calendario' | 'rh' | 'projetos' | 'marketing'>('login');
   const queryClient = useQueryClient();
   const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
   const { moduleStatus } = useSystemSettings();
@@ -3480,6 +3484,7 @@ const App: React.FC = () => {
                 onObras={() => setCurrentView('obras')}
                 onRH={() => setCurrentView('rh')}
                 onProjetos={() => setCurrentView('projetos')}
+                onMarketing={() => setCurrentView('marketing')}
                 activeBlock={activeBlock}
                 setActiveBlock={(block) => {
                   setActiveBlock(block);
@@ -3725,6 +3730,32 @@ const App: React.FC = () => {
                 onNavigate={(view, id) => {
                   setAppState(prev => ({ ...prev, sub: view, selectedId: id }));
                   const path = id ? `${VIEW_TO_PATH['projetos:details']}/${id}` : (view === 'new' ? VIEW_TO_PATH['projetos:new'] : VIEW_TO_PATH['projetos']);
+                  window.history.pushState({}, '', path);
+                }}
+              />
+            )}
+
+            {currentView === 'marketing' && (
+              <MarketingModule
+                currentView={currentView}
+                userId={currentUser?.id || ''}
+                userName={currentUser?.name || ''}
+                userRole={currentUser?.role || ''}
+                users={users}
+                persons={persons}
+                sectors={sectors}
+                appState={appState}
+                onLogout={signOut}
+                onBack={() => {
+                  setCurrentView('home');
+                  setActiveBlock(null);
+                  window.history.pushState({}, '', '/PaginaInicial');
+                }}
+                subView={appState.sub}
+                selectedRequestId={appState.selectedId}
+                onNavigate={(view, id) => {
+                  setAppState(prev => ({ ...prev, sub: view, selectedId: id }));
+                  const path = id ? `${VIEW_TO_PATH['marketing:details']}/${id}` : (view === 'new' ? VIEW_TO_PATH['marketing:new'] : VIEW_TO_PATH['marketing']);
                   window.history.pushState({}, '', path);
                 }}
               />

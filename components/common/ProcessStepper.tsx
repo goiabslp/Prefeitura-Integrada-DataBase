@@ -7,6 +7,7 @@ interface ProcessStepperProps {
     onStepClick: (index: number) => void;
     maxCompletedStep?: number;
     filledSteps?: boolean[]; // NEW: To allow graying out completed but empty steps
+    compact?: boolean;
 }
 
 export const ProcessStepper: React.FC<ProcessStepperProps> = ({
@@ -14,7 +15,8 @@ export const ProcessStepper: React.FC<ProcessStepperProps> = ({
     currentStep,
     onStepClick,
     maxCompletedStep = -1,
-    filledSteps
+    filledSteps,
+    compact = false
 }) => {
     return (
         <div className="w-full overflow-x-auto pb-4 pt-2">
@@ -65,24 +67,24 @@ export const ProcessStepper: React.FC<ProcessStepperProps> = ({
                         <React.Fragment key={index}>
                             {/* Step Item */}
                             <div
-                                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all border ${bgClass} ${borderClass} ${textClass} ${shadowClass} ${isClickable && !isViewing ? 'cursor-pointer hover:opacity-80' : ''}`}
+                                className={`flex items-center gap-1.5 md:gap-2 ${compact ? 'px-2 py-1.5' : 'px-4 py-2'} rounded-full transition-all border ${bgClass} ${borderClass} ${textClass} ${shadowClass} ${isClickable && !isViewing ? 'cursor-pointer hover:opacity-80' : ''}`}
                                 onClick={() => {
                                     if (isClickable) {
                                         onStepClick(index);
                                     }
                                 }}
                             >
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${circleBg} ${circleText}`}>
+                                <div className={`${compact ? 'w-5 h-5' : 'w-6 h-6'} rounded-full flex items-center justify-center text-[10px] font-bold ${circleBg} ${circleText}`}>
                                     {isCompleted && !isViewing && !isInProgress ? <Check className="w-3 h-3" /> : (index + 1).toString().padStart(2, '0')}
                                 </div>
-                                <span className="text-xs font-bold uppercase tracking-wider whitespace-nowrap">
+                                <span className={`text-[10px] md:text-xs font-bold uppercase tracking-wider whitespace-nowrap ${compact ? 'hidden lg:block' : ''}`}>
                                     {step}
                                 </span>
                             </div>
 
                             {/* Connector Line */}
                             {index < steps.length - 1 && (
-                                <div className="px-2">
+                                <div className={compact ? 'px-1' : 'px-2'}>
                                     <ChevronRight className={`w-4 h-4 ${index < currentStep ? 'text-emerald-400' : 'text-slate-300'}`} />
                                 </div>
                             )}
