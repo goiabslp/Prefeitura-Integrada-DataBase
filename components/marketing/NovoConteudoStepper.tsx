@@ -275,15 +275,7 @@ export const NovoConteudoStepper: React.FC<NovoConteudoStepperProps> = ({
                         >
                             Próxima Etapa
                         </button>
-                    ) : (
-                        <button
-                            onClick={handleFinalizeClick}
-                            disabled={submitting}
-                            className="px-4 md:px-6 py-1.5 md:py-2 bg-emerald-600 text-xs md:text-sm text-white font-bold rounded-xl shadow-sm hover:bg-emerald-700 hover:shadow shadow-emerald-200 transition-all outline-none flex items-center gap-2 whitespace-nowrap"
-                        >
-                            {submitting ? <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" /> : 'Assinar / Enviar'}
-                        </button>
-                    )}
+                    ) : null}
                 </div>
             </header>
 
@@ -451,6 +443,16 @@ export const NovoConteudoStepper: React.FC<NovoConteudoStepperProps> = ({
                                 </div>
                                 <h2 className="text-xl md:text-2xl font-black text-slate-800 mb-2">Quase lá!</h2>
                                 <p className="text-xs md:text-sm text-slate-500">Sua solicitação está pronta para ser enviada. Assine digitalmente para finalizar.</p>
+
+                                <div className="mt-8 flex justify-center w-full">
+                                    <button
+                                        onClick={handleFinalizeClick}
+                                        disabled={submitting}
+                                        className="px-8 py-3.5 bg-emerald-600 text-base text-white font-black rounded-xl shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-600/30 transition-all hover:-translate-y-0.5 active:translate-y-0 outline-none flex items-center justify-center min-w-[240px] gap-3"
+                                    >
+                                        {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Assinar'}
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="bg-amber-50 rounded-xl p-3 md:p-5 border border-amber-200 w-full max-w-sm mx-auto mt-4 shrink-0">

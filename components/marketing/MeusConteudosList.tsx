@@ -46,7 +46,7 @@ export const MeusConteudosList: React.FC<MeusConteudosListProps> = ({ userId, on
                     .select(`
                         id,
                         protocol,
-                        title,
+                        description,
                         status,
                         created_at,
                         marketing_contents ( content_type )
@@ -105,6 +105,12 @@ export const MeusConteudosList: React.FC<MeusConteudosListProps> = ({ userId, on
         }
     };
 
+    const extractTitle = (desc?: string) => {
+        if (!desc) return 'Sem Título';
+        const match = desc.match(/\*\*Título do Pedido:\*\* (.*?)\n/);
+        return match && match[1] ? match[1] : 'Sem Título';
+    };
+
     if (loading) {
         return (
             <div className="w-full h-full flex flex-col items-center justify-center py-12 text-slate-400">
@@ -150,8 +156,8 @@ export const MeusConteudosList: React.FC<MeusConteudosListProps> = ({ userId, on
                                 className="group border-b border-slate-50 hover:bg-slate-50/80 cursor-pointer transition-colors"
                             >
                                 <td className="py-3 px-4 md:py-4 md:px-6">
-                                    <div className="font-bold text-slate-800 text-sm md:text-base mb-0.5 max-w-[200px] md:max-w-[300px] truncate" title={req.title || 'Sem Título'}>
-                                        {req.title || 'Sem Título'}
+                                    <div className="font-bold text-slate-800 text-sm md:text-base mb-0.5 max-w-[200px] md:max-w-[300px] truncate" title={extractTitle(req.description)}>
+                                        {extractTitle(req.description)}
                                     </div>
                                     <div className="text-[10px] text-slate-400 font-mono tracking-wide">{req.protocol}</div>
                                 </td>
@@ -171,7 +177,7 @@ export const MeusConteudosList: React.FC<MeusConteudosListProps> = ({ userId, on
                                 </td>
                                 <td className="py-3 px-4 md:py-4 md:px-6 text-right">
                                     <button
-                                        onClick={(e) => handleDeleteClick(e, req.id, req.title)}
+                                        onClick={(e) => handleDeleteClick(e, req.id, extractTitle(req.description))}
                                         className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-white border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all shadow-sm ml-auto opacity-0 group-hover:opacity-100"
                                         title="Excluir Solicitação"
                                     >

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { ProcessStepper } from '../common/ProcessStepper';
-import { FileText, ArrowLeft, Download, Loader2, CheckCircle2, Clock } from 'lucide-react';
+import { FileText, ArrowLeft, Download, Loader2, CheckCircle2, Clock, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { differenceInDays } from 'date-fns';
@@ -22,7 +22,7 @@ const STEPS = [
 ];
 
 export const MarketingDetails: React.FC<MarketingDetailsProps> = ({ requestId, userRole, onBack }) => {
-    const [currentStep, setCurrentStep] = useState(1);
+    const [currentStep, setCurrentStep] = useState(0);
     const [loading, setLoading] = useState(true);
     const [request, setRequest] = useState<any>(null);
     const [contents, setContents] = useState<any[]>([]);
@@ -31,7 +31,33 @@ export const MarketingDetails: React.FC<MarketingDetailsProps> = ({ requestId, u
     const [uploadProgress, setUploadProgress] = useState(0);
     const [hasExpiredFiles, setHasExpiredFiles] = useState(false);
 
+    const STEPS = ['Informações', 'Descrição', 'Conteúdo', 'Anexos', 'Produção'];
+
     const hasAdminPowers = userRole === 'Administrador' || userRole === 'Marketing';
+
+    const extractTitle = (desc?: string) => {
+        if (!desc) return 'Sem Título';
+        const match = desc.match(/\*\*Título do Pedido:\*\* (.*?)\n/);
+        return match && match[1] ? match[1] : 'Sem Título';
+    };
+
+    const extractEventDetails = (desc?: string) => {
+        if (!desc) return { date: '-', time: '-', location: '-', details: '' };
+
+        const dateMatch = desc.match(/\*\*Data do Evento:\*\* (.*?)\n/);
+        const timeMatch = desc.match(/\*\*Hora do Evento:\*\* (.*?)\n/);
+        const localMatch = desc.match(/\*\*Local do Evento:\*\* (.*?)\n/);
+
+        const descParts = desc.split('**Descrição Detalhada:**');
+        const detailsText = descParts.length > 1 ? descParts[1].trim() : desc;
+
+        return {
+            date: dateMatch && dateMatch[1] ? dateMatch[1].trim() : '-',
+            time: timeMatch && timeMatch[1] ? timeMatch[1].trim() : '-',
+            location: localMatch && localMatch[1] ? localMatch[1].trim() : '-',
+            details: detailsText
+        };
+    };
 
     // Status / Alert system
     const [alertConfig, setAlertConfig] = useState<any>({
@@ -111,7 +137,9 @@ export const MarketingDetails: React.FC<MarketingDetailsProps> = ({ requestId, u
 
         try {
             const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+            const rawFileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+            const prefix = currentStep === 4 ? 'prod_' : 'req_'; // Prefix files based on the step
+            const fileName = `${prefix}${rawFileName}`;
             const filePath = `${requestId}/${fileName}`;
 
             // Get session for auth headers
@@ -278,21 +306,10 @@ export const MarketingDetails: React.FC<MarketingDetailsProps> = ({ requestId, u
     // Render logic per step
     const renderStepContent = () => {
         switch (currentStep) {
-            case 1:
+            case 0:
+                const isSigned = request.is_signed || (request.signature_date && request.signed_by);
                 return (
-                    <div className="space-y-6">
-                        <div className="relative">
-                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">
-                                Título do Conteúdo (Finalidade)
-                            </label>
-                            <input
-                                type="text"
-                                readOnly
-                                value={request.title || ''}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:outline-none opacity-80 cursor-not-allowed"
-                            />
-                        </div>
-
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">
@@ -316,20 +333,93 @@ export const MarketingDetails: React.FC<MarketingDetailsProps> = ({ requestId, u
                                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:outline-none opacity-80 cursor-not-allowed"
                                 />
                             </div>
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">
+                                    Status
+                                </label>
+                                <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 font-bold flex items-center gap-2 opacity-80 cursor-not-allowed">
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                    {request.status}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">
+                                    Data do Pedido
+                                </label>
+                                <input
+                                    type="text"
+                                    readOnly
+                                    value={format(new Date(request.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:outline-none opacity-80 cursor-not-allowed"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">
+                                    Assinatura Eletrônica
+                                </label>
+                                <div className={`w-full border rounded-xl px-4 py-3 flex items-center justify-between opacity-80 cursor-not-allowed ${isSigned ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                                    <div className="flex items-center gap-2 font-medium text-sm">
+                                        <CheckCircle2 className={`w-4 h-4 ${isSigned ? 'text-emerald-500' : 'text-slate-400'}`} />
+                                        {isSigned ? 'Assinado Digitalmente' : 'Aguardando Assinatura'}
+                                    </div>
+                                    {isSigned && request.signature_date && (
+                                        <div className="text-xs font-bold bg-white px-3 py-1 rounded-lg shadow-sm border border-emerald-100">
+                                            {format(new Date(request.signature_date), "dd/MM/yyyy HH:mm")}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 );
 
-            case 2:
+            case 1:
+                const evDetails = extractEventDetails(request.description);
                 return (
-                    <div className="space-y-6">
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">
+                                    Data do Evento
+                                </label>
+                                <input
+                                    type="text"
+                                    readOnly
+                                    value={evDetails.date}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:outline-none opacity-80 cursor-not-allowed"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">
+                                    Hora do Evento
+                                </label>
+                                <input
+                                    type="text"
+                                    readOnly
+                                    value={evDetails.time}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:outline-none opacity-80 cursor-not-allowed"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">
+                                    Local do Evento
+                                </label>
+                                <input
+                                    type="text"
+                                    readOnly
+                                    value={evDetails.location}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:outline-none opacity-80 cursor-not-allowed"
+                                />
+                            </div>
+                        </div>
+
                         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                             <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
                                 <FileText className="w-5 h-5 text-indigo-500" />
                                 Descrição e Objetivos
                             </h3>
-                            <div className="w-full h-48 bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-700 overflow-y-auto cursor-not-allowed">
-                                {request.description?.split('\n').map((line: string, i: number) => (
+                            <div className="w-full min-h-[192px] max-h-96 bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-700 overflow-y-auto cursor-not-allowed">
+                                {evDetails.details.split('\n').map((line: string, i: number) => (
                                     <React.Fragment key={i}>
                                         {line}
                                         <br />
@@ -337,87 +427,12 @@ export const MarketingDetails: React.FC<MarketingDetailsProps> = ({ requestId, u
                                 ))}
                             </div>
                         </div>
-
-                        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm overflow-hidden flex flex-col relative w-full">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                                    Arquivos Anexados ({attachments.length})
-                                </h3>
-
-                                {hasAdminPowers && !isUploading && (
-                                    <div className="relative">
-                                        <input
-                                            type="file"
-                                            id="file-upload"
-                                            className="hidden"
-                                            accept="image/*,video/mp4,video/quicktime,audio/mpeg,audio/mp3"
-                                            onChange={handleFileUploadChange}
-                                        />
-                                        <label htmlFor="file-upload" className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl border border-indigo-100 cursor-pointer hover:bg-indigo-100 transition-colors text-sm">
-                                            <span>Novo Anexo</span>
-                                        </label>
-                                    </div>
-                                )}
-                            </div>
-
-                            {isUploading && (
-                                <div className="mb-4 p-4 rounded-xl bg-slate-50 border border-slate-200 w-full">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-sm font-bold text-slate-700">Enviando arquivo...</span>
-                                        <span className="text-xs font-bold text-indigo-600">{uploadProgress}%</span>
-                                    </div>
-                                    <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                                        <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {hasExpiredFiles && attachments.length === 0 ? (
-                                <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-sm font-medium flex gap-3 my-4">
-                                    <span className="text-xl">⚠️</span>
-                                    Os arquivos foram removidos automaticamente após o prazo de 7 dias. Solicite à equipe de Marketing o reenvio dos arquivos.
-                                </div>
-                            ) : attachments.length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                                    {attachments.map((file, idx) => {
-                                        let daysRemaining = 7;
-                                        try {
-                                            const daysOld = differenceInDays(new Date(), new Date(file.created_at));
-                                            daysRemaining = Math.max(0, 7 - daysOld);
-                                        } catch (e) { }
-
-                                        return (
-                                            <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">
-                                                <div className="flex items-center gap-3 overflow-hidden">
-                                                    <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
-                                                        <FileText className="w-4 h-4" />
-                                                    </div>
-                                                    <div className="flex flex-col min-w-0">
-                                                        <span className="text-sm font-semibold text-slate-700 truncate" title={file.name}>{file.name}</span>
-                                                        <span className="text-[10px] text-amber-600 font-bold">Expira em {daysRemaining} dia(s)</span>
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={() => handleDownload(file.name)}
-                                                    className="w-8 h-8 rounded-full bg-white text-indigo-600 shadow-sm border border-slate-200 flex items-center justify-center hover:bg-indigo-50 transition-colors shrink-0 ml-2"
-                                                    title="Baixar Anexo"
-                                                >
-                                                    <Download className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-slate-500 italic px-2 my-2">Nenhum anexo disponível.</p>
-                            )}
-                        </div>
                     </div>
                 );
 
-            case 3:
+            case 2:
                 return (
-                    <div className="space-y-4">
+                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                         <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 mb-4">
                             <p className="text-sm text-indigo-800 font-medium">
                                 Esta solicitação gerou <strong className="font-black text-indigo-900">{contents.length}</strong> peças de conteúdo.
@@ -461,61 +476,232 @@ export const MarketingDetails: React.FC<MarketingDetailsProps> = ({ requestId, u
                     </div>
                 );
 
+            case 3:
+                return (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm overflow-hidden flex flex-col relative w-full">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                    <FileText className="w-5 h-5 text-indigo-500" />
+                                    Anexos do Solicitante
+                                </h3>
+                                {/* Anexos originais geralmente são enviados na criação. Permitir novos "req_" caso seja o próprio autor ou Admin */}
+                                {!isUploading && (
+                                    <div className="relative">
+                                        <input
+                                            type="file"
+                                            id="file-upload-req"
+                                            className="hidden"
+                                            accept="image/*,video/mp4,video/quicktime,audio/mpeg,audio/mp3"
+                                            onChange={handleFileUploadChange}
+                                        />
+                                        <label htmlFor="file-upload-req" className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl border border-indigo-100 cursor-pointer hover:bg-indigo-100 transition-colors text-sm">
+                                            <span>Novo Anexo</span>
+                                        </label>
+                                    </div>
+                                )}
+                            </div>
+
+                            {isUploading && (
+                                <div className="mb-4 p-4 rounded-xl bg-slate-50 border border-slate-200 w-full">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-bold text-slate-700">Enviando arquivo...</span>
+                                        <span className="text-xs font-bold text-indigo-600">{uploadProgress}%</span>
+                                    </div>
+                                    <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                                        <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {hasExpiredFiles && attachments.filter(f => !f.name.startsWith('prod_')).length === 0 ? (
+                                <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-sm font-medium flex gap-3 my-4">
+                                    <span className="text-xl">⚠️</span>
+                                    Os arquivos antigos foram removidos automaticamente. Solicite o reenvio caso necessário.
+                                </div>
+                            ) : attachments.filter(f => !f.name.startsWith('prod_')).length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                                    {attachments.filter(f => !f.name.startsWith('prod_')).map((file, idx) => {
+                                        let daysRemaining = 7;
+                                        try {
+                                            const daysOld = differenceInDays(new Date(), new Date(file.created_at));
+                                            daysRemaining = Math.max(0, 7 - daysOld);
+                                        } catch (e) { }
+
+                                        return (
+                                            <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">
+                                                <div className="flex items-center gap-3 overflow-hidden">
+                                                    <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                                                        <FileText className="w-4 h-4" />
+                                                    </div>
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="text-sm font-semibold text-slate-700 truncate" title={file.name}>{file.name.replace('req_', '')}</span>
+                                                        <span className="text-[10px] text-amber-600 font-bold">Expira em {daysRemaining} dia(s)</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0 ml-2">
+                                                    <button
+                                                        onClick={() => handleDownload(file.name)}
+                                                        className="w-8 h-8 rounded-full bg-white text-indigo-600 shadow-sm border border-slate-200 flex items-center justify-center hover:bg-indigo-50 transition-colors"
+                                                        title="Baixar Anexo"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-slate-500 italic px-2 my-2">Nenhum anexo do solicitante disponível.</p>
+                            )}
+                        </div>
+                    </div>
+                );
+
             case 4:
                 return (
-                    <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 max-w-3xl mx-auto shadow-sm">
-                        <div className="text-center mb-8">
-                            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <FileText className="w-8 h-8 text-indigo-600" />
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm overflow-hidden flex flex-col relative w-full">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                                <h3 className="text-base font-bold text-emerald-700 flex items-center gap-2">
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                    Produção (Arquivos de Retorno)
+                                </h3>
+
+                                {hasAdminPowers && !isUploading && (
+                                    <div className="relative">
+                                        <input
+                                            type="file"
+                                            id="file-upload-prod"
+                                            className="hidden"
+                                            accept="image/*,video/mp4,video/quicktime,audio/mpeg,audio/mp3"
+                                            onChange={handleFileUploadChange}
+                                        />
+                                        <label htmlFor="file-upload-prod" className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 font-bold rounded-xl border border-emerald-100 cursor-pointer hover:bg-emerald-100 transition-colors text-sm">
+                                            <span>Inserir Entrega</span>
+                                        </label>
+                                    </div>
+                                )}
                             </div>
-                            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Ficha da Solicitação</h2>
-                            <p className="text-slate-500 text-sm mt-1 uppercase tracking-widest font-semibold">{request.protocol}</p>
+
+                            {isUploading && (
+                                <div className="mb-4 p-4 rounded-xl bg-slate-50 border border-slate-200 w-full">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-bold text-slate-700">Enviando arquivo final...</span>
+                                        <span className="text-xs font-bold text-emerald-600">{uploadProgress}%</span>
+                                    </div>
+                                    <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                                        <div className="bg-emerald-500 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {attachments.filter(f => f.name.startsWith('prod_')).length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                                    {attachments.filter(f => f.name.startsWith('prod_')).map((file, idx) => {
+                                        let daysRemaining = 7;
+                                        try {
+                                            const daysOld = differenceInDays(new Date(), new Date(file.created_at));
+                                            daysRemaining = Math.max(0, 7 - daysOld);
+                                        } catch (e) { }
+
+                                        return (
+                                            <div key={idx} className="flex items-center justify-between p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl hover:bg-emerald-50 transition-colors">
+                                                <div className="flex items-center gap-3 overflow-hidden">
+                                                    <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                                                        <FileText className="w-4 h-4" />
+                                                    </div>
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="text-sm font-semibold text-slate-700 truncate" title={file.name}>{file.name.replace('prod_', '')}</span>
+                                                        <span className="text-[10px] text-amber-600 font-bold">Expira em {daysRemaining} dia(s)</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0 ml-2">
+                                                    <button
+                                                        onClick={() => handleDownload(file.name)}
+                                                        className="w-8 h-8 rounded-full bg-white text-emerald-600 shadow-sm border border-emerald-200 flex items-center justify-center hover:bg-emerald-100 transition-colors"
+                                                        title="Baixar Arquivo"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                    </button>
+                                                    {hasAdminPowers && (
+                                                        <button
+                                                            onClick={() => {
+                                                                showAlert(
+                                                                    'warning',
+                                                                    'Excluir Entrega?',
+                                                                    'Têm certeza que deseja remover este arquivo de produção?',
+                                                                    async () => {
+                                                                        try {
+                                                                            setAlertConfig(prev => ({ ...prev, isOpen: false }));
+                                                                            const { error } = await supabase.storage.from('marketing_attachments').remove([`${requestId}/${file.name}`]);
+                                                                            if (error) throw error;
+                                                                            setAttachments(prev => prev.filter(f => f.name !== file.name));
+                                                                            setTimeout(() => showAlert('success', 'Excluído', 'Arquivo removido com sucesso.'), 300);
+                                                                        } catch (err) {
+                                                                            showAlert('error', 'Erro', 'Não foi possível excluir o arquivo.');
+                                                                        }
+                                                                    },
+                                                                    true
+                                                                )
+                                                            }}
+                                                            className="w-8 h-8 rounded-full bg-white text-rose-600 shadow-sm border border-rose-200 flex items-center justify-center hover:bg-rose-50 transition-colors"
+                                                            title="Excluir Arquivo"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-slate-500 italic px-2 my-2">Nenhum arquivo de produção disponível.</p>
+                            )}
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 text-sm">
-                            <div className="space-y-4">
-                                <div>
-                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Título / Assunto</div>
-                                    <div className="text-slate-800 font-bold truncate" title={request.title}>{request.title || '-'}</div>
+                        {/* Ficha da Solicitação details container is merged onto the production page mostly since its the last step */}
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm overflow-hidden flex flex-col mt-4">
+                            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">Ficha Técnica e Validação</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm mt-2">
+                                <div className="space-y-4">
+                                    <div>
+                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Título / Assunto</div>
+                                        <div className="text-slate-800 font-bold truncate" title={extractTitle(request.description)}>{extractTitle(request.description)}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Solicitante</div>
+                                        <div className="text-slate-800 font-medium">{request.applicant_name}</div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Solicitante</div>
-                                    <div className="text-slate-800 font-medium">{request.applicant_name}</div>
-                                </div>
-                                <div>
-                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Setor Alvo</div>
-                                    <div className="text-slate-800 font-medium">{request.requesting_sector}</div>
-                                </div>
-                            </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Status Atual</div>
-                                    {!hasAdminPowers ? (
-                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 font-bold">
-                                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                            {request.status}
-                                        </div>
-                                    ) : (
-                                        <select
-                                            value={request.status}
-                                            onChange={(e) => handleStatusChange(e.target.value)}
-                                            className="block w-full max-w-[200px] border border-indigo-200 bg-indigo-50 text-indigo-800 text-sm font-bold rounded-xl py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
-                                        >
-                                            <option value="Em Análise">Em Análise</option>
-                                            <option value="Na Fila">Na Fila</option>
-                                            <option value="Em Andamento">Em Andamento</option>
-                                            <option value="Aprovado">Aprovado</option>
-                                            <option value="Rejeitado">Rejeitado</option>
-                                        </select>
-                                    )}
-                                </div>
-                                <div>
-                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total de Peças</div>
-                                    <div className="text-slate-800 font-medium">{contents.length} itens cadastrados</div>
-                                </div>
-                                <div>
-                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Criado Em</div>
-                                    <div className="text-slate-800 font-medium">{format(new Date(request.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</div>
+                                <div className="space-y-4">
+                                    <div>
+                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Status Atual</div>
+                                        {!hasAdminPowers ? (
+                                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 font-bold">
+                                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                                {request.status}
+                                            </div>
+                                        ) : (
+                                            <select
+                                                value={request.status}
+                                                onChange={(e) => handleStatusChange(e.target.value)}
+                                                className="block w-full max-w-[200px] border border-indigo-200 bg-indigo-50 text-indigo-800 text-sm font-bold rounded-xl py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                                            >
+                                                <option value="Em Análise">Em Análise</option>
+                                                <option value="Na Fila">Na Fila</option>
+                                                <option value="Em Andamento">Em Andamento</option>
+                                                <option value="Aprovado">Aprovado</option>
+                                                <option value="Rejeitado">Rejeitado</option>
+                                            </select>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total de Peças Solicitadas</div>
+                                        <div className="text-slate-800 font-medium">{contents.length} itens</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -529,70 +715,48 @@ export const MarketingDetails: React.FC<MarketingDetailsProps> = ({ requestId, u
     return (
         <div className="flex-1 flex flex-col h-full bg-[#f8fafc] w-full overflow-hidden">
             {/* Minimal Header */}
-            <header className="bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex items-center justify-between shrink-0 shadow-sm z-10 w-full mb-0">
-                <div className="flex items-center gap-4">
+            <header className="bg-white border-b border-slate-200 px-4 md:px-6 py-2 flex flex-col md:flex-row md:items-center justify-between shadow-sm z-10 w-full gap-3 md:gap-4 shrink-0 overflow-hidden">
+                <div className="flex items-center gap-3 shrink-0">
                     <button
                         onClick={onBack}
-                        className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-all border border-slate-200"
+                        className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-all border border-slate-200 shrink-0"
+                        title="Voltar"
                     >
-                        <ArrowLeft className="w-5 h-5" />
+                        <ArrowLeft className="w-4 h-4" />
                     </button>
-                    <div>
-                        <h1 className="text-2xl font-black text-slate-800 tracking-tight">Detalhes do Conteúdo</h1>
-                        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">{request.protocol}</p>
+                    <div className="flex items-baseline gap-2 truncate">
+                        <h1 className="text-base md:text-lg font-black text-slate-800 tracking-tight whitespace-nowrap">Detalhes do Conteúdo</h1>
+                        <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-widest text-slate-400">({request.protocol})</span>
                     </div>
                 </div>
-            </header>
 
-            <div className="px-4 md:px-6 py-6 pb-2 shrink-0 max-w-5xl mx-auto w-full">
-                <ProcessStepper steps={STEPS} currentStep={currentStep} onStepClick={setCurrentStep} />
-            </div>
-
-            <div className="flex-1 overflow-auto custom-scrollbar px-4 md:px-6 pb-20 pt-4">
-                <div className="max-w-3xl mx-auto min-h-[400px]">
-                    {/* Read-Only Banner */}
-                    <div className="mb-6 bg-slate-100 border border-slate-200 rounded-xl p-4 flex items-center justify-center text-center gap-3 text-slate-500 text-sm font-semibold w-full">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                        O conteúdo desta solicitação não pode ser alterado.
-                    </div>
-
-                    {renderStepContent()}
+                <div className="flex-1 min-w-0 pr-2">
+                    <ProcessStepper steps={STEPS} currentStep={currentStep} onStepClick={setCurrentStep} maxCompletedStep={STEPS.length} compact />
                 </div>
-            </div>
 
-            <div className="bg-white/80 backdrop-blur-md border-t border-slate-200 p-4 shrink-0 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] z-10">
-                <div className="max-w-4xl mx-auto flex items-center justify-between">
-                    <button
-                        onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
-                        disabled={currentStep === 1}
-                        className={`px-6 md:px-8 py-3 rounded-full font-bold text-sm tracking-wide transition-all ${currentStep === 1
-                            ? 'opacity-0 pointer-events-none'
-                            : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:shadow-sm'
-                            }`}
-                    >
-                        Voltar
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                        {STEPS.map((step, idx) => (
-                            <div
-                                key={idx}
-                                className={`h-2 rounded-full transition-all duration-300 ${currentStep === idx + 1 ? 'w-8 bg-indigo-500' : 'w-2 bg-slate-200'
-                                    }`}
-                            />
-                        ))}
-                    </div>
-
+                <div className="flex items-center shrink-0">
                     <button
                         onClick={() => setCurrentStep(prev => prev + 1)}
-                        disabled={currentStep === STEPS.length}
-                        className={`px-6 md:px-8 py-3 rounded-full font-bold text-sm tracking-wide transition-all ${currentStep === STEPS.length
+                        disabled={currentStep === STEPS.length - 1}
+                        className={`px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-bold rounded-xl shadow-sm transition-all whitespace-nowrap outline-none ${currentStep === STEPS.length - 1
                             ? 'opacity-0 pointer-events-none'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/20'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-600/20'
                             }`}
                     >
                         Avançar
                     </button>
+                </div>
+            </header>
+
+            <div className="flex-1 overflow-auto custom-scrollbar px-4 md:px-6 pb-20 pt-4 md:pt-6">
+                <div className="max-w-4xl mx-auto min-h-[400px]">
+                    {/* Read-Only Banner */}
+                    <div className="mb-6 bg-slate-100 border border-slate-200 rounded-xl p-3 md:p-4 flex items-center justify-center text-center gap-2 md:gap-3 text-slate-500 text-xs md:text-sm font-semibold w-full">
+                        <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-emerald-500 shrink-0" />
+                        <span>O conteúdo desta solicitação não pode ser alterado. MODO VISUALIZAÇÃO.</span>
+                    </div>
+
+                    {renderStepContent()}
                 </div>
             </div>
 
