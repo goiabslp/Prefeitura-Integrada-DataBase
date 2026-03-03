@@ -40,7 +40,7 @@ interface TrackingScreenProps {
     onDeleteOrder: (id: string) => void;
     onUpdateAttachments?: (orderId: string, attachments: Attachment[]) => void;
     totalCounter: number;
-    onUpdatePaymentStatus?: (orderOrId: string | Order, status: 'pending' | 'paid') => void;
+    onUpdatePaymentStatus?: (orderOrId: string | Order, status: 'pending' | 'contabilidade' | 'paid') => void;
     onUpdateOrderStatus?: (orderOrId: string | Order, status: Order['status'], justification?: string) => Promise<void>;
     onUpdatePurchaseStatus?: (orderOrId: string | Order, status: string, justification?: string, budgetFileUrl?: string, completionForecast?: string) => Promise<void>;
     showAllProcesses?: boolean;
@@ -1042,48 +1042,95 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
 
                                                 {isDiarias ? (
                                                     <div className="md:col-span-2">
-                                                        {isAdmin ? (
-                                                            <div className="flex flex-col gap-1">
-                                                                <button
-                                                                    onClick={() => onUpdatePaymentStatus?.(order, isPaid ? 'pending' : 'paid')}
-                                                                    className={`relative group flex items-center justify-between w-full max-w-[120px] px-3 py-2 rounded-xl border transition-all duration-300 active:scale-95 ${isPaid
-                                                                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm shadow-emerald-500/10'
-                                                                        : 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm shadow-emerald-500/10'
-                                                                        }`}
-                                                                >
-                                                                    <div className="flex items-center gap-2">
-                                                                        {isPaid ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4 animate-pulse" />}
-                                                                        <span className="text-[10px] font-black uppercase tracking-widest">
-                                                                            {isPaid ? 'Pago' : 'Pendente'}
-                                                                        </span>
+                                                        {(() => {
+                                                            const getPaymentStatusDisplay = (status: Order['paymentStatus']) => {
+                                                                switch (status) {
+                                                                    case 'paid':
+                                                                        return { label: 'Pago', icon: <CheckCircle2 className="w-4 h-4" />, style: 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-emerald-500/10' };
+                                                                    case 'contabilidade':
+                                                                        return { label: 'Contabilidade', icon: <FileSearch className="w-4 h-4" />, style: 'bg-blue-50 border-blue-200 text-blue-700 shadow-blue-500/10' };
+                                                                    case 'pending':
+                                                                    default:
+                                                                        return { label: 'Pendente', icon: <Clock className="w-4 h-4 animate-pulse" />, style: 'bg-amber-50 border-amber-200 text-amber-700 shadow-amber-500/10' };
+                                                                }
+                                                            };
+
+                                                            const getNextPaymentStatus = (status: Order['paymentStatus']) => {
+                                                                if (status === 'pending' || !status) return 'contabilidade';
+                                                                if (status === 'contabilidade') return 'paid';
+                                                                return 'pending';
+                                                            };
+
+                                                            const currentPaymentStatus = order.paymentStatus || 'pending';
+                                                            const paymentDisplay = getPaymentStatusDisplay(currentPaymentStatus);
+                                                            const canAdvanceToPaid = currentUser.permissions?.includes('parent_diarias') || isAdmin;
+
+                                                            if (isAdmin) {
+                                                                return (
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <button
+                                                                            onClick={() => onUpdatePaymentStatus?.(order, getNextPaymentStatus(currentPaymentStatus))}
+                                                                            className={`relative group flex items-center justify-between w-full max-w-[140px] px-3 py-2 rounded-xl border transition-all duration-300 active:scale-95 ${paymentDisplay.style}`}
+                                                                        >
+                                                                            <div className="flex items-center gap-2">
+                                                                                {paymentDisplay.icon}
+                                                                                <span className="text-[10px] font-black uppercase tracking-widest truncate">
+                                                                                    {paymentDisplay.label}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="hidden group-hover:block transition-all ml-1 shrink-0">
+                                                                                <Edit3 className="w-3 h-3 opacity-40" />
+                                                                            </div>
+                                                                        </button>
+                                                                        {currentPaymentStatus === 'paid' && order.paymentDate && (
+                                                                            <div className="flex flex-col ml-2 mt-0.5">
+                                                                                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">Data do Pagamento</span>
+                                                                                <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-1">
+                                                                                    <Check className="w-2.5 h-2.5" />
+                                                                                    {new Date(order.paymentDate).toLocaleDateString('pt-BR')} {new Date(order.paymentDate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
-                                                                    <div className="hidden group-hover:block transition-all ml-1">
-                                                                        <Edit3 className="w-3 h-3 opacity-40" />
+                                                                );
+                                                            } else {
+                                                                return (
+                                                                    <div className="flex flex-col gap-1">
+                                                                        {canAdvanceToPaid && currentPaymentStatus !== 'paid' ? (
+                                                                            <button
+                                                                                onClick={() => onUpdatePaymentStatus?.(order, 'paid')}
+                                                                                className={`relative group flex items-center justify-between w-full max-w-[140px] px-3 py-2 rounded-xl border transition-all duration-300 active:scale-95 ${paymentDisplay.style}`}
+                                                                            >
+                                                                                <div className="flex items-center gap-2">
+                                                                                    {paymentDisplay.icon}
+                                                                                    <span className="text-[10px] font-black uppercase tracking-widest truncate">
+                                                                                        Avançar p/ Pago
+                                                                                    </span>
+                                                                                </div>
+                                                                                <div className="hidden group-hover:block transition-all ml-1 shrink-0">
+                                                                                    <CheckCircle2 className="w-3 h-3 opacity-40" />
+                                                                                </div>
+                                                                            </button>
+                                                                        ) : (
+                                                                            <div className={`inline-flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border w-full max-w-[140px] ${paymentDisplay.style}`}>
+                                                                                {paymentDisplay.icon}
+                                                                                <span className="truncate">{paymentDisplay.label}</span>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {currentPaymentStatus === 'paid' && order.paymentDate && (
+                                                                            <div className="flex flex-col ml-2 mt-0.5">
+                                                                                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">Data do Pagamento</span>
+                                                                                <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-1">
+                                                                                    <Check className="w-2.5 h-2.5" />
+                                                                                    {new Date(order.paymentDate).toLocaleDateString('pt-BR')} {new Date(order.paymentDate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
-                                                                </button>
-                                                                {isPaid && order.paymentDate && (
-                                                                    <span className="text-[9px] font-bold text-emerald-500 ml-2 flex items-center gap-1">
-                                                                        <Check className="w-2.5 h-2.5" />
-                                                                        {new Date(order.paymentDate).toLocaleDateString('pt-BR')}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex flex-col gap-1">
-                                                                <div className={`inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border w-fit ${isPaid
-                                                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-500/5'
-                                                                    : 'bg-amber-50 text-amber-600 border-amber-100 shadow-sm shadow-emerald-500/5'
-                                                                    }`}>
-                                                                    {isPaid ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
-                                                                    {isPaid ? 'Pago' : 'Pendente'}
-                                                                </div>
-                                                                {isPaid && order.paymentDate && (
-                                                                    <span className="text-[9px] font-bold text-emerald-500 ml-3">
-                                                                        Data: {new Date(order.paymentDate).toLocaleDateString('pt-BR')}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        )}
+                                                                );
+                                                            }
+                                                        })()}
                                                     </div>
                                                 ) : null}
 

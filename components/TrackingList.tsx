@@ -32,7 +32,7 @@ interface TrackingScreenProps {
     onDeleteOrder: (id: string) => void;
     onUpdateAttachments?: (orderId: string, attachments: Attachment[]) => void;
     totalCounter: number;
-    onUpdatePaymentStatus?: (orderId: string, status: 'pending' | 'paid') => void;
+    onUpdatePaymentStatus?: (orderId: string, status: 'pending' | 'contabilidade' | 'paid') => void;
     onUpdateOrderStatus?: (orderId: string, status: Order['status']) => Promise<void>;
     showAllProcesses?: boolean;
 }
@@ -153,9 +153,9 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                     currentStageIndex: 0,
                     viewingStageIndex: 0,
                     body: inicioData.body,
-                    signatureName: inicioData.signatureName,
-                    signatureRole: inicioData.signatureRole,
-                    signatureSector: inicioData.signatureSector,
+                    signatureName: inicioData.signatureName || '',
+                    signatureRole: inicioData.signatureRole || '',
+                    signatureSector: inicioData.signatureSector || '',
                     signatures: inicioData.signatures,
                     licitacaoStages: [
                         {
@@ -679,52 +679,81 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                 )}
 
                                                 {/* Diarias Status (Payment) */}
-                                                {isDiarias && (
-                                                    <div className="md:col-span-2">
-                                                        {isAdmin ? (
-                                                            <div className="flex flex-col gap-1">
-                                                                <button
-                                                                    onClick={() => onUpdatePaymentStatus?.(order.id, isPaid ? 'pending' : 'paid')}
-                                                                    className={`relative group flex items-center justify-between w-full max-w-[120px] px-3 py-2 rounded-xl border transition-all duration-300 active:scale-95 ${isPaid
-                                                                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm shadow-emerald-500/10'
-                                                                        : 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm shadow-emerald-500/10'
-                                                                        }`}
-                                                                >
-                                                                    <div className="flex items-center gap-2">
-                                                                        {isPaid ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4 animate-pulse" />}
-                                                                        <span className="text-[10px] font-black uppercase tracking-widest">
-                                                                            {isPaid ? 'Pago' : 'Pendente'}
+                                                {isDiarias && (() => {
+                                                    const pStatusStr = order.paymentStatus || 'pending';
+                                                    const isPaid = pStatusStr === 'paid';
+                                                    const canAdvanceToPaid = currentUser.permissions.includes('parent_diarias') || currentUser.role === 'admin';
+
+                                                    const statusMap = {
+                                                        pending: { label: 'Pendente', icon: Clock, styles: 'bg-amber-50 border-amber-200 text-amber-700 shadow-amber-500/10', pulse: true },
+                                                        contabilidade: { label: 'Contabilidade', icon: FileSearch, styles: 'bg-purple-50 border-purple-200 text-purple-700 shadow-purple-500/10', pulse: false },
+                                                        paid: { label: 'Pago', icon: CheckCircle2, styles: 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-emerald-500/10', pulse: false }
+                                                    };
+                                                    const sConf = statusMap[pStatusStr as keyof typeof statusMap] || statusMap.pending;
+                                                    const StatusIcon = sConf.icon;
+
+                                                    return (
+                                                        <div className="md:col-span-2">
+                                                            {isAdmin ? (
+                                                                <div className="flex flex-col gap-1">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const nextStatus = pStatusStr === 'pending' ? 'contabilidade' : (pStatusStr === 'contabilidade' ? 'paid' : 'pending');
+                                                                            onUpdatePaymentStatus?.(order.id, nextStatus as any);
+                                                                        }}
+                                                                        className={`relative group flex items-center justify-between w-full max-w-[140px] px-3 py-2 rounded-xl border transition-all duration-300 active:scale-95 shadow-sm ${sConf.styles}`}
+                                                                    >
+                                                                        <div className="flex items-center gap-2">
+                                                                            <StatusIcon className={`w-4 h-4 ${sConf.pulse ? 'animate-pulse' : ''}`} />
+                                                                            <span className="text-[10px] font-black uppercase tracking-widest">
+                                                                                {sConf.label}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="hidden group-hover:block transition-all ml-1">
+                                                                            <Edit3 className="w-3 h-3 opacity-40" />
+                                                                        </div>
+                                                                    </button>
+                                                                    {isPaid && order.paymentDate && (
+                                                                        <span className="text-[9px] font-bold text-emerald-500 ml-2 flex items-center gap-1">
+                                                                            <Check className="w-2.5 h-2.5" />
+                                                                            {formatLocalDateTime(order.paymentDate)}
                                                                         </span>
-                                                                    </div>
-                                                                    <div className="hidden group-hover:block transition-all ml-1">
-                                                                        <Edit3 className="w-3 h-3 opacity-40" />
-                                                                    </div>
-                                                                </button>
-                                                                {isPaid && order.paymentDate && (
-                                                                    <span className="text-[9px] font-bold text-emerald-500 ml-2 flex items-center gap-1">
-                                                                        <Check className="w-2.5 h-2.5" />
-                                                                        {new Date(order.paymentDate).toLocaleDateString('pt-BR')}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex flex-col gap-1">
-                                                                <div className={`inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border w-fit ${isPaid
-                                                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-500/5'
-                                                                    : 'bg-amber-50 text-amber-600 border-amber-100 shadow-sm shadow-emerald-500/5'
-                                                                    }`}>
-                                                                    {isPaid ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
-                                                                    {isPaid ? 'Pago' : 'Pendente'}
+                                                                    )}
                                                                 </div>
-                                                                {isPaid && order.paymentDate && (
-                                                                    <span className="text-[9px] font-bold text-emerald-500 ml-3">
-                                                                        Data: {new Date(order.paymentDate).toLocaleDateString('pt-BR')}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                            ) : (
+                                                                <div className="flex flex-col gap-1">
+                                                                    {canAdvanceToPaid && !isPaid ? (
+                                                                        <button
+                                                                            onClick={() => onUpdatePaymentStatus?.(order.id, 'paid')}
+                                                                            className={`relative group flex items-center justify-between w-full max-w-[140px] px-3 py-2 rounded-xl border transition-all duration-300 active:scale-95 shadow-sm ${sConf.styles}`}
+                                                                            title="Marcar como Pago"
+                                                                        >
+                                                                            <div className="flex items-center gap-2">
+                                                                                <StatusIcon className={`w-4 h-4 ${sConf.pulse ? 'animate-pulse' : ''}`} />
+                                                                                <span className="text-[10px] font-black uppercase tracking-widest">
+                                                                                    {sConf.label}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="hidden group-hover:block transition-all ml-1">
+                                                                                <CheckCircle2 className="w-3 h-3 opacity-40 hover:opacity-100 text-emerald-600" />
+                                                                            </div>
+                                                                        </button>
+                                                                    ) : (
+                                                                        <div className={`inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border w-fit shadow-sm ${sConf.styles}`}>
+                                                                            <StatusIcon className={`w-3.5 h-3.5 ${sConf.pulse ? 'animate-pulse' : ''}`} />
+                                                                            {sConf.label}
+                                                                        </div>
+                                                                    )}
+                                                                    {isPaid && order.paymentDate && (
+                                                                        <span className="text-[9px] font-bold text-emerald-500 ml-3">
+                                                                            Data: {formatLocalDateTime(order.paymentDate)}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
 
                                                 {/* Creation Date for others */}
                                                 {!isCompras && !isDiarias && !isLicitacao && (
@@ -858,7 +887,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                 }
 
                 {/* MODAL OFICIO/DOCUMENT PREVIEW */}
-                {previewOrder && (
+                {previewOrder && previewOrder.documentSnapshot && (
                     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
                         <div className="bg-white rounded-[2.5rem] w-full max-w-4xl h-[80vh] overflow-hidden flex flex-col shadow-2xl">
                             <div className="p-4 border-b flex justify-between items-center">
@@ -867,7 +896,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                             </div>
                             <div className="flex-1 overflow-auto bg-slate-100 p-8 flex justify-center">
                                 <DocumentPreview
-                                    state={previewOrder.documentSnapshot}
+                                    state={previewOrder.documentSnapshot as any}
                                     scale={0.8}
                                 />
                             </div>

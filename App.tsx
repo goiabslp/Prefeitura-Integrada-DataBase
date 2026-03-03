@@ -1918,7 +1918,7 @@ const App: React.FC = () => {
     });
   };
 
-  const handleUpdatePaymentStatus = async (orderOrId: string | Order, status: 'pending' | 'paid') => {
+  const handleUpdatePaymentStatus = async (orderOrId: string | Order, status: 'pending' | 'contabilidade' | 'paid') => {
     let orderToUpdate: Order | undefined;
     if (typeof orderOrId === 'string') {
       orderToUpdate = orders.find(o => o.id === orderOrId);
@@ -1935,7 +1935,7 @@ const App: React.FC = () => {
     const updatedOrder = {
       ...orderToUpdate,
       paymentStatus: status,
-      paymentDate: status === 'paid' ? new Date().toISOString() : undefined
+      paymentDate: status === 'paid' ? new Date().toISOString() : null
     };
 
     // 3. Optimistic Update

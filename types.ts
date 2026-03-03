@@ -233,8 +233,8 @@ export interface Order {
   userName: string;
   blockType: BlockType;
   documentSnapshot?: AppState;
-  paymentStatus?: 'pending' | 'paid';
-  paymentDate?: string;
+  paymentStatus?: 'pending' | 'contabilidade' | 'paid';
+  paymentDate?: string | null;
   budgetFileUrl?: string;
   attachments?: Attachment[];
   completionForecast?: string;
