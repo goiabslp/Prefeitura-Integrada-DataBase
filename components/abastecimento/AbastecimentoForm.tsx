@@ -295,7 +295,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
         setConfirmModalOpen(true);
     };
 
-    const handleFinalSave = async () => {
+    const handleFinalSave = async (overrideValidation: boolean | React.MouseEvent = false) => {
         if (!pendingData) return;
 
         try {
@@ -309,10 +309,13 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                 Timestamp: ${new Date().toISOString()}`
             );
 
-            await AbastecimentoService.saveAbastecimento(pendingData, !!initialData, isOdometerOverridden);
+            const shouldOverride = overrideValidation === true || isOdometerOverridden;
+            await AbastecimentoService.saveAbastecimento(pendingData, !!initialData, shouldOverride);
 
             onSave(pendingData);
             setConfirmModalOpen(false);
+            setAdminOverrideModalOpen(false);
+            setIsOdometerOverridden(false);
         } catch (error) {
             console.error("[AUDIT] Error saving supply:", error);
             alert("Erro ao salvar abastecimento. Verifique sua conexão e tente novamente.");
@@ -619,14 +622,14 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                             </button>
                             <button
                                 type="button"
-                                onClick={() => {
+                                disabled={isSaving}
+                                onClick={async () => {
                                     setIsOdometerOverridden(true);
-                                    setAdminOverrideModalOpen(false);
-                                    setConfirmModalOpen(true);
+                                    await handleFinalSave(true);
                                 }}
-                                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                             >
-                                Autorizar Lançamento
+                                {isSaving ? 'Salvando...' : 'Autorizar Lançamento'}
                             </button>
                         </div>
                     </div>
