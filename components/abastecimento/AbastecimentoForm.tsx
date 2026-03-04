@@ -80,6 +80,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
 
     // Confirmation Modal State
     const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+    const [adminOverrideModalOpen, setAdminOverrideModalOpen] = useState(false);
+    const [isOdometerOverridden, setIsOdometerOverridden] = useState(false);
     const [pendingData, setPendingData] = useState<AbastecimentoRecord | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -223,9 +225,39 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
         }
 
         // Only validate odometer for NEW records
-        if (!initialData && odometerVal <= 0) {
-            alert('O odômetro deve ser maior que zero.');
-            return;
+        if (!initialData) {
+            if (odometerVal <= 0) {
+                alert('O odômetro deve ser maior que zero.');
+                return;
+            }
+            if (lastOdometer !== null && odometerVal <= lastOdometer) {
+                if (authUser?.role === 'admin' || authUser?.permissions?.includes('parent_admin')) {
+                    const matchedVehicle = vehicles.find(v => v.plate === vehicle);
+                    const newRecord: AbastecimentoRecord = {
+                        id: recordId,
+                        protocol: protocolId,
+                        fiscal: authUser?.name || authUser?.username || 'Sistema',
+                        date: combinedDate.toISOString(),
+                        vehicle,
+                        driver,
+                        fuelType: `${fuelType} - R$ ${fuelPrices[fuelType]?.toFixed(2)}`,
+                        liters: litersVal,
+                        odometer: odometerVal,
+                        cost: Number(cost.toFixed(2)),
+                        station,
+                        invoiceNumber,
+                        userId: authUser?.id,
+                        userName: authUser?.name,
+                        sectorId: matchedVehicle?.sectorId
+                    };
+                    setPendingData(newRecord);
+                    setAdminOverrideModalOpen(true);
+                    return; // Pause submit here, wait for admin modal
+                } else {
+                    alert(`BLOQUEIO: O Horímetro/Odômetro informado (${odometerVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) é menor ou igual ao último registro (${lastOdometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}). O cadastro não pode ser realizado.`);
+                    return;
+                }
+            }
         }
 
         // Check for duplicate invoice number (Combination: Station + Invoice)
@@ -277,7 +309,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                 Timestamp: ${new Date().toISOString()}`
             );
 
-            await AbastecimentoService.saveAbastecimento(pendingData, !!initialData);
+            await AbastecimentoService.saveAbastecimento(pendingData, !!initialData, isOdometerOverridden);
 
             onSave(pendingData);
             setConfirmModalOpen(false);
@@ -541,10 +573,9 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                 </form>
             </div>
 
-
             <AbastecimentoConfirmationModal
                 isOpen={confirmModalOpen}
-                onClose={() => setConfirmModalOpen(false)}
+                onClose={() => { setConfirmModalOpen(false); setIsOdometerOverridden(false); }}
                 onConfirm={handleFinalSave}
                 data={pendingData ? {
                     invoiceNumber: pendingData.invoiceNumber || '',
@@ -558,6 +589,49 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                 isEdit={!!initialData}
                 isSaving={isSaving}
             />
-        </div >
+
+            {adminOverrideModalOpen && pendingData && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-6 pb-0">
+                            <div className="flex items-center gap-3 text-red-600 mb-2">
+                                <div className="p-2 bg-red-100 rounded-lg">
+                                    <Clock className="w-6 h-6" />
+                                </div>
+                                <h3 className="text-lg font-bold">Atenção Admin</h3>
+                            </div>
+                            <p className="text-sm text-slate-600 mb-6">
+                                O Horímetro/Odômetro informado (<strong>{pendingData.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>)
+                                é menor ou igual ao último registro gravado no sistema (<strong>{(lastOdometer ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>).
+                            </p>
+                            <p className="text-sm text-slate-700 font-bold mb-6">
+                                Deseja forçar o registro mesmo com essa discrepância de quilometragem?
+                            </p>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 flex-shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => { setAdminOverrideModalOpen(false); setIsOdometerOverridden(false); }}
+                                className="flex-1 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsOdometerOverridden(true);
+                                    setAdminOverrideModalOpen(false);
+                                    setConfirmModalOpen(true);
+                                }}
+                                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                                Autorizar Lançamento
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 };

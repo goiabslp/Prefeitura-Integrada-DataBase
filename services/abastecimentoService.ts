@@ -322,17 +322,19 @@ export const AbastecimentoService = {
         }
     },
 
-    saveAbastecimento: async (record: AbastecimentoRecord, isEdit: boolean = false): Promise<void> => {
+    saveAbastecimento: async (record: AbastecimentoRecord, isEdit: boolean = false, overrideOdometerValidation: boolean = false): Promise<void> => {
         try {
             // Backend validation: check if odometer is less than or equal to the latest recorded
             // Only validate if NOT editing and NOT a legacy update (which we can check by record.id existence, but isEdit is more explicit)
-            if (!isEdit) {
+            if (!isEdit && !overrideOdometerValidation) {
                 const latestOdometer = await AbastecimentoService.getLatestOdometerByVehicle(record.vehicle);
                 if (latestOdometer !== null && record.odometer <= latestOdometer) {
                     throw new Error(`BLOQUEIO: O Horímetro/Odômetro informado (${record.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) é menor ou igual ao último registro (${latestOdometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}). O cadastro não pode ser realizado.`);
                 }
+            }
 
-                // [NEW] Robustness: Backend ID/Record Existence Validation
+            // [NEW] Robustness: Backend ID/Record Existence Validation
+            if (!isEdit) {
                 // 1. Validate Vehicle
                 const { data: vData } = await supabase.from('vehicles').select('id').eq('plate', record.vehicle).maybeSingle();
                 if (!vData) throw new Error(`ERRO: Veículo "${record.vehicle}" não encontrado no banco de dados. Carregue a página e tente novamente.`);
