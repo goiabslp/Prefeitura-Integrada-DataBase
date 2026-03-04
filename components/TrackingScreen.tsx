@@ -1355,7 +1355,7 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                             <div className="relative shadow-[0_20px_50px_rgba(0,0,0,0.3)] animate-scale-up origin-top">
                                 {/* Show Loading if fetching full details for Lightweight modules */}
                                 {((activeBlock === 'oficio' && previewOrder && !fullOficio) ||
-                                    (activeBlock === 'diarias' && previewOrder && !fullServiceRequest)) ? (
+                                    (activeBlock === 'diarias' && previewOrder && (!fullServiceRequest || (previewOrder.documentSnapshot as any)?.isLightweight))) ? (
                                     <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                                         <div className="relative">
                                             <div className="w-16 h-16 rounded-full border-4 border-slate-900/20 border-t-slate-900 animate-spin"></div>
@@ -1371,6 +1371,11 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({
                                                 protocol: effectivePreviewOrder.protocol,
                                                 leftBlockText: `Solicitação Nº: ${effectivePreviewOrder.protocol}`,
                                                 requesterName: effectivePreviewOrder.documentSnapshot.content?.requesterName || effectivePreviewOrder.userName,
+                                                requesterRole: effectivePreviewOrder.documentSnapshot.content?.requesterRole || '',
+                                                authorizedBy: effectivePreviewOrder.documentSnapshot.content?.authorizedBy || '',
+                                                descriptionReason: effectivePreviewOrder.documentSnapshot.content?.descriptionReason || '',
+                                                requestedValue: effectivePreviewOrder.documentSnapshot.content?.requestedValue || '',
+                                                distanceKm: effectivePreviewOrder.documentSnapshot.content?.distanceKm || 0,
                                                 globalStatus: effectivePreviewOrder.status,
                                                 paymentStatus: effectivePreviewOrder.paymentStatus,
                                                 paymentDate: effectivePreviewOrder.paymentDate,
