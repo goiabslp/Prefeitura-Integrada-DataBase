@@ -119,6 +119,41 @@ export const getServiceRequestById = async (id: string): Promise<Order> => {
 
     if (error) throw error;
 
+    // Agressive Normalization for Legacy Data
+    let docSnapshot = data.document_snapshot || {};
+
+    // If content object doesn't exist, legacy data might be at the root
+    if (!docSnapshot.content) {
+        docSnapshot.content = { ...docSnapshot };
+    }
+
+    const c = docSnapshot.content;
+    const r = docSnapshot; // root fallback
+
+    docSnapshot.content = {
+        ...c,
+        requesterRole: c.requesterRole || c.requester_role || r.requesterRole || r.requester_role,
+        requestedValue: c.requestedValue || c.requested_value || r.requestedValue || r.requested_value,
+        distanceKm: Number(c.distanceKm || c.distance_km || r.distanceKm || r.distance_km) || 0,
+        authorizedBy: c.authorizedBy || c.authorized_by || r.authorizedBy || r.authorized_by,
+        descriptionReason: c.descriptionReason || c.description_reason || r.descriptionReason || r.description_reason,
+        signatureName: c.signatureName || c.signature_name || r.signatureName || r.signature_name,
+        signatureRole: c.signatureRole || c.signature_role || r.signatureRole || r.signature_role,
+        signatureSector: c.signatureSector || c.signature_sector || r.signatureSector || r.signature_sector,
+        returnDateTime: c.returnDateTime || c.return_date || r.returnDateTime || r.return_date,
+        departureDateTime: c.departureDateTime || c.departure_date || r.departureDateTime || r.departure_date,
+        requesterName: c.requesterName || c.requester_name || r.requesterName || r.requester_name,
+        requesterSector: c.requesterSector || c.requester_sector || r.requesterSector || r.requester_sector,
+        paymentForecast: c.paymentForecast || c.payment_forecast || r.paymentForecast || r.payment_forecast,
+        showDiariaSignatures: c.showDiariaSignatures ?? c.show_signatures ?? r.showDiariaSignatures ?? r.show_signatures ?? true,
+        useDigitalSignature: c.useDigitalSignature ?? c.use_digital ?? r.useDigitalSignature ?? r.use_digital ?? true,
+        lodgingCount: Number(c.lodgingCount || c.lodging_count || r.lodgingCount || r.lodging_count) || 0,
+        destination: c.destination || r.destination,
+        subType: c.subType || c.sub_type || r.subType || r.sub_type,
+        protocol: c.protocol || r.protocol,
+        title: c.title || r.title || data.title
+    };
+
     return {
         id: data.id,
         protocol: data.protocol,
@@ -131,7 +166,7 @@ export const getServiceRequestById = async (id: string): Promise<Order> => {
         userId: data.user_id,
         userName: data.user_name,
         blockType: 'diarias',
-        documentSnapshot: data.document_snapshot
+        documentSnapshot: docSnapshot
     };
 };
 

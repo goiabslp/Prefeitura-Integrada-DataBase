@@ -182,11 +182,13 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
 
   // Auto-reparo do Cargo (requesterRole) com base no Nome (requesterName)
   useEffect(() => {
-    if (content.requesterName && !content.requesterRole && persons.length > 0) {
+    if (content.requesterName && persons.length > 0) {
       const person = persons.find(p => p.name === content.requesterName);
       if (person) {
         const job = jobs.find(j => j.id === person.jobId)?.name || '';
-        handleUpdate('content', 'requesterRole', job);
+        if (job && content.requesterRole !== job) {
+          handleUpdate('content', 'requesterRole', job);
+        }
       }
     }
   }, [content.requesterName, content.requesterRole, persons, jobs, handleUpdate]);

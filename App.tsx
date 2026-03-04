@@ -1490,6 +1490,7 @@ const App: React.FC = () => {
       try {
         const fetched = await diariasService.getServiceRequestById(order.id);
         if (fetched) {
+          console.log('[DEBUG] Fetched Diária from DB:', fetched.documentSnapshot?.content);
           fullOrder = fetched;
           // Update local cache
           setServiceRequests(prev => prev.map(o => o.id === fullOrder.id ? fullOrder : o));
