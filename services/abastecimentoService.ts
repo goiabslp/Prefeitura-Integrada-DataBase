@@ -331,6 +331,23 @@ export const AbastecimentoService = {
                 if (latestOdometer !== null && record.odometer <= latestOdometer) {
                     throw new Error(`BLOQUEIO: O Horímetro/Odômetro informado (${record.odometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) é menor ou igual ao último registro (${latestOdometer.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}). O cadastro não pode ser realizado.`);
                 }
+
+                // [NEW] Robustness: Backend ID/Record Existence Validation
+                // 1. Validate Vehicle
+                const { data: vData } = await supabase.from('vehicles').select('id').eq('plate', record.vehicle).maybeSingle();
+                if (!vData) throw new Error(`ERRO: Veículo "${record.vehicle}" não encontrado no banco de dados. Carregue a página e tente novamente.`);
+
+                // 2. Validate Driver
+                const { data: pData } = await supabase.from('persons').select('id').eq('name', record.driver).maybeSingle();
+                if (!pData) throw new Error(`ERRO: Motorista "${record.driver}" não encontrado no banco de dados.`);
+
+                // 3. Validate Fuel Type (Simplified check against config or active label)
+                // Since fuelType stores "type - R$ price", we check the prefix
+                const fuelTypePrefix = record.fuelType.split(' - ')[0];
+                const config = await AbastecimentoService.getFuelConfig();
+                const validTypes = ['diesel', 'gasolina', 'etanol', 'arla', 'Gás']; // Match fuelTypes labels or keys
+                const isValidFuel = validTypes.some(t => fuelTypePrefix.toLowerCase().includes(t.toLowerCase()));
+                if (!isValidFuel) throw new Error(`ERRO: Tipo de combustível "${fuelTypePrefix}" é inválido.`);
             }
 
             if (isEdit) {

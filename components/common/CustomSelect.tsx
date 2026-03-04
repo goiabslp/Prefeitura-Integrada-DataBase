@@ -22,6 +22,8 @@ interface CustomSelectProps {
     disableMobileModal?: boolean;
     forceDirection?: 'up' | 'down';
     disabled?: boolean;
+    isLoading?: boolean;
+    onFocus?: () => void;
 }
 
 // Sub-component for options to enable granular memoization
@@ -76,7 +78,9 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
     mobileThreshold = 700,
     disableMobileModal = false,
     forceDirection,
-    disabled = false
+    disabled = false,
+    isLoading = false,
+    onFocus
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -287,12 +291,21 @@ export const CustomSelect: React.FC<CustomSelectProps> = memo(({
             {label && <label className={labelClass}>{label}</label>}
 
             <div
-                className={`group relative ${disabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
-                onClick={() => !disabled && setIsOpen(!isOpen)}
+                className={`group relative ${(disabled || isLoading) ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+                onClick={() => (!disabled && !isLoading) && setIsOpen(!isOpen)}
+                onFocus={onFocus}
+                tabIndex={disabled || isLoading ? -1 : 0}
             >
-                <div className={`${inputClass} ${isOpen ? 'border-cyan-500 ring-2 ring-cyan-500/20 bg-white' : ''} ${disabled ? 'bg-slate-100 hover:border-slate-200 pointer-events-none' : ''}`}>
-                    <span className={`block truncate ${!selectedOption ? 'text-slate-400' : 'font-medium'} ${disabled ? 'text-slate-500' : ''}`}>
-                        {selectedOption ? selectedOption.label : placeholder}
+                <div className={`${inputClass} ${isOpen ? 'border-cyan-500 ring-2 ring-cyan-500/20 bg-white' : ''} ${(disabled || isLoading) ? 'bg-slate-100 hover:border-slate-200 pointer-events-none' : ''}`}>
+                    <span className={`block truncate ${!selectedOption ? 'text-slate-400' : 'font-medium'} ${disabled || isLoading ? 'text-slate-500' : ''}`}>
+                        {isLoading ? (
+                            <span className="flex items-center gap-2">
+                                <div className="w-3.5 h-3.5 border-2 border-slate-200 border-t-cyan-500 rounded-full animate-spin"></div>
+                                Carregando...
+                            </span>
+                        ) : (
+                            selectedOption ? selectedOption.label : placeholder
+                        )}
                     </span>
 
                     <div className="flex items-center gap-2 text-slate-400">

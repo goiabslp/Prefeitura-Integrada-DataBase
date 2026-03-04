@@ -1,71 +1,62 @@
-import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Vehicle } from '../types';
 
 const CACHE_KEY = 'cached_vehicles_data';
 
+export const vehicleKeys = {
+    all: ['vehicles'] as const,
+};
+
 export const useCachedVehicles = (initialVehicles: Vehicle[] = []) => {
-    const [vehicles, setVehicles] = useState<Vehicle[]>(() => {
-        // 1. Try LocalStorage first for immediate display
-        const cached = localStorage.getItem(CACHE_KEY);
-        if (cached) {
-            try {
-                const parsed = JSON.parse(cached);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    return parsed;
-                }
-            } catch (e) {
-                console.error("Error parsing cached vehicles:", e);
-            }
-        }
-        // 2. If no cache, use initial props (which might be empty initially)
-        return initialVehicles;
-    });
+    const queryClient = useQueryClient();
 
+    // Set up Realtime Subscription
     useEffect(() => {
-        let mounted = true;
-
-        const syncVehicles = async () => {
-            try {
-                // Fetch latest data
-                const { data, error } = await supabase
-                    .from('vehicles')
-                    .select('*')
-                    .order('plate', { ascending: true }); // Ordered by Plate for faster lookup/display
-
-                if (error) throw error;
-
-                if (mounted && data) {
-                    setVehicles(data);
-                    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-                }
-            } catch (error) {
-                console.error("Background vehicle sync error:", error);
-            }
-        };
-
-        // Run sync immediately
-        syncVehicles();
-
-        // Optional: Real-time subscription to keep it fresh
-        const subscription = supabase
+        const channel = supabase
             .channel('vehicles_cache_sync')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, () => {
-                syncVehicles();
+                queryClient.invalidateQueries({ queryKey: vehicleKeys.all });
             })
             .subscribe();
 
         return () => {
-            mounted = false;
-            supabase.removeChannel(subscription);
+            supabase.removeChannel(channel);
         };
-    }, []);
+    }, [queryClient]);
 
-    // Update state if initialVehicles prop changes and we have nothing else (rare case where prop loads later than cache logic?)
-    // Actually, we prefer the internal fetch/cache. 
-    // But if parent provides updated list, we might want to respect it?
-    // Usually local fetch is more reliable for this component's specific needs (independent speed).
-    // We'll stick to the internal logic as primary source after mount.
+    return useQuery({
+        queryKey: vehicleKeys.all,
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('vehicles')
+                .select('*')
+                .order('plate', { ascending: true });
 
-    return vehicles;
+            if (error) throw error;
+
+            // Optional: Backup to LocalStorage if needed for offline-first boots
+            if (data) {
+                localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+            }
+
+            return data || [];
+        },
+        initialData: () => {
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                } catch (e) {
+                    console.error("Error parsing cached vehicles:", e);
+                }
+            }
+            return initialVehicles.length > 0 ? initialVehicles : undefined;
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        retry: 3,
+        retryDelay: (attempt) => Math.min(1000 * Math.pow(2, attempt), 30000),
+    });
 };

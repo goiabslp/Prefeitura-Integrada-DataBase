@@ -27,9 +27,14 @@ import { useCachedFuelTypes } from '../../hooks/useCachedFuelTypes';
 export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, onSave, vehicles: initialVehicles, persons: initialPersons, gasStations, fuelTypes: initialFuelTypes, initialData }) => {
     const { user: authUser } = useAuth();
     // Use cached data for optimized loading
-    const vehicles = useCachedVehicles(initialVehicles);
-    const persons = useCachedPersons(initialPersons);
-    const fuelTypes = useCachedFuelTypes(initialFuelTypes);
+    // Use query objects for robust loading and sync
+    const { data: vehiclesData, isLoading: isLoadingVehicles, refetch: refetchVehicles } = useCachedVehicles(initialVehicles);
+    const { data: personsData, isLoading: isLoadingPersons, refetch: refetchPersons } = useCachedPersons(initialPersons);
+    const { data: fuelTypesData, isLoading: isLoadingFuelTypes, refetch: refetchFuelTypes } = useCachedFuelTypes(initialFuelTypes);
+
+    const vehicles = vehiclesData || [];
+    const persons = personsData || [];
+    const fuelTypes = fuelTypesData || [];
 
     // Derived prices from props (now from cached fuelTypes by default)
     const [fuelPrices, setFuelPrices] = useState<{ [key: string]: number }>({});
@@ -399,6 +404,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 icon={Truck}
                                 required
                                 mobileThreshold={1201}
+                                isLoading={isLoadingVehicles}
+                                onFocus={() => refetchVehicles()}
                             />
                         </div>
                         <div className="col-span-12 wide:col-span-6">
@@ -411,6 +418,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 icon={User}
                                 required
                                 mobileThreshold={1201}
+                                isLoading={isLoadingPersons}
+                                onFocus={() => refetchPersons()}
                             />
                         </div>
 
@@ -451,6 +460,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                     mobileThreshold={1201}
                                     disableMobileModal={true}
                                     forceDirection="up"
+                                    isLoading={isLoadingFuelTypes}
+                                    onFocus={() => refetchFuelTypes()}
                                 />
                             </div>
 
