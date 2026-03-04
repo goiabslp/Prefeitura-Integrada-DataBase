@@ -9,7 +9,7 @@ export const getAllServiceRequests = async (lightweight = true, page = 0, pageSi
         .select(`
             id, protocol, title, status, status_history, created_at, user_id, user_name, payment_status, payment_date
             ${lightweight
-                ? ', requester_name:document_snapshot->content->>requesterName, destination:document_snapshot->content->>destination, departure_date:document_snapshot->content->>departureDateTime, return_date:document_snapshot->content->>returnDateTime, requester_sector:document_snapshot->content->>requesterSector, sub_type:document_snapshot->content->>subType, priority:document_snapshot->content->>priority'
+                ? ', requester_name:document_snapshot->content->>requesterName, requester_role:document_snapshot->content->>requesterRole, destination:document_snapshot->content->>destination, departure_date:document_snapshot->content->>departureDateTime, return_date:document_snapshot->content->>returnDateTime, requester_sector:document_snapshot->content->>requesterSector, sub_type:document_snapshot->content->>subType, priority:document_snapshot->content->>priority, authorized_by:document_snapshot->content->>authorizedBy, requested_value:document_snapshot->content->>requestedValue, description_reason:document_snapshot->content->>descriptionReason, lodging_count:document_snapshot->content->>lodgingCount, distance_km:document_snapshot->content->>distanceKm, payment_forecast:document_snapshot->content->>paymentForecast, signature_name:document_snapshot->content->>signatureName, signature_role:document_snapshot->content->>signatureRole, signature_sector:document_snapshot->content->>signatureSector, show_signatures:document_snapshot->content->>showDiariaSignatures, use_digital:document_snapshot->content->>useDigitalSignature'
                 : ', document_snapshot'}
         `)
         .order('created_at', { ascending: false });
@@ -79,22 +79,32 @@ export const getAllServiceRequests = async (lightweight = true, page = 0, pageSi
                 headerLogoHeight: 40,
                 homeLogoPosition: 'left' as any
             },
+            isLightweight: true,
             content: {
                 title: item.title,
                 protocol: item.protocol, // CRITICAL: Include protocol in document content
                 subType: item.sub_type,   // CRITICAL: Include subType in document content
                 body: '',
-                signatureName: '',
-                signatureRole: '',
-                signatureSector: '',
                 leftBlockText: '',
                 rightBlockText: '',
                 requesterName: item.requester_name,
+                requesterRole: item.requester_role,
                 destination: item.destination,
                 departureDateTime: item.departure_date,
                 returnDateTime: item.return_date,
                 requesterSector: item.requester_sector,
-                priority: item.priority
+                priority: item.priority,
+                authorizedBy: item.authorized_by,
+                requestedValue: item.requested_value,
+                descriptionReason: item.description_reason,
+                lodgingCount: Number(item.lodging_count) || 0,
+                distanceKm: Number(item.distance_km) || 0,
+                paymentForecast: item.payment_forecast,
+                signatureName: item.signature_name || '',
+                signatureRole: item.signature_role || '',
+                signatureSector: item.signature_sector || '',
+                showDiariaSignatures: item.show_signatures === 'true',
+                useDigitalSignature: item.use_digital === 'true'
             }
         } : item.document_snapshot
     }));

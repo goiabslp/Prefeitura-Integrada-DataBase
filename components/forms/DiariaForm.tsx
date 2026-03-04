@@ -180,6 +180,17 @@ export const DiariaForm: React.FC<DiariaFormProps> = ({
     }
   }, [content.subType, activeBlock, handleUpdate, state.document.showSignature, content.showDiariaSignatures, content.showExtraField]);
 
+  // Auto-reparo do Cargo (requesterRole) com base no Nome (requesterName)
+  useEffect(() => {
+    if (content.requesterName && !content.requesterRole && persons.length > 0) {
+      const person = persons.find(p => p.name === content.requesterName);
+      if (person) {
+        const job = jobs.find(j => j.id === person.jobId)?.name || '';
+        handleUpdate('content', 'requesterRole', job);
+      }
+    }
+  }, [content.requesterName, content.requesterRole, persons, jobs, handleUpdate]);
+
   const formatCurrency = (value: string) => {
     const cleanValue = value.replace(/\D/g, "");
     const numericValue = (Number(cleanValue) / 100).toLocaleString("pt-BR", {

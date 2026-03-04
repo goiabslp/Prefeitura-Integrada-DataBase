@@ -1485,7 +1485,7 @@ const App: React.FC = () => {
     }
 
     // LAZY LOAD DETAILS (Optimized Diarias)
-    if (order.blockType === 'diarias' && (!order.documentSnapshot?.content || !order.documentSnapshot.content.requestedValue)) {
+    if (order.blockType === 'diarias' && (!order.documentSnapshot?.content || (order.documentSnapshot as any).isLightweight)) {
       setIsLoadingDetails(true);
       try {
         const fetched = await diariasService.getServiceRequestById(order.id);
