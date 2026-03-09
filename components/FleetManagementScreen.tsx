@@ -248,7 +248,7 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
     const brand: VehicleBrand = {
       id: `br-${Date.now()}-${Math.random()}`,
       name: newBrandName.trim().toUpperCase(),
-      category: activeTab
+      category: activeTab === 'dashboard' ? 'leve' : activeTab as VehicleType
     };
     onAddBrand(brand);
     setNewBrandName('');
@@ -1000,6 +1000,42 @@ export const FleetManagementScreen: React.FC<FleetManagementScreenProps> = ({
                         <div>
                           <label className={labelClass}><Palette className="w-4 h-4 inline mr-2 text-indigo-500" /> Cor Predominante</label>
                           <input value={formData.color} onChange={e => setFormData({ ...formData, color: e.target.value.toUpperCase() })} className={inputClass} placeholder="Ex: BRANCA" />
+                        </div>
+
+                        <div>
+                          <label className={labelClass}><Car className="w-4 h-4 inline mr-2 text-indigo-500" /> Tipo de Veículo</label>
+                          <div className="relative">
+                            <select
+                              value={formData.vehicleCategory || ''}
+                              onChange={e => setFormData({ ...formData, vehicleCategory: e.target.value as any })}
+                              className={`${inputClass} appearance-none pr-10`}
+                            >
+                              <option value="">Selecione...</option>
+                              <option value="Carro">Carro</option>
+                              <option value="Moto">Moto</option>
+                              <option value="Van">Van</option>
+                              <option value="Ônibus">Ônibus</option>
+                              <option value="Máquina Pesada">Máquina Pesada</option>
+                              <option value="Caminhão">Caminhão</option>
+                              <option value="Acessórios">Acessórios</option>
+                            </select>
+                            <ChevronDown className="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className={labelClass}><Calendar className="w-4 h-4 inline mr-2 text-indigo-500" /> Disponível para Agendamento?</label>
+                          <div className="relative">
+                            <select
+                              value={formData.availableForScheduling || 'Não'}
+                              onChange={e => setFormData({ ...formData, availableForScheduling: e.target.value as any })}
+                              className={`${inputClass} appearance-none pr-10`}
+                            >
+                              <option value="Sim">Sim</option>
+                              <option value="Não">Não</option>
+                            </select>
+                            <ChevronDown className="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          </div>
                         </div>
 
                         {/* CAMPO DE COMBUSTÍVEL - MULTISELEÇÃO MODERNA */}

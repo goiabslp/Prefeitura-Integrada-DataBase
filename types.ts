@@ -322,6 +322,8 @@ export interface Vehicle {
   vehicleImageUrl?: string;
   status: VehicleStatus;
   maintenanceStatus: MaintenanceStatus;
+  vehicleCategory?: 'Carro' | 'Moto' | 'Van' | 'Ônibus' | 'Máquina Pesada' | 'Caminhão' | 'Acessórios';
+  availableForScheduling?: 'Sim' | 'Não';
   fuelTypes?: string[];
   requestManagerIds?: string[];
   maxKml?: number;

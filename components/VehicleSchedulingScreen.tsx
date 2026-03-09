@@ -637,7 +637,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                       {(() => {
                         const dStart = new Date(selectedDay).setHours(0, 0, 0, 0);
                         const dEnd = new Date(selectedDay).setHours(23, 59, 59, 999);
-                        const lightVehicles = vehicles.filter(v => v.type === 'leve' && v.status === 'operacional');
+                        const lightVehicles = vehicles.filter(v => v.type === 'leve' && v.status === 'operacional' && v.availableForScheduling !== 'Não');
                         const available: Vehicle[] = [];
                         const occupied: { vehicle: Vehicle, schedule: VehicleSchedule }[] = [];
                         lightVehicles.forEach(v => {
@@ -998,6 +998,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
         subtitle="Escolha um veículo disponível para a viagem"
         options={vehicles.filter(v =>
           v.status === 'operacional' &&
+          v.availableForScheduling !== 'Não' &&
           isVehicleAvailable(v.id, formData.departureDateTime!, formData.returnDateTime!, editingSchedule?.id)
         )}
         getInternalId={(v) => v.id}

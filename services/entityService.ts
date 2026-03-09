@@ -237,7 +237,9 @@ export const getVehicles = async (): Promise<Vehicle[]> => {
             currentKm: v.current_km,
             oilLastChange: v.oil_last_change,
             oilNextChange: v.oil_next_change,
-            oilCalculationBase: v.oil_calculation_base
+            oilCalculationBase: v.oil_calculation_base,
+            vehicleCategory: v.vehicle_category,
+            availableForScheduling: v.available_for_scheduling
         }));
     } catch (err) {
         console.error('Critical error in getVehicles:', err);
@@ -281,7 +283,9 @@ export const getVehicleById = async (id: string): Promise<Vehicle | null> => {
         currentKm: data.current_km,
         oilLastChange: data.oil_last_change,
         oilNextChange: data.oil_next_change,
-        oilCalculationBase: data.oil_calculation_base
+        oilCalculationBase: data.oil_calculation_base,
+        vehicleCategory: data.vehicle_category,
+        availableForScheduling: data.available_for_scheduling
     };
 };
 
@@ -309,7 +313,9 @@ export const createVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         current_km: vehicle.currentKm ? Math.round(vehicle.currentKm) : 0,
         oil_last_change: vehicle.oilLastChange ? Math.round(vehicle.oilLastChange) : null,
         oil_next_change: vehicle.oilNextChange ? Math.round(vehicle.oilNextChange) : null,
-        oil_calculation_base: vehicle.oilCalculationBase
+        oil_calculation_base: vehicle.oilCalculationBase,
+        vehicle_category: vehicle.vehicleCategory,
+        available_for_scheduling: vehicle.availableForScheduling || 'Sim'
     };
 
     const { data, error } = await supabase
@@ -347,7 +353,9 @@ export const createVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         currentKm: data.current_km,
         oilLastChange: data.oil_last_change,
         oilNextChange: data.oil_next_change,
-        oilCalculationBase: data.oil_calculation_base
+        oilCalculationBase: data.oil_calculation_base,
+        vehicleCategory: data.vehicle_category,
+        availableForScheduling: data.available_for_scheduling
     };
 };
 
@@ -375,7 +383,9 @@ export const updateVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         current_km: vehicle.currentKm ? Math.round(vehicle.currentKm) : 0,
         oil_last_change: vehicle.oilLastChange ? Math.round(vehicle.oilLastChange) : null,
         oil_next_change: vehicle.oilNextChange ? Math.round(vehicle.oilNextChange) : null,
-        oil_calculation_base: vehicle.oilCalculationBase
+        oil_calculation_base: vehicle.oilCalculationBase,
+        vehicle_category: vehicle.vehicleCategory,
+        available_for_scheduling: vehicle.availableForScheduling
     };
 
     const { data, error } = await supabase
@@ -414,7 +424,9 @@ export const updateVehicle = async (vehicle: Vehicle): Promise<Vehicle | null> =
         currentKm: data.current_km,
         oilLastChange: data.oil_last_change,
         oilNextChange: data.oil_next_change,
-        oilCalculationBase: data.oil_calculation_base
+        oilCalculationBase: data.oil_calculation_base,
+        vehicleCategory: data.vehicle_category,
+        availableForScheduling: data.available_for_scheduling
     };
 };
 
