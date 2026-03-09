@@ -637,10 +637,10 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                       {(() => {
                         const dStart = new Date(selectedDay).setHours(0, 0, 0, 0);
                         const dEnd = new Date(selectedDay).setHours(23, 59, 59, 999);
-                        const lightVehicles = vehicles.filter(v => v.type === 'leve' && v.status === 'operacional' && v.availableForScheduling !== 'Não');
+                        const schedulableVehicles = vehicles.filter(v => v.status === 'operacional' && v.availableForScheduling === 'Sim');
                         const available: Vehicle[] = [];
                         const occupied: { vehicle: Vehicle, schedule: VehicleSchedule }[] = [];
-                        lightVehicles.forEach(v => {
+                        schedulableVehicles.forEach(v => {
                           const occupyingSchedule = schedules.find(s => {
                             if (s.vehicleId !== v.id || (s.status !== 'confirmado' && s.status !== 'em_curso')) return false;
                             const sStart = new Date(s.departureDateTime).getTime();
@@ -650,7 +650,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
                           if (occupyingSchedule) occupied.push({ vehicle: v, schedule: occupyingSchedule });
                           else available.push(v);
                         });
-                        if (available.length === 0 && occupied.length === 0) return (<div className="text-center py-10"><Info className="w-8 h-8 text-slate-300 mx-auto mb-2" /><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nenhum veículo leve operacional</p></div>);
+                        if (available.length === 0 && occupied.length === 0) return (<div className="text-center py-10"><Info className="w-8 h-8 text-slate-300 mx-auto mb-2" /><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nenhum veículo operacional disponível</p></div>);
                         return (<>{available.length > 0 && (<div className="space-y-3"><div className="flex items-center gap-2 mb-2 ml-1"><div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div><span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Disponíveis</span></div>{available.map(v => { const vSector = sectors.find(s => s.id === v.sectorId)?.name || 'Sem Setor'; return (<button key={v.id} onClick={() => handleOpenModal(undefined, new Date(new Date(selectedDay!).setHours(new Date().getHours() + 1, 0, 0, 0)), v.id)} className="w-full bg-blue-50/50 p-4 rounded-2xl border border-blue-100 hover:border-blue-400 hover:shadow-md transition-all flex items-center justify-between group text-left shadow-sm"><div className="flex items-center gap-4 min-w-0"><div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-all shrink-0 shadow-sm"><Car className="w-5 h-5" /></div><div className="min-w-0"><span className="text-xs font-black text-blue-900 uppercase block truncate leading-tight">{v.brand} {v.model}</span><div className="flex items-center gap-2 mt-0.5"><span className="text-[8px] font-mono font-bold text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-100 tracking-wider uppercase">{v.plate}</span><span className="text-[9px] text-blue-400 font-bold uppercase">{vSector}</span></div></div></div><div className="p-2 text-blue-200 group-hover:text-blue-600 transition-colors"><Plus className="w-4 h-4" /></div></button>); })} </div>)}{occupied.length > 0 && (<div className="space-y-3 pt-4"><div className="flex items-center gap-2 mb-2 ml-1"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span className="text-[9px] font-black text-orange-600 uppercase tracking-widest">Ocupados no Período</span></div>{occupied.map(({ vehicle, schedule }) => { const vSector = sectors.find(s => s.id === vehicle.sectorId)?.name || 'Sem Setor'; return (<div key={vehicle.id} className="w-full bg-orange-50/50 p-4 rounded-2xl border border-orange-200 flex items-center justify-between group shadow-sm"><div className="flex items-center gap-4 min-w-0"><div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-orange-400 shrink-0 shadow-sm"><Navigation className="w-5 h-5" /></div><div className="min-w-0"><div className="flex items-center gap-2"><span className="text-xs font-black text-orange-900 uppercase truncate leading-tight">{vehicle.brand} {vehicle.model}</span></div><div className="flex items-center gap-2 mt-0.5"><span className="text-[8px] font-mono font-bold text-orange-600 bg-white px-1.5 py-0.5 rounded border border-orange-100 tracking-wider uppercase">{vehicle.plate}</span><span className="text-[9px] text-orange-400 font-bold uppercase truncate flex items-center gap-1 max-w-[100px]"><MapPin className="w-2 h-2 shrink-0" /> {schedule.destination}</span></div><div className="text-[8px] font-black text-orange-300 uppercase mt-1">Lotação: {vSector}</div></div></div><div className="shrink-0 ml-2"><div className="w-6 h-6 bg-white border border-orange-100 rounded-lg flex items-center justify-center text-orange-200 shadow-sm"><Lock className="w-3 h-3" /></div></div></div>); })} </div>)}</>);
                       })()}
                     </div>
@@ -998,7 +998,7 @@ export const VehicleSchedulingScreen: React.FC<VehicleSchedulingScreenProps> = (
         subtitle="Escolha um veículo disponível para a viagem"
         options={vehicles.filter(v =>
           v.status === 'operacional' &&
-          v.availableForScheduling !== 'Não' &&
+          v.availableForScheduling === 'Sim' &&
           isVehicleAvailable(v.id, formData.departureDateTime!, formData.returnDateTime!, editingSchedule?.id)
         )}
         getInternalId={(v) => v.id}
