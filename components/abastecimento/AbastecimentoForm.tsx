@@ -448,8 +448,12 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 </div>
                                 <input
                                     type="text"
+                                    inputMode="numeric"
                                     value={invoiceNumber}
-                                    onChange={(e) => setInvoiceNumber(e.target.value)}
+                                    onChange={(e) => {
+                                        const val = e.target.value.replace(/[^0-9.]/g, '');
+                                        setInvoiceNumber(val);
+                                    }}
                                     placeholder="Ex: 000.123"
                                     className={`${inputClass} pl-12`}
                                 />
@@ -511,6 +515,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 </div>
                                 <input
                                     type="text"
+                                    inputMode="numeric"
                                     value={liters}
                                     onChange={handleLitersChange}
                                     placeholder="0,000"
@@ -528,6 +533,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                                 </div>
                                 <input
                                     type="text"
+                                    inputMode="numeric"
                                     value={odometer}
                                     onChange={handleOdometerChange}
                                     placeholder="0,00"
