@@ -84,7 +84,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
     const [confirmModalOpen, setConfirmModalOpen] = useState(false);
     const [adminOverrideModalOpen, setAdminOverrideModalOpen] = useState(false);
     const [isOdometerOverridden, setIsOdometerOverridden] = useState(false);
-    const [pendingData, setPendingData] = useState<AbastecimentoRecord | null>(null);
+    const [pendingData, setPendingData] = useState<any | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     // Initialize state from props
@@ -260,7 +260,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             if (lastOdometer !== null && odometerVal <= lastOdometer) {
                 if (authUser?.role === 'admin' || authUser?.permissions?.includes('parent_admin')) {
                     const matchedVehicle = vehicles.find(v => v.plate === vehicle);
-                    const newRecord: AbastecimentoRecord = {
+                    const newRecord = {
                         id: recordId,
                         protocol: protocolId,
                         fiscal: authUser?.name || authUser?.username || 'Sistema',
@@ -276,7 +276,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                         userId: authUser?.id,
                         userName: authUser?.name,
                         sectorId: matchedVehicle?.sectorId,
-                        unit_price: unitPrice
+                        unit_price: unitPrice,
+                        lastOdometer: lastOdometer
                     };
                     setPendingData(newRecord);
                     setAdminOverrideModalOpen(true);
@@ -299,7 +300,7 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
 
         const matchedVehicle = vehicles.find(v => v.plate === vehicle);
 
-        const newRecord: AbastecimentoRecord = {
+        const newRecord = {
             id: recordId,
             protocol: protocolId,
             fiscal: initialData?.fiscal || authUser?.name || authUser?.username || 'Sistema',
@@ -316,7 +317,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
             userName: initialData?.userName || authUser?.name,
             sectorId: matchedVehicle?.sectorId || initialData?.sectorId,
             unit_price: unitPrice,
-            created_at: initialData?.created_at
+            created_at: initialData?.created_at,
+            lastOdometer: lastOdometer
         };
 
         // Open Confirmation Modal instead of saving directly

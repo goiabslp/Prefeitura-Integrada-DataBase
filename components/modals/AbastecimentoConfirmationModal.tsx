@@ -129,10 +129,14 @@ export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationM
                             <div className="bg-slate-50/50 rounded-2xl p-4 wide:p-6 space-y-4 border border-slate-100">
                                 {!isEdit && (
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[9px] wide:text-xs uppercase font-bold text-slate-400 tracking-wider">Último: {data.lastOdometer?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</span>
+                                        <span className="text-[9px] wide:text-xs uppercase font-bold text-slate-400 tracking-wider">
+                                            Intervalo: {data.lastOdometer !== null && data.lastOdometer !== undefined 
+                                                ? (currentOdometer - data.lastOdometer).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) 
+                                                : '0,00'}
+                                        </span>
                                         {data.lastOdometer !== null && data.lastOdometer !== undefined && (
                                             <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${currentOdometer > data.lastOdometer ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                                {currentOdometer > data.lastOdometer ? '+' : ''}{(currentOdometer - data.lastOdometer).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KM/L
+                                                {currentOdometer > data.lastOdometer ? '+' : ''}{(currentOdometer - data.lastOdometer).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KM/H
                                             </span>
                                         )}
                                     </div>
