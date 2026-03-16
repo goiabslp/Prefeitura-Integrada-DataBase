@@ -144,10 +144,7 @@ export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationM
                                             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Horímetro Diferença</span>
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${currentOdometer >= data.lastOdometer ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                                    {currentOdometer > data.lastOdometer ? '+' : ''}{(currentOdometer - data.lastOdometer).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                </span>
-                                                <span className="text-sm font-bold text-slate-600">
-                                                    {(currentOdometer - data.lastOdometer).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400">KM/H</span>
+                                                    {currentOdometer > data.lastOdometer ? '+' : ''}{(currentOdometer - data.lastOdometer).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KM/H
                                                 </span>
                                             </div>
                                         </div>
