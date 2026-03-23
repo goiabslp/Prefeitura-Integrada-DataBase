@@ -107,7 +107,7 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
     allowedSignatureIds: [],
     email: '',
     whatsapp: '',
-    permissions: ['parent_criar_oficio']
+    permissions: ['parent_criar_oficio', 'parent_rh']
   });
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -163,7 +163,7 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
         allowedSignatureIds: [],
         email: '',
         whatsapp: '+55',
-        permissions: ['parent_criar_oficio']
+        permissions: ['parent_criar_oficio', 'parent_rh']
       });
     }
     setIsModalOpen(true);
