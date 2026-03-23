@@ -81,7 +81,7 @@ export const HorasExtrasPdfGenerator: React.FC<HorasExtrasPdfGeneratorProps> = (
         }
     };
 
-    const ITEMS_PER_PAGE = 32;
+    const ITEMS_PER_PAGE = 18;
     const totalPages = Math.ceil((record.entries?.length || 1) / ITEMS_PER_PAGE);
 
     const reportState = {
@@ -129,7 +129,7 @@ export const HorasExtrasPdfGenerator: React.FC<HorasExtrasPdfGeneratorProps> = (
                         </div>
 
                         {/* Table */}
-                        <div className="flex-1">
+                        <div>
                             <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col mt-0">
                                 <table className="w-full text-left border-collapse">
                                     <thead className="bg-slate-900 text-white">
