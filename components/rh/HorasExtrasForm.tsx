@@ -33,7 +33,7 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
     const currentMonthName = months[currentMonthIndex];
 
     const [selectedMonth] = useState<string>(currentMonthName);
-    const [entries, setEntries] = useState<{ userId: string, name: string, jobTitle: string, sector: string, hours: number }[]>([]);
+    const [entries, setEntries] = useState<{ userId: string, name: string, jobTitle: string, sector: string, hours: number, isCedido?: boolean }[]>([]);
 
     const [selectedUserId, setSelectedUserId] = useState<string>('');
     const [selectedHours, setSelectedHours] = useState<number>(1);
@@ -41,6 +41,7 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
     const [isUserOpen, setIsUserOpen] = useState(false);
     const [isHoursOpen, setIsHoursOpen] = useState(false);
     const [userSearch, setUserSearch] = useState('');
+    const [pendingCedido, setPendingCedido] = useState<any | null>(null);
 
     const userDropdownRef = useRef<HTMLDivElement>(null);
     const hoursDropdownRef = useRef<HTMLDivElement>(null);
@@ -74,27 +75,34 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
         };
     });
 
-    const accessiblePersons = userRole === 'admin'
-        ? allMappedPersons
-        : allMappedPersons.filter(p => p.sectorId === currentUserSectorId);
+    const accessiblePersons = allMappedPersons;
 
     const availableUsersForAdd = accessiblePersons.filter(p => !entries.some(e => e.userId === p.id));
 
-    const handleAddEntry = () => {
-        if (!selectedUserId || selectedHours <= 0) return;
+    const handleAddEntry = (forceCedido: boolean = false) => {
+        const userIdToUse = forceCedido ? pendingCedido?.id : selectedUserId;
+        if (!userIdToUse || selectedHours <= 0) return;
 
-        const selectedPerson = allMappedPersons.find(p => p.id === selectedUserId);
+        const selectedPerson = allMappedPersons.find(p => p.id === userIdToUse);
+        const isActuallyCedido = selectedPerson?.sectorId !== currentUserSectorId;
+
+        if (isActuallyCedido && !forceCedido) {
+            setPendingCedido(selectedPerson);
+            return;
+        }
 
         setEntries([...entries, {
-            userId: selectedUserId,
+            userId: userIdToUse,
             name: selectedPerson?.name || 'Sistema',
             jobTitle: selectedPerson?.jobTitle || 'Colaborador',
             sector: selectedPerson?.sector || 'Geral',
-            hours: selectedHours
+            hours: selectedHours,
+            isCedido: isActuallyCedido
         }]);
 
         setSelectedUserId('');
         setSelectedHours(1);
+        setPendingCedido(null);
     };
 
     const removeEntry = (index: number) => {
@@ -291,7 +299,7 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
                             </div>
 
                             <button
-                                onClick={handleAddEntry}
+                                onClick={() => handleAddEntry()}
                                 disabled={!selectedUserId}
                                 className="w-full mt-6 py-3 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
                             >
@@ -361,6 +369,12 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
                                                     <p className="text-[10px] uppercase font-bold text-slate-400 truncate max-w-[100px]">{entry.jobTitle || 'Sem cargo'}</p>
                                                     <span className="w-1 h-1 rounded-full bg-slate-300"></span>
                                                     <p className="text-xs font-bold text-fuchsia-600">{entry.hours} hrs</p>
+                                                    {entry.isCedido && (
+                                                        <>
+                                                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                                            <span className="text-[9px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 uppercase tracking-tighter">Cedido</span>
+                                                        </>
+                                                    )}
                                                     {userRole === 'admin' && (
                                                         <>
                                                             <span className="w-1 h-1 rounded-full bg-slate-300"></span>
@@ -385,6 +399,38 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
                     </div>
                 </div>
             </div>
+            {/* Confirmation Modal for Cedidos */}
+            {pendingCedido && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 animate-scale-in">
+                        <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center mb-6 mx-auto">
+                            <Users className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-800 text-center mb-2 uppercase tracking-tight">Colaborador Cedido</h3>
+                        <p className="text-slate-500 text-center text-sm mb-8 font-medium leading-relaxed">
+                            O colaborador <span className="text-slate-800 font-bold">{pendingCedido.name}</span> pertence ao setor <span className="text-indigo-600 font-bold">{pendingCedido.sector}</span>. 
+                            <br/><br/>
+                            Ao confirmar, ele será adicionado a este relatório como <span className="text-amber-600 font-bold uppercase italic text-xs">Colaborador Cedido</span>.
+                        </p>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <button
+                                onClick={() => setPendingCedido(null)}
+                                className="py-3.5 px-6 font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all text-sm border border-slate-200"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => handleAddEntry(true)}
+                                className="py-3.5 px-6 font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-2xl transition-all shadow-lg hover:shadow-slate-900/20 text-sm flex items-center justify-center gap-2"
+                            >
+                                <Check className="w-4 h-4" />
+                                Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

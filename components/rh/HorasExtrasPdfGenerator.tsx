@@ -4,7 +4,7 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { RhHorasExtras, AppState } from '../../types';
 import { PageWrapper } from '../PageWrapper';
-import { Printer, X, FileText, Calendar, Building2, Users, FileType, CheckCircle2 } from 'lucide-react';
+import { FileType } from 'lucide-react';
 
 interface HorasExtrasPdfGeneratorProps {
     record: RhHorasExtras;
@@ -56,7 +56,7 @@ export const HorasExtrasPdfGenerator: React.FC<HorasExtrasPdfGeneratorProps> = (
                     logging: false,
                     scrollY: 0,
                     scrollX: 0
-                });
+                } as any); // Type cast as workaround for lint if needed, though html2canvas typically supports scale
 
                 const imgData = canvas.toDataURL('image/jpeg', 0.98);
                 const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -81,8 +81,23 @@ export const HorasExtrasPdfGenerator: React.FC<HorasExtrasPdfGeneratorProps> = (
         }
     };
 
+    const sectorEntries = (record.entries || []).filter(e => !e.isCedido).sort((a, b) => a.name.localeCompare(b.name));
+    const cedidosEntries = (record.entries || []).filter(e => e.isCedido).sort((a, b) => a.name.localeCompare(b.name));
+
+    const displayItems: { type: 'header' | 'row', title?: string, data?: any }[] = [];
+    
+    if (sectorEntries.length > 0) {
+        displayItems.push({ type: 'header', title: 'Colaboradores do Setor' });
+        sectorEntries.forEach(e => displayItems.push({ type: 'row', data: e }));
+    }
+    
+    if (cedidosEntries.length > 0) {
+        displayItems.push({ type: 'header', title: 'Colaboradores Cedidos' });
+        cedidosEntries.forEach(e => displayItems.push({ type: 'row', data: e }));
+    }
+
     const ITEMS_PER_PAGE = 18;
-    const totalPages = Math.ceil((record.entries?.length || 1) / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(displayItems.length / ITEMS_PER_PAGE);
 
     const reportState = {
         ...state,
@@ -95,17 +110,10 @@ export const HorasExtrasPdfGenerator: React.FC<HorasExtrasPdfGeneratorProps> = (
         }
     };
 
-    const formatCurrency = (val: number) => {
-        if (!val) return '-';
-        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-    };
-
-    const sortedEntries = [...(record.entries || [])].sort((a, b) => a.name.localeCompare(b.name));
-
     const renderPages = () => {
         const pages = [];
-        for (let i = 0; i < sortedEntries.length; i += ITEMS_PER_PAGE) {
-            const pageItems = sortedEntries.slice(i, i + ITEMS_PER_PAGE);
+        for (let i = 0; i < displayItems.length; i += ITEMS_PER_PAGE) {
+            const pageItems = displayItems.slice(i, i + ITEMS_PER_PAGE);
             const pageIndex = Math.floor(i / ITEMS_PER_PAGE) + 1;
             const isLastPage = pageIndex === totalPages;
 
@@ -140,13 +148,25 @@ export const HorasExtrasPdfGenerator: React.FC<HorasExtrasPdfGeneratorProps> = (
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 uppercase">
-                                        {pageItems.map((entry, idx) => (
-                                            <tr key={idx} className="text-[8pt] font-bold text-slate-700 hover:bg-slate-50/50">
-                                                <td className="px-5 py-1.5 font-black text-slate-900 border-r border-slate-100">{entry.name}</td>
-                                                <td className="px-5 py-1.5 font-medium border-r border-slate-100 text-slate-500">{entry.jobTitle}</td>
-                                                <td className="px-5 py-1.5 text-center font-mono text-indigo-700 bg-slate-50/50">{entry.hours ? `${entry.hours} horas` : '-'}</td>
-                                            </tr>
-                                        ))}
+                                        {pageItems.map((item, idx) => {
+                                            if (item.type === 'header') {
+                                                return (
+                                                    <tr key={`header-${idx}`} className="bg-slate-50/80">
+                                                        <td colSpan={3} className="px-5 py-2 text-[8pt] font-black text-indigo-700 border-y border-slate-200 uppercase tracking-tighter">
+                                                            {item.title}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            }
+                                            const entry = item.data;
+                                            return (
+                                                <tr key={idx} className="text-[8pt] font-bold text-slate-700 hover:bg-slate-50/50">
+                                                    <td className="px-5 py-1.5 font-black text-slate-900 border-r border-slate-100">{entry.name}</td>
+                                                    <td className="px-5 py-1.5 font-medium border-r border-slate-100 text-slate-500">{entry.jobTitle}</td>
+                                                    <td className="px-5 py-1.5 text-center font-mono text-indigo-700 bg-slate-50/50">{entry.hours ? `${entry.hours} horas` : '-'}</td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
