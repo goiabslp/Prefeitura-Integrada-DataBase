@@ -177,20 +177,20 @@ export const HorasExtrasHistory: React.FC<HorasExtrasHistoryProps> = ({
                                             <td className="py-3 px-4 text-center">
                                                 <div className="flex items-center justify-center gap-2">
                                                     <button
-                                                        onClick={() => onEdit(record)}
-                                                        className="inline-flex items-center justify-center gap-1.5 text-xs font-medium bg-white text-slate-700 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200 hover:border-indigo-200 px-2.5 py-1.5 rounded-md transition-all shadow-sm"
-                                                        title="Editar Lançamento"
-                                                    >
-                                                        <Edit2 className="h-4 w-4" />
-                                                        <span className="hidden sm:inline">Editar</span>
-                                                    </button>
-                                                    <button
                                                         onClick={() => onDownloadPdf(record)}
                                                         className="inline-flex items-center justify-center gap-1.5 text-xs font-medium bg-white text-slate-700 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200 hover:border-indigo-200 px-2.5 py-1.5 rounded-md transition-all shadow-sm"
                                                         title="Baixar PDF"
                                                     >
                                                         <FileDown className="h-4 w-4" />
                                                         <span className="hidden sm:inline">Baixar</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => onEdit(record)}
+                                                        className="inline-flex items-center justify-center gap-1.5 text-xs font-medium bg-white text-slate-700 hover:text-amber-600 hover:bg-slate-50 border border-slate-200 hover:border-amber-200 px-2.5 py-1.5 rounded-md transition-all shadow-sm"
+                                                        title="Editar Lançamento"
+                                                    >
+                                                        <Edit2 className="h-4 w-4" />
+                                                        <span className="hidden sm:inline">Editar</span>
                                                     </button>
                                                     <button
                                                         onClick={() => handleDelete(record.id!, record.month)}

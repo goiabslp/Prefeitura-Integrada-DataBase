@@ -176,8 +176,8 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
                     <div className="mb-8">
                         <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">Mês de Referência</label>
                         <div className="relative">
-                            <div className="w-full h-14 pl-12 pr-4 bg-slate-100 border-2 border-slate-200 text-slate-500 text-base rounded-2xl flex items-center font-bold cursor-not-allowed select-none">
-                                {selectedMonth} (Mês Atual)
+                            <div className={`w-full h-14 pl-12 pr-4 bg-slate-100 border-2 border-slate-200 text-slate-500 text-base rounded-2xl flex items-center font-bold ${editingRecord ? 'opacity-80' : 'cursor-not-allowed select-none'}`}>
+                                {selectedMonth} {selectedMonth === currentMonthName && !editingRecord ? '(Mês Atual)' : ''}
                             </div>
                             <Calendar className="w-6 h-6 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
                         </div>
@@ -375,36 +375,41 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
                             <div className="space-y-3">
                                 {entries.map((entry, index) => {
                                     return (
-                                        <div key={index} className="group relative flex items-center p-4 bg-white border border-slate-100 hover:border-indigo-100 rounded-2xl shadow-sm hover:shadow-md transition-all animate-in slide-in-from-right-4 duration-300">
+                                        <div key={index} className="group relative flex items-start p-4 bg-white border border-slate-100 hover:border-indigo-100 rounded-2xl shadow-sm hover:shadow-md transition-all animate-in slide-in-from-right-4 duration-300">
                                             {/* Avatar initial */}
-                                            <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm shrink-0 mr-3">
+                                            <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm shrink-0 mr-3 mt-0.5">
                                                 {entry.name?.charAt(0) || 'U'}
                                             </div>
 
-                                            <div className="flex-1 min-w-0 pr-10">
-                                                <p className="font-bold text-slate-800 text-sm truncate">{entry.name || 'Desconhecido'}</p>
-                                                <div className="flex items-center gap-2 mt-0.5">
-                                                    <p className="text-[10px] uppercase font-bold text-slate-400 truncate max-w-[100px]">{entry.jobTitle || 'Sem cargo'}</p>
-                                                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                                    <p className="text-xs font-bold text-fuchsia-600">{entry.hours} hrs</p>
+                                            <div className="flex-1 min-w-0 pr-8">
+                                                <p className="font-bold text-slate-800 text-sm leading-tight mb-1">{entry.name || 'Desconhecido'}</p>
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                    <p className="text-[10px] uppercase font-bold text-slate-400">{entry.jobTitle || 'Sem cargo'}</p>
+                                                    
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                                        <p className="text-xs font-bold text-fuchsia-600 whitespace-nowrap">{entry.hours} hrs</p>
+                                                    </div>
+
                                                     {entry.isCedido && (
-                                                        <>
+                                                        <div className="flex items-center gap-1.5">
                                                             <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                                            <span className="text-[9px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 uppercase tracking-tighter">Cedido</span>
-                                                        </>
+                                                            <span className="text-[9px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 uppercase tracking-tighter whitespace-nowrap">Cedido</span>
+                                                        </div>
                                                     )}
+                                                    
                                                     {userRole === 'admin' && (
-                                                        <>
+                                                        <div className="flex items-center gap-1.5">
                                                             <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                                            <p className="text-[10px] font-bold text-slate-400 truncate max-w-[100px]">{entry.sector}</p>
-                                                        </>
+                                                            <p className="text-[10px] font-bold text-slate-400">{entry.sector}</p>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
 
                                             <button
                                                 onClick={() => removeEntry(index)}
-                                                className="absolute right-4 p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                                                className="absolute right-3 top-3 p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
                                                 title="Remover"
                                             >
                                                 <Trash2 className="w-4 h-4" />

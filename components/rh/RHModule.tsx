@@ -59,6 +59,11 @@ export const RHModule: React.FC<RHModuleProps> = ({
         setGeneratingPdfRecord(record);
     };
 
+    const handleEdit = (record: RhHorasExtras) => {
+        setEditingRecord(record);
+        setActiveTab('novo');
+    };
+
     return (
         <div className="flex-1 w-full bg-slate-50 relative">
             {generatingPdfRecord && (
@@ -149,8 +154,12 @@ export const RHModule: React.FC<RHModuleProps> = ({
                                             setEditingRecord(null);
                                         }}
                                         onCancel={() => {
-                                            setEditingRecord(null);
-                                            onNavigate('rh');
+                                            if (editingRecord) {
+                                                setEditingRecord(null);
+                                                setActiveTab('historico');
+                                            } else {
+                                                onNavigate('rh');
+                                            }
                                         }}
                                         appState={appState}
                                     />
@@ -159,10 +168,7 @@ export const RHModule: React.FC<RHModuleProps> = ({
                                         userRole={userRole}
                                         currentUserSector={userRole === 'admin' ? 'Geral' : (users.find(u => u.id === userId)?.sector || 'Geral')}
                                         onDownloadPdf={handleDownloadPdf}
-                                        onEdit={(record) => {
-                                            setEditingRecord(record);
-                                            setActiveTab('novo');
-                                        }}
+                                        onEdit={handleEdit}
                                     />
                                 )}
                             </div>
