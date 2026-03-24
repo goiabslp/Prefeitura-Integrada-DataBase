@@ -151,8 +151,8 @@ export const HorasExtrasPdfGenerator: React.FC<HorasExtrasPdfGeneratorProps> = (
                                         {pageItems.map((item, idx) => {
                                             if (item.type === 'header') {
                                                 return (
-                                                    <tr key={`header-${idx}`} className="bg-slate-50/80">
-                                                        <td colSpan={3} className="px-5 py-2 text-[8pt] font-black text-indigo-700 border-y border-slate-200 uppercase tracking-tighter">
+                                                    <tr key={`header-${idx}`} className="bg-slate-200">
+                                                        <td colSpan={3} className="px-5 py-2 text-[8pt] font-black text-slate-900 border-y border-slate-300 uppercase tracking-tighter">
                                                             {item.title}
                                                         </td>
                                                     </tr>
