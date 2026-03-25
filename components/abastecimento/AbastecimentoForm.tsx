@@ -613,6 +613,8 @@ export const AbastecimentoForm: React.FC<AbastecimentoFormProps> = ({ onBack, on
                 onClose={() => setConfirmModalOpen(false)}
                 onConfirm={handleFinalSave}
                 data={pendingData!}
+                isEdit={!!initialData}
+                isAdmin={authUser?.role === 'admin' || authUser?.permissions?.includes('parent_admin')}
             />
 
             {/* Admin Override Modal */}

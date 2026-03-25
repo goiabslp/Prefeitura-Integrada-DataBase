@@ -18,6 +18,7 @@ interface AbastecimentoConfirmationModalProps {
     } | null;
     isSaving?: boolean;
     isEdit?: boolean;
+    isAdmin?: boolean;
 }
 
 export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationModalProps> = ({
@@ -26,7 +27,8 @@ export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationM
     onConfirm,
     data,
     isSaving = false,
-    isEdit = false
+    isEdit = false,
+    isAdmin = false
 }) => {
     if (!isOpen || !data) return null;
 
@@ -35,6 +37,7 @@ export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationM
         : data.odometer || 0;
 
     const isInvalidOdometer = !isEdit && data.lastOdometer !== null && data.lastOdometer !== undefined && currentOdometer <= data.lastOdometer;
+    const canConfirm = !isInvalidOdometer || isAdmin;
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-end wide:items-center justify-center p-0 wide:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
@@ -196,8 +199,8 @@ export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationM
                     <button
                         type="button"
                         onClick={onConfirm}
-                        disabled={isSaving || isInvalidOdometer}
-                        className={`flex-[2] py-3 wide:py-4 ${isInvalidOdometer ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white shadow-xl shadow-slate-900/20 hover:bg-black'} font-black rounded-xl wide:rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70 text-sm wide:text-base uppercase tracking-widest`}
+                        disabled={isSaving || !canConfirm}
+                        className={`flex-[2] py-3 wide:py-4 ${!canConfirm ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : isInvalidOdometer && isAdmin ? 'bg-amber-600 text-white shadow-xl shadow-amber-900/20 hover:bg-amber-700' : 'bg-slate-900 text-white shadow-xl shadow-slate-900/20 hover:bg-black'} font-black rounded-xl wide:rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70 text-sm wide:text-base uppercase tracking-widest`}
                     >
                         {isSaving ? (
                             <>
@@ -207,7 +210,7 @@ export const AbastecimentoConfirmationModal: React.FC<AbastecimentoConfirmationM
                         ) : (
                             <>
                                 <CheckCircle2 className="w-5 h-5 wide:w-6 wide:h-6" />
-                                <span>{isInvalidOdometer ? 'Bloqueado' : 'Confirmar'}</span>
+                                <span>{isInvalidOdometer && isAdmin ? 'Sobrescrever' : isInvalidOdometer ? 'Bloqueado' : 'Confirmar'}</span>
                             </>
                         )}
                     </button>
