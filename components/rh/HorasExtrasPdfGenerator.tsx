@@ -142,9 +142,10 @@ export const HorasExtrasPdfGenerator: React.FC<HorasExtrasPdfGeneratorProps> = (
                                 <table className="w-full text-left border-collapse">
                                     <thead className="bg-slate-900 text-white">
                                         <tr className="text-[8pt] font-black uppercase tracking-widest">
-                                            <th className="px-5 py-2 w-[45%] border-r border-slate-700">Colaborador</th>
-                                            <th className="px-5 py-2 w-[35%] border-r border-slate-700">Cargo / Função</th>
-                                            <th className="px-5 py-2 text-center w-[20%]">Quantidade Registrada</th>
+                                            <th className="px-5 py-2 w-[40%] border-r border-slate-700">Colaborador</th>
+                                            <th className="px-5 py-2 w-[30%] border-r border-slate-700">Cargo / Função</th>
+                                            <th className="px-5 py-2 text-center w-[15%] border-r border-slate-700">Qtd. Horas</th>
+                                            <th className="px-5 py-2 text-center w-[15%]">Adic. Noturno</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 uppercase">
@@ -163,7 +164,8 @@ export const HorasExtrasPdfGenerator: React.FC<HorasExtrasPdfGeneratorProps> = (
                                                 <tr key={idx} className="text-[8pt] font-bold text-slate-700 hover:bg-slate-50/50">
                                                     <td className="px-5 py-1.5 font-black text-slate-900 border-r border-slate-100">{entry.name}</td>
                                                     <td className="px-5 py-1.5 font-medium border-r border-slate-100 text-slate-500">{entry.jobTitle}</td>
-                                                    <td className="px-5 py-1.5 text-center font-mono text-indigo-700 bg-slate-50/50">{entry.hours ? `${entry.hours} horas` : '-'}</td>
+                                                    <td className="px-5 py-1.5 text-center font-mono text-fuchsia-700 border-r border-slate-100">{entry.hours ? `${entry.hours}h` : '-'}</td>
+                                                    <td className="px-5 py-1.5 text-center font-mono text-indigo-700 bg-slate-50/50">{entry.adicionalNoturno ? `${entry.adicionalNoturno}h` : '-'}</td>
                                                 </tr>
                                             );
                                         })}

@@ -36,13 +36,15 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
     const currentMonthName = months[currentMonthIndex];
 
     const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthName);
-    const [entries, setEntries] = useState<{ userId: string, name: string, jobTitle: string, sector: string, hours: number, isCedido?: boolean }[]>([]);
+    const [entries, setEntries] = useState<{ userId: string, name: string, jobTitle: string, sector: string, hours: number, adicionalNoturno: number, isCedido?: boolean }[]>([]);
 
     const [selectedUserId, setSelectedUserId] = useState<string>('');
     const [selectedHours, setSelectedHours] = useState<number>(1);
+    const [selectedAdicionalNoturno, setSelectedAdicionalNoturno] = useState<number>(0);
 
     const [isUserOpen, setIsUserOpen] = useState(false);
     const [isHoursOpen, setIsHoursOpen] = useState(false);
+    const [isAdicionalOpen, setIsAdicionalOpen] = useState(false);
     const [userSearch, setUserSearch] = useState('');
     const [pendingCedido, setPendingCedido] = useState<any | null>(null);
 
@@ -57,6 +59,10 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
             if (hoursDropdownRef.current && !hoursDropdownRef.current.contains(event.target as Node)) {
                 setIsHoursOpen(false);
             }
+            const adicionalDropdown = document.getElementById('adicional-dropdown');
+            if (adicionalDropdown && !adicionalDropdown.contains(event.target as Node)) {
+                setIsAdicionalOpen(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -67,8 +73,9 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
             setSelectedMonth(editingRecord.month);
             setEntries(editingRecord.entries.map(e => ({
                 ...e,
-                // Ensure isCedido is correctly interpreted if it was stored
-                isCedido: e.isCedido || false
+                // Ensure isCedido and adicionalNoturno are correctly interpreted if it was stored
+                isCedido: e.isCedido || false,
+                adicionalNoturno: e.adicionalNoturno || 0
             })));
         } else {
             setSelectedMonth(currentMonthName);
@@ -114,11 +121,13 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
             jobTitle: selectedPerson?.jobTitle || 'Colaborador',
             sector: selectedPerson?.sector || 'Geral',
             hours: selectedHours,
+            adicionalNoturno: selectedAdicionalNoturno,
             isCedido: isActuallyCedido
         }]);
 
         setSelectedUserId('');
         setSelectedHours(1);
+        setSelectedAdicionalNoturno(0);
         setPendingCedido(null);
     };
 
@@ -193,7 +202,7 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
 
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                 {/* Custom Collaborator Select */}
-                                <div className="md:col-span-7 relative group" ref={userDropdownRef}>
+                                <div className="md:col-span-6 relative group" ref={userDropdownRef}>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Colaborador</label>
                                     <div
                                         onClick={() => {
@@ -278,17 +287,17 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
                                 </div>
 
                                 {/* Custom Hours Select */}
-                                <div className="md:col-span-5 relative group" ref={hoursDropdownRef}>
+                                <div className="md:col-span-3 relative group" ref={hoursDropdownRef}>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Quantidade</label>
                                     <div
                                         onClick={() => {
                                             setIsHoursOpen(!isHoursOpen);
                                             setIsUserOpen(false);
                                         }}
-                                        className={`w-full h-12 pl-10 pr-10 bg-white border ${isHoursOpen ? 'border-fuchsia-400 ring-2 ring-fuchsia-100' : 'border-slate-200'} text-slate-700 text-sm rounded-xl transition-all font-medium shadow-sm hover:border-slate-300 cursor-pointer flex items-center justify-between`}
+                                        className={`w-full h-12 pl-9 pr-7 bg-white border ${isHoursOpen ? 'border-fuchsia-400 ring-2 ring-fuchsia-100' : 'border-slate-200'} text-slate-700 text-sm rounded-xl transition-all font-medium shadow-sm hover:border-slate-300 cursor-pointer flex items-center justify-between`}
                                     >
                                         <div className="flex items-center">
-                                            <Clock className={`w-4 h-4 absolute left-3.5 transition-colors ${isHoursOpen || selectedHours ? 'text-fuchsia-500' : 'text-slate-400 group-hover:text-fuchsia-500'}`} />
+                                            <Clock className={`w-4 h-4 absolute left-3 transition-colors ${isHoursOpen || selectedHours ? 'text-fuchsia-500' : 'text-slate-400 group-hover:text-fuchsia-500'}`} />
                                             <span>{selectedHours.toString().padStart(2, '0')} hrs</span>
                                         </div>
                                         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isHoursOpen ? 'rotate-180 text-fuchsia-500' : ''}`} />
@@ -308,6 +317,53 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
                                                         className={`flex items-center justify-center py-2 rounded-lg cursor-pointer transition-colors text-sm font-medium ${selectedHours === h ? 'bg-fuchsia-500 text-white shadow-sm' : 'hover:bg-slate-50 text-slate-700'}`}
                                                     >
                                                         {h.toString().padStart(2, '0')} hrs
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Adicional Noturno Select */}
+                                <div className="md:col-span-3 relative group" id="adicional-dropdown">
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Adicional Noturno</label>
+                                    <div
+                                        onClick={() => {
+                                            setIsAdicionalOpen(!isAdicionalOpen);
+                                            setIsUserOpen(false);
+                                            setIsHoursOpen(false);
+                                        }}
+                                        className={`w-full h-12 pl-9 pr-7 bg-white border ${isAdicionalOpen ? 'border-fuchsia-400 ring-2 ring-fuchsia-100' : 'border-slate-200'} text-slate-700 text-sm rounded-xl transition-all font-medium shadow-sm hover:border-slate-300 cursor-pointer flex items-center justify-between`}
+                                    >
+                                        <div className="flex items-center min-w-0 max-w-full overflow-hidden">
+                                            <Clock className={`w-4 h-4 absolute left-3 transition-colors ${isAdicionalOpen || selectedAdicionalNoturno ? 'text-indigo-500' : 'text-slate-400 group-hover:text-indigo-500'}`} />
+                                            <span className="truncate whitespace-nowrap">{selectedAdicionalNoturno > 0 ? `${selectedAdicionalNoturno}h` : 'Nenhum'}</span>
+                                        </div>
+                                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isAdicionalOpen ? 'rotate-180 text-indigo-500' : ''}`} />
+                                    </div>
+
+                                    {isAdicionalOpen && (
+                                        <div className="absolute z-50 w-full bottom-full mb-2 bg-white border border-slate-200 rounded-xl shadow-xl shadow-slate-200/50 overflow-hidden animate-fade-in-up origin-bottom">
+                                            <div className="max-h-56 overflow-y-auto p-1 grid grid-cols-3 gap-1 custom-scrollbar">
+                                                <div
+                                                    onClick={() => {
+                                                        setSelectedAdicionalNoturno(0);
+                                                        setIsAdicionalOpen(false);
+                                                    }}
+                                                    className={`col-span-3 flex items-center justify-center py-2 rounded-lg cursor-pointer transition-colors text-sm font-bold ${selectedAdicionalNoturno === 0 ? 'bg-slate-800 text-white shadow-sm' : 'hover:bg-slate-50 text-slate-700 border border-slate-100'}`}
+                                                >
+                                                    Sem Adicional
+                                                </div>
+                                                {Array.from({ length: 150 }, (_, i) => i + 1).map(h => (
+                                                    <div
+                                                        key={h}
+                                                        onClick={() => {
+                                                            setSelectedAdicionalNoturno(h);
+                                                            setIsAdicionalOpen(false);
+                                                        }}
+                                                        className={`flex items-center justify-center py-2 rounded-lg cursor-pointer transition-colors text-sm font-medium ${selectedAdicionalNoturno === h ? 'bg-indigo-500 text-white shadow-sm' : 'hover:bg-slate-50 text-slate-700'}`}
+                                                    >
+                                                        {h}h
                                                     </div>
                                                 ))}
                                             </div>
@@ -390,6 +446,15 @@ export const HorasExtrasForm: React.FC<HorasExtrasFormProps> = ({
                                                         <span className="w-1 h-1 rounded-full bg-slate-300"></span>
                                                         <p className="text-xs font-bold text-fuchsia-600 whitespace-nowrap">{entry.hours} hrs</p>
                                                     </div>
+
+                                                    {entry.adicionalNoturno > 0 && (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                                            <p className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter whitespace-nowrap">
+                                                                {entry.adicionalNoturno}h Noturno
+                                                            </p>
+                                                        </div>
+                                                    )}
 
                                                     {entry.isCedido && (
                                                         <div className="flex items-center gap-1.5">

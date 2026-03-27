@@ -137,6 +137,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   'calendario': '/Calendario',
   'rh': '/RH',
   'rh:horas-extras': '/RH/HorasExtras',
+  'rh:historico': '/RH/Historico',
   'projetos': '/Projetos',
   'projetos:new': '/Projetos/NovoProjeto',
   'projetos:details': '/Projetos/Detalhes',
@@ -691,6 +692,10 @@ const App: React.FC = () => {
           // setCurrentView('tasks-dashboard') logic needs to be valid.
           // My generic casting `as any` handles it, but let's verify allowed values for currentView.
         }
+        else if (state.view === 'rh') {
+          setAppState(prev => ({ ...prev, view: state.sub }));
+          setActiveBlock(null);
+        }
 
       } else if (path !== '/' && path !== '/Login') {
         // Fallback for unknown paths? Maybe redirect to home or stay on login?
@@ -733,6 +738,8 @@ const App: React.FC = () => {
         stateKey = `${currentView}:oficio`;
       } else if (currentView === 'order-details' && viewingOrder) {
         stateKey = 'order-details';
+      } else if (currentView === 'rh') {
+        stateKey = appState.view ? `rh:${appState.view}` : 'rh';
       } else if (currentView === 'home' && !activeBlock) {
         stateKey = 'home';
       }
@@ -3794,6 +3801,9 @@ const App: React.FC = () => {
                   } else if (view === 'rh:horas-extras') {
                     setAppState(prev => ({ ...prev, view: 'horas-extras' }));
                     window.history.pushState({}, '', '/RH/HorasExtras');
+                  } else if (view === 'rh:historico') {
+                    setAppState(prev => ({ ...prev, view: 'historico' }));
+                    window.history.pushState({}, '', '/RH/Historico');
                   } else if (view === 'rh') {
                     setAppState(prev => ({ ...prev, view: undefined }));
                     window.history.pushState({}, '', '/RH');
