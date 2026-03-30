@@ -6,10 +6,11 @@ import { EventModal } from './EventModal';
 import { DayDetailsModal } from './DayDetailsModal';
 import { EventDetailsModal } from './EventDetailsModal';
 import { generateHolidaysForYear } from './holidays';
-import { getLocalISOData } from '../../utils/dateUtils';
+import { getLocalISOData, safelyParseDate } from '../../utils/dateUtils';
 import { calendarService, CalendarEvent } from '../../services/calendarService';
 import { MyEventsModal } from './MyEventsModal';
 import { PendingInvitesModal } from './PendingInvitesModal';
+import { MonthEventsModal } from './MonthEventsModal';
 import { AppState } from '../../types';
 
 // CalendarEvent is now imported from calendarService
@@ -40,6 +41,9 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
 
     // My Events
     const [isMyEventsOpen, setIsMyEventsOpen] = useState(false);
+
+    // Month Events
+    const [isMonthEventsOpen, setIsMonthEventsOpen] = useState(false);
 
     // Fetch events for current month (and slightly padding)
     const fetchEvents = async (date: Date) => {
@@ -270,12 +274,22 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                         </AnimatePresence>
                     </div>
 
-                    <button
-                        onClick={goToToday}
-                        className="mt-1 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider rounded-md transition-colors"
-                    >
-                        Hoje
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={goToToday}
+                            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider rounded-md transition-colors"
+                        >
+                            Hoje
+                        </button>
+                        <button
+                            onClick={() => setIsMonthEventsOpen(true)}
+                            className="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold uppercase tracking-wider rounded-md transition-colors flex items-center gap-1.5"
+                            title="Ver todos os eventos deste mês"
+                        >
+                            <CalendarIcon className="w-3.5 h-3.5" />
+                            <span>Eventos do Mês</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -373,26 +387,40 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                                         {/* Icons summary */}
                                         {dayEvents.length > 0 && (
                                             <div className="flex items-center -space-x-1 mr-0.5">
-                                                {dayEvents.slice(0, 3).map((e, idx) => {
-                                                    let Icon = Star;
-                                                    let colorClass = "text-emerald-600 bg-emerald-50 border-emerald-200";
-                                                    if (e.type === 'Reunião') {
-                                                        Icon = Users;
-                                                        colorClass = "text-indigo-600 bg-indigo-50 border-indigo-200";
-                                                    } else if (e.type === 'Feriado') {
-                                                        Icon = Flag;
-                                                        colorClass = "text-red-600 bg-red-50 border-red-200";
-                                                    } else if (e.type === 'Aniversário') {
-                                                        Icon = Gift;
-                                                        colorClass = "text-pink-600 bg-pink-50 border-pink-200";
-                                                    }
+                                                {(() => {
+                                                    // Group events by type to show only one icon per category
+                                                    const displayedTypes = new Set();
+                                                    const uniqueTypeEvents = dayEvents.filter(e => {
+                                                        if (displayedTypes.has(e.type)) return false;
+                                                        displayedTypes.add(e.type);
+                                                        return true;
+                                                    });
 
-                                                    return (
-                                                        <div key={`${e.id}-${idx}`} title={e.title} className={`w-5 h-5 flex items-center justify-center rounded-full border relative shadow-sm ${colorClass}`} style={{ zIndex: 10 - idx }}>
-                                                            <Icon className="w-[10px] h-[10px]" />
-                                                        </div>
-                                                    )
-                                                })}
+                                                    return uniqueTypeEvents.slice(0, 3).map((e, idx) => {
+                                                        let Icon = Star;
+                                                        let colorClass = "text-emerald-600 bg-emerald-50 border-emerald-200";
+                                                        if (e.type === 'Reunião') {
+                                                            Icon = Users;
+                                                            colorClass = "text-indigo-600 bg-indigo-50 border-indigo-200";
+                                                        } else if (e.type === 'Feriado' || e.type === 'Feriado Municipal') {
+                                                            Icon = Flag;
+                                                            colorClass = "text-red-600 bg-red-50 border-red-200";
+                                                        } else if (e.type === 'Aniversário') {
+                                                            Icon = Gift;
+                                                            colorClass = "text-pink-600 bg-pink-50 border-pink-200";
+                                                        }
+
+                                                        const title = e.type === 'Aniversário' 
+                                                            ? `${dayEvents.filter(ev => ev.type === 'Aniversário').length} Aniversariante(s)`
+                                                            : e.title;
+
+                                                        return (
+                                                            <div key={`${e.id}-${idx}`} title={title} className={`w-5 h-5 flex items-center justify-center rounded-full border relative shadow-sm ${colorClass}`} style={{ zIndex: 10 - idx }}>
+                                                                <Icon className="w-[10px] h-[10px]" />
+                                                            </div>
+                                                        )
+                                                    });
+                                                })()}
                                                 {dayEvents.length > 3 && (
                                                     <div className="w-5 h-5 flex items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm text-[9px] font-black text-slate-600 relative z-0">
                                                         +{dayEvents.length - 3}
@@ -419,44 +447,50 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
 
                                 {/* Eventos do Dia */}
                                 <div className="flex-1 overflow-y-hidden p-1 flex flex-col gap-0.5 relative">
-                                    {dayEvents.slice(0, 3).map(event => (
-                                        <div
-                                            key={event.id}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setEventDetailsEvent(event);
-                                                setIsEventDetailsOpen(true);
-                                            }}
-                                            className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold transition-transform cursor-pointer hover:opacity-80 truncate"
-                                            style={{
-                                                backgroundColor: event.type === 'Feriado' || event.type === 'Feriado Municipal' ? '#fee2e2' : event.type === 'Reunião' ? '#e0e7ff' : event.type === 'Aniversário' ? '#fdf2f8' : '#dcfce7',
-                                                color: event.type === 'Feriado' || event.type === 'Feriado Municipal' ? '#991b1b' : event.type === 'Reunião' ? '#3730a3' : event.type === 'Aniversário' ? '#9d174d' : '#166534',
-                                                borderLeft: `2px solid ${event.type === 'Feriado' || event.type === 'Feriado Municipal' ? '#ef4444' : event.type === 'Reunião' ? '#6366f1' : event.type === 'Aniversário' ? '#ec4899' : '#22c55e'}`
-                                            }}
-                                        >
-                                            <span className="truncate flex items-center gap-1 font-bold leading-tight">
-                                                {event.type === 'Aniversário' && <span>🎂</span>}
-                                                {(event.type === 'Aniversário' || event.type === 'Feriado Municipal' || event.is_recurring) && (
-                                                    <Repeat className="w-1.5 h-1.5 opacity-50 shrink-0" />
-                                                )}
-                                                <span className="truncate">{event.type === 'Aniversário' ? (event.professional_name || event.title) : event.title}</span>
-                                            </span>
-                                        </div>
-                                    ))}
+                                    {(() => {
+                                        const nonBirthdayEvents = dayEvents.filter(e => e.type !== 'Aniversário');
+                                        return (
+                                            <>
+                                                {nonBirthdayEvents.slice(0, 3).map(event => (
+                                                    <div
+                                                        key={event.id}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEventDetailsEvent(event);
+                                                            setIsEventDetailsOpen(true);
+                                                        }}
+                                                        className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold transition-transform cursor-pointer hover:opacity-80 truncate"
+                                                        style={{
+                                                            backgroundColor: event.type === 'Feriado' || event.type === 'Feriado Municipal' ? '#fee2e2' : event.type === 'Reunião' ? '#e0e7ff' : '#dcfce7',
+                                                            color: event.type === 'Feriado' || event.type === 'Feriado Municipal' ? '#991b1b' : event.type === 'Reunião' ? '#3730a3' : '#166534',
+                                                            borderLeft: `2px solid ${event.type === 'Feriado' || event.type === 'Feriado Municipal' ? '#ef4444' : event.type === 'Reunião' ? '#6366f1' : '#22c55e'}`
+                                                        }}
+                                                    >
+                                                        <span className="truncate flex items-center gap-1 font-bold leading-tight">
+                                                            {(event.type === 'Feriado Municipal' || event.is_recurring) && (
+                                                                <Repeat className="w-1.5 h-1.5 opacity-50 shrink-0" />
+                                                            )}
+                                                            <span className="truncate">{event.title}</span>
+                                                        </span>
+                                                    </div>
+                                                ))}
 
-                                    {dayEvents.length > 3 && (
-                                        <div
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedDate(slot.dateStr);
-                                                setSelectedDayEvents(dayEvents);
-                                                setIsDayDetailsOpen(true);
-                                            }}
-                                            className="text-[9px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded px-1.5 py-0.5 mt-auto cursor-pointer text-left transition-colors"
-                                        >
-                                            +{dayEvents.length - 3} mais...
-                                        </div>
-                                    )}
+                                                {nonBirthdayEvents.length > 3 && (
+                                                    <div
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedDate(slot.dateStr);
+                                                            setSelectedDayEvents(dayEvents);
+                                                            setIsDayDetailsOpen(true);
+                                                        }}
+                                                        className="text-[9px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded px-1.5 py-0.5 mt-auto cursor-pointer text-left transition-colors"
+                                                    >
+                                                        +{nonBirthdayEvents.length - 3} mais...
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         );
@@ -553,8 +587,37 @@ export const Calendario: React.FC<CalendarioProps> = ({ onBack, userRole, curren
                 onClose={() => { }} // Could be used to track if it's open, but it manages itself
                 onResolved={() => fetchEvents(currentDate)}
             />
+
+            <MonthEventsModal
+                isOpen={isMonthEventsOpen}
+                onClose={() => setIsMonthEventsOpen(false)}
+                events={events.filter(e => {
+                    const year = currentDate.getFullYear();
+                    const month = currentDate.getMonth();
+                    const eType = (e.type || "").trim();
+
+                    // For recurring/birthdays: check if they match THIS month
+                    const isRecurringType = eType === 'Aniversário' || eType === 'Feriado Municipal' || e.is_recurring;
+
+                    if (isRecurringType) {
+                        const targetDate = e.type === 'Aniversário' && e.birth_date ? e.birth_date : e.start_date;
+                        const dateObj = safelyParseDate(targetDate);
+                        
+                        if (!dateObj) return false;
+                        return (dateObj.getMonth()) === month;
+                    }
+
+                    // For regular events: check overlaps with this month's range strictly using local dates
+                    const firstDayOfMonth = getLocalISOData(new Date(year, month, 1)).date;
+                    const lastDayOfMonth = getLocalISOData(new Date(year, month + 1, 0)).date;
+
+                    return (e.start_date || '') <= lastDayOfMonth && (e.end_date || e.start_date || '') >= firstDayOfMonth;
+                })}
+                currentMonth={currentDate.getMonth()}
+                currentYear={currentDate.getFullYear()}
+                appState={appState}
+            />
         </div>
     );
 };
 
-export default Calendario;

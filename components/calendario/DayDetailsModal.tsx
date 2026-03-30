@@ -1,7 +1,7 @@
 import React from 'react';
-import { X, Calendar as CalendarIcon, Plus, Edit2, Trash2, Clock, AlignLeft } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Plus, Edit2, Trash2, Clock, AlignLeft, Gift } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CalendarEvent } from './Calendario';
+import { CalendarEvent } from '../../services/calendarService';
 
 interface Props {
     isOpen: boolean;
@@ -93,15 +93,16 @@ export const DayDetailsModal: React.FC<Props> = ({
                         ) : (
                             <div className="space-y-4">
                                 {events.map((event) => {
-                                    const isFeriado = event.type === 'Feriado';
+                                    const isFeriado = event.type === 'Feriado' || event.type === 'Feriado Municipal';
                                     const isReuniao = event.type === 'Reunião';
+                                    const isAniversario = event.type === 'Aniversário';
 
                                     const colors = {
-                                        bg: isFeriado ? 'bg-rose-50' : isReuniao ? 'bg-indigo-50' : 'bg-emerald-50',
-                                        border: isFeriado ? 'border-rose-200' : isReuniao ? 'border-indigo-200' : 'border-emerald-200',
-                                        leftBorder: isFeriado ? 'border-l-rose-500' : isReuniao ? 'border-l-indigo-500' : 'border-l-emerald-500',
-                                        text: isFeriado ? 'text-rose-700' : isReuniao ? 'text-indigo-700' : 'text-emerald-700',
-                                        badgeBg: isFeriado ? 'bg-rose-100' : isReuniao ? 'bg-indigo-100' : 'bg-emerald-100',
+                                        bg: isFeriado ? 'bg-rose-50' : isReuniao ? 'bg-indigo-50' : isAniversario ? 'bg-pink-50' : 'bg-emerald-50',
+                                        border: isFeriado ? 'border-rose-200' : isReuniao ? 'border-indigo-200' : isAniversario ? 'border-pink-200' : 'border-emerald-200',
+                                        leftBorder: isFeriado ? 'border-l-rose-500' : isReuniao ? 'border-l-indigo-500' : isAniversario ? 'border-l-pink-500' : 'border-l-emerald-500',
+                                        text: isFeriado ? 'text-rose-700' : isReuniao ? 'text-indigo-700' : isAniversario ? 'text-pink-700' : 'text-emerald-700',
+                                        badgeBg: isFeriado ? 'bg-rose-100' : isReuniao ? 'bg-indigo-100' : isAniversario ? 'bg-pink-100' : 'bg-emerald-100',
                                     };
 
                                     return (
@@ -113,11 +114,18 @@ export const DayDetailsModal: React.FC<Props> = ({
                                         >
                                             <div className="flex justify-between items-start mb-3">
                                                 <div className="flex flex-col gap-2">
-                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest w-fit ${colors.badgeBg} ${colors.text}`}>
-                                                        {event.type}
-                                                    </span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest w-fit ${colors.badgeBg} ${colors.text}`}>
+                                                            {event.type}
+                                                        </span>
+                                                        {isAniversario && (
+                                                            <div className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center">
+                                                                <Gift className="w-3 h-3 text-pink-600" />
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                     <h4 className="text-lg font-bold text-slate-800 leading-tight">
-                                                        {event.title}
+                                                        {isAniversario ? (event.professional_name || event.title) : event.title}
                                                     </h4>
 
                                                     <div className="flex flex-wrap items-center gap-2 mt-1">
