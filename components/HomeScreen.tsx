@@ -92,7 +92,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     const canAccessObras = (permissions.includes('parent_obras') || userRole === 'admin') && isModuleActive('parent_obras');
     const canAccessTarefas = permissions.includes('parent_tarefas') && isModuleActive('parent_tarefas');
     const canAccessCalendario = (permissions.includes('parent_calendario') || userRole === 'admin') && isModuleActive('parent_calendario');
-    const canAccessRh = isModuleActive('parent_rh');
+    const canAccessRh = (permissions.includes('parent_rh') || userRole === 'admin') && isModuleActive('parent_rh');
     const canAccessProjetos = (permissions.includes('parent_projetos') || userRole === 'admin') && isModuleActive('parent_projetos');
     const canAccessMarketing = (permissions.includes('parent_marketing') || userRole === 'admin') && isModuleActive('parent_marketing');
     const firstName = userName.split(' ')[0];

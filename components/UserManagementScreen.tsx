@@ -329,25 +329,6 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
   const selectClass = "w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 outline-none transition-all appearance-none cursor-pointer disabled:opacity-60 disabled:bg-slate-100 disabled:cursor-not-allowed";
   const labelClass = "block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1";
 
-  const permissionsList: { id: AppPermission, label: string }[] = [
-    { id: 'parent_criar_oficio', label: 'Módulo: Ofícios' },
-    { id: 'parent_compras', label: 'Módulo: Compras' },
-    { id: 'parent_licitacao', label: 'Módulo: Licitação' },
-    { id: 'parent_diarias', label: 'Módulo: Diárias e Custeio' },
-    { id: 'parent_agendamento_veiculo', label: 'Agendamento de Veículos' },
-    { id: 'parent_frotas', label: 'Gestão de Frotas' },
-    { id: 'parent_abastecimento', label: 'Gestão de Abastecimento (Geral)' },
-    { id: 'parent_abastecimento_novo', label: 'Novo Abastecimento' },
-    { id: 'parent_abastecimento_gestao', label: 'Gestão / Histórico Abastecimento' },
-    { id: 'parent_abastecimento_dashboard', label: 'Asbastecimento: Dashboard' },
-    { id: 'parent_admin', label: 'Administrativo' },
-    { id: 'parent_licitacao_triagem', label: 'Licitação: Triagem' },
-    { id: 'parent_licitacao_processos', label: 'Licitação: Processos' },
-    { id: 'parent_agricultura', label: 'Módulo: Agricultura' },
-    { id: 'parent_obras', label: 'Módulo: Obras' },
-    { id: 'parent_tarefas', label: 'Módulo: Tarefas' },
-    { id: 'parent_calendario', label: 'Módulo: Calendário' }
-  ];
 
   return (
     <div className="flex-1 h-full bg-slate-100 p-6 overflow-auto custom-scrollbar">
@@ -960,7 +941,10 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({
                         permissions: [
                           { id: 'parent_agricultura', label: 'Agricultura' },
                           { id: 'parent_obras', label: 'Obras' },
-                          { id: 'parent_calendario', label: 'Calendário' }
+                          { id: 'parent_calendario', label: 'Calendário' },
+                          { id: 'parent_rh', label: 'Gestão de RH' },
+                          { id: 'parent_marketing', label: 'Marketing Digital' },
+                          { id: 'parent_projetos', label: 'Gestão de Projetos' }
                         ],
                         color: 'teal'
                       },
