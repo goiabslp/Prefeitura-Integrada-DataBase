@@ -105,11 +105,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         const hoverBorder = `hover:border-${color}-200`;
         const hoverBg = `hover:from-white hover:to-${color}-50`;
 
-        return `group relative w-full h-auto min-h-[140px] desktop:min-h-[180px] py-6 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] ${hoverShadow} hover:-translate-y-1.5 ${hoverBorder} ${hoverBg} active:scale-95 transition-all duration-300 ease-out ${hideOnMobile ? 'hidden desktop:flex' : 'flex'} flex-col items-center justify-center overflow-hidden shrink-0`;
+        return `group relative w-full h-auto min-h-[90px] desktop:min-h-[140px] py-3.5 desktop:py-4 rounded-[2rem] desktop:rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-[0_10px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] ${hoverShadow} hover:-translate-y-1.5 ${hoverBorder} ${hoverBg} active:scale-95 transition-all duration-300 ease-out ${hideOnMobile ? 'hidden desktop:flex' : 'flex'} flex-col items-center justify-center overflow-hidden shrink-0`;
     };
 
     const getIconContainerClass = (color: string) => {
-        return `w-14 h-14 desktop:w-16 desktop:h-16 rounded-2xl flex items-center justify-center mb-3 transition-transform duration-500 ease-spring group-hover:scale-110 group-hover:rotate-3 shadow-lg bg-gradient-to-br from-${color}-500 to-${color}-600 text-white ring-4 ring-white`;
+        return `w-12 h-12 desktop:w-16 desktop:h-16 rounded-xl desktop:rounded-2xl flex items-center justify-center mb-2 desktop:mb-3 transition-transform duration-500 ease-spring group-hover:scale-110 group-hover:rotate-3 shadow-lg bg-gradient-to-br from-${color}-500 to-${color}-600 text-white ring-4 ring-white`;
     };
 
     const [isTasksDrawerOpen, setIsTasksDrawerOpen] = React.useState(false);
@@ -154,8 +154,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         </div>
                     )}
                 </div>
-                <h2 className="text-lg desktop:text-xl font-bold text-slate-800 tracking-tight leading-none mb-1.5 group-hover:text-slate-900 transition-colors">{title}</h2>
-                <p className="text-xs font-medium text-slate-500 text-center max-w-[150px] leading-tight group-hover:text-${color}-600 transition-colors">{description}</p>
+                <h2 className="text-sm desktop:text-xl font-bold text-slate-800 tracking-tight leading-none mb-1 group-hover:text-slate-900 transition-colors">{title}</h2>
+                <p className="text-[10px] desktop:text-xs font-medium text-slate-500 text-center max-w-[120px] desktop:max-w-[150px] leading-tight group-hover:text-${color}-600 transition-colors">{description}</p>
             </div>
 
             <div className={`absolute bottom-5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-${color}-600 font-bold text-[10px] uppercase tracking-widest flex items-center gap-1`}>
@@ -355,44 +355,44 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         onScroll={handleScroll}
                         className="flex-1 overflow-y-auto custom-scrollbar scroll-smooth"
                     >
-                        <div className="p-8 lg:p-12 pb-40 desktop:pb-32 max-w-7xl mx-auto w-full pt-12 desktop:pt-16">
+                        <div className="p-4 lg:p-8 pb-32 desktop:pb-24 max-w-7xl mx-auto w-full pt-4 desktop:pt-6">
 
                             {/* ... content ... */}
 
                             {/* Welcome Header */}
-                            <div className="mb-12">
-                                <h1 className="text-4xl desktop:text-5xl font-extrabold text-slate-900 tracking-tighter mb-3">
+                            <div className="mb-4">
+                                <h1 className="text-2xl desktop:text-3xl font-extrabold text-slate-900 tracking-tighter mb-0.5">
                                     Olá, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">{firstName}</span>.
                                 </h1>
-                                <p className="text-slate-500 text-lg font-medium max-w-2xl">
+                                <p className="text-slate-500 text-base font-medium max-w-2xl">
                                     Selecione um módulo para iniciar suas atividades.
                                 </p>
                             </div>
 
                             {/* Modules Grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 desktop:grid-cols-3 xl:grid-cols-4 gap-5 desktop:gap-6">
+                            <div className="grid grid-cols-2 desktop:grid-cols-3 xl:grid-cols-4 wide:grid-cols-5 gap-3 desktop:gap-4">
                                 {/* Operational Modules */}
-                                {canAccessOficio && renderModuleButton(() => setActiveBlock('oficio'), 'indigo', FileText, 'Ofícios', 'Geração e trâmite', '50ms', true)}
-                                {canAccessCompras && renderModuleButton(() => setActiveBlock('compras'), 'emerald', ShoppingCart, 'Compras', 'Pedidos e requisições', '100ms', true, 0)}
-                                {canAccessDiarias && renderModuleButton(() => setActiveBlock('diarias'), 'amber', Wallet, 'Diárias', 'Gestão de despesas', '150ms', true)}
-                                {canAccessLicitacao && renderModuleButton(() => setActiveBlock('licitacao'), 'blue', Gavel, 'Licitação', 'Processos e editais', '200ms', true)}
+                                {canAccessOficio && renderModuleButton(() => setActiveBlock('oficio'), 'indigo', FileText, 'Ofícios', 'Geração e trâmite', '50ms', false)}
+                                {canAccessCompras && renderModuleButton(() => setActiveBlock('compras'), 'emerald', ShoppingCart, 'Compras', 'Pedidos e requisições', '100ms', false, 0)}
+                                {canAccessDiarias && renderModuleButton(() => setActiveBlock('diarias'), 'amber', Wallet, 'Diárias', 'Despesas', '150ms', false)}
+                                {canAccessLicitacao && renderModuleButton(() => setActiveBlock('licitacao'), 'blue', Gavel, 'Licitação', 'Processos', '200ms', false)}
 
                                 {/* Management Modules */}
-                                {canAccessTarefas && renderModuleButton(() => setActiveBlock('tarefas'), 'pink', Activity, 'Tarefas', 'Gestão de atividades', '225ms', true)}
-                                {canAccessCalendario && renderModuleButton(() => onCalendario?.(), 'rose', CalendarDays, 'Calendário', 'Agenda e Eventos', '235ms', true)}
-                                {canAccessRh && renderModuleButton(() => onRH?.(), 'fuchsia', Users, 'RH', 'Horas extras e gestão', '240ms', true)}
-                                {canAccessProjetos && renderModuleButton(() => onProjetos?.(), 'teal', LayoutGrid, 'Projetos', 'Gestão de Projetos', '245ms', true)}
-                                {canAccessMarketing && renderModuleButton(() => onMarketing?.(), 'teal', Megaphone, 'Marketing', 'Demandas Criativas', '248ms', true)}
+                                {canAccessTarefas && renderModuleButton(() => setActiveBlock('tarefas'), 'pink', Activity, 'Tarefas', 'Atividades', '225ms', false)}
+                                {canAccessCalendario && renderModuleButton(() => onCalendario?.(), 'rose', CalendarDays, 'Calendário', 'Agenda', '235ms', false)}
+                                {canAccessRh && renderModuleButton(() => onRH?.(), 'fuchsia', Users, 'RH', 'Gestão', '240ms', false)}
+                                {canAccessProjetos && renderModuleButton(() => onProjetos?.(), 'teal', LayoutGrid, 'Projetos', 'Gestão', '245ms', false)}
+                                {canAccessMarketing && renderModuleButton(() => onMarketing?.(), 'teal', Megaphone, 'Marketing', 'Criativo', '248ms', false)}
 
-                                {canAccessScheduling && renderModuleButton(() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }, 'violet', CalendarRange, 'Veículos', 'Agendamento de frota', '250ms', true)}
-                                {canAccessAbastecimento && renderModuleButton(() => setActiveBlock('abastecimento'), 'cyan', Droplet, 'Abastecimento', 'Controle de combustível', '300ms', false)}
+                                {canAccessScheduling && renderModuleButton(() => { setActiveBlock('agendamento'); onVehicleScheduling?.(); }, 'violet', CalendarRange, 'Veículos', 'Agendamento', '250ms', false)}
+                                {canAccessAbastecimento && renderModuleButton(() => setActiveBlock('abastecimento'), 'cyan', Droplet, 'Abastecimento', 'Combustível', '300ms', false)}
 
                                 {/* Field Modules */}
-                                {canAccessAgricultura && renderModuleButton(() => onAgricultura?.(), 'emerald', Sprout, 'Agricultura', 'Gestão rural', '350ms', true)}
-                                {canAccessObras && renderModuleButton(() => onObras?.(), 'orange', HardHat, 'Obras', 'Gestão de obras', '400ms', true)}
+                                {canAccessAgricultura && renderModuleButton(() => onAgricultura?.(), 'emerald', Sprout, 'Agricultura', 'Gestão rural', '350ms', false)}
+                                {canAccessObras && renderModuleButton(() => onObras?.(), 'orange', HardHat, 'Obras', 'Gestão de obras', '400ms', false)}
 
                                 {/* Admin Shortcut */}
-                                {canAccessFleet && renderModuleButton(() => onOpenAdmin('fleet'), 'slate', Car, 'Gestão de Frotas', 'Veículos e Marcas', '450ms', true)}
+                                {canAccessFleet && renderModuleButton(() => onOpenAdmin('fleet'), 'slate', Car, 'Frotas', 'Gestão', '450ms', false)}
                             </div>
 
                             {/* Mobile-only Logout */}
