@@ -7,6 +7,8 @@ import { MeusConteudosList } from './MeusConteudosList';
 import { MarketingDetails } from './MarketingDetails';
 import { MarketingOnboarding } from './MarketingOnboarding';
 import { supabase } from '../../services/supabaseClient';
+import { marketingSyncService } from '../../services/marketingSyncService';
+import { birthdaySyncService } from '../../services/birthdaySyncService';
 import { HelpCircle } from 'lucide-react';
 
 interface MarketingModuleProps {
@@ -44,6 +46,10 @@ export const MarketingModule: React.FC<MarketingModuleProps> = ({
     const [tourStepperIndex, setTourStepperIndex] = React.useState(0);
     const [firstRequestId, setFirstRequestId] = React.useState<string | undefined>(undefined);
 
+    // Filter out the "TESTE" user for everyone except "Administrador"
+    const isStrictAdmin = userRole?.toLowerCase() === 'admin' || userRole?.toLowerCase() === 'administrador';
+    const isMarketing = userRole?.toLowerCase() === 'marketing';
+
     React.useEffect(() => {
         const checkTourStatus = async () => {
             const { data } = await supabase
@@ -58,7 +64,19 @@ export const MarketingModule: React.FC<MarketingModuleProps> = ({
             }
         };
         checkTourStatus();
-    }, [userId]);
+
+        // 🔹 Sincronização Automática
+        const runAutoSync = async () => {
+            if (isStrictAdmin || isMarketing) {
+                // weekly marketing report sync
+                await marketingSyncService.syncWeeklyBirthdays(userId, userName);
+                
+                // bulk calendar birthday sync (for existing and new records)
+                await birthdaySyncService.bulkSyncBirthdays();
+            }
+        };
+        runAutoSync();
+    }, [userId, isStrictAdmin, isMarketing]);
 
     const handleCompleteTour = async () => {
         setIsTourOpen(false);
@@ -68,9 +86,6 @@ export const MarketingModule: React.FC<MarketingModuleProps> = ({
             .update({ has_seen_marketing_tour: true })
             .eq('id', userId);
     };
-
-    // Filter out the "TESTE" user for everyone except "Administrador"
-    const isStrictAdmin = userRole?.toLowerCase() === 'admin' || userRole?.toLowerCase() === 'administrador';
     
     const filteredUsers = isStrictAdmin 
         ? users 

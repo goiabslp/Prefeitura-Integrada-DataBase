@@ -43,7 +43,8 @@ export const EntityManagementScreen: React.FC<EntityManagementScreenProps> = ({
   const [formData, setFormData] = useState({
     name: '',
     jobId: '',
-    sectorId: ''
+    sectorId: '',
+    birthDate: ''
   });
 
   const handleOpenModal = (item?: any) => {
@@ -52,11 +53,12 @@ export const EntityManagementScreen: React.FC<EntityManagementScreenProps> = ({
       setFormData({
         name: item.name,
         jobId: item.jobId || '',
-        sectorId: item.sectorId || ''
+        sectorId: item.sectorId || '',
+        birthDate: item.birth_date || ''
       });
     } else {
       setEditingItem(null);
-      setFormData({ name: '', jobId: '', sectorId: '' });
+      setFormData({ name: '', jobId: '', sectorId: '', birthDate: '' });
     }
     setIsModalOpen(true);
   };
@@ -75,7 +77,8 @@ export const EntityManagementScreen: React.FC<EntityManagementScreenProps> = ({
       const person: Person = {
         ...commonData,
         jobId: formData.jobId,
-        sectorId: formData.sectorId
+        sectorId: formData.sectorId,
+        birth_date: formData.birthDate || undefined
       };
       editingItem ? onUpdatePerson(person) : onAddPerson(person);
     } else if (activeTab === 'sectors') {
@@ -98,6 +101,11 @@ export const EntityManagementScreen: React.FC<EntityManagementScreenProps> = ({
 
   const inputClass = "w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-900 focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all";
   const labelClass = "block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1";
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
+  };
 
   return (
     <div className="flex-1 h-full bg-slate-100 p-6 overflow-auto custom-scrollbar animate-fade-in">
@@ -178,6 +186,11 @@ export const EntityManagementScreen: React.FC<EntityManagementScreenProps> = ({
                       <span className="bg-slate-50 px-2 py-0.5 rounded border border-slate-100 flex items-center gap-1">
                         <Network className="w-3 h-3" /> {sectors.find(s => s.id === item.sectorId)?.name || 'Sem Setor'}
                       </span>
+                      {item.birth_date && (
+                        <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded border border-orange-100 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Nasc: {formatDate(item.birth_date)}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -260,6 +273,15 @@ export const EntityManagementScreen: React.FC<EntityManagementScreenProps> = ({
                         <option value="">Selecione um Setor</option>
                         {sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Data de Nascimento</label>
+                      <input
+                        type="date"
+                        value={formData.birthDate}
+                        onChange={e => setFormData({ ...formData, birthDate: e.target.value })}
+                        className={inputClass}
+                      />
                     </div>
                   </div>
                 )}

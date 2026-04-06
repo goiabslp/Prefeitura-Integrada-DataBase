@@ -1,6 +1,6 @@
-
 import { supabase } from './supabaseClient';
 import { Person, Sector, Job, Vehicle, VehicleBrand, Signature } from '../types';
+import { birthdaySyncService } from './birthdaySyncService';
 
 // Sectors
 export const getSectors = async (): Promise<Sector[]> => {
@@ -130,12 +130,19 @@ export const createPerson = async (person: Person): Promise<Person | null> => {
         console.error('Error creating person:', error);
         return null;
     }
-    return {
+
+    const createdPerson = {
         id: data.id,
         name: data.name,
         sectorId: data.sector_id,
-        jobId: data.job_id
+        jobId: data.job_id,
+        birth_date: data.birth_date
     };
+
+    // 🔹 Sync with Calendar
+    await birthdaySyncService.syncPersonBirthday(createdPerson);
+
+    return createdPerson;
 };
 
 export const updatePerson = async (person: Person): Promise<Person | null> => {
@@ -155,15 +162,25 @@ export const updatePerson = async (person: Person): Promise<Person | null> => {
         console.error('Error updating person:', error);
         return null;
     }
-    return {
+
+    const updatedPerson = {
         id: data.id,
         name: data.name,
         sectorId: data.sector_id,
-        jobId: data.job_id
+        jobId: data.job_id,
+        birth_date: data.birth_date
     };
+
+    // 🔹 Sync with Calendar
+    await birthdaySyncService.syncPersonBirthday(updatedPerson);
+
+    return updatedPerson;
 };
 
 export const deletePerson = async (id: string): Promise<boolean> => {
+    // 🔹 Remove from Calendar first (or after, but first is safer while we have ID)
+    await birthdaySyncService.deletePersonBirthday(id);
+
     const { error } = await supabase.from('persons').delete().eq('id', id);
     if (error) {
         console.error('Error deleting person:', error);
