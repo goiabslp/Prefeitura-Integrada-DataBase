@@ -181,7 +181,7 @@ export const MeusConteudosList: React.FC<MeusConteudosListProps> = ({ userId, us
                         <th className="py-4 px-6 md:px-8 whitespace-nowrap">Data de criação</th>
                         <th className="py-4 px-6 md:px-8 whitespace-nowrap text-center">STATUS</th>
                         <th className="py-4 px-6 md:px-8 whitespace-nowrap text-center">Previsão</th>
-                        <th className="py-4 px-6 md:px-8 whitespace-nowrap text-right">Ação</th>
+                        <th className="py-4 px-6 md:px-8 whitespace-nowrap text-center">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -207,8 +207,8 @@ export const MeusConteudosList: React.FC<MeusConteudosListProps> = ({ userId, us
                                         {req.requester_name || '-'}
                                     </div>
                                 </td>
-                                <td className="py-4 px-6 md:px-8 text-center">
-                                    <div className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg inline-block whitespace-nowrap min-w-[80px]">
+                                <td className="py-4 px-6 md:px-8 text-center min-w-[140px]">
+                                    <div className="text-[10px] md:text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg inline-block whitespace-nowrap max-w-[150px] truncate" title={req.responsible?.name || 'Aguardando'}>
                                         {req.responsible?.name || 'Aguardando'}
                                     </div>
                                 </td>
@@ -242,10 +242,10 @@ export const MeusConteudosList: React.FC<MeusConteudosListProps> = ({ userId, us
                                         <span className="text-slate-300">—</span>
                                     )}
                                 </td>
-                                <td className="py-4 px-6 md:px-8 text-right">
+                                <td className="py-4 px-6 md:px-8 text-center">
                                     <button
                                         onClick={(e) => handleDeleteClick(e, req.id, extractTitle(req.description))}
-                                        className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-white border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all shadow-sm ml-auto opacity-0 group-hover:opacity-100"
+                                        className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-white border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all shadow-sm mx-auto group-hover:opacity-100 md:opacity-0"
                                         title="Excluir Solicitação"
                                     >
                                         <Trash2 className="w-4 h-4" />
