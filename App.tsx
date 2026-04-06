@@ -182,18 +182,8 @@ const App: React.FC = () => {
   const [lastListView, setLastListView] = useState<string>('tracking'); // Default to tracking
   const [isDeleting, setIsDeleting] = useState<string | null>(null); // Track item being deleted prevents duplicates
 
-  // Splash Screen while verifying auth - prevents flicker and early redirects
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#0a0c10] flex items-center justify-center">
-         <GlobalLoading 
-            type="overlay" 
-            message="Verificando Acesso" 
-            description="Preparando sua área de trabalho municipal segura..." 
-         />
-      </div>
-    );
-  }
+
+
 
   // React Query Mutations for Optimistic Updates
   const createOficioMutation = useCreateOficio();
@@ -2657,6 +2647,20 @@ const App: React.FC = () => {
       }
     }
   };
+
+  // Splash Screen while verifying auth - prevents flicker and early redirects
+  // CRITICAL: Must be after all hooks to avoid hook order violations
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0c10] flex items-center justify-center">
+         <GlobalLoading 
+            type="overlay" 
+            message="Verificando Acesso" 
+            description="Preparando sua área de trabalho municipal segura..." 
+         />
+      </div>
+    );
+  }
 
   if (currentView === 'login') return <LoginScreen onLogin={handleLogin} uiConfig={appState.ui} />;
 
