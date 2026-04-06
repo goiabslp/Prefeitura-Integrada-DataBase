@@ -14,24 +14,29 @@ const getWeekNumber = (d: Date): number => {
     return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
 };
 
+let isSyncing = false;
+
 export const marketingSyncService = {
     /**
      * Synchronizes weekly birthday requests.
      * Should be called when an admin/marketing user access the module.
      */
     syncWeeklyBirthdays: async (userId: string, userName: string) => {
+        if (isSyncing) return;
+        
         try {
+            isSyncing = true;
             const today = new Date();
             const year = today.getFullYear();
             const weekNum = getWeekNumber(today);
             const protocolKey = `BW-${year}-W${weekNum.toString().padStart(2, '0')}`;
-            const protocolPrefix = `MKT-AUTO-${protocolKey}`;
+            const protocol = `MKT-AUTO-${protocolKey}`;
 
             // 1. Check if already exists for this week
             const { data: existing } = await supabase
                 .from('marketing_requests')
                 .select('id')
-                .ilike('protocol', `${protocolPrefix}%`)
+                .eq('protocol', protocol)
                 .limit(1);
 
             if (existing && existing.length > 0) {
@@ -92,7 +97,7 @@ export const marketingSyncService = {
             const { data: requestDef, error: reqError } = await supabase
                 .from('marketing_requests')
                 .insert([{
-                    protocol: `${protocolPrefix}-${Math.floor(Math.random() * 1000)}`,
+                    protocol,
                     requester_name: 'Prefeito',
                     requester_sector: 'Gabinete',
                     description: description,
@@ -128,6 +133,8 @@ export const marketingSyncService = {
 
         } catch (err) {
             console.error('[MarketingSync] Critical Error:', err);
+        } finally {
+            isSyncing = false;
         }
     }
 };

@@ -157,7 +157,7 @@ const PATH_TO_STATE: Record<string, any> = Object.fromEntries(
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'login' | 'home' | 'admin' | 'tracking' | 'editor' | 'vehicle-scheduling' | 'licitacao-screening' | 'licitacao-all' | 'abastecimento' | 'agricultura' | 'obras' | 'order-details' | 'tasks-dashboard' | 'purchase-inventory' | 'calendario' | 'rh' | 'projetos' | 'marketing'>('login');
   const queryClient = useQueryClient();
-  const { user: currentUser, signIn, signOut, refreshUser } = useAuth();
+  const { user: currentUser, signIn, signOut, refreshUser, loading: authLoading } = useAuth();
   const { moduleStatus } = useSystemSettings();
   const isModuleActive = (key: string) => moduleStatus[key] !== false;
   const permissions = currentUser?.permissions || [];
@@ -181,6 +181,19 @@ const App: React.FC = () => {
   const [isStepperLocked, setIsStepperLocked] = useState(false);
   const [lastListView, setLastListView] = useState<string>('tracking'); // Default to tracking
   const [isDeleting, setIsDeleting] = useState<string | null>(null); // Track item being deleted prevents duplicates
+
+  // Splash Screen while verifying auth - prevents flicker and early redirects
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0c10] flex items-center justify-center">
+         <GlobalLoading 
+            type="overlay" 
+            message="Verificando Acesso" 
+            description="Preparando sua área de trabalho municipal segura..." 
+         />
+      </div>
+    );
+  }
 
   // React Query Mutations for Optimistic Updates
   const createOficioMutation = useCreateOficio();
@@ -704,18 +717,23 @@ const App: React.FC = () => {
       }
     };
 
-    // Restore on mount
-    restoreStateFromUrl();
+    // Restore only after auth is ready and user is logged in
+    if (!authLoading && currentUser) {
+      restoreStateFromUrl();
+    }
 
-    // Listen for Back/Forward
-    window.addEventListener('popstate', restoreStateFromUrl);
-    return () => window.removeEventListener('popstate', restoreStateFromUrl);
-  }, []);
+    // Listen for Back/Forward only after mount
+    const onPopState = () => restoreStateFromUrl();
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [authLoading, currentUser]); // Run once when auth finishes
 
   /* Removed Initial Refresh Effect - Handled by Route Sync Effect */
 
 
   useEffect(() => {
+    if (authLoading) return; // Wait for session before syncing URL
+
     let stateKey = currentView as string;
 
     // Licitacao Specific Keys
@@ -775,12 +793,19 @@ const App: React.FC = () => {
 
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (currentUser && currentView === 'login') {
-      setCurrentView('home');
+      // If we are at root or login page, go to home. 
+      // Otherwise, stay on the view restored from the URL.
+      const path = window.location.pathname;
+      if (path === '/' || path === '/Login') {
+        setCurrentView('home');
+      }
     } else if (!currentUser && currentView !== 'login') {
       setCurrentView('login');
     }
-  }, [currentUser, currentView]);
+  }, [currentUser, currentView, authLoading]);
 
 
 
