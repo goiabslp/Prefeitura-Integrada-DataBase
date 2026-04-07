@@ -932,6 +932,69 @@ const App: React.FC = () => {
     };
   }, [currentUser, currentView, signOut]);
 
+  // --- INFO BALLOON: ATUALIZAÇÃO INTELIGENTE ---
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const INFO_KEY = 'has_seen_update_info_v1';
+    if (localStorage.getItem(INFO_KEY)) return;
+
+    const timer = setTimeout(() => {
+      if (document.getElementById('sys-update-info-balloon')) return;
+
+      const balloon = document.createElement('div');
+      balloon.id = 'sys-update-info-balloon';
+      balloon.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: #1e293b;
+        color: white;
+        padding: 24px;
+        border-radius: 16px;
+        border: 1px solid #334155;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+        max-width: 320px;
+        z-index: 999999;
+        font-family: system-ui, -apple-system, sans-serif;
+        animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      `;
+      balloon.innerHTML = `
+        <style>
+          @keyframes slideUpFade {
+            0% { transform: translateY(30px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+          }
+          .sys-balloon-btn {
+            background: #3b82f6; color: white; border: none; padding: 10px 16px;
+            border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%;
+            margin-top: 16px; transition: background 0.2s; font-size: 14px;
+          }
+          .sys-balloon-btn:hover { background: #2563eb; }
+        </style>
+        <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px;">
+          <span style="font-size: 20px;">🔄</span>
+          <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #f8fafc; line-height: 1.3;">Atualização inteligente do sistema</h3>
+        </div>
+        <p style="margin: 0; font-size: 14px; color: #cbd5e1; line-height: 1.5;">
+          Agora o sistema atualiza automaticamente a cada 2 horas, sem interromper seu trabalho.<br/><br/>
+          A atualização será aplicada quando você voltar à tela inicial ou atualizar a página.
+        </p>
+        <button class="sys-balloon-btn" id="sys-balloon-close-btn">Entendi</button>
+      `;
+
+      document.body.appendChild(balloon);
+
+      document.getElementById('sys-balloon-close-btn')?.addEventListener('click', () => {
+        balloon.style.animation = 'slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) reverse forwards';
+        localStorage.setItem(INFO_KEY, 'true');
+        setTimeout(() => balloon.remove(), 400);
+      });
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [currentUser]);
+
   const handleLogin = async (u: string, p: string) => {
     const { error } = await signIn(u, p);
     if (!error) {
