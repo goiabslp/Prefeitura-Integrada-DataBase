@@ -811,9 +811,90 @@ const App: React.FC = () => {
     }
   }, [currentUser, currentView, authLoading]);
 
+  // --- SYSTEM AUTO-REFRESH ROUTINE (120 MIN) ---
+  useEffect(() => {
+    const DEPLOY_EPOCH = new Date('2026-04-07T09:20:00-03:00').getTime();
+    const REFRESH_INTERVAL_MS = 120 * 60 * 1000; // 120 minutes
+    const WINDOW_KEY = 'sys_refresh_window_v1';
 
+    const checkSystemRoutine = async () => {
+      const currentWindow = Math.floor((Date.now() - DEPLOY_EPOCH) / REFRESH_INTERVAL_MS);
+      const storedWindow = localStorage.getItem(WINDOW_KEY);
 
+      if (!currentUser) {
+        if (!storedWindow || parseInt(storedWindow) < currentWindow) {
+           localStorage.setItem(WINDOW_KEY, currentWindow.toString());
+        }
+        return;
+      }
 
+      if (!storedWindow || parseInt(storedWindow) < currentWindow) {
+        if (document.getElementById('sys-refresh-warning')) return;
+
+        const warningDiv = document.createElement('div');
+        warningDiv.id = 'sys-refresh-warning';
+        warningDiv.style.cssText = `
+           position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+           background: rgba(15,23,42,0.9); backdrop-filter: blur(8px);
+           color: white; z-index: 999999;
+           display: flex; flex-direction: column; align-items: center; justify-content: center;
+           font-family: system-ui, -apple-system, sans-serif;
+           animation: fadeIn 0.3s ease-out forwards;
+        `;
+        warningDiv.innerHTML = `
+          <style>
+             @keyframes fadeInSysModal { from { opacity: 0; } to { opacity: 1; } }
+             @keyframes spinIconSys { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+             .sys-modal { 
+                background: #1e293b; padding: 40px; border-radius: 16px; 
+                text-align: center; max-width: 420px; border: 1px solid #334155; 
+                box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+             }
+          </style>
+          <div class="sys-modal">
+            <div style="color: #3b82f6; margin-bottom: 24px;">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spinIconSys 3s linear infinite;">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-5.23l.1.09"/>
+              </svg>
+            </div>
+            <h2 style="margin: 0 0 16px 0; font-size: 22px; font-weight: 600;">Atualização Sincronizada</h2>
+            <p style="margin: 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">
+              O sistema fechou a janela de sessão para manutenção e limpeza obrigatória.<br/><br/>
+              Aguarde, redirecionando com segurança...
+            </p>
+          </div>
+        `;
+        document.body.appendChild(warningDiv);
+
+        setTimeout(async () => {
+          try {
+            await signOut();
+          } catch(e) {}
+          
+          localStorage.clear();
+          sessionStorage.clear();
+          
+          if ('caches' in window) {
+            try {
+              const keys = await caches.keys();
+              await Promise.all(keys.map(k => caches.delete(k)));
+            } catch(e) {}
+          }
+          
+          localStorage.setItem(WINDOW_KEY, currentWindow.toString());
+          window.location.href = '/login';
+        }, 5000);
+      }
+    };
+
+    const initialCheck = setTimeout(checkSystemRoutine, 3000);
+    const interval = setInterval(checkSystemRoutine, 60000);
+
+    return () => {
+      clearTimeout(initialCheck);
+      clearInterval(interval);
+    };
+  }, [currentUser, signOut]);
 
   const handleLogin = async (u: string, p: string) => {
     const { error } = await signIn(u, p);
