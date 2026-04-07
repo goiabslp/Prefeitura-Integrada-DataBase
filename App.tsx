@@ -812,6 +812,9 @@ const App: React.FC = () => {
   }, [currentUser, currentView, authLoading]);
 
   // --- SYSTEM AUTO-REFRESH ROUTINE (120 MIN) ---
+  const initialMountCheck = useRef(true);
+  const pendingWarningShown = useRef(false);
+
   useEffect(() => {
     const DEPLOY_EPOCH = new Date('2026-04-07T09:20:00-03:00').getTime();
     const REFRESH_INTERVAL_MS = 120 * 60 * 1000; // 120 minutes
@@ -825,76 +828,109 @@ const App: React.FC = () => {
         if (!storedWindow || parseInt(storedWindow) < currentWindow) {
            localStorage.setItem(WINDOW_KEY, currentWindow.toString());
         }
+        initialMountCheck.current = false;
         return;
       }
 
       if (!storedWindow || parseInt(storedWindow) < currentWindow) {
-        if (document.getElementById('sys-refresh-warning')) return;
+        // Regras: executa na tela Inicial (home) OU em um F5/Refresh (initialMountCheck)
+        if (initialMountCheck.current || currentView === 'home') {
+          if (document.getElementById('sys-refresh-warning')) return;
+          
+          // Remove faixa de aviso se existir
+          const banner = document.getElementById('sys-pending-update-banner');
+          if (banner) banner.remove();
 
-        const warningDiv = document.createElement('div');
-        warningDiv.id = 'sys-refresh-warning';
-        warningDiv.style.cssText = `
-           position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-           background: rgba(15,23,42,0.9); backdrop-filter: blur(8px);
-           color: white; z-index: 999999;
-           display: flex; flex-direction: column; align-items: center; justify-content: center;
-           font-family: system-ui, -apple-system, sans-serif;
-           animation: fadeIn 0.3s ease-out forwards;
-        `;
-        warningDiv.innerHTML = `
-          <style>
-             @keyframes fadeInSysModal { from { opacity: 0; } to { opacity: 1; } }
-             @keyframes spinIconSys { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-             .sys-modal { 
-                background: #1e293b; padding: 40px; border-radius: 16px; 
-                text-align: center; max-width: 420px; border: 1px solid #334155; 
-                box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-             }
-          </style>
-          <div class="sys-modal">
-            <div style="color: #3b82f6; margin-bottom: 24px;">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spinIconSys 3s linear infinite;">
-                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-5.23l.1.09"/>
-              </svg>
+          const warningDiv = document.createElement('div');
+          warningDiv.id = 'sys-refresh-warning';
+          warningDiv.style.cssText = `
+             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+             background: rgba(15,23,42,0.9); backdrop-filter: blur(8px);
+             color: white; z-index: 999999;
+             display: flex; flex-direction: column; align-items: center; justify-content: center;
+             font-family: system-ui, -apple-system, sans-serif;
+             animation: fadeIn 0.3s ease-out forwards;
+          `;
+          warningDiv.innerHTML = `
+            <style>
+               @keyframes fadeInSysModal { from { opacity: 0; } to { opacity: 1; } }
+               @keyframes spinIconSys { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+               .sys-modal { 
+                  background: #1e293b; padding: 40px; border-radius: 16px; 
+                  text-align: center; max-width: 420px; border: 1px solid #334155; 
+                  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+               }
+            </style>
+            <div class="sys-modal">
+              <div style="color: #3b82f6; margin-bottom: 24px;">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spinIconSys 3s linear infinite;">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-5.23l.1.09"/>
+                </svg>
+              </div>
+              <h2 style="margin: 0 0 16px 0; font-size: 22px; font-weight: 600;">Atualização de Sistema</h2>
+              <p style="margin: 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">
+                Limpeza agendada de ambiente concluída.<br/><br/>
+                Sessão será recarregada com segurança...
+              </p>
             </div>
-            <h2 style="margin: 0 0 16px 0; font-size: 22px; font-weight: 600;">Atualização Sincronizada</h2>
-            <p style="margin: 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">
-              O sistema fechou a janela de sessão para manutenção e limpeza obrigatória.<br/><br/>
-              Aguarde, redirecionando com segurança...
-            </p>
-          </div>
-        `;
-        document.body.appendChild(warningDiv);
+          `;
+          document.body.appendChild(warningDiv);
 
-        setTimeout(async () => {
-          try {
-            await signOut();
-          } catch(e) {}
-          
-          localStorage.clear();
-          sessionStorage.clear();
-          
-          if ('caches' in window) {
+          setTimeout(async () => {
             try {
-              const keys = await caches.keys();
-              await Promise.all(keys.map(k => caches.delete(k)));
+              await signOut();
             } catch(e) {}
+            
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            if ('caches' in window) {
+              try {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
+              } catch(e) {}
+            }
+            
+            localStorage.setItem(WINDOW_KEY, currentWindow.toString());
+            window.location.href = '/login';
+          }, 3000); // 3 segundos para uma transição aceitável
+        } else {
+          // O usuário está em outra tela. Fica pendente.
+          if (!pendingWarningShown.current) {
+            pendingWarningShown.current = true;
+            
+            const banner = document.createElement('div');
+            banner.id = 'sys-pending-update-banner';
+            banner.style.cssText = `
+              position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+              background: #2563eb; color: white; padding: 10px 20px;
+              border-radius: 0 0 8px 8px; font-size: 14px; font-weight: 500;
+              z-index: 9999; display: flex; align-items: center; gap: 10px;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-family: system-ui, sans-serif;
+              animation: slideDownSys 0.5s ease-out forwards;
+            `;
+            banner.innerHTML = `
+              <style>@keyframes slideDownSys { from { transform: translate(-50%, -100%); } to { transform: translate(-50%, 0); } }</style>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>Atualização necessária: Será aplicada ao retornar para a <b>Página Inicial</b>. Suas ações atuais estão a salvo.</span>
+              <button onclick="this.parentElement.style.display='none'" style="background:transparent; border:none; color:white; cursor:pointer; margin-left:12px; opacity:0.8; font-size: 18px;">&times;</button>
+            `;
+            document.body.appendChild(banner);
           }
-          
-          localStorage.setItem(WINDOW_KEY, currentWindow.toString());
-          window.location.href = '/login';
-        }, 5000);
+        }
       }
+
+      initialMountCheck.current = false;
     };
 
-    const initialCheck = setTimeout(checkSystemRoutine, 3000);
-    const interval = setInterval(checkSystemRoutine, 60000);
+    const initialCheck = setTimeout(checkSystemRoutine, 1500); // verifica após o mount
+    const interval = setInterval(checkSystemRoutine, 15000); // check mais frequente (15s) para pegar troca de tela rápida
 
     return () => {
       clearTimeout(initialCheck);
       clearInterval(interval);
     };
-  }, [currentUser, signOut]);
+  }, [currentUser, currentView, signOut]);
 
   const handleLogin = async (u: string, p: string) => {
     const { error } = await signIn(u, p);
