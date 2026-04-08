@@ -611,12 +611,24 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     // --- Toast State ---
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
+    const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
     const showSuccessToast = (msg: string) => {
         setToastMessage(msg);
+        setToastType('success');
         setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
+        setTimeout(() => setShowToast(false), 4000);
     };
+
+    const showErrorToast = (msg: string) => {
+        setToastMessage(msg);
+        setToastType('error');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 5000);
+    };
+
+    // --- Delete Report Modal State ---
+    const [reportToDelete, setReportToDelete] = useState<any | null>(null);
 
     const isAdmin = user?.role === 'admin';
     const userSectorName = sectors.find(s => s.id === user?.sectorId)?.name;
@@ -3037,17 +3049,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                                 Baixar
                                             </a>
                                             <button
-                                                onClick={async () => {
-                                                    if (window.confirm('Tem certeza que deseja excluir este relatório?')) {
-                                                        const { error } = await supabase.storage.from('attachments').remove([`empenho_reports/${file.name}`]);
-                                                        if (error) {
-                                                            alert(`Erro ao excluir arquivo: ${error.message}`);
-                                                        } else {
-                                                            loadSavedEmpenhoReports();
-                                                            showSuccessToast('Arquivo excluído.');
-                                                        }
-                                                    }
-                                                }}
+                                                onClick={() => setReportToDelete(file)}
                                                 className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-400 rounded-lg transition-colors"
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />
@@ -3068,9 +3070,48 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
     return (
         <div className="flex-1 h-full bg-slate-50 p-4 wide:p-6 overflow-auto custom-scrollbar relative">
             {showToast && (
-                <div className="fixed bottom-8 right-8 bg-emerald-600 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-fade-in z-[100]">
-                    <Save className="w-5 h-5" />
+                <div className={`fixed bottom-8 right-8 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-fade-in z-[100] ${toastType === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
+                    {toastType === 'success' ? <Save className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
                     <span className="font-bold">{toastMessage}</span>
+                </div>
+            )}
+            {reportToDelete && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 flex flex-col p-6 animate-slide-up">
+                        <div className="flex items-center gap-4 mb-4 text-red-500">
+                            <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 shrink-0 border border-red-100">
+                                <Trash2 className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-lg font-black text-slate-800 leading-tight">Excluir Relatório?</h3>
+                        </div>
+                        <p className="text-slate-500 text-sm font-medium mb-6">
+                            Tem certeza que deseja excluir o relatório <span className="font-bold text-slate-700">{reportToDelete.name}</span>? Esta ação não pode ser desfeita.
+                        </p>
+                        <div className="flex gap-3 mt-auto">
+                            <button
+                                onClick={() => setReportToDelete(null)}
+                                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 font-bold text-sm uppercase tracking-widest rounded-xl hover:bg-slate-200 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    const fileToDel = reportToDelete;
+                                    setReportToDelete(null);
+                                    const { data, error } = await supabase.storage.from('attachments').remove([`empenho_reports/${fileToDel.name}`]);
+                                    if (error || !data || data.length === 0) {
+                                        showErrorToast(`Falha ou bloqueio do sistema ao excluir. NENHUM arquivo apagado.`);
+                                    } else {
+                                        loadSavedEmpenhoReports();
+                                        showSuccessToast('Arquivo excluído com sucesso.');
+                                    }
+                                }}
+                                className="flex-[2] px-4 py-3 bg-red-600 text-white font-black text-sm uppercase tracking-widest rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30"
+                            >
+                                Excluir
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
             <div className="w-full space-y-8 animate-fade-in">
