@@ -8,13 +8,14 @@ interface Option {
 
 interface ModernSelectProps {
     label?: string;
-    value: string | number;
-    onChange: (value: string) => void;
+    value: string | number | string[];
+    onChange: (value: any) => void;
     options: Option[];
     placeholder?: string;
     icon?: React.ElementType;
     className?: string;
     searchable?: boolean;
+    multiple?: boolean;
 }
 
 export const ModernSelect: React.FC<ModernSelectProps> = ({
@@ -25,13 +26,25 @@ export const ModernSelect: React.FC<ModernSelectProps> = ({
     placeholder = 'Selecione...',
     icon: Icon,
     className = '',
-    searchable = false
+    searchable = false,
+    multiple = false
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const selectedOption = options.find(opt => String(opt.value) === String(value));
+    const selectedOption = !multiple ? options.find(opt => String(opt.value) === String(value)) : undefined;
+    const selectedOptions = multiple ? options.filter(opt => (value as string[]).includes(String(opt.value))) : [];
+
+    const getDisplayText = () => {
+        if (multiple) {
+            if (selectedOptions.length === 0) return placeholder;
+            if (selectedOptions.length === 1) return selectedOptions[0].label;
+            if (selectedOptions.length === options.length) return 'Todos Selecionados';
+            return `${selectedOptions.length} itens selecionados`;
+        }
+        return selectedOption ? selectedOption.label : placeholder;
+    };
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -71,7 +84,7 @@ export const ModernSelect: React.FC<ModernSelectProps> = ({
                     {Icon && (
                         <Icon className={`w-4 h-4 shrink-0 ${isOpen ? 'text-indigo-500' : 'text-slate-400'}`} />
                     )}
-                    {searchable ? (
+                    {searchable && !multiple ? (
                         <input
                             type="text"
                             value={isOpen ? searchTerm : (selectedOption ? selectedOption.label : '')}
@@ -93,8 +106,8 @@ export const ModernSelect: React.FC<ModernSelectProps> = ({
                             className={`w-full bg-transparent text-sm font-bold outline-none truncate placeholder:text-slate-400 placeholder:font-bold ${isOpen || !selectedOption ? 'text-slate-700' : 'text-slate-700'}`}
                         />
                     ) : (
-                        <span className={`text-sm font-bold truncate ${selectedOption ? 'text-slate-700' : 'text-slate-400'}`}>
-                            {selectedOption ? selectedOption.label : placeholder}
+                        <span className={`text-sm font-bold truncate ${(!multiple && selectedOption) || (multiple && selectedOptions.length > 0) ? 'text-slate-700' : 'text-slate-400'}`}>
+                            {getDisplayText()}
                         </span>
                     )}
                 </div>
@@ -120,27 +133,51 @@ export const ModernSelect: React.FC<ModernSelectProps> = ({
 
                 <div className="max-h-[240px] overflow-y-auto custom-scrollbar p-1.5 space-y-0.5">
                     {filteredOptions.length > 0 ? (
-                        filteredOptions.map((option) => (
+                        filteredOptions.map((option) => {
+                            const isSelected = multiple ? (value as string[]).includes(String(option.value)) : String(value) === String(option.value);
+                            
+                            return (
                             <button
                                 key={option.value}
-                                onClick={() => {
-                                    onChange(String(option.value));
-                                    setIsOpen(false);
-                                    setSearchTerm('');
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (multiple) {
+                                        // Specific logic for 'all' vs others
+                                        let nextValue = Array.isArray(value) ? [...value] : [];
+                                        
+                                        if (String(option.value) === 'all') {
+                                            nextValue = ['all'];
+                                        } else {
+                                            // Remove 'all' if present
+                                            nextValue = nextValue.filter(v => v !== 'all');
+                                            
+                                            if (nextValue.includes(String(option.value))) {
+                                                nextValue = nextValue.filter(v => v !== String(option.value));
+                                            } else {
+                                                nextValue.push(String(option.value));
+                                            }
+                                            if (nextValue.length === 0) nextValue.push('all');
+                                        }
+                                        onChange(nextValue);
+                                    } else {
+                                        onChange(String(option.value));
+                                        setIsOpen(false);
+                                        setSearchTerm('');
+                                    }
                                 }}
                                 className={`
                                     w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold transition-colors
-                                    ${String(value) === String(option.value)
+                                    ${isSelected
                                         ? 'bg-indigo-50 text-indigo-600'
                                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}
                                 `}
                             >
                                 <span className="text-left flex-1 truncate pr-2">{option.label}</span>
-                                {String(value) === String(option.value) && (
-                                    <Check className="w-3.5 h-3.5 shrink-0" />
+                                {isSelected && (
+                                    <Check className="w-3.5 h-3.5 shrink-0 transition-transform scale-100" />
                                 )}
                             </button>
-                        ))
+                        )})
                     ) : (
                         <div className="p-4 text-center">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">

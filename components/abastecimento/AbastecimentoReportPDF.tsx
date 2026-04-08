@@ -39,7 +39,7 @@ interface AbastecimentoReportPDFProps {
         station: string;
         sector: string;
         vehicle: string;
-        fuelType: string;
+        fuelType: string | string[];
     };
     state: AppState;
     onClose: () => void;
@@ -95,7 +95,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                     logging: false,
                     scrollY: 0,
                     scrollX: 0
-                });
+                } as any);
 
                 const imgData = canvas.toDataURL('image/jpeg', 0.98);
                 const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -324,7 +324,7 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                         <p className="text-[9pt] font-bold text-slate-700 capitalize">
                             {filters.station === 'all' ? 'Todos os Postos' : filters.station}
                             <span className="mx-1 opacity-30">|</span>
-                            {filters.fuelType === 'all' ? 'Todos' : filters.fuelType}
+                            {Array.isArray(filters.fuelType) ? (filters.fuelType.includes('all') ? 'Todos' : filters.fuelType.join(', ')) : (filters.fuelType === 'all' ? 'Todos' : filters.fuelType)}
                         </p>
                     </div>
                     <div>

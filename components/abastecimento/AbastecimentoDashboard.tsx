@@ -589,7 +589,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
         station: 'all',
         sector: user?.role === 'admin' ? 'all' : (sectors.find(s => s.id === user?.sectorId)?.name || 'all'),
         vehicle: 'all',
-        fuelType: 'all',
+        fuelType: ['all'],
         paymentStatus: 'all'
     });
     const [pendingFilters, setPendingFilters] = useState({ ...appliedFilters });
@@ -714,7 +714,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     station: appliedFilters.station === 'all' ? undefined : appliedFilters.station,
                     sector: appliedFilters.sector === 'all' ? undefined : appliedFilters.sector,
                     vehicle: appliedFilters.vehicle === 'all' ? undefined : appliedFilters.vehicle,
-                    fuel_type: appliedFilters.fuelType === 'all' ? undefined : appliedFilters.fuelType,
+                    fuel_type: appliedFilters.fuelType.includes('all') ? undefined : appliedFilters.fuelType.join(','),
                     payment_status: appliedFilters.paymentStatus || 'all',
                     user_id: user?.id,
                     user_name: user?.name,
@@ -1210,11 +1210,9 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
             if (appliedFilters.station !== 'all' && r.station !== appliedFilters.station) return false;
             if (appliedFilters.sector !== 'all' && !r.derivedSector.toLowerCase().includes(appliedFilters.sector.toLowerCase())) return false;
             if (appliedFilters.vehicle !== 'all' && r.vehicle !== appliedFilters.vehicle) return false;
-            if (appliedFilters.fuelType !== 'all') {
-                if (appliedFilters.fuelType === 'diesel' && !fuel.includes('diesel')) return false;
-                if (appliedFilters.fuelType === 'gasolina' && !fuel.includes('gasolina')) return false;
-                if (appliedFilters.fuelType === 'etanol' && !fuel.includes('etanol')) return false;
-                if (appliedFilters.fuelType === 'arla' && !fuel.includes('arla')) return false;
+            if (!appliedFilters.fuelType.includes('all')) {
+                const hasMatch = appliedFilters.fuelType.some((f: string) => fuel.includes(f));
+                if (!hasMatch) return false;
             }
             if (appliedFilters.paymentStatus && appliedFilters.paymentStatus !== 'all') {
                 const pStatus = r.payment_status || 'Em Aberto';
@@ -2278,10 +2276,11 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 { value: 'diesel', label: 'Diesel' },
                                 { value: 'gasolina', label: 'Gasolina' },
                                 { value: 'etanol', label: 'Etanol' },
-                                { value: 'arla', label: 'ARLA' }
+                                { value: 'arla', label: 'Arla' }
                             ]}
                             icon={Fuel}
                             placeholder="Todos"
+                            multiple={true}
                         />
                     </div>
                     <div>
@@ -2954,10 +2953,11 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 { value: 'diesel', label: 'Diesel' },
                                 { value: 'gasolina', label: 'Gasolina' },
                                 { value: 'etanol', label: 'Etanol' },
-                                { value: 'arla', label: 'ARLA' }
+                                { value: 'arla', label: 'Arla' }
                             ]}
                             icon={Fuel}
                             placeholder="Todos"
+                            multiple={true}
                         />
                     </div>
 
@@ -2968,7 +2968,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 setAppliedFilters({ 
                                     ...pendingFilters,
                                     vehicle: 'all',
-                                    fuelType: 'all',
+                                    fuelType: ['all'],
                                     paymentStatus: 'all'
                                 });
                             }}
