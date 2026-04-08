@@ -1214,6 +1214,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 if (appliedFilters.fuelType === 'diesel' && !fuel.includes('diesel')) return false;
                 if (appliedFilters.fuelType === 'gasolina' && !fuel.includes('gasolina')) return false;
                 if (appliedFilters.fuelType === 'etanol' && !fuel.includes('etanol')) return false;
+                if (appliedFilters.fuelType === 'arla' && !fuel.includes('arla')) return false;
             }
             if (appliedFilters.paymentStatus && appliedFilters.paymentStatus !== 'all') {
                 const pStatus = r.payment_status || 'Em Aberto';
@@ -2276,7 +2277,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                                 { value: 'all', label: 'Todos' },
                                 { value: 'diesel', label: 'Diesel' },
                                 { value: 'gasolina', label: 'Gasolina' },
-                                { value: 'etanol', label: 'Etanol' }
+                                { value: 'etanol', label: 'Etanol' },
+                                { value: 'arla', label: 'ARLA' }
                             ]}
                             icon={Fuel}
                             placeholder="Todos"
@@ -2914,7 +2916,7 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
                     <div>
                         <ModernDateInput
                             label="Período Inicial"
@@ -2942,7 +2944,22 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                             placeholder="Todos os Postos"
                         />
                     </div>
-
+                    <div>
+                        <ModernSelect
+                            label="Combustível"
+                            value={pendingFilters.fuelType}
+                            onChange={(val) => setPendingFilters({ ...pendingFilters, fuelType: val })}
+                            options={[
+                                { value: 'all', label: 'Todos os Combustíveis' },
+                                { value: 'diesel', label: 'Diesel' },
+                                { value: 'gasolina', label: 'Gasolina' },
+                                { value: 'etanol', label: 'Etanol' },
+                                { value: 'arla', label: 'ARLA' }
+                            ]}
+                            icon={Fuel}
+                            placeholder="Todos"
+                        />
+                    </div>
 
                     <div className="sm:col-span-2 lg:col-span-1 flex items-end">
                         <button
