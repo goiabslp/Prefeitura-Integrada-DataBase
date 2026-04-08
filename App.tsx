@@ -905,10 +905,18 @@ const App: React.FC = () => {
           document.body.appendChild(warningDiv);
 
           setTimeout(async () => {
-            try {
-              await signOut();
-            } catch(e) {}
+            // Coleta dados essenciais para preservar (Auth do Supabase, flags de sistema e "lembrar de mim")
+            const preservedKeys = [WINDOW_KEY, 'has_seen_update_info_v1', 'remember_user', 'remember_pass'];
+            const preservedData: Record<string, string | null> = {};
             
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && (key.startsWith('sb-') || preservedKeys.includes(key))) {
+                preservedData[key] = localStorage.getItem(key);
+              }
+            }
+
+            // Limpa dados temporários e cache
             localStorage.clear();
             sessionStorage.clear();
             
@@ -919,8 +927,15 @@ const App: React.FC = () => {
               } catch(e) {}
             }
             
+            // Restaura dados preservados (mantém usuário logado)
+            Object.entries(preservedData).forEach(([key, val]) => {
+              if (val !== null) localStorage.setItem(key, val);
+            });
+            
             localStorage.setItem(WINDOW_KEY, currentWindow.toString());
-            window.location.href = '/login';
+            
+            // Recarrega a página mantendo a rota atual (em vez de ir para /login)
+            window.location.reload();
           }, 3000); // 3 segundos para uma transição aceitável
         } else {
           // O usuário está em outra tela. Fica pendente.
