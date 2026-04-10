@@ -90,6 +90,7 @@ import { Calendario } from './components/calendario/Calendario';
 import { RHModule } from './components/rh/RHModule';
 import { ProjetosModule } from './components/projetos/ProjetosModule';
 import { MarketingModule } from './components/marketing/MarketingModule';
+import { SystemUpdateScreen } from './components/SystemUpdateScreen';
 
 const VIEW_TO_PATH: Record<string, string> = {
   'login': '/Login',
@@ -268,6 +269,8 @@ const App: React.FC = () => {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false); // New state for lazy loading
   const [successOverlay, setSuccessOverlay] = useState<{ show: boolean, protocol: string } | null>(null);
   const [lastRefresh, setLastRefresh] = useState(0);
+  const [systemUpdateTarget, setSystemUpdateTarget] = useState<number | null>(null);
+  const [systemUpdateCountdown, setSystemUpdateCountdown] = useState<number | null>(null);
   const [actionProcessing, setActionProcessing] = useState<{
     isOpen: boolean;
     stage: ProcessingStage;
@@ -317,6 +320,12 @@ const App: React.FC = () => {
           });
           return newState;
         });
+
+        // Also check if there's a forced update target active on load
+        const { data } = await supabase.from('organization_settings').select('system_update_target').eq('id', 'global_config').single();
+        if (data?.system_update_target) {
+            setSystemUpdateTarget(data.system_update_target);
+        }
       }
     };
     loadSettings();
@@ -673,6 +682,19 @@ const App: React.FC = () => {
       )
       .subscribe();
 
+    // System Update Channel (NEW)
+    const settingsChannel = supabase.channel('public:organization_settings')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'organization_settings', filter: 'id=eq.global_config' },
+        async (payload) => {
+          if (payload.new && 'system_update_target' in payload.new) {
+            setSystemUpdateTarget(payload.new.system_update_target);
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(vehicleChannel);
       supabase.removeChannel(profileChannel);
@@ -681,6 +703,7 @@ const App: React.FC = () => {
       supabase.removeChannel(purchaseChannel);
       supabase.removeChannel(tasksChannel);
       supabase.removeChannel(schedulesChannel);
+      supabase.removeChannel(settingsChannel);
     };
   }, []);
 
@@ -809,6 +832,28 @@ const App: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [currentView, activeBlock, adminTab, editingOrder]);
 
+  // System Update Countdown Logic
+  useEffect(() => {
+    if (!systemUpdateTarget) {
+      setSystemUpdateCountdown(null);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const diff = Math.floor((systemUpdateTarget - now) / 1000);
+      
+      if (diff > 0) {
+        setSystemUpdateCountdown(diff);
+      } else {
+        setSystemUpdateCountdown(0);
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [systemUpdateTarget]);
+
   // Fetch Licitacao Global Protocol Counter
   useEffect(() => {
     const fetchLicitacaoCount = async () => {
@@ -847,20 +892,36 @@ const App: React.FC = () => {
     const DEPLOY_EPOCH = new Date('2026-04-07T09:20:00-03:00').getTime();
     const REFRESH_INTERVAL_MS = 120 * 60 * 1000; // 120 minutes
     const WINDOW_KEY = 'sys_refresh_window_v1';
+    const FORCED_WINDOW_KEY = 'sys_forced_refresh_target_v1';
 
     const checkSystemRoutine = async () => {
-      const currentWindow = Math.floor((Date.now() - DEPLOY_EPOCH) / REFRESH_INTERVAL_MS);
+      const now = Date.now();
+      
+      // 1. Regular Routine
+      const currentWindow = Math.floor((now - DEPLOY_EPOCH) / REFRESH_INTERVAL_MS);
       const storedWindow = localStorage.getItem(WINDOW_KEY);
+      
+      // 2. Forced Update Target
+      let needsForcedUpdate = false;
+      if (systemUpdateTarget && now >= systemUpdateTarget) {
+        const storedForcedTarget = localStorage.getItem(FORCED_WINDOW_KEY);
+        if (!storedForcedTarget || parseInt(storedForcedTarget) < systemUpdateTarget) {
+          needsForcedUpdate = true;
+        }
+      }
+
+      const needsUpdate = (!storedWindow || parseInt(storedWindow) < currentWindow) || needsForcedUpdate;
 
       if (!currentUser) {
-        if (!storedWindow || parseInt(storedWindow) < currentWindow) {
-           localStorage.setItem(WINDOW_KEY, currentWindow.toString());
+        if (needsUpdate) {
+           if (needsForcedUpdate) localStorage.setItem(FORCED_WINDOW_KEY, systemUpdateTarget!.toString());
+           else localStorage.setItem(WINDOW_KEY, currentWindow.toString());
         }
         initialMountCheck.current = false;
         return;
       }
 
-      if (!storedWindow || parseInt(storedWindow) < currentWindow) {
+      if (needsUpdate) {
         // Regras: executa na tela Inicial (home) OU em um F5/Refresh (initialMountCheck)
         if (initialMountCheck.current || currentView === 'home') {
           if (document.getElementById('sys-refresh-warning')) return;
@@ -906,7 +967,7 @@ const App: React.FC = () => {
 
           setTimeout(async () => {
             // Coleta dados essenciais para preservar (Auth do Supabase, flags de sistema e "lembrar de mim")
-            const preservedKeys = [WINDOW_KEY, 'has_seen_update_info_v1', 'remember_user', 'remember_pass'];
+            const preservedKeys = [WINDOW_KEY, FORCED_WINDOW_KEY, 'has_seen_update_info_v1', 'remember_user', 'remember_pass'];
             const preservedData: Record<string, string | null> = {};
             
             for (let i = 0; i < localStorage.length; i++) {
@@ -932,7 +993,11 @@ const App: React.FC = () => {
               if (val !== null) localStorage.setItem(key, val);
             });
             
-            localStorage.setItem(WINDOW_KEY, currentWindow.toString());
+            if (needsForcedUpdate) {
+                localStorage.setItem(FORCED_WINDOW_KEY, systemUpdateTarget!.toString());
+            } else {
+                localStorage.setItem(WINDOW_KEY, currentWindow.toString());
+            }
             
             // Recarrega a página mantendo a rota atual (em vez de ir para /login)
             window.location.reload();
@@ -2964,9 +3029,20 @@ const App: React.FC = () => {
           )}
 
           <div className="hidden md:block">
-            {currentUser && <AppHeader currentUser={currentUser} uiConfig={appState.ui} activeBlock={activeBlock} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} onGoHome={handleGoHome} currentView={currentView} isRefreshing={isRefreshing} onRefresh={refreshData} currentSubView={appState.view} />}
+            {currentUser && <AppHeader 
+              currentUser={currentUser} 
+              uiConfig={appState.ui} 
+              activeBlock={activeBlock} 
+              onLogout={handleLogout} 
+              onOpenAdmin={handleOpenAdmin} 
+              onGoHome={handleGoHome} 
+              currentView={currentView} 
+              isRefreshing={isRefreshing} 
+              onRefresh={refreshData} 
+              currentSubView={appState.view} 
+              systemUpdateCountdown={systemUpdateCountdown}
+            />}
           </div>
-          {/* ... rest of the app structure ... */}
           <div className="flex-1 flex relative overflow-hidden">
 
             {(currentView === 'editor' || currentView === 'admin') && currentUser && (
@@ -3450,7 +3526,7 @@ const App: React.FC = () => {
 
                     if ((isLicitacaoCompleted && !isReopeningStage) || isStage0Sent) return null;
 
-                    return !isFinalizedView && adminTab !== 'fleet' && adminTab !== '2fa' && adminTab !== 'users' && adminTab !== 'entities' && adminTab !== 'access_control' && (currentView !== 'admin' || adminTab !== null) && (
+                    return !isFinalizedView && adminTab !== 'system_update' && adminTab !== 'fleet' && adminTab !== '2fa' && adminTab !== 'users' && adminTab !== 'entities' && adminTab !== 'access_control' && (currentView !== 'admin' || adminTab !== null) && (
                       <AdminSidebar
                         state={appState}
                         onUpdate={setAppState}
@@ -3477,6 +3553,8 @@ const App: React.FC = () => {
                           onBack={handleGoHome}
                         />
                       </div>
+                    ) : currentView === 'admin' && adminTab === 'system_update' ? (
+                      <SystemUpdateScreen onBack={() => setAdminTab(null)} />
                     ) : currentView === 'admin' && adminTab === 'users' ? (
                       <UserManagementScreen
                         users={users}
@@ -4373,6 +4451,51 @@ const App: React.FC = () => {
         stage={actionProcessing.stage}
         customLabels={actionProcessing.customLabels}
       />
+
+      {/* GLOBAL SYSTEM UPDATE MODAL (TRIGGERED BY ADMIN) */}
+      {systemUpdateCountdown !== null && systemUpdateCountdown > 0 && createPortal(
+        <div className="fixed inset-0 z-[1000] bg-slate-900/40 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 p-8 text-center transform scale-in-center overflow-hidden relative">
+            {/* Background Accent */}
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-600"></div>
+            
+            <div className="w-20 h-20 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-amber-500 ring-4 ring-amber-500/5">
+                <Settings className="w-10 h-10 animate-spin-slow" />
+            </div>
+
+            <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">
+                ⚠️ Atualização em andamento
+            </h2>
+            
+            <p className="text-slate-500 font-medium leading-relaxed mb-8">
+                Um administrador iniciou uma atualização. Ela será aplicada automaticamente ao retornar para a <b>Página Inicial</b> ou ao atualizar a página.
+            </p>
+
+            <div className="flex flex-col items-center gap-2">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tempo Restante</div>
+                <div className="text-5xl font-black text-slate-900 tabular-nums tracking-tighter">
+                    {systemUpdateCountdown}
+                    <span className="text-2xl ml-1 text-slate-400">s</span>
+                </div>
+            </div>
+
+            <div className="mt-8 pt-8 border-t border-slate-50">
+               <div className="flex items-center justify-center gap-2 text-xs font-bold text-amber-600 bg-amber-50 py-3 rounded-xl px-4">
+                  <span className="w-2 h-2 bg-amber-500 rounded-full animate-ping"></span>
+                  Sessão será recarregada em breve
+               </div>
+            </div>
+          </div>
+
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes scale-in-center { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+            .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+            .scale-in-center { animation: scale-in-center 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+          `}} />
+        </div>,
+        document.body
+      )}
     </NotificationProvider >
   );
 };

@@ -98,3 +98,18 @@ export const uploadAsset = async (file: File, folder: 'logos' | 'watermarks' = '
         return null;
     }
 };
+
+export const updateSystemUpdateTarget = async (timestamp: number | null): Promise<boolean> => {
+    try {
+        const { error } = await supabase
+            .from('organization_settings')
+            .update({ system_update_target: timestamp })
+            .eq('id', 'global_config');
+
+        if (error) throw error;
+        return true;
+    } catch (error) {
+        console.error('Error updating system update target:', error);
+        return false;
+    }
+};

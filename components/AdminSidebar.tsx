@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  X, ArrowLeft, Loader2, Check, Save
+  X, ArrowLeft, Loader2, Check, Save, RefreshCw, AlertTriangle, Play
 } from 'lucide-react';
 import { AppState, User, Signature, BlockType, Person, Sector, Job } from '../types';
 
@@ -12,6 +12,7 @@ import { ComprasForm } from './forms/ComprasForm';
 import { LicitacaoForm } from './forms/LicitacaoForm';
 import { ComprasStepWizard } from './compras/ComprasStepWizard';
 import { AccountManagementTab } from './compras/AccountManagementTab';
+import { updateSystemUpdateTarget } from '../services/settingsService';
 
 interface AdminSidebarProps {
   state: AppState;
@@ -299,6 +300,15 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             </div>
           )}
 
+          {activeTab === 'signatures' && (
+            <div className="animate-fade-in">
+              {renderSectionHeader('Assinaturas', 'Gerencie quem assina os documentos gerados')}
+              <p className="text-sm text-slate-500 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm font-medium">
+                A lista detalhada de assinaturas está disponível na tela principal ao lado.
+              </p>
+            </div>
+          )}
+
           {mode !== 'admin' && activeTab === 'content' && (
             <>
               {renderContentForm()}
@@ -306,7 +316,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           )}
         </div>
 
-        {mode === 'admin' && activeTab && onSaveDefault && currentUser.role === 'admin' && !isReadOnly && (
+        {mode === 'admin' && activeTab && activeTab !== 'system_update' && onSaveDefault && currentUser.role === 'admin' && !isReadOnly && (
           <div className="p-6 border-t border-gray-200 bg-white z-20">
             <button onClick={handleSaveDefaultWithAnimation} disabled={globalSaveStatus === 'loading' || globalSaveStatus === 'success'} className={`w-full font-black py-4 px-6 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs ${globalSaveStatus === 'success' ? 'bg-emerald-500 text-white shadow-emerald-500/30' : 'bg-slate-900 text-white hover:bg-indigo-600 active:scale-95'}`}>
               {globalSaveStatus === 'loading' ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Salvando...</span></> : globalSaveStatus === 'success' ? <><Check className="w-4 h-4 animate-bounce" /><span>Configurações Salvas!</span></> : <><Save className="w-4 h-4" /><span>Salvar Padrão Global</span></>}

@@ -32,6 +32,7 @@ interface AppHeaderProps {
   onRefresh: (silent?: boolean, scope?: string) => void;
   isRefreshing: boolean;
   currentSubView?: string;
+  systemUpdateCountdown: number | null;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -44,7 +45,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   currentView,
   onRefresh,
   isRefreshing,
-  currentSubView
+  currentSubView,
+  systemUpdateCountdown
 }) => {
   const isAdmin = currentUser.role === 'admin';
   const isNotHome = currentView !== 'home';
@@ -253,6 +255,18 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1">Tela Atual</span>
             <span className="text-sm font-bold text-slate-900 tracking-tight">{getModuleTitle()}</span>
           </div>
+
+          {systemUpdateCountdown !== null && systemUpdateCountdown > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl animate-pulse ring-4 ring-amber-500/10">
+              <div className="flex items-center justify-center w-8 h-8 bg-amber-500 rounded-lg shadow-sm">
+                <Settings className="w-4 h-4 text-white animate-spin-slow" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest leading-none mb-0.5">Atualização em</span>
+                <span className="text-sm font-black text-amber-900 tabular-nums leading-none">{systemUpdateCountdown}s</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Internal Style for refined active state */}
@@ -272,6 +286,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         }
         .animate-pulse-glow {
           animation: pulse-glow 3s infinite ease-in-out;
+        }
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 8s linear infinite;
         }
       `}} />
 

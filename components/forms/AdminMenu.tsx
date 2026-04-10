@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Users, User as UserIcon, PenTool, Home, Palette, Briefcase, Network, Truck, ShieldCheck, Shield } from 'lucide-react';
+import { Users, User as UserIcon, PenTool, Home, Palette, Briefcase, Network, Truck, ShieldCheck, Shield, RefreshCw } from 'lucide-react';
 import { User } from '../../types';
 
 interface AdminMenuProps {
@@ -49,6 +49,14 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({ currentUser, onTabChange }
       description: 'Ativar/Desativar módulos globalmente',
       icon: <Shield className="w-6 h-6 text-red-600" />,
       colorClass: 'bg-red-50 border-red-100 hover:border-red-300 shadow-sm',
+      adminOnly: true
+    },
+    {
+      id: 'system_update',
+      title: 'Atualização',
+      description: 'Forçar atualização de ambiente',
+      icon: <RefreshCw className="w-6 h-6 text-amber-600" />,
+      colorClass: 'bg-amber-50 border-amber-100 hover:border-amber-300 shadow-sm',
       adminOnly: true
     },
 
