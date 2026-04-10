@@ -52,6 +52,7 @@ export interface GasStation {
     name: string;
     cnpj: string;
     city: string;
+    supplier_code?: number;
     fuel_prices?: FuelConfig;
 }
 
@@ -457,7 +458,14 @@ export const AbastecimentoService = {
                 .order('name', { ascending: true });
 
             if (error) throw error;
-            return data || [];
+            return data?.map(s => ({
+                id: s.id,
+                name: s.name,
+                cnpj: s.cnpj,
+                city: s.city,
+                supplier_code: s.supplier_code,
+                fuel_prices: s.fuel_prices
+            })) || [];
         } catch (error) {
             console.error('Error loading gas stations:', error);
             return [];
@@ -468,7 +476,14 @@ export const AbastecimentoService = {
         try {
             const { error } = await supabase
                 .from('abastecimento_gas_stations')
-                .upsert(station);
+                .upsert({
+                    id: station.id,
+                    name: station.name,
+                    cnpj: station.cnpj,
+                    city: station.city,
+                    supplier_code: station.supplier_code,
+                    fuel_prices: station.fuel_prices
+                });
 
             if (error) throw error;
         } catch (error) {

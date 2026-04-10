@@ -254,6 +254,7 @@ export interface Person {
   sectorId?: string;
   role?: string;
   birth_date?: string;
+  driver_code?: number;
 }
 
 export interface Sector {

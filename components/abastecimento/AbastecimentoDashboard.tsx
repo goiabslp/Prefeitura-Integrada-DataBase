@@ -21,7 +21,7 @@ interface AbastecimentoDashboardProps {
     onAbastecimento: (view: 'new' | 'management') => void;
     vehicles: Vehicle[];
     persons: any[];
-    gasStations: { id: string, name: string, city: string, fuel_prices?: any }[];
+    gasStations: { id: string, name: string, city: string, supplier_code?: number, fuel_prices?: any }[];
     fuelTypes: { key: string; label: string; price: number }[];
     sectors: Sector[];
     refreshTrigger?: number;
@@ -48,7 +48,9 @@ interface ConfigPanelProps {
 const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initialGasStations }) => {
     const [fuelConfig, setFuelConfig] = useState({ diesel: 0, gasolina: 0, etanol: 0, arla: 0 });
     const [gasStations, setGasStations] = useState(initialGasStations);
-    const [newStation, setNewStation] = useState({ name: '', cnpj: '', city: '' });
+    const [newStation, setNewStation] = useState({ name: '', cnpj: '', city: '', supplierCode: '' });
+    const [editingStation, setEditingStation] = useState<GasStation | null>(null);
+    const [showEditModal, setShowEditModal] = useState(false);
     const [selectedStationId, setSelectedStationId] = useState<string>('');
     const [scheduledUpdates, setScheduledUpdates] = useState<ScheduledPriceUpdate[]>([]);
     const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -85,17 +87,36 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
     const handleAddStation = async () => {
         if (!newStation.name) return;
 
-        const station = {
+        const station: GasStation = {
             id: crypto.randomUUID(),
-            ...newStation,
+            name: newStation.name,
+            cnpj: newStation.cnpj,
+            city: newStation.city,
+            supplier_code: newStation.supplierCode ? parseInt(newStation.supplierCode) : undefined,
             fuel_prices: { diesel: 0, gasolina: 0, etanol: 0, arla: 0 }
         };
 
         await AbastecimentoService.saveGasStation(station);
         const updatedStations = await AbastecimentoService.getGasStations();
         setGasStations(updatedStations);
-        setNewStation({ name: '', cnpj: '', city: '' });
+        setNewStation({ name: '', cnpj: '', city: '', supplierCode: '' });
         showSuccessToast('Posto adicionado com sucesso!');
+    };
+
+    const handleUpdateStation = async () => {
+        if (!editingStation) return;
+
+        try {
+            await AbastecimentoService.saveGasStation(editingStation);
+            const updatedStations = await AbastecimentoService.getGasStations();
+            setGasStations(updatedStations);
+            setShowEditModal(false);
+            setEditingStation(null);
+            showSuccessToast('Cadastro do posto atualizado!');
+        } catch (error) {
+            console.error(error);
+            showSuccessToast('Erro ao atualizar posto.');
+        }
     };
 
     const handleDeleteStation = async (id: string) => {
@@ -250,6 +271,19 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
                             <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                         </div>
                     </div>
+                    <div>
+                        <label className={labelClass}>Código do Fornecedor</label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                className={inputClass}
+                                placeholder="Ex: 550..."
+                                value={newStation.supplierCode}
+                                onChange={e => setNewStation({ ...newStation, supplierCode: e.target.value })}
+                            />
+                            <Factory className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        </div>
+                    </div>
                     <div className="wide:col-span-3 flex justify-end">
                         <button
                             onClick={handleAddStation}
@@ -276,13 +310,25 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
                                                 {station.city && <p className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {station.city}</p>}
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={() => handleDeleteStation(station.id)}
-                                            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                                            title="Remover posto"
-                                        >
-                                            <Settings className="w-4 h-4 rotate-45" />
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    setEditingStation({ ...station });
+                                                    setShowEditModal(true);
+                                                }}
+                                                className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                title="Editar cadastro"
+                                            >
+                                                <FileText className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteStation(station.id)}
+                                                className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                title="Remover posto"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -553,6 +599,110 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ fuelTypes, gasStations: initi
                                         </button>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Station Modal */}
+            {showEditModal && editingStation && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-all">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="bg-blue-600 px-6 py-6 text-white relative">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                                    <Building2 className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black leading-none">Editar Cadastro</h2>
+                                    <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mt-2">{editingStation.name}</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => {
+                                    setShowEditModal(false);
+                                    setEditingStation(null);
+                                }} 
+                                className="absolute right-6 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center transition-all group"
+                            >
+                                <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                            </button>
+                        </div>
+
+                        <div className="p-8 space-y-6">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className={labelClass}>Nome do Posto</label>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            className={inputClass}
+                                            value={editingStation.name}
+                                            onChange={e => setEditingStation({ ...editingStation, name: e.target.value })}
+                                        />
+                                        <Building2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className={labelClass}>CNPJ</label>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            className={inputClass}
+                                            value={editingStation.cnpj}
+                                            onChange={e => setEditingStation({ ...editingStation, cnpj: e.target.value })}
+                                        />
+                                        <CreditCard className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelClass}>Cidade</label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                className={inputClass}
+                                                value={editingStation.city}
+                                                onChange={e => setEditingStation({ ...editingStation, city: e.target.value })}
+                                            />
+                                            <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Cód. Fornecedor</label>
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                className={inputClass}
+                                                value={editingStation.supplier_code || ''}
+                                                onChange={e => setEditingStation({ ...editingStation, supplier_code: parseInt(e.target.value) || undefined })}
+                                            />
+                                            <Factory className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        setShowEditModal(false);
+                                        setEditingStation(null);
+                                    }}
+                                    className="flex-1 px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleUpdateStation}
+                                    className="flex-[2] px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl shadow-xl shadow-blue-600/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    <Save className="w-5 h-5" />
+                                    Salvar Alterações
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -2640,11 +2790,18 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                 await AbastecimentoService.updateAbastecimentoEmpenho(batchData.records, batchData.projeto, empenho);
             }
 
-            const periodoStr = `${appliedFilters.startDate ? new Date(appliedFilters.startDate).toLocaleDateString('pt-BR') : 'Início'} a ${appliedFilters.endDate ? new Date(appliedFilters.endDate).toLocaleDateString('pt-BR') : 'Fim'}`;
+            const formatDateSafe = (dateStr: string) => {
+                if (!dateStr) return '';
+                const parts = dateStr.split('-');
+                if (parts.length !== 3) return dateStr;
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            };
+
+            const periodoStr = `${appliedFilters.startDate ? formatDateSafe(appliedFilters.startDate) : 'Início'} a ${appliedFilters.endDate ? formatDateSafe(appliedFilters.endDate) : 'Fim'}`;
             const postoStr = appliedFilters.station && appliedFilters.station !== 'all' ? appliedFilters.station : 'Todos os Postos';
             
             // Generate Unified PDF grouped by Numero Empenho
-            const pdfBlob = generateEmpenhoReportPDF(sessionEmpenhados as any, periodoStr, postoStr);
+            const pdfBlob = generateEmpenhoReportPDF(sessionEmpenhados as any, periodoStr, postoStr, persons, gasStations);
             
             const pdfName = `Empenho_${Date.now()}.pdf`;
             const fileObj = new File([pdfBlob], pdfName, { type: 'application/pdf' });
@@ -3249,6 +3406,8 @@ export const AbastecimentoDashboard: React.FC<AbastecimentoDashboardProps> = ({ 
                     filters={appliedFilters}
                     state={state}
                     mode={reportMode}
+                    persons={persons}
+                    gasStations={gasStations}
                     onClose={() => setShowPrintPreview(false)}
                 />
             )}

@@ -44,7 +44,8 @@ export const EntityManagementScreen: React.FC<EntityManagementScreenProps> = ({
     name: '',
     jobId: '',
     sectorId: '',
-    birthDate: ''
+    birthDate: '',
+    driverCode: ''
   });
 
   const handleOpenModal = (item?: any) => {
@@ -54,11 +55,12 @@ export const EntityManagementScreen: React.FC<EntityManagementScreenProps> = ({
         name: item.name,
         jobId: item.jobId || '',
         sectorId: item.sectorId || '',
-        birthDate: item.birth_date || ''
+        birthDate: item.birth_date || '',
+        driverCode: item.driver_code?.toString() || ''
       });
     } else {
       setEditingItem(null);
-      setFormData({ name: '', jobId: '', sectorId: '', birthDate: '' });
+      setFormData({ name: '', jobId: '', sectorId: '', birthDate: '', driverCode: '' });
     }
     setIsModalOpen(true);
   };
@@ -78,7 +80,8 @@ export const EntityManagementScreen: React.FC<EntityManagementScreenProps> = ({
         ...commonData,
         jobId: formData.jobId,
         sectorId: formData.sectorId,
-        birth_date: formData.birthDate || undefined
+        birth_date: formData.birthDate || undefined,
+        driver_code: formData.driverCode ? parseInt(formData.driverCode) : undefined
       };
       editingItem ? onUpdatePerson(person) : onAddPerson(person);
     } else if (activeTab === 'sectors') {
@@ -281,6 +284,16 @@ export const EntityManagementScreen: React.FC<EntityManagementScreenProps> = ({
                         value={formData.birthDate}
                         onChange={e => setFormData({ ...formData, birthDate: e.target.value })}
                         className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Código do Motorista</label>
+                      <input
+                        type="number"
+                        value={formData.driverCode}
+                        onChange={e => setFormData({ ...formData, driverCode: e.target.value })}
+                        className={inputClass}
+                        placeholder="Ex: 1234..."
                       />
                     </div>
                   </div>

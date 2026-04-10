@@ -110,7 +110,8 @@ export const getPersons = async (): Promise<Person[]> => {
         name: p.name,
         sectorId: p.sector_id,
         jobId: p.job_id,
-        birth_date: p.birth_date
+        birth_date: p.birth_date,
+        driver_code: p.driver_code
     })) || [];
 };
 
@@ -121,7 +122,8 @@ export const createPerson = async (person: Person): Promise<Person | null> => {
             name: person.name,
             sector_id: person.sectorId,
             job_id: person.jobId,
-            birth_date: person.birth_date
+            birth_date: person.birth_date,
+            driver_code: person.driver_code
         }])
         .select()
         .single();
@@ -136,7 +138,8 @@ export const createPerson = async (person: Person): Promise<Person | null> => {
         name: data.name,
         sectorId: data.sector_id,
         jobId: data.job_id,
-        birth_date: data.birth_date
+        birth_date: data.birth_date,
+        driver_code: data.driver_code
     };
 
     // 🔹 Sync with Calendar
@@ -152,7 +155,8 @@ export const updatePerson = async (person: Person): Promise<Person | null> => {
             name: person.name,
             sector_id: person.sectorId,
             job_id: person.jobId,
-            birth_date: person.birth_date
+            birth_date: person.birth_date,
+            driver_code: person.driver_code
         })
         .eq('id', person.id)
         .select()
@@ -168,7 +172,8 @@ export const updatePerson = async (person: Person): Promise<Person | null> => {
         name: data.name,
         sectorId: data.sector_id,
         jobId: data.job_id,
-        birth_date: data.birth_date
+        birth_date: data.birth_date,
+        driver_code: data.driver_code
     };
 
     // 🔹 Sync with Calendar

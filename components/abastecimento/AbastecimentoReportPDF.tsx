@@ -44,6 +44,8 @@ interface AbastecimentoReportPDFProps {
     state: AppState;
     onClose: () => void;
     mode: 'simplified' | 'complete' | 'listagem' | 'empenhado';
+    persons?: any[];
+    gasStations?: any[];
 }
 
 export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
@@ -51,7 +53,9 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
     filters,
     state,
     onClose,
-    mode
+    mode,
+    persons = [],
+    gasStations = []
 }) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [progress, setProgress] = useState<{ current: number, total: number } | null>(null);
@@ -322,7 +326,14 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
                     <div>
                         <p className="text-[7pt] font-black text-slate-400 uppercase">Posto / Combustível</p>
                         <p className="text-[9pt] font-bold text-slate-700 capitalize">
-                            {filters.station === 'all' ? 'Todos os Postos' : filters.station}
+                            {(() => {
+                                if (filters.station === 'all') return 'Todos os Postos';
+                                const station = gasStations.find(s => s.name.trim().toLowerCase() === filters.station.trim().toLowerCase());
+                                if (station && station.supplier_code) {
+                                    return `${station.supplier_code} - ${filters.station}`;
+                                }
+                                return filters.station;
+                            })()}
                             <span className="mx-1 opacity-30">|</span>
                             {Array.isArray(filters.fuelType) ? (filters.fuelType.includes('all') ? 'Todos' : filters.fuelType.join(', ')) : (filters.fuelType === 'all' ? 'Todos' : filters.fuelType)}
                         </p>
@@ -649,8 +660,16 @@ export const AbastecimentoReportPDF: React.FC<AbastecimentoReportPDFProps> = ({
 
                                     const formatDriver = (name: string) => {
                                         if (!name) return '-';
-                                        const parts = name.trim().split(' ');
-                                        return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0];
+                                        
+                                        // Find driver code if persons list is available
+                                        const driverPerson = persons.find(p => p.name.trim().toLowerCase() === name.trim().toLowerCase());
+                                        
+                                        if (driverPerson && driverPerson.driver_code) {
+                                            return `${driverPerson.driver_code} - ${name}`;
+                                        }
+                                        
+                                        // Default code '34' if no code found
+                                        return `34 - ${name}`;
                                     };
 
                                     return (

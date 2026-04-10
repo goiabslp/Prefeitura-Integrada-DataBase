@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AbastecimentoRecord } from '../services/abastecimentoService';
+import { Person } from '../types';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -10,10 +11,29 @@ const formatNumber = (value: number) => {
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const formatDateSafe = (dateSource: string | Date | null | undefined): string => {
+    if (!dateSource) return '-';
+    let d: Date;
+    if (dateSource instanceof Date) {
+        d = dateSource;
+    } else {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateSource)) {
+            const [year, month, day] = dateSource.split('-').map(Number);
+            d = new Date(year, month - 1, day);
+        } else {
+            d = new Date(dateSource);
+        }
+    }
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('pt-BR');
+};
+
 export const generateEmpenhoReportPDF = (
     records: (AbastecimentoRecord & { derivedSector: string; derivedPlate: string })[],
     periodoStr: string,
-    postoStr: string
+    postoStr: string,
+    persons: Person[] = [],
+    gasStations: any[] = []
 ): Blob => {
     const doc = new jsPDF('landscape', 'pt', 'a4');
 
@@ -22,10 +42,19 @@ export const generateEmpenhoReportPDF = (
     doc.setFont('helvetica', 'bold');
     doc.text('Relatório Consolidado de Lançamentos Empenhados', 40, 40);
 
+    const formatStation = (name: string) => {
+        if (!name || name === 'Todos os Postos') return name;
+        const station = gasStations.find(s => s.name.trim().toLowerCase() === name.trim().toLowerCase());
+        if (station && station.supplier_code) {
+            return `${station.supplier_code} - ${name}`;
+        }
+        return name;
+    };
+
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(`Período: ${periodoStr}`, 40, 60);
-    doc.text(`Posto: ${postoStr}`, 40, 75);
+    doc.text(`Posto: ${formatStation(postoStr)}`, 40, 75);
 
     // Grouping by Empenho
     const groupedByEmpenho: Record<string, typeof records> = {};
@@ -42,21 +71,30 @@ export const generateEmpenhoReportPDF = (
         autoTable(doc, {
             startY,
             head: [[
-                { content: `${empenhoStr}`, colSpan: 8, styles: { fillColor: [40, 40, 60], textColor: 255, fontStyle: 'bold' } }
+                { content: `${empenhoStr}`, colSpan: 9, styles: { fillColor: [40, 40, 60], textColor: 255, fontStyle: 'bold' } }
             ], [
-                'Setor', 'Placa', 'Motorista', 'Odômetro', 'Nota Fiscal', 'Litros', 'Vl. Unit.', 'Posto'
+                'Data', 'Setor', 'Placa', 'Motorista', 'Odômetro', 'Nota Fiscal', 'Litros', 'Vl. Unit.', 'Posto'
             ]],
             body: empenhoRecords.map(r => {
                 const unitPrice = r.unit_price || (r.liters > 0 ? (r.cost / r.liters) : 0);
+                const fuelData = formatDateSafe(r.date);
+                
+                // Format driver with code if found, default to 34
+                const driverPerson = persons.find(p => p.name.trim().toLowerCase() === (r.driver || '').trim().toLowerCase());
+                const driverDisplay = (driverPerson && driverPerson.driver_code) 
+                    ? `${driverPerson.driver_code} - ${r.driver}`
+                    : `34 - ${r.driver || '-'}`;
+
                 return [
+                    fuelData,
                     r.derivedSector || '-',
                     r.derivedPlate || '-',
-                    r.driver || '-',
+                    driverDisplay,
                     formatNumber(r.odometer || 0),
                     r.invoiceNumber || r.fiscal || '-',
                     formatNumber(r.liters || 0),
                     formatCurrency(unitPrice),
-                    r.station || '-'
+                    formatStation(r.station || '-')
                 ];
             }),
             styles: {
@@ -69,9 +107,9 @@ export const generateEmpenhoReportPDF = (
                 fontStyle: 'bold'
             },
             columnStyles: {
-                3: { halign: 'right' }, // Odometer
-                5: { halign: 'right' }, // Liters
-                6: { halign: 'right' }  // Total cost
+                4: { halign: 'right' }, // Odometer
+                6: { halign: 'right' }, // Liters
+                7: { halign: 'right' }  // Unit Price
             },
             theme: 'grid',
             margin: { top: 40, left: 40, right: 40 }
@@ -84,7 +122,7 @@ export const generateEmpenhoReportPDF = (
             startY: (doc as any).lastAutoTable.finalY,
             body: [
                 [
-                    { content: 'Totais do Empenho:', colSpan: 4, styles: { halign: 'right' } },
+                    { content: 'Totais do Empenho:', colSpan: 5, styles: { halign: 'right' } },
                     { content: formatNumber(totalLiters) + ' L', styles: { halign: 'right' } },
                     { content: 'Total: ' + formatCurrency(totalCost), colSpan: 3, styles: { halign: 'left' } }
                 ]
@@ -109,7 +147,7 @@ export const generateEmpenhoReportPDF = (
         startY: (doc as any).lastAutoTable.finalY + 10,
         body: [
             [
-                { content: 'TOTAL GERAL NESTA REMESSA:', colSpan: 4, styles: { halign: 'right' } },
+                { content: 'TOTAL GERAL NESTA REMESSA:', colSpan: 5, styles: { halign: 'right' } },
                 { content: formatNumber(grandTotalLiters) + ' L', styles: { halign: 'right' } },
                 { content: 'Total: ' + formatCurrency(grandTotalCost), colSpan: 3, styles: { halign: 'left' } }
             ]
@@ -117,9 +155,10 @@ export const generateEmpenhoReportPDF = (
         styles: {
             fontSize: 10,
             fontStyle: 'bold',
-            fillColor: [20, 20, 40],
-            textColor: [255, 255, 255]
+            fillColor: [220, 220, 220],
+            textColor: [0, 0, 0]
         },
+        theme: 'plain',
         margin: { left: 40, right: 40 }
     });
 
